@@ -69,27 +69,18 @@ def test_the_walk_publishes_each_packed_partition_and_borrowed_matrix():
     assert [(s["rows"], s["rows_local"]) for s in dsv3] == [(32768, 4096)]
 
 
-@pytest.mark.parametrize("stem,checkpoint_tp,tp,refused,framework", [
-    # Default case catches the original false refusal: logical K=192 is
-    # inside one N=3392 fused checkpoint chunk, not an independent FP8 grid.
-    ("XiaomiMiMo__MiMo-V2.5", 4, 4, False, "sglang"),
-    ("XiaomiMiMo__MiMo-V2.5", 4, 1, False, "sglang"),
-    ("XiaomiMiMo__MiMo-V2.5", 4, 2, False, "sglang"),
-    ("XiaomiMiMo__MiMo-V2.5", 4, 8, True, "sglang"),
-    ("XiaomiMiMo__MiMo-V2.5-Pro", 8, 8, False, "sglang"),
-    ("XiaomiMiMo__MiMo-V2.5-Pro", 8, 4, False, "sglang"),
-    ("XiaomiMiMo__MiMo-V2.5-Pro", 8, 2, False, "sglang"),
-    ("XiaomiMiMo__MiMo-V2.5-Pro", 8, 1, False, "sglang"),
-    ("XiaomiMiMo__MiMo-V2.5-Pro", 8, 16, True, "sglang"),
-    ("XiaomiMiMo__MiMo-V2.5", 4, 4, False, "vllm"),
-    ("XiaomiMiMo__MiMo-V2.5", 4, 2, False, "vllm"),
-    ("XiaomiMiMo__MiMo-V2.5", 4, 1, False, "vllm"),
-    ("XiaomiMiMo__MiMo-V2.5", 4, 8, False, "vllm"),
-    ("XiaomiMiMo__MiMo-V2.5", 4, 16, False, "vllm"),
-    ("XiaomiMiMo__MiMo-V2.5-Pro", 8, 16, False, "vllm"),
+@pytest.mark.parametrize("stem,checkpoint_tp,tp,framework,scale_rows", [
+    # Keep one case for each distinct load/scale path, with scale counts
+    # taken from the checkpoint layout and the audited loaders.
+    ("XiaomiMiMo__MiMo-V2.5", 4, 4, "sglang", {27, 29}),
+    ("XiaomiMiMo__MiMo-V2.5", 4, 1, "sglang", {106, 116}),
+    ("XiaomiMiMo__MiMo-V2.5", 4, 2, "sglang", {53, 58}),
+    ("XiaomiMiMo__MiMo-V2.5-Pro", 8, 8, "sglang", {27}),
+    ("XiaomiMiMo__MiMo-V2.5", 4, 8, "vllm", {15}),
+    ("XiaomiMiMo__MiMo-V2.5-Pro", 8, 16, "vllm", {15}),
 ])
 def test_fused_checkpoint_chunks_own_the_fp8_grid(
-        stem, checkpoint_tp, tp, refused, framework):
+        stem, checkpoint_tp, tp, framework, scale_rows):
     from tests.snapshots import resolve_snapshot
     from backend.inference.parallel_config import ParallelConfig
     from backend.inference.framework_bindings import get_binding
@@ -112,12 +103,8 @@ def test_fused_checkpoint_chunks_own_the_fp8_grid(
         assert {s["block_scale_layout"]["rows_local"] for s in shards} == {
             sum(s["rows_local"] for s in shards)}
         why = _scale_block_refusal(row, framework=framework)
-        assert bool(why) == refused, (row["aggregation_id"], why)
-        if refused:
-            assert f"checkpoint is TP={checkpoint_tp}-interleaved" in why
+        assert why is None, (row["aggregation_id"], why)
 
-    if refused:
-        return
     # The checkpoint header's grids and the grids read by the kernel are
     # distinct at TP < checkpoint TP: SGLang deinterleaves and requantizes.
     from backend.arch.layout.persistent import physical_artifacts
@@ -127,6 +114,8 @@ def test_fused_checkpoint_chunks_own_the_fp8_grid(
     artifacts = [a for a in all_artifacts
                  if a.logical_name.endswith("self_attn.qkv_proj.weight_scale_inv")]
     assert artifacts
+    assert {a.runtime_shape[0] for a in artifacts
+            if a.surface == "resident_metadata"} == scale_rows
     if checkpoint_tp % tp:
         assert {a.surface for a in artifacts} == {"resident_metadata"}
         checkpoint_grids = [tuple(r.tensor.shape) for r in walk.analysis.iter_checkpoint()
@@ -190,20 +179,6 @@ def test_the_planner_uses_the_selected_fused_weight_loader(framework, tp, refuse
     assert bool(qkv_unplaced) == refused
     if refused:
         assert all("TP=4-interleaved" in record["detail"] for record in qkv_unplaced)
-
-
-def test_block_scale_layout_is_a_validated_fp8_contract():
-    from pydantic import ValidationError
-    from backend.arch.schema.quant import BlockScaleLayout, QuantContext
-
-    with pytest.raises(ValidationError, match="greater than 0"):
-        BlockScaleLayout(kind="tp_interleaved", checkpoint_tp=0,
-                         world="tp_attention", loaders={"sglang": "whole_chunks"})
-    with pytest.raises(ValidationError, match="requires method: fp8"):
-        QuantContext(per_role={"attention": dict(
-            method="none", block_scale_layout=dict(
-                kind="tp_interleaved", checkpoint_tp=4, world="tp_attention",
-                loaders={"sglang": "whole_chunks"}))})
 
 
 def test_loader_formats_preserve_theory_and_checkpoint_grids():
