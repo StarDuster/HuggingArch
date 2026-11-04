@@ -220,6 +220,7 @@ class TensorFormat:
     #: activation_formats/`), None when the kernel takes its input edge as
     #: it arrives — every checkpoint format, and W4A16.
     activation_format: Optional[str] = None
+    block_scale_layout: Any = None
 
     @property
     def method(self) -> Optional[str]:
@@ -331,11 +332,42 @@ class TensorFormat:
         """Storage for `params` logical elements, metadata included."""
         return self.weight_bytes_for(params) + self.metadata_bytes
 
+    def for_loader(self, stored: Any, local_stored: Any, *, framework: str,
+                   runtime_tp: int) -> "TensorFormat":
+        """The resident format after a declared loader merges FP8 chunks.
+
+        A matching degree loads checkpoint chunks unchanged. Other supported
+        degrees merge complete chunks or gather heads, then requantize each
+        rank's full fused matrix with the scheme's ordinary block grid.
+        """
+        contract = self.block_scale_layout
+        loader = contract.loaders.get(framework) if contract is not None else None
+        if (not loader or runtime_tp == contract.checkpoint_tp
+                or (loader == "whole_chunks" and contract.checkpoint_tp % runtime_tp)):
+            return self
+        bound = {**self.bindings, **local_stored.as_dims()}
+        # Format metadata is the whole deployment's resident storage. The
+        # physical projection below evaluates the same geometry at one rank.
+        metadata, geometries = [], []
+        siblings = {s.suffix: s for s in self.scheme.metadata_siblings}
+        for old in self.metadata:
+            sibling = siblings[old.logical_suffix]
+            axes = sibling.shape or sibling.shape_per_strategy[
+                scale_strategy_of(self.scheme, self.bindings)]
+            shape = tuple(_cardinality(axis, bound) for axis in axes)
+            metadata.append(replace(old, shape=(shape[0] * runtime_tp, *shape[1:])))
+            geometries.append(MetadataGeometry(
+                suffix=sibling.suffix, axes=tuple(axes), cardinality=None,
+                stored_transform=_metadata_stored_transform(stored, axes)))
+        return replace(self, metadata=tuple(metadata),
+                       metadata_geometry=tuple(geometries))
+
     def project_metadata(
         self,
         stored: Any,
         *,
         local_symbols: Optional[Mapping[str, Any]] = None,
+        runtime_tp: int = 1,
     ) -> Tuple[Any, ...]:
         """Instantiate metadata beside a projected stored tensor.
 
@@ -353,6 +385,14 @@ class TensorFormat:
                 f"tensors but {len(self.metadata_geometry)} geometry declarations"
             )
         projected = dict(local_symbols or {})
+        if self.block_scale_layout is not None:
+            # At a supported degree each rank owns this many complete
+            # checkpoint chunks. Unsupported degrees retain a conservative
+            # analytical projection; only the planner claims loadability.
+            checkpoint_tp = self.block_scale_layout.checkpoint_tp
+            projected["checkpoint_tp"] = (
+                checkpoint_tp // runtime_tp if checkpoint_tp % runtime_tp == 0
+                else checkpoint_tp)
         conflicting = sorted(
             name
             for name in set(projected).intersection(self.bindings)
@@ -994,6 +1034,8 @@ class FormatPolicy:
         # widens the vocabulary without reopening the hijack: a node dim named
         # `in` cannot displace the stored tensor's.
         bound = {**(node_dims or {}), **config, **dims, "num_bits": bits}
+        if entry.block_scale_layout is not None:
+            bound["checkpoint_tp"] = entry.block_scale_layout.checkpoint_tp
         # A cardinality formula is written about the WEIGHT — `(in/block_h) *
         # (out/block_w)`, `(in*out)/group_size` — so `in` and `out` have to be
         # the weight's own two dims. Whatever is bound under those names in the
@@ -1092,6 +1134,7 @@ class FormatPolicy:
                             metadata=tuple(metadata), selected_by=why,
                             variant=variant, scheme=scheme, bindings=config,
                             metadata_geometry=tuple(metadata_geometry),
+                            block_scale_layout=entry.block_scale_layout,
                             # What this scheme's own kernel does to the
                             # activation operand (`activation:`). A
                             # deployment's weight rule overrides it with the

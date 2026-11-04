@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import re
-from typing import (Any, Dict, Iterator, List, Optional,
+from typing import (Any, Dict, Iterator, List, Literal, Optional,
                     Tuple)
 
 from pydantic import (BaseModel, ConfigDict, Field, field_validator,
@@ -78,6 +78,23 @@ def _valid_quant_shape(
 
 
 
+class BlockScaleLayout(BaseModel):
+    """A checkpoint whose complete fused row chunks own independent FP8 grids.
+
+    A loader can merge whole chunks, or gather individual heads from them,
+    and requantize a fresh rank-local scale grid. Logical projection segments
+    do not define the scale-block boundaries.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal["tp_interleaved"]
+    checkpoint_tp: int = Field(gt=0)
+    world: str
+    loaders: Dict[Literal["sglang", "vllm"],
+                  Literal["whole_chunks", "head_gather"]]
+
+
 class PerRoleEntry(BaseModel):
     """One row of `quant_context.per_role`. `method` routes to a yaml
     under `backend/arch/quant_schemes/`; remaining fields are
@@ -92,6 +109,8 @@ class PerRoleEntry(BaseModel):
     method: Optional[str] = None
     dtype: Optional[str] = None
     scale_shape: Optional[List[str]] = None
+    block_scale_layout: Optional[BlockScaleLayout] = Field(
+        default=None, exclude_if=lambda v: v is None)
     # Scheme-specific config fields are passed through verbatim.
     model_config = {"extra": "allow"}
 
@@ -241,12 +260,12 @@ class OverrideEntry(BaseModel):
     # Resolved against the weight's own `in`/`out` plus the node's dims.
     #
     # A layout, not a policy — which is why it lives on the model and not in
-    # the scheme. MiMo blocks the K segment of a QKV projection per HEAD while
-    # blocking Q and V flat, in both the fused and the split form, over five
-    # checkpoints: `n_kv_heads * ceil(d_head/block_h)` where the scheme says
-    # `ceil(out/block_h)`. Naming that a scheme "strategy" would assert that
-    # some quantiser blocks this way as a rule; it is what one exporter did.
+    # the scheme. MiMo's split K projection can be blocked per head, while
+    # its fused QKV checkpoints carry independent grids per interleaved TP
+    # chunk. These are exporter layouts; they do not redefine the scheme.
     scale_shape: Optional[List[str]] = None
+    block_scale_layout: Optional[BlockScaleLayout] = Field(
+        default=None, exclude_if=lambda v: v is None)
     # `auto_imported: true` marks entries auto-translated from
     # `config.quantization_config.ignore`. Used by the regen
     # pipeline so manual entries survive a spec re-generation while
@@ -465,10 +484,14 @@ class QuantContext(BaseModel):
             _validate_quant_entry_fields(
                 f"quant_context.per_role.{role}", entry.method,
                 set(entry.model_extra or {}), entry.scale_shape)
+            if entry.block_scale_layout is not None and entry.method != "fp8":
+                raise ValueError("block_scale_layout requires method: fp8")
         for index, entry in enumerate(self.overrides):
             _validate_quant_entry_fields(
                 f"quant_context.overrides[{index}]", entry.method,
                 set(entry.model_extra or {}), entry.scale_shape)
+            if entry.block_scale_layout is not None and entry.method != "fp8":
+                raise ValueError("block_scale_layout requires method: fp8")
         selectors = []
         for index, entry in enumerate(self.overrides):
             selector = entry.select

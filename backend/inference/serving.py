@@ -372,7 +372,11 @@ def build_serving_layers(cell: Any, *,
     # selector gaps nothing had answered.
     apply_launches = bool(launches) or bool(
         unavailable_launches and framework_binding.deployment.peak_families)
-    if apply_launches or required:
+    loaded = (analysis.with_load_formats(framework_binding.framework)
+              if framework_binding is not None else analysis)
+    load_changed = loaded is not analysis
+    analysis = loaded
+    if apply_launches or required or load_changed:
         # The binding has already answered each launch's `when:` for this
         # deployment. Materialize the ordered candidates before access reads
         # matmul dtypes: the walk's scheme says what a checkpoint allows,

@@ -682,13 +682,25 @@ class _PhysicalJoin:
             )
         runtime_stored = replace(tensor, shape=weight.runtime_shape)
         local_symbols = dict(weight.runtime_symbol_extents)
+        saved_layout = rep.saved.block_scale_layout
+        saved_tp = (self.analysis.rule.world_degree(saved_layout.world)
+                    if saved_layout is not None else 1)
+        # Checkpoint grids belong to complete chunks. A head-gather loader
+        # can requantize a finer runtime shard, but that does not give the
+        # source scales a contiguous rank-local grid. Keep their global
+        # checkpoint representation and omit an unknown physical surface.
+        projects_saved = (saved_layout is None
+                          or saved_layout.checkpoint_tp % saved_tp == 0)
         projected_saved = rep.saved.project_metadata(
             runtime_stored,
             local_symbols=local_symbols,
-        ) if rep.saved.metadata else ()
+            runtime_tp=saved_tp,
+        ) if rep.saved.metadata and projects_saved else ()
         projected_resident = rep.resident.project_metadata(
             runtime_stored,
             local_symbols=local_symbols,
+            runtime_tp=(self.analysis.rule.world_degree(rep.resident.block_scale_layout.world)
+                        if rep.resident.block_scale_layout is not None else 1),
         ) if rep.resident.metadata else ()
 
         surfaces = [(STORED, None, tensor, runtime_stored, None)]
@@ -696,7 +708,8 @@ class _PhysicalJoin:
             (SAVED_METADATA, index, metadata, local,
              rep.saved.metadata_geometry[index])
             for index, (metadata, local) in enumerate(
-                zip(rep.saved.metadata, projected_saved, strict=True)
+                zip(rep.saved.metadata if projects_saved else (),
+                    projected_saved, strict=True)
             )
         )
         surfaces.extend(

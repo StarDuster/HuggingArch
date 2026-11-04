@@ -44,7 +44,8 @@ LEGACY_DROP = "legacy_drop"
 
 
 
-def _scale_block_refusal(row: Dict[str, Any]) -> Optional[str]:
+def _scale_block_refusal(row: Dict[str, Any], *,
+                         framework: str = DEFAULT_FRAMEWORK) -> Optional[str]:
     """Why a deployment with this per-rank shape cannot load, when a weight
     it multiplies carries a BLOCK scale — or None when it can.
 
@@ -74,6 +75,12 @@ def _scale_block_refusal(row: Dict[str, Any]) -> Optional[str]:
     uncut partitions one weight packs at most ONE may end mid-block (the
     order they are packed in is the framework's; sglang wants every merged
     partition whole and avoids DeepSeek-V3's case by not merging it).
+
+    An explicit `block_scale_layout` can instead state that checkpoint TP
+    chunks own the grids. The selected loader either merges whole chunks
+    (SGLang) or gathers heads (vLLM), then requantizes a fresh rank-local
+    fused grid. Logical Q/K/V boundaries need no block alignment on those
+    paths. See docs/fp8_tp_interleaved.md for the audited source contracts.
 
     A per-GROUP scale (GPTQ / AWQ, Marlin) is refused on a ragged reduction
     width whether or not it was cut: Marlin and AWQ raise on a K that is
@@ -110,6 +117,24 @@ def _scale_block_refusal(row: Dict[str, Any]) -> Optional[str]:
         grouped = gran.startswith("per-group:")
         if width_k and shard.k_local % width_k and (shard.cuts_k or grouped):
             return refusal("d_reduce", shard.k_local, width_k)
+        layout = shard.block_scale_layout
+        loader = (layout["loaders"].get(framework) if layout is not None
+                  and layout["kind"] == "tp_interleaved" else None)
+        if loader:
+            checkpoint_tp = int(layout["checkpoint_tp"])
+            runtime_tp = int(layout["runtime_tp"])
+            if loader == "whole_chunks" and checkpoint_tp % runtime_tp:
+                return (f"the fused weight checkpoint is TP={checkpoint_tp}-interleaved; "
+                        f"{framework} requires attention TP to divide that degree, "
+                        f"got TP={runtime_tp}")
+            # SGLang loads whole checkpoint chunks at matching TP. At lower
+            # TP it dequantizes those chunks, deinterleaves Q/K/V and
+            # requantizes the entire fused rank matrix, padding its final
+            # block. vLLM can also gather individual heads from those
+            # chunks and requantize at higher TP, replicating KV as needed.
+            # Neither loader cuts scale blocks at logical Q/K/V boundaries.
+            # The reduction-axis check above still applies.
+            continue
         if not width_n or not shard.n_local % width_n:
             continue
         if shard.cuts_n:
@@ -823,7 +848,7 @@ def _build_jobs_over_points(
                 # serialization of it.
                 row_dtype_env_json = point.dtype_env_json
                 row_dtype_env = json.loads(row_dtype_env_json)
-                unshardable = _scale_block_refusal(row)
+                unshardable = _scale_block_refusal(row, framework=framework)
                 if unshardable:
                     agg = str(row.get("aggregation_id", "") or op)
                     note = f"{op} [{agg}]: {unshardable}"
