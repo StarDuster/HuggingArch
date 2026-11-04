@@ -1,0 +1,27 @@
+# MoE FFN with one wide shared expert AND aux-loss-free (noaux_tc)
+# sigmoid routing + per-expert correction bias. Used by: Moonlight.
+#
+# HF tensor naming this matches:
+#   <moe>.gate.weight                  → router_noaux_tc.gate (linear)
+#   <moe>.gate.e_score_correction_bias → router_noaux_tc.gate.e_score_correction_bias
+#   <moe>.shared_experts.{gate,up,down}_proj  (single wide SwiGLU, d_ffn=d_ffn_shared)
+#
+# Differs from `moe_ffn_gate_routing_bias` only in shared expert width:
+# Moonlight stores n_shared_experts as a single wide SwiGLU with
+# d_ffn = d_ffn_expert × n_shared_experts (= d_ffn_shared) rather than n_shared_experts narrow copies.
+# Routing pipeline is identical and lives in `router_noaux_tc`.
+#
+# Required dims: d_model, d_ffn_expert, d_ffn_shared, n_experts, n_experts_active
+# Optional dims: n_route_targets (the gate's width, derived),
+#                n_expert_groups (n_group), n_groups_active (topk_group) — required, the router reads them
+
+role: ffn_moe
+description: "moe_ffn_with_scaled_shared + noaux_tc routing. Moonlight."
+graph:
+  gate:          { op: router_noaux_tc, in: x }
+  permute:       { op: permute, in: [x, gate] }
+  experts:        { op: gated_experts, role: ffn_moe, in: permute, dims: { d_model: d_model, d_ffn: d_ffn_expert }, expert_weight: unrolled }
+  combine:       { op: combine, in: [experts, gate] }
+  shared_experts: { op: swiglu_ffn, in: x, dims: { d_model: d_model, d_ffn: d_ffn_shared } }
+  moe_out:       { op: add, in: [combine, shared_experts], dim: d_model }
+outputs: [moe_out]

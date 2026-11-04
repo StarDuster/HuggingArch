@@ -1,0 +1,39 @@
+# Inkling short convolution: a depthwise causal conv1d that carries its own
+# residual, `y = x + conv(x)`, over a window of the last kernel_size inputs.
+#
+# One source module, four call sites per decoder layer: the projected K and V
+# inside the attention (`attn.k_sconv`, `attn.v_sconv`) and the attention and
+# MLP OUTPUTS before the block's residual add (`attn_sconv`, `mlp_sconv`).
+#   HF   modeling_inkling.py InklingShortConvolution.forward (:500-542): the
+#        conv runs on the input and `hidden_states + residual` is returned.
+#   vLLM models/inkling/nvidia/short_conv.py InklingShortConv.forward:
+#        `fused_sconv(..., use_residual=True)`.
+#
+# Conv state, in the serving form. vLLM keeps the four streams of a layer as
+# one sliding-window cache (sconv_swa_attn.py InklingConvState:
+# `sliding_window = block_size = kernel_size`), so each stream holds its last
+# kernel_size input rows at the model dtype (bf16). The HF cache keeps the
+# same kernel_size columns but in fp32 (the conv runs in fp32); this models
+# serving. vLLM packs the four streams head-major and pads each head's width
+# to a power of two (2048 for a global layer's 1792); that page padding is not
+# modeled.
+#
+# The checkpoint stores the conv weight directly on the module
+# (`attn_sconv.weight`, `attn.k_sconv.weight`; vLLM `self.weight`), so the
+# conv node is no module level of its own.
+#
+# Placement of the conv channels: K/V convs follow the attention's KV-head
+# split (vLLM narrows each to its rank's heads); the residual-stream convs on
+# `d_model` are held whole. vLLM runs those on the reduce-scattered residual
+# (`hidden_size // tp` channels per rank), a split `d_model` does not admit
+# here, so per rank their weight and state are counted unsplit.
+#
+# Required dims (call site): C (channels), kernel_size.
+description: "Inkling depthwise causal short conv with its own residual (x + conv(x)) and a kernel_size-row conv state. Inkling K/V and attention/MLP-output streams."
+cache:
+  entries:
+    - { state: conv_state, kind: conv_state, carrier: conv, shape: [C, kernel_size] }
+graph:
+  conv:     { op: conv1d, in: x, module: null, dims: { C: C, C_in: C, C_out: C, kernel_size: kernel_size, dilation: "1", groups: C, bias: "0" }, weight_axes: [{ placement_by_symbol: { n_kv_heads: { world: attention, parts: n_kv_heads, fit: replica_cells }, n_kv_heads_swa: { world: attention, parts: n_kv_heads_swa, fit: replica_cells }, d_model: { replicated: true } } }, { replicated: true }, { replicated: true }] }
+  residual: { op: add, in: [x, conv], dim: C }
+outputs: [residual]

@@ -1,0 +1,51 @@
+# DeepSeek-V4 MoE FFN with sqrtsoftplus + correction-bias routing.
+# Used by every score-routed MoE layer (layer index >= num_hash_layers) and
+# the MTP block.
+#
+# Tensor naming (matches the V4 inference checkpoint):
+#   <ffn>.gate.weight               → routing-gate Linear (d_model → n_experts), no bias
+#   <ffn>.gate.bias                 → per-expert correction bias
+#   <ffn>.experts.<i>.w[123].weight → routed expert clamped SwiGLU (FP4 packed; swiglu_ffn_clamped)
+#   <ffn>.shared_experts.w[123]     → single wide shared expert, clamped SwiGLU (FP8)
+#
+# Routing math (forward, model.py::Gate.forward):
+#   scores = sqrt(softplus(linear(x)))            # sqrtsoftplus, no sigmoid
+#   biased = scores + bias                         # bias shifts top-K selection
+#   topk_indices = topk(biased, n_experts_active)
+#   topk_weights = scores.gather(topk_indices) / sum(...) * route_scale
+#
+# `gate` is an nn.Module submodule of the FFN — its Linear weight +
+# correction bias both nest under `<ffn>.gate.` in the checkpoint.
+# The spec mirrors this with dotted node names (`gate.weight`,
+# `gate.bias`); no `primary:` fold — the FFN wrapper has no single
+# representative tensor (experts dominate the param count).
+#
+# Required dims: d_model, d_ffn_expert, d_ffn_shared, n_experts,
+# n_experts_active, n_shared_experts (shared-expert width multiplier).
+# Optional dims: n_route_targets (the gate's width, derived).
+
+role: ffn_moe
+# model.py MoE.forward(x, input_ids): every V4 MoE receives the token ids;
+# the score-routed gate does not read them (`dsv4_moe_hash` does).
+inputs: [x, input_ids]
+description: "DeepSeek-V4 MoE: sqrtsoftplus + top-level correction bias + 1 wide shared expert."
+graph:
+  # `gate` is DSv4's custom `Gate` nn.Module — `gate.weight` is a bare
+  # nn.Parameter on it (NOT an nn.Linear's `.weight`), so `linear_param`
+  # (suffix "") gives the checkpoint name `<ffn>.gate.weight` directly.
+  gate.weight:             { op: linear_param, role: router, in: x, dims: { in: d_model, out: n_route_targets }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  gate.bias:               { op: parameter_vector, role: router, dim: n_route_targets, weight_axes: [{ replicated: true }] }
+  # model.py::Gate.forward (score_func "sqrtsoftplus"): F.softplus(scores).sqrt()
+  softplus:                { op: softplus, in: gate.weight, dim: n_route_targets }
+  scores:                  { op: sqrt, in: softplus, dim: n_route_targets }
+  scores_biased:           { op: add, in: [scores, gate.bias], dim: n_route_targets }
+  topk_indices:            { op: topk, in: scores_biased, dims: { in: n_route_targets, k: n_experts_active } }
+  topk_gather:             { op: gather, in: [scores, topk_indices], dims: { in: n_route_targets, k: n_experts_active } }
+  topk_norm:               { op: normalize_sum_one, in: topk_gather, dims: { in: n_experts_active } }
+  topk_scale:              { op: scale_const, in: topk_norm, dims: { in: n_experts_active } }
+  permute:                 { op: permute, in: [x, topk_scale] }
+  experts:                 { op: clamped_gated_experts, role: ffn_moe, in: permute, dims: { d_model: d_model, d_ffn: d_ffn_expert }, expert_weight: unrolled, inner_modules: { gate_proj: w1, up_proj: w3, down_proj: w2 } }
+  combine:                 { op: combine, in: [experts, topk_scale] }
+  shared_experts:          { op: swiglu_ffn_clamped, in: x, dims: { d_model: d_model, d_ffn: d_ffn_shared }, inner_modules: { gate_proj: w1, up_proj: w3, down_proj: w2 } }
+  out:                     { op: add, in: [combine, shared_experts], dim: d_model }
+outputs: [out]

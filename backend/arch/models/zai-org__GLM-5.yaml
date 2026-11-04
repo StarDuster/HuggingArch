@@ -1,0 +1,4 @@
+# Identity file for zai-org/GLM-5
+base: glm_moe_dsa
+match:
+  model_id: [zai-org/GLM-5]

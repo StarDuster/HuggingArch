@@ -1,0 +1,95 @@
+# DeepSeek-V4.1-Flash MoE with a vision-specific routing bias.
+#
+# Forward (source/model.py:809-827 Gate.forward, :889-904 MoE.forward):
+#   scores  = linear(x.float(), self.weight.float()) / self.gate_temp
+#   scores  = F.softplus(scores).sqrt()                  # score_func "sqrtsoftplus"
+#   bias    = torch.where(image_mask.unsqueeze(-1), self.bias_vl, bias)
+#   indices = (scores + bias).topk(self.topk, dim=-1)[1] # bias steers selection only
+#   weights = scores.gather(1, indices)                  # ...weights come from raw scores
+#   weights /= weights.sum(dim=-1, keepdim=True) + 1e-20 # norm_topk_prob
+#   weights *= self.route_scale                          # routed_scaling_factor 1.5
+#   y = Σ_i expert_i(x[idx]) · weights ; y += self.shared_experts(x)
+#
+# Why not `library/dsv4_moe_sigmoid.yaml` (read in full, 48 lines): its graph is
+#   gate.weight → softplus → sqrt → add(gate.bias) → topk → gather → ...
+# which is the same spine, but it has exactly ONE bias node and no gate
+# temperature. V4.1 stores TWO F32 correction biases per layer —
+# `pattern_counts` (snapshot:2326-2327) has `ffn.gate.bias` ×40 AND
+# `ffn.gate.bias_vl` ×40 — selected per token by `image_mask`
+# (`self.bias_vl = nn.Parameter(...) if args.vision_enabled else None`,
+# source/model.py:807). A reuse would leave 43 F32 [n_experts] tensors
+# with no reader, and would drop the `/ gate_temp` divide.
+#
+# The experts themselves ARE the library component: `library/swiglu_ffn_clamped.yaml`
+# matches `Expert.forward` (source/model.py:841-851) node for node — clamp(gate,
+# max=limit), clamp(up, ±limit), silu, mul, down — with `inner_modules` renaming
+# gate/up/down to the checkpoint's w1/w3/w2 (source/model.py:836-838).
+#
+# Required dims: d_model, n_experts, n_experts_active, n_expert_copies,
+#                d_ffn_expert, d_ffn_shared.
+
+role: ffn_moe
+description: "DSv4.1 MoE: sqrt-softplus router with a gate temperature and twin F32 correction biases (text + image span), noaux_tc top-k, renormalized and route-scaled, clamped-SwiGLU experts plus one shared expert."
+
+graph:
+  # `linear(x.float(), self.weight.float())` — no bias term on the projection
+  # itself; the two correction biases below are separate parameters.
+  gate.weight:    { op: linear_param, role: router, in: x, dims: { in: d_model, out: n_experts }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  gate_temp:      { op: scale_const, in: gate.weight, dims: { in: n_experts }, formula: "y = gate.weight / gate_temp   (source/model.py:811 `... / self.gate_temp`)" }
+  softplus:       { op: softplus, in: gate_temp, dim: n_experts }
+  scores:         { op: sqrt, in: softplus, dim: n_experts }
+
+  # The two correction biases. `bias` is the text bias, `bias_vl` the one used
+  # for tokens inside an image span; `torch.where(image_mask.unsqueeze(-1), ...)`
+  # is a per-token select between them, so exactly one is read per token and the
+  # select itself moves no data beyond the [n_experts] row it picks.
+  #
+  # Spelling the select with registered ops: the two rows are `concat`-ed into
+  # one [2 * n_experts] pair — a view, zero FLOPs, which is what gives
+  # `bias_vl` its graph reader — and the row the step uses is taken back out with
+  # a `slice`, also a view. `torch.where` adds no arithmetic: it reads one of the
+  # two rows per token, so the pair + slice is the whole cost of the step, and no
+  # mask-multiply/add arithmetic is invented for it. The slice takes the leading
+  # (text) row because the analysed sequences carry no image span — with
+  # `image_mask` all-False, `where` returns `bias` for every token. Both axes are
+  # replicated, so the slice is a whole shard cell on every rank.
+  gate.bias:      { op: parameter_vector, role: router, dim: n_experts, weight_axes: [{ replicated: true }] }
+  gate.bias_vl:   { op: parameter_vector, role: router, dim: n_experts, weight_axes: [{ replicated: true }] }
+  bias_pair:
+    op: concat
+    in: [gate.bias, gate.bias_vl]
+    dims: { in_a: n_experts, in_b: n_experts, out: "2 * n_experts" }
+    formula: "the two stored correction-bias rows side by side (source/model.py:807 `self.bias_vl = nn.Parameter(...)`, :813 `bias = self.bias`): the pair `torch.where` picks one row from, per token"
+  bias_select:
+    op: slice
+    in: bias_pair
+    dims: { in: "2 * n_experts", out: n_experts, start: "0" }
+    formula: "bias = where(image_mask.unsqueeze(-1), bias_vl, bias)   (source/model.py:818-820) — one of the two rows per token, the text row for every token of an image-free sequence"
+
+  scores_biased:  { op: add, in: [scores, bias_select], dim: n_experts }
+  topk_indices:   { op: topk, in: scores_biased, dims: { in: n_experts, k: n_experts_active } }
+  # gathered from the UNBIASED scores — "the bias picks experts but does not
+  # scale them" (source/model.py:821).
+  topk_gather:    { op: gather, in: [scores, topk_indices], dims: { in: n_experts, k: n_experts_active } }
+  topk_norm:      { op: normalize_sum_one, in: topk_gather, dims: { in: n_experts_active } }
+  topk_scale:     { op: scale_const, in: topk_norm, dims: { in: n_experts_active }, formula: "y = topk_norm · route_scale   (routed_scaling_factor 1.5)" }
+
+  permute:        { op: permute, in: [x, topk_scale] }
+  experts:
+    op: clamped_gated_experts
+    role: ffn_moe
+    in: permute
+    dims: { d_model: d_model, d_ffn: d_ffn_expert }
+    expert_weight: unrolled
+    inner_modules: { gate_proj: w1, up_proj: w3, down_proj: w2 }
+  combine:        { op: combine, in: [experts, topk_scale] }
+  # `assert args.n_shared_experts == 1` (source/model.py:886) — one shared
+  # expert at the same moe_inter_dim, run on every token, added after the
+  # routed sum (source/model.py:903 `y += self.shared_experts(x)`).
+  shared_experts:
+    op: swiglu_ffn_clamped
+    in: x
+    dims: { d_model: d_model, d_ffn: d_ffn_shared }
+    inner_modules: { gate_proj: w1, up_proj: w3, down_proj: w2 }
+  out:            { op: add, in: [combine, shared_experts], dim: d_model }
+outputs: [out]

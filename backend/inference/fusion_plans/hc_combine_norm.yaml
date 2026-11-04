@@ -1,0 +1,52 @@
+# Qwen3.8 Hyper-Connection write fused with the next read's grouped norm:
+# add the sub-block output onto every residual copy, scaled by
+# 2 * sigmoid(injection / hc), then RMS-normalise each copy, * (1 + w).
+#
+#   residual_add = residual + bcast(block) * 2 * sigmoid(injection / hc)
+#   normed_x     = rms_per_copy(residual_add) * (1 + w)
+#
+# Naive subgraph (qwen_hc_*_block): attn_inject_scale, attn_inject_sig,
+# attn_inject_gate, attn_inject_exp, attn_bcast, attn_write, attn_residual,
+# then mlp_hyper_connection.hc_norm_rms, mlp_merge, mlp_hyper_connection.hc_norm.
+# Exposes the combined stream (`residual_add`) and the normed one.
+#
+# vLLM (v0.32.0): `hc_combine_norm` (models/qwen4_exp/nvidia/ops/hc.py:480,
+#   kernel `_hc_combine_norm_kernel` :273; injection gate :322-324, residual
+#   add :327, norm :332-345), from hyperconnection.py:190
+#   (`combine_and_mix`), called for the MLP read after attention inside a
+#   layer (model.py:344) and for a layer's attention read after the previous
+#   layer's MLP (model.py:322). Only the first lies in one component scope;
+#   the cross-layer one is the HC seam a match cannot cross, and stays billed
+#   unfused. Qwen4Exp only.
+# sglang (v0.5.22): `hc_combine_apply_norm`
+#   (kernels/ops/elementwise/hc_combine_decode.py:41, kernel
+#   `hc_combine_norm_decode_kernel`, jit/csrc/elementwise/
+#   hc_combine_decode.cuh:60), from GatedResidual.combine_and_normalize
+#   (srt/layers/hyperconnection.py:344) — decode only, one token in the
+#   forward, bf16, capability major 10, 4 copies of 2560 (the binding's
+#   `when:`); every other step runs the combine alone
+#   (kernels/ops/elementwise/hc_combine.py:48 / :115) with the norm
+#   unfused. Its `injection` operand is the gate dot's 8 fp32 split
+#   partials (hc_combine_decode.py:25), one value in another encoding.
+
+fused_op: hc_combine_norm
+
+naive_pattern:
+  nodes:
+    injection_scale:     { op: scale_const,      inputs: [external.injection] }
+    injection_sigmoid:   { op: sigmoid,          inputs: [injection_scale.out] }
+    injection_gate:      { op: scale_const,      inputs: [injection_sigmoid.out] }
+    injection_broadcast: { op: broadcast,        inputs: [injection_gate.out] }
+    block_broadcast:     { op: broadcast,        inputs: [external.block] }
+    write:               { op: mul,              inputs: [block_broadcast.out, injection_broadcast.out] }
+    residual_add:        { op: add,              inputs: [external.residual, write.out] }
+    rmsnorm:             { op: rmsnorm_unscaled, inputs: [residual_add.out] }
+    merge:               { op: view_merge,       inputs: [rmsnorm.out] }
+    norm:                { op: mul,              inputs: [merge.out, external.weight] }
+  io_mapping:
+    injection:    external.injection
+    block:        external.block
+    residual:     external.residual
+    weight:       external.weight
+    residual_out: residual_add.out
+    output:       norm.out

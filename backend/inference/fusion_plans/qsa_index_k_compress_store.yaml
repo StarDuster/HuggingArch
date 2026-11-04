@@ -1,0 +1,57 @@
+# Qwen QSA indexer key compression: mean-pool each completed block of
+# compress_ratio raw keys, Gemma RMSNorm, partial MRoPE at the block's first
+# position, and store the pooled key into the compressed cache — one launch.
+#
+# Naive subgraph (qwen_qsa_key_pool, and its decode form
+# qwen_qsa_key_pool_decode):
+#
+#   s        = sum(view_split(raw_key))      # index_k_sum — the ring's carrier
+#   k        = rmsnorm_unscaled(s / m) * w
+#   k        = concat(mrope(k[..., :d_rope]), k[..., d_rope:])
+#   compress = token_pool_compressor(k)      # the cached entry
+#
+# The prefill form slices the step to whole blocks before the view; that
+# slice is a view and stays outside.
+#
+#   vLLM (audited at v0.32.0): inside the one `qsa_prepare` launch
+#     (models/qwen4_exp/nvidia/ops/qsa_prepare.py:504; one work item per
+#     completed block, :296-...) with the query prep — see
+#     `qsa_index_q_norm_rope` for the dispatch condition and why the query
+#     side is a separate node here. A block is pooled only when it completes,
+#     which is what the decode key-pool form prices.
+#   sglang (audited at v0.5.22), PREFILL only: `update_key_state_and_compress`
+#     (srt/layers/attention/qsa/qsa_indexer.py:288-367) →
+#     `_fused_compress_store` (:230-264) → `qsa_index_k_compress_store`
+#     (kernels/ops/attention/qsa_indexer.py:143), "mean -> gemma norm ->
+#     MRoPE -> compressed-cache store", for extend, for paged decode and in the
+#     CUDA-graph decode replay, under the same `_use_fused_prep` as the query
+#     kernel (`_use_fused_compress`, :223-228). The raw-key ring write is in
+#     sglang's query launch, not this one; the bytes are the same, they move
+#     between the two nodes. Its DECODE is not this computation and is not
+#     bound: under sglang's default CUDA graph `_compress_decode_cuda_graph`
+#     (:369-393) compresses every decoded row every step, sending rows that
+#     complete no block to the reserved dump slot (qsa/graph_metadata.py:
+#     124-127), while this component pools one completed block per
+#     compress_ratio steps. That law is vLLM's and the reference's, so it
+#     stays; sglang's graph-replay decode would need its own, and claiming
+#     this launch over the law we do price would put a kernel's name on work
+#     of another shape.
+
+fused_op: qsa_index_k_compress_store
+
+naive_pattern:
+  nodes:
+    key_window:   { op: view_split,            inputs: [external.raw_key] }
+    key_sum:      { op: sum_reduce,            inputs: [key_window.out] }
+    key_mean:     { op: scale_const,           inputs: [key_sum.out] }
+    rmsnorm:      { op: rmsnorm_unscaled,      inputs: [key_mean.out] }
+    norm:         { op: mul,                   inputs: [rmsnorm.out, external.weight] }
+    rope_slice:   { op: slice,                 inputs: [norm.out] }
+    norope_slice: { op: slice,                 inputs: [norm.out] }
+    rope:         { op: mrope,                 inputs: [rope_slice.out] }
+    concat:       { op: concat,                inputs: [rope.out, norope_slice.out] }
+    compress:     { op: token_pool_compressor, inputs: [concat.out] }
+  io_mapping:
+    raw_key: external.raw_key
+    weight:  external.weight
+    output:  compress.out

@@ -1,0 +1,35 @@
+# Gemma-4's MoE-layer tail: the dense-MLP branch norm, the MoE branch norm,
+# their sum, the post-FFN norm, the residual add and the per-layer scalar,
+# in one launch.
+#
+# Naive subgraph (a gemma-4 layer with `enable_moe_block`):
+#
+#   h = rmsnorm(rmsnorm(mlp_out) + rmsnorm(moe_out))
+#   y = (h + residual) * layer_scalar
+#
+#   sglang (audited at v0.5.22): `Gemma4DecoderLayer._next_stream`
+#     (srt/models/gemma4_causal.py:752-791) calls
+#     `gemma_dual_rmsnorm_residual_scalar` (kernels/ops/layernorm/gemma4_fused_ops.py:322)
+#     for a MoE layer with no per-layer input (PLE), on CUDA/XPU, for 2-D
+#     hidden states, and returns. The dense layer's tail is the 3-node
+#     `gemma_rmsnorm_residual_scalar`; this plan is larger and tried first.
+#     The same in prefill and decode.
+#   vLLM (audited at v0.32.0): separate ops — not bound.
+#
+# No corpus model has the MoE block yet; the plan is checked on a synthetic
+# graph (test_eval_fusion `test_gemma4_moe_tail_is_the_dual_kernel`).
+
+fused_op: gemma_dual_rmsnorm_residual_scalar
+
+naive_pattern:
+  nodes:
+    mlp_norm:   { op: rmsnorm, inputs: [external.mlp_out] }
+    moe_norm:   { op: rmsnorm, inputs: [external.moe_out] }
+    branch_add: { op: add,     inputs: [mlp_norm.out, moe_norm.out] }
+    norm:       { op: rmsnorm, inputs: [branch_add.out] }
+    add:      { op: add,     inputs: [external.residual, norm.out] }
+    scale:    { op: mul,     inputs: [add.out, external.scalar] }
+  io_mapping:
+    residual: external.residual
+    scalar:   external.scalar
+    output:   scale.out

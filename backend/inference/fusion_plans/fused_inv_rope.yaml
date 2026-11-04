@@ -1,0 +1,47 @@
+# DeepSeek-V4 attention output un-rotation.
+#
+# Naive subgraph: the attention output's last d_qk_rope dims are rotated
+# back with conjugate frequencies and re-joined before the grouped output
+# projection (inference/model.py `apply_rotary_emb(o[..., -rd:], freqs_cis,
+# True)`):
+#
+#   out_rope_slice, out_norope_slice = slice(attn_out), slice(attn_out)
+#   out_concat = concat(out_norope_slice, rope_emb_inverse(out_rope_slice))
+#
+# vLLM (audited at v0.32.0) runs it as one kernel, `fused_inv_rope_fp8_quant`
+# (vllm/models/deepseek_v4/common/ops/fused_inv_rope_fp8_quant.py:352, called
+# from `deep_gemm_fp8_o_proj`, vllm/models/deepseek_v4/nvidia/ops/o_proj.py:66):
+# it reads o, un-rotates the rope dims and writes the block-scaled FP8 o the
+# wo_a einsum reads — one read and one write of o. (sglang v0.5.22 un-rotates
+# in place with `fused_rope_inplace(..., inverse=True)` and quantizes in a
+# separate call, srt/models/deepseek_v4.py:2534-2540 and :2588; its fused
+# alternatives fold the rope into the wo_a GEMM, :2504-2512 and :2544-2552, or (ROCm gfx950 aiter_sparse) into attention, :2429-2440.
+# None has this plan's boundary, so the sglang binding does not bind it.)
+# The fused node's traffic is its boundary: o in, o out.
+
+fused_op: fused_inv_rope
+
+naive_pattern:
+  nodes:
+    out_rope_slice:   { op: slice,            inputs: [external.attn_out] }
+    out_norope_slice: { op: slice,            inputs: [external.attn_out] }
+    out_rope:         { op: rope_emb_inverse, inputs: [out_rope_slice.out] }
+    out_concat:       { op: concat,           inputs: [out_norope_slice.out, out_rope.out] }
+    quant:            { op: quantise_activation, inputs: [out_concat.out], optional: true }
+  io_mapping:
+    attn_out: external.attn_out
+    output:   quant.out
+
+# Output contract: the launch writes a new buffer, so the whole of o crosses
+# it on both sides. The quantisation is the optional `quant` member — the
+# `quantise_activation` cast the wo_a einsum's FP8 operand needs, where it
+# reads this launch's output — directly, or through views that keep every
+# scale group whole (DeepSeek-V4 merges o's heads and splits it into the
+# output-LoRA groups before `wo_a`; fusion reads through those,
+# `fusion.ViewChains`). The declaration below is what says this is
+# not an in-place un-rotation: absent it the
+# byte price would read the absorbed `slice`/`concat` pair as a re-partition
+# nobody moved (`fusion._passed_through`) and bill the rope lanes alone,
+# while the kernel reads every lane of o to convert it and writes every lane
+# of the FP8 o.
+allocates_output: "vllm.models.deepseek_v4.common.ops.fused_inv_rope_fp8_quant.fused_inv_rope_fp8_quant (fused_inv_rope_fp8_quant.py:352), from deep_gemm_fp8_o_proj (nvidia/ops/o_proj.py:66): reads o, un-rotates the rope dims and writes the block-scaled FP8 o the wo_a einsum reads"

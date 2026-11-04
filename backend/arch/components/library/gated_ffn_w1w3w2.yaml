@@ -1,0 +1,20 @@
+# Gated FFN with a PARAMETERIZED activation and w1(gate)/w3(up)/w2(down)
+# tensor naming (Mixtral / MiniMax / Kimi expert convention). The w1w3w2
+# counterpart of `gated_ffn`: same topology, activation is the `act` param
+# (default silu). SwiGLU experts = act:silu; Kimi-K3 SituAndMul experts =
+# act:situ — no bespoke per-activation expert component.
+#
+# Required dims: d_model, d_ffn (and the constants the act op takes: situ
+# reads `situ_beta` / `situ_linear_beta` from the frame).  Params: act (default silu).
+
+role: ffn_dense
+description: "Gated FFN with parameterized activation + w1/w3/w2 expert naming. act ∈ {silu, gelu, situ, …}."
+params:
+  act: { kind: component, default: silu }
+graph:
+  w1:       { op: linear, in: x, dims: { in: d_model, out: d_ffn }, weight_axes: [{ placement_by_symbol: { d_ffn: { world: dense_ffn, parts: d_ffn, fit: exact }, d_ffn_expert: { world: moe_expert, parts: d_ffn, fit: exact }, d_ffn_shared: { world: dense_ffn, parts: d_ffn, fit: exact } } }, { replicated: true }] }
+  w3:       { op: linear, in: x, dims: { in: d_model, out: d_ffn }, weight_axes: [{ placement_by_symbol: { d_ffn: { world: dense_ffn, parts: d_ffn, fit: exact }, d_ffn_expert: { world: moe_expert, parts: d_ffn, fit: exact }, d_ffn_shared: { world: dense_ffn, parts: d_ffn, fit: exact } } }, { replicated: true }] }
+  act:      { op: <act>, in: w1, dim: d_ffn }
+  gate_mul: { op: mul, in: [act, w3], dim: d_ffn }
+  w2:       { op: linear, in: gate_mul, dims: { in: d_ffn, out: d_model }, weight_axes: [{ replicated: true }, { placement_by_symbol: { d_ffn: { world: dense_ffn, parts: d_ffn, fit: exact }, d_ffn_expert: { world: moe_expert, parts: d_ffn, fit: exact }, d_ffn_shared: { world: dense_ffn, parts: d_ffn, fit: exact } } }] }
+outputs: [w2]

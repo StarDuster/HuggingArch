@@ -1,0 +1,70 @@
+# Gated DeltaNet prefill preparation in one launch: split the conv'd q|k|v
+# into contiguous heads, L2-normalise q and k, and form both gates,
+#
+#   q, k, v = split(qkv) into heads        q_slice / k_slice / v_slice + views
+#   q, k    = l2norm(q), l2norm(k)
+#   g       = neg_exp(a_log) * softplus(dt_raw + dt_bias)
+#   beta    = sigmoid(beta_raw)
+#
+# Naive subgraph (gated_delta_net_attention, gated_delta_net_fused_attention):
+# everything between the short conv and the chunked recurrence. The split
+# and head views are part of the pattern because the kernel reads the packed
+# conv output once and writes q, k AND v to fresh contiguous buffers
+# (`torch.empty` for all five outputs): v is copied, not viewed, so it is an
+# output port of this launch. g and beta are written fp32, stated per port.
+#
+# The q and k chains have the same ops and edges, so `feeds` tells them
+# apart. The v chain needs none: it is the third slice of the same `qkv`,
+# the only one without an l2norm after it.
+#
+# PREFILL, vLLM (audited at v0.32.0), CUDA: `fused_post_conv_prep`
+#   (third_party/flash_linear_attention/ops/fused_gdn_prefill_post_conv.py:152,
+#   one launch of `_fused_post_conv_kernel` :20 over a grid of q/k heads and
+#   v heads :214-246; output allocation :199-203), called from
+#   `QwenGatedDeltaNetAttention._forward_core`
+#   (model_executor/layers/mamba/gdn/qwen_gdn_linear_attn.py:1514,
+#   `apply_l2norm=True`) whenever the batch has prefill tokens; the chunk
+#   kernel that follows is handed `use_qk_l2norm_in_kernel=False` (:1604-1615).
+#   Every Qwen GDN class builds that layer (model_executor/models/qwen3_next.py,
+#   qwen3_5.py; models/qwen4_exp/nvidia/model.py). The speculative-decode
+#   fused path (`_forward_core_fused_norm`, :1945) reaches the same
+#   `_forward_core` whenever prefill tokens are present (:1962-1980).
+#
+# sglang (audited at v0.5.22) runs only the gate chain as one launch on a
+# prompt (`fused_gdn_gating.yaml`); its l2norms stay inside
+# `chunk_gated_delta_rule`. Decode in both frameworks is
+# `fused_recurrent_gated_delta_rule`, which reads the conv output itself.
+
+fused_op: fused_gdn_post_conv_prep
+
+output_dtype: { g_out: float32, beta_out: float32 }
+
+naive_pattern:
+  nodes:
+    q_slice:  { op: slice,      inputs: [external.qkv] }
+    k_slice:  { op: slice,      inputs: [external.qkv] }
+    v_slice:  { op: slice,      inputs: [external.qkv] }
+    q_split:  { op: view_split, inputs: [q_slice.out] }
+    k_split:  { op: view_split, inputs: [k_slice.out] }
+    v_split:  { op: view_split, inputs: [v_slice.out] }
+    q_heads:  { op: transpose,  inputs: [q_split.out] }
+    k_heads:  { op: transpose,  inputs: [k_split.out] }
+    v_heads:  { op: transpose,  inputs: [v_split.out] }
+    q_norm:   { op: l2norm,     inputs: [q_heads.out], feeds: q }
+    k_norm:   { op: l2norm,     inputs: [k_heads.out], feeds: k }
+    dt:       { op: add,        inputs: [external.dt_raw, external.dt_bias] }
+    softplus: { op: softplus,   inputs: [dt.out] }
+    rate:     { op: neg_exp,    inputs: [external.a_log] }
+    decay:    { op: mul,        inputs: [rate.out, softplus.out], feeds: decay }
+    beta:     { op: sigmoid,    inputs: [external.beta_raw], feeds: write }
+  io_mapping:
+    qkv:      external.qkv
+    dt_raw:   external.dt_raw
+    beta_raw: external.beta_raw
+    a_log:    external.a_log
+    dt_bias:  external.dt_bias
+    output:   q_norm.out
+    k_out:    k_norm.out
+    v_out:    v_heads.out
+    g_out:    decay.out
+    beta_out: beta.out

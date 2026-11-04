@@ -1,0 +1,21 @@
+# Non-gated FFN with squared-ReLU activation. Used by NemotronH-3 as the
+# building block for BOTH (a) each routed MoE expert (working in latent
+# space, dims d_model=d_moe_latent → d_ffn=d_ffn_expert → d_model=d_moe_latent) and (b) the wide shared expert
+# (working in hidden space, dims d_model=d_model → d_ffn=d_ffn_shared → d_model=d_model).
+#
+# Forward (from NemotronHMLP / NemotronHExperts in modeling_nemotron_h.py):
+#   y = down_proj( act_fn(up_proj(x)) )    where act_fn = ACT2FN["relu2"]
+#                                          (squared ReLU = relu(x)^2)
+#
+# Required dims: d_model, d_ffn.
+role: ffn_dense
+description: "Non-gated FFN with squared-ReLU activation. NemotronH-3 routed expert AND wide shared expert."
+graph:
+  up_proj:      { op: linear, in: x, dims: { in: d_model, out: d_ffn, bias: "0" }, weight_axes: [{ placement_by_symbol: { d_ffn: { world: dense_ffn, parts: d_ffn, fit: exact }, d_ffn_expert: { world: moe_expert, parts: d_ffn, fit: exact }, d_ffn_shared: { world: dense_ffn, parts: d_ffn, fit: exact } } }, { replicated: true }] }
+  # act_fn = ACT2FN["relu2"] = relu(x)². The fused `relu_squared` op does it in
+  # one pass; the eager `relu` then `mul(relu, relu)` would round-trip the
+  # [tokens, d_ffn] intermediate through HBM twice — an unfused
+  # over-materialisation no real kernel performs.
+  relu_squared: { op: relu_squared, in: up_proj, dim: d_ffn }
+  down_proj:    { op: linear, in: relu_squared, dims: { in: d_ffn, out: d_model, bias: "0" }, weight_axes: [{ replicated: true }, { placement_by_symbol: { d_ffn: { world: dense_ffn, parts: d_ffn, fit: exact }, d_ffn_expert: { world: moe_expert, parts: d_ffn, fit: exact }, d_ffn_shared: { world: dense_ffn, parts: d_ffn, fit: exact } } }] }
+outputs: [down_proj]

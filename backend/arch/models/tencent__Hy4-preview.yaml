@@ -1,0 +1,249 @@
+# tencent/Hy4-preview (hy_v4) — 78-layer MLA + DSA backbone with independent
+# Hyper-Connections (iHC), sigmoid-gated MLA with per-head learnable sinks,
+# packed-expert MoE with clamped routed SwiGLUs, and one shared-head MTP layer.
+#
+# Architectural deltas vs the GLM-MoE-DSA family this descends from (all from
+# modeling_hy_v4.py / configuration_hy_v4.py):
+#
+#   1. Independent Hyper-Connections (enable_ihc=true, hc_mult=4): the hidden
+#      state is broadcast to n_hidden_copies=4 parallel residual copies right
+#      after the embedding (hc_expand) and reduced back by `model.hc_head`
+#      before the final norm. Every decoder layer brackets its attn and ffn
+#      with an iHC module (hc_attn_layer / hc_mlp_layer): sigmoid-gated
+#      pre-reduce and post-spread, NO sinkhorn and NO comb cross-mix
+#      (HYV4HyperConnection.forward, modeling_hy_v4.py:647-666) — unlike
+#      DeepSeek-V4's dsv4_block.
+#
+#   2. Gated MLA + learnable sinks on EVERY layer (gated_mla=true,
+#      learnable_sink=true): sigmoid per-channel output gate
+#      `self_attn.linear_gate` before o_proj, and one learnable sink logit per
+#      head (`self_attn.learnable_sink_param [64]`) joining the sparse
+#      softmax normalization (eager_attention_forward:300-308).
+#
+#   3. DSA indexer with RoPE on the LAST qk_rope_head_dim channels of each
+#      indexer head ("Flipped RoPE position", Indexer.forward:234-245), an
+#      EXPANDED per-head K/V cache (NOT the MLA latent — Attention.forward:
+#      455-457) plus a cached indexer key (update_indexer:247-248), all in the
+#      model dtype. indexer_types: "full" on idx==0 and (idx-1)%4==0, "shared"
+#      otherwise (shared layers reuse the nearest earlier full layer's top-K;
+#      HYV4Model.forward:868-877 threads prev_topk_indices).
+#
+#   4. MoE: router_noaux_tc exactly (sigmoid + e_score_correction_bias,
+#      n_group=topk_group=1 degenerate, norm_topk_prob=true, routed
+#      scaling 2.827), 256 routed experts PACKED as 3-D nn.Parameters
+#      (`experts.gate_up_proj` [256,4096,6144], `experts.down_proj`
+#      [256,6144,2048] — (out,in) payload order, no stored_axes), clamped
+#      SwiGLU on the ROUTED experts only (swiglu_limit=10,
+#      modeling_hy_v4.py:597-602), one plain unclamped shared expert of width
+#      2048. Layer 0 is a dense SwiGLU-18432 (mlp_layer_types).
+#
+#   5. One MTP layer (num_nextn_predict_layers=1) under `model.mtp_layers.0.*`:
+#      enorm || hnorm → concat → eh_proj → a plain pre_norm block (FULL-indexer
+#      attention, same MoE, NO iHC) → final_layernorm. HF's forward ignores
+#      these weights (_keys_to_ignore_on_load_unexpected, modeling_hy_v4.py:
+#      776); the stack shares the backbone embedding + lm_head, same contract
+#      as GLM-MoE-DSA's MTP. The staged HF source has no MTP class, so this
+#      topology (inputs: [norm], enorm/hnorm concat order, no iHC) is inferred
+#      from the checkpoint tensors (model.mtp_layers.0.*: no hc_* tensors,
+#      eh_proj [6144, 12288]) and is NOT verified against an Hy4 inference-
+#      framework MTP implementation (none was available to cite).
+#
+# hc_eps: the additive `+ hc_eps` (config.hc_eps = 1e-6) of the iHC gates is the
+# registered `add_const` primitive, wired after each gate: pre (modeling_hy_v4.py:661),
+# post after the hc_magnitude scale (:663), and hc_head pre (:688).
+#
+# Config-coverage review (fields intentionally not consumed):
+#   mlp_layer_types        — ["dense", "sparse"×77]; the dense/sparse split is
+#                            layer-0-dense (also the class default), modeled by
+#                            the layers:["0"] generator + rest. Not read via
+#                            `from:` because the schedule gate requires one
+#                            primary generator per list value and the FFN
+#                            split is orthogonal to indexer_types (the
+#                            glm_moe_dsa spec makes the same choice).
+#   layer_types            — uniform "deepseek_sparse_attention" on all 78
+#                            layers; no variation, so not a per_layer generator.
+#   num_key_value_heads=8  — post_init overrides it to num_attention_heads=64
+#                            (MLA expands K/V to all heads); unused.
+#   enable_lm_head_fp32    — runtime compute cast only; the checkpoint stores
+#                            lm_head.weight in BF16.
+#   rope_parameters.rope_type="default" — plain rotate_half pairing (the
+#                            registered rope/rope_emb ops), no yarn mscale:
+#                            attention scale is qk_head_dim^-0.5.
+#   head_dim=64            — derived (= qk_rope_head_dim); the attention head
+#                            width is d_qk_nope + d_qk_rope = 256, bound via
+#                            d_qk_nope / d_qk_rope.
+#   attention_bias / attention_dropout / initializer_range / mtp_loss_factor /
+#   bitwise_backward_align / learnable_sink_init / gating_type / hc_eps /
+#   hc_magnitude / swiglu_limit / routed_scaling_factor — no bias anywhere,
+#                            dropout off at inference; the last four are
+#                            config-time constants of the ops that use them
+#                            (hc_sigmoid_gate, scale_const, clamp,
+#                            router_noaux_tc's scale_const).
+
+match:
+  model_type: [hy_v4]
+  model_id: [tencent/Hy4-preview]
+
+components:
+  attention: mla_dsa_gated_sink_attention
+  ffn_dense: swiglu_ffn
+  ffn_moe: moe_ffn_gate_routing_bias_packed_clamped
+  norm: rmsnorm
+  block: hc_independent_pre_norm_block
+
+dims:
+  d_model:    config.hidden_size
+  n_heads:    config.num_attention_heads
+  d_qk_nope:    config.qk_nope_head_dim
+  d_qk_rope:    config.qk_rope_head_dim
+  d_v_head:   config.v_head_dim ?? d_qk_nope
+  d_kv_lora:    config.kv_lora_rank
+  d_q_lora:   config.q_lora_rank
+  n_indexer_heads:   config.index_n_heads ?? "0"
+  d_indexer_head:   config.index_head_dim ?? "0"
+  n_topk_keys:   config.index_topk ?? "0"
+  d_ffn:    config.intermediate_size
+  d_ffn_expert:   config.moe_intermediate_size
+  n_vocab:    config.vocab_size
+  n_layers:    config.num_hidden_layers
+  n_experts:    config.n_routed_experts
+  n_experts_active:    config.num_experts_per_tok
+  n_expert_groups:    config.n_group
+  n_groups_active:    config.topk_group
+  n_shared_experts:   config.n_shared_experts ?? "0"
+  n_mtp_layers: config.num_nextn_predict_layers ?? "0"
+  n_hidden_copies:   config.hc_mult ?? "4"
+  s_max: config.max_position_embeddings
+
+view:
+  hidden_act: config.hidden_act
+  norm.eps: config.rms_norm_eps
+  rope_theta: config.rope_parameters.rope_theta
+
+blocks:
+  # MTP layer: eh_proj(cat[enorm(inputs_embeds), hnorm(previous_hidden_states)])
+  # -> one plain pre-norm decoder layer (full-indexer attention + the
+  # backbone's packed-clamped MoE, no hyper-connections) -> trailing norm. The
+  # staged modeling_hy_v4.py drops `model.mtp_layers.*` on load (:776) and has
+  # no MTP forward; sglang's hunyuan_v4_nextn.py HYV4ModelNextN runs it:
+  # `self.enorm(embed_tokens(input_ids))` and
+  # `self.hnorm(forward_batch.spec_info.hidden_states)`, concatenated in that
+  # order, and its trailing `shared_head.norm` is the checkpoint's
+  # `final_layernorm` (load_weights renames `.final_layernorm.weight` to
+  # `.shared_head.norm.weight`). The inner block's leaves hang directly off
+  # `model.mtp_layers.0.` (no wrapper module).
+  hy4_mtp_block:
+    inputs: [x, inputs_embeds]
+    graph:
+      layer: { op: mtp_block_shared_head, in: [x, inputs_embeds], module: null,
+               params: { inner: { template: pre_norm, params: { attn: mla_dsa_gated_sink_attention, ffn: moe_ffn_gate_routing_bias_packed_clamped, norm: rmsnorm } } },
+               inner_modules: { shared_head.norm: final_layernorm } }
+    outputs: [layer]
+
+model_inputs:
+  input_ids: { kind: tokens }
+
+# The transformers base model's tensors sit under `model.`; the LM head
+# beside it declares its own path.
+checkpoint: { root: model }
+
+model:
+  - { name: embed_tokens, inputs: [input_ids], op: embedding, boundary_role: input_embedding, dims: { n_vocab: n_vocab, d_model: d_model }, weight_axes: [{ world: attention, parts: n_vocab, fit: pad }, { replicated: true }] }
+
+  # Network entry (iHC): lift [B,s_ctx,d_model] to [B,s_ctx,n_hidden_copies,d_model]
+  # so the decoder stack carries 4 parallel residual copies (enable_ihc=true;
+  # the embed output is replicated along a new axis — zero-FLOPs/zero-params).
+  - { name: hc_expand, op: broadcast, axis: -2, dims: { width: n_hidden_copies }, inputs: [embed_tokens] }
+
+  - name: layers
+    inputs: [hc_expand]
+    repeat: n_layers
+    # `hidden` is the [B,s_ctx,n_hidden_copies,d_model] iHC state the stack
+    # carries layer to layer. `dsa_topk` is DSA indexer sharing as an inner
+    # stream: full layers (and dense layer 0) compute the top-K; "shared"
+    # layers reuse the nearest earlier full layer's selection.
+    streams:
+      hidden: { carries: true }
+      dsa_topk:
+        shape: [B, s_query, n_topk_keys]
+        src: "HYV4Model.forward threads `prev_topk_indices` across layers (modeling_hy_v4.py:868-877)"
+    # Heterogeneity: indexer_types (full vs shared indexer) is read straight
+    # from the config list; the dense/sparse FFN split is layer-0-dense (the
+    # class default, configuration_hy_v4.py) — `mlp_layer_types` is NOT read
+    # by a generator because the schedule gate would require a primary
+    # generator per list value, and the FFN split is orthogonal to the
+    # indexer split (no single-list product expresses both; glm_moe_dsa
+    # documents the same choice for its identical mlp_layer_types field).
+    # The dense generator claims layer 0 first (it is also "full" in
+    # indexer_types); `rest` is the fallback when indexer_types is absent
+    # (every non-dense layer gets a full indexer).
+    per_layer:
+      assign:
+        - { type: dense,  layers: ["0"] }
+        - { type: full,   from: "config.indexer_types ?? absent", is: full }
+        # A shared layer reads the top-K of the nearest full layer before it.
+        - { type: shared, from: "config.indexer_types ?? absent", is: shared,
+            reads_from: { dsa_topk: { nearest: { from: "config.indexer_types ?? absent", is: full } } } }
+        - { type: full,   rest: true }
+      map:
+        dense:  { attention: mla_dsa_gated_sink_attention,        ffn: swiglu_ffn }
+        full:   { attention: mla_dsa_gated_sink_attention,        ffn: moe_ffn_gate_routing_bias_packed_clamped }
+        shared: { attention: mla_dsa_gated_sink_attention_shared, ffn: moe_ffn_gate_routing_bias_packed_clamped }
+
+  # Network exit (iHC): model.hc_head reduces [B,s_ctx,n_hidden_copies,d_model]
+  # back to [B,s_ctx,d_model] before the final norm. Three nn.Parameters at
+  # `model.hc_head.hc_head_{fn,base,scale}`, then one pure-function invocation
+  # (weights passed as inputs — same idiom as deepseek_v4's hc_head).
+  - { name: hc_head.hc_head_fn,    op: parameter_tensor, shape: [n_hidden_copies, "n_hidden_copies * d_model"], weight_axes: [{ replicated: true }, { replicated: true }] }
+  - { name: hc_head.hc_head_base,  op: parameter_vector, dim: n_hidden_copies, weight_axes: [{ replicated: true }] }
+  - { name: hc_head.hc_head_scale, op: parameter_vector, dim: "1", weight_axes: [{ replicated: true }] }
+  - name: hc_head
+    op: hc_head_independent
+    inputs: [layers, hc_head.hc_head_fn, hc_head.hc_head_scale, hc_head.hc_head_base]
+
+  - { name: norm, op: rmsnorm, dim: d_model, weight_axes: [{ replicated: true }], inputs: [hc_head] }
+  # tie_word_embeddings=false: the checkpoint ships a separate BF16
+  # lm_head.weight at the file root, so no tied_weight here.
+  - { name: lm_head, op: linear, checkpoint: { path: lm_head }, boundary_role: output_head, dims: { in: d_model, out: n_vocab }, weight_axes: [{ world: attention, parts: n_vocab, fit: pad }, { replicated: true }], inputs: [norm] }
+
+  # Auxiliary next-token prediction layer (num_nextn_predict_layers=1).
+  # Shares the backbone embedding + lm_head; stores enorm/hnorm/eh_proj, one
+  # plain pre_norm block (full-indexer attention + packed-clamped MoE, no iHC)
+  # and final_layernorm under `model.mtp_layers.0.*`.
+  - name: mtp
+    group: true
+    aux_kind: mtp
+    checkpoint: { prefix: model.mtp_layers, index: local }
+    inputs: [norm]
+    repeat: n_mtp_layers
+    streams:
+      hidden: { carries: true }
+    layers:
+      - name: mtp
+        template: hy4_mtp_block
+        inputs: [norm, embed_tokens]
+      # The checkpoint has no MTP-private head; the MTP logits are projected
+      # with the shared lm_head (same contract as GLM-MoE-DSA's MTP).
+      - { name: mtp_logits, op: linear, boundary_role: output_head, dims: { in: d_model, out: n_vocab }, weight_axes: [{ world: attention, parts: n_vocab, fit: pad }, { replicated: true }], tied_weight: { to: lm_head }, inputs: [mtp] }
+
+# Hy4 ships pure BF16 weights — no weight quantization. The exceptions are
+# F32 on disk (backbone only; the MTP layer's own sinks and
+# e_score_correction_bias are BF16, so the overrides are anchored at
+# `model.layers.` / `model.hc_head.` and do not reach `model.mtp_layers.`):
+#   - every iHC parameter (hc_attn_layer/hc_mlp_layer hc_pre.{hc_fn,hc_base,
+#     hc_scale} and model.hc_head.hc_head_{fn,base,scale})
+#   - the noaux_tc router's e_score_correction_bias
+#   - the attention learnable_sink_param
+quant_context:
+  per_role:
+    default: { method: none }
+  default_dtype: BF16
+  overrides:
+    - tensors_re: '^model\.layers\..*hc_(?:attn|mlp)_layer\.hc_pre\.hc_(?:fn|base|scale)$'
+      dtype: F32
+    - tensors_re: '^model\.hc_head\.hc_head_(?:fn|base|scale)$'
+      dtype: F32
+    - tensors_re: '^model\.layers\..*e_score_correction_bias$'
+      dtype: F32
+    - tensors_re: '^model\.layers\..*learnable_sink_param$'
+      dtype: F32

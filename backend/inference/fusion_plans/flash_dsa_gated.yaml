@@ -1,0 +1,52 @@
+# `flash_dsa` with the attention output gate as its epilogue — Qwen QSA
+# (qwen_qsa_attention): the sparse attention's per-head output, merged back
+# to [S, n_heads · d_head], is multiplied by sigmoid(gate) before it is
+# written.
+#
+#   o = attention_apply(softmax(score(q, k, mask)), v)
+#   y = view_merge(transpose(o)) * sigmoid(view_merge(transpose(gate)))
+#
+# The merges are views (no traffic); they are in the pattern because they
+# are what the spec writes between the attention and the gate, and because
+# they tie the gate to the attention output: a bare sigmoid · mul is also the
+# shared-expert and hyper-connection gates of the same model.
+#
+#   vLLM (audited at v0.32.0): `Qwen4ExpQSAFlashAttentionImpl.forward_qsa`
+#     (models/qwen4_exp/nvidia/qsa.py:264, call :318) runs
+#     `qsa_sparse_paged_attention` (ops/qsa.py:594) for every QSA forward.
+#     `_select_config` (:546-591) keys on rows x local KV heads: above 2048
+#     (above 512 off SM90) the partial kernel runs unsplit and applies the
+#     gate itself (:197-205) — one launch, this plan. Below, it splits and
+#     `_qsa_merge_splitk_kernel` (:237, gate :280-286, launched :741) merges
+#     the partials and gates: `flash_dsa` + `sigmoid_gate_mul`. Bound on the
+#     default path: prefill (many rows) unsplit, decode (few rows) split —
+#     the binding's `phase: [prefill]`, and `sigmoid_gate_mul` in decode. A
+#     short prefill splits too (one launch under-billed); the split partials'
+#     fp32 round trip is not modelled. QSA layers always carry the gate and
+#     run BF16 only (qsa.py:354-355).
+#   sglang (audited at v0.5.22): the attention returns ungated and
+#     `fused_sigmoid_mul` runs after it (srt/models/qwen4_exp.py:1876-1879) —
+#     `sigmoid_gate_mul`; not bound here.
+
+fused_op: flash_dsa_gated
+
+naive_pattern:
+  nodes:
+    score:
+      op: dsa_attention_score
+      inputs: [external.q, external.k]
+      optional_inputs: [external.mask]
+    softmax:        { op: dsa_softmax,         inputs: [score.out] }
+    apply:          { op: dsa_attention_apply, inputs: [softmax.out, external.v] }
+    out_transpose:  { op: transpose,           inputs: [apply.out] }
+    out_merge:      { op: view_merge,          inputs: [out_transpose.out] }
+    gate_transpose: { op: transpose,           inputs: [external.gate] }
+    gate_merge:     { op: view_merge,          inputs: [gate_transpose.out] }
+    gate_sigmoid:   { op: sigmoid,             inputs: [gate_merge.out] }
+    gated:          { op: mul,                 inputs: [out_merge.out, gate_sigmoid.out] }
+  io_mapping:
+    q:       external.q
+    k:       external.k
+    v:       external.v
+    gate:    external.gate
+    output:  gated.out

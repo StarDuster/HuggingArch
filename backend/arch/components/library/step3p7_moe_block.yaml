@@ -1,0 +1,30 @@
+# Step-3.7-Flash MoE decoder block.
+# Pre-norm topology, but unlike the standard pre_norm + moe_ffn_packed
+# combo, Step-3.7 stores the routed-expert pack under `moe.*` and the
+# shared expert under `share_expert.*` as SIBLINGS at the layer
+# root (not nested under a single `mlp.*` namespace). This block
+# invokes them as two separate sub-components and sums their outputs.
+#
+# Required dims: d_model, d_ffn_expert, d_ffn_shared, n_experts, n_experts_active   (d_ffn_shared = shared-expert intermediate)
+#
+# Node naming mirrors transformers' forward submodule names:
+#   input_layernorm, self_attn, post_attention_layernorm
+# so dtype tracking / unmatched-tensor reporting resolve cleanly.
+
+role: block
+description: "Step-3.7-Flash MoE decoder block (moe.* + share_expert.* as layer-root siblings)."
+
+params:
+  attn: { kind: component }
+  norm: { kind: component, default: rmsnorm }
+
+graph:
+  input_layernorm:          { op: <norm>, in: x, dim: d_model, weight_axes: [{ replicated: true }] }
+  self_attn:                { op: <attn>, in: input_layernorm }
+  attn_residual:            { op: add, in: [x, self_attn], dim: d_model }
+  post_attention_layernorm: { op: <norm>, in: attn_residual, dim: d_model, weight_axes: [{ replicated: true }] }
+  moe:                      { op: step3p7_moe_packed_no_shared, in: post_attention_layernorm }
+  share_expert:             { op: swiglu_ffn, in: post_attention_layernorm, dims: { d_model: d_model, d_ffn: d_ffn_shared } }
+  ffn_combined:             { op: add, in: [moe, share_expert], dim: d_model }
+  out:                      { op: add, in: [attn_residual, ffn_combined], dim: d_model }
+outputs: [out]

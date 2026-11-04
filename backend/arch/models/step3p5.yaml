@@ -1,0 +1,83 @@
+# Step 3.5 Flash family
+# Hybrid decoder: full attention every 4th backbone layer, SWA elsewhere,
+# dense FFN on layers 0-2, MoE on layers 3-44, plus 3 dense MTP blocks.
+match:
+  model_type: [step3p5]
+derived_from: qwen3_moe
+
+components:
+  attention: swa_qknorm_gated_attention
+  ffn_dense: swiglu_ffn
+  ffn_moe: moe_ffn_packed
+  norm: rmsnorm
+  block: pre_norm
+
+# Main backbone blocks are auto-generated from per-layer assignments below
+# (gqa/swa × dense/moe combos via pre_norm with params).
+# MTP head lives in components/library/step3p5_mtp_block.yaml.
+
+dims:
+  d_model:    config.hidden_size
+  n_heads:    config.num_attention_heads
+  n_kv_heads:   config.num_attention_groups
+  d_head:    config.head_dim
+  d_rope:   "d_head // 2"
+  d_nope:   "d_head - d_rope"
+  s_window:    config.sliding_window ?? "512"
+  d_ffn:    config.intermediate_size
+  d_ffn_expert:   config.moe_intermediate_size
+  d_ffn_shared:   config.share_expert_dim ?? "1280"  # Step3p7TextConfig's default when the field is absent (transformers 5.17.0 step3p7/configuration_step3p7.py:173)
+  n_vocab:    config.vocab_size
+  n_layers:    config.num_hidden_layers
+  n_experts:    config.moe_num_experts
+  n_experts_active:    config.moe_top_k
+  n_shared_experts:   config.moe_num_shared_experts ?? "1"
+  n_mtp_layers: config.num_nextn_predict_layers ?? "0"
+
+view:
+  rope_theta: config.rope_theta
+  rope_scaling: config.rope_scaling
+  hidden_act: config.hidden_act
+  norm.eps: config.rms_norm_eps
+
+model_inputs:
+  input_ids: { kind: tokens }
+
+# The transformers base model's tensors sit under `model.`; the LM head
+# beside it declares its own path.
+checkpoint: { root: model }
+
+model:
+  - { name: embed_tokens, inputs: [input_ids], op: embedding, boundary_role: input_embedding, dims: { n_vocab: n_vocab, d_model: d_model }, weight_axes: [{ world: attention, parts: n_vocab, fit: pad }, { replicated: true }] }
+  - name: layers
+    inputs: [embed_tokens]
+    repeat: n_layers
+    streams:
+      hidden: { carries: true }
+    per_layer:
+      assign:
+        - { type: full_dense, layers: ["0"] }
+        - { type: swa_dense,  layers: ["1", "2"] }
+        - { type: full_moe,   layers: ["4", "8", "12", "16", "20", "24", "28", "32", "36", "40", "44"] }
+        - { type: swa_moe,    rest: true }
+      map:
+        full_dense: { attention: gqa_qknorm_partial_rope_gated_attention, ffn: swiglu_ffn, dims: { n_kv_heads: n_kv_heads, d_rope: d_rope, d_nope: d_nope } }
+        swa_dense:  { attention: swa_qknorm_gated_attention, ffn: swiglu_ffn, dims: { n_kv_heads: n_kv_heads, d_rope: d_rope, d_nope: d_nope } }
+        full_moe:   { attention: gqa_qknorm_partial_rope_gated_attention, ffn: moe_ffn_packed }
+        swa_moe:    { attention: swa_qknorm_gated_attention, ffn: moe_ffn_packed }
+  - { name: final_norm, op: rmsnorm, dim: d_model, weight_axes: [{ replicated: true }] , inputs: [layers]}
+  - { name: lm_head, op: linear, checkpoint: { path: lm_head }, boundary_role: output_head, dims: { in: d_model, out: n_vocab }, weight_axes: [{ world: attention, parts: n_vocab, fit: pad }, { replicated: true }], tied_weight: { to: embed_tokens, when: config.tie_word_embeddings } , inputs: [final_norm]}
+  - name: mtp
+    group: true
+    aux_kind: mtp
+    checkpoint: { prefix: mtp, index: local }
+    inputs: [final_norm]
+    repeat: n_mtp_layers
+    streams:
+      hidden: { carries: true }
+    layers:
+      - name: mtp
+        template: step3p5_mtp_block
+        inputs: [final_norm, embed_tokens]
+        params:
+          inner: { template: pre_norm, params: { attn: swa_qknorm_gated_attention, ffn: swiglu_ffn, norm: rmsnorm } }

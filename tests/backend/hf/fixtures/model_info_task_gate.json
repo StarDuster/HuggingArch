@@ -1,0 +1,1722 @@
+{
+ "recorded": "2026-10-06",
+ "corpus": {
+  "ByteDance-Seed/Seed-OSS-36B-Instruct": {
+   "id": "ByteDance-Seed/Seed-OSS-36B-Instruct",
+   "pipeline_tag": "text-generation",
+   "library_name": "transformers",
+   "transformersInfo": {
+    "auto_model": "AutoModelForCausalLM",
+    "pipeline_tag": "text-generation",
+    "processor": "AutoTokenizer"
+   },
+   "config": {
+    "architectures": [
+     "SeedOssForCausalLM"
+    ],
+    "model_type": "seed_oss"
+   }
+  },
+  "IQuestLab/IQuest-Coder-V1-40B-Instruct": {
+   "id": "IQuestLab/IQuest-Coder-V1-40B-Instruct",
+   "pipeline_tag": "text-generation",
+   "library_name": "transformers",
+   "transformersInfo": {
+    "auto_model": "AutoModelForCausalLM",
+    "custom_class": "modeling_iquestcoder.IQuestCoderForCausalLM",
+    "pipeline_tag": "text-generation"
+   },
+   "config": {
+    "architectures": [
+     "IQuestCoderForCausalLM"
+    ],
+    "model_type": "iquestcoder",
+    "auto_map": {
+     "AutoConfig": "configuration_iquestcoder.IQuestCoderConfig",
+     "AutoModel": "modeling_iquestcoder.IQuestCoderModel",
+     "AutoModelForCausalLM": "modeling_iquestcoder.IQuestCoderForCausalLM",
+     "AutoModelForSequenceClassification": "modeling_iquestcoder.IQuestCoderForSequenceClassification",
+     "AutoModelForTokenClassification": "modeling_iquestcoder.IQuestCoderForTokenClassification",
+     "AutoModelForQuestionAnswering": "modeling_iquestcoder.IQuestCoderForQuestionAnswering"
+    }
+   }
+  },
+  "MiniMaxAI/MiniMax-M2.7": {
+   "id": "MiniMaxAI/MiniMax-M2.7",
+   "pipeline_tag": "text-generation",
+   "library_name": "transformers",
+   "transformersInfo": {
+    "auto_model": "AutoModelForCausalLM",
+    "pipeline_tag": "text-generation",
+    "processor": "AutoTokenizer"
+   },
+   "config": {
+    "architectures": [
+     "MiniMaxM2ForCausalLM"
+    ],
+    "model_type": "minimax_m2",
+    "auto_map": {
+     "AutoConfig": "configuration_minimax_m2.MiniMaxM2Config",
+     "AutoModelForCausalLM": "modeling_minimax_m2.MiniMaxM2ForCausalLM"
+    }
+   }
+  },
+  "Qwen/Qwen2.5-72B": {
+   "id": "Qwen/Qwen2.5-72B",
+   "pipeline_tag": "text-generation",
+   "library_name": "transformers",
+   "transformersInfo": {
+    "auto_model": "AutoModelForCausalLM",
+    "pipeline_tag": "text-generation",
+    "processor": "AutoTokenizer"
+   },
+   "config": {
+    "architectures": [
+     "Qwen2ForCausalLM"
+    ],
+    "model_type": "qwen2"
+   }
+  },
+  "Qwen/Qwen2.5-7B": {
+   "id": "Qwen/Qwen2.5-7B",
+   "pipeline_tag": "text-generation",
+   "library_name": "transformers",
+   "transformersInfo": {
+    "auto_model": "AutoModelForCausalLM",
+    "pipeline_tag": "text-generation",
+    "processor": "AutoTokenizer"
+   },
+   "config": {
+    "architectures": [
+     "Qwen2ForCausalLM"
+    ],
+    "model_type": "qwen2"
+   }
+  },
+  "Qwen/Qwen3-235B-A22B": {
+   "id": "Qwen/Qwen3-235B-A22B",
+   "pipeline_tag": "text-generation",
+   "library_name": "transformers",
+   "transformersInfo": {
+    "auto_model": "AutoModelForCausalLM",
+    "pipeline_tag": "text-generation",
+    "processor": "AutoTokenizer"
+   },
+   "config": {
+    "architectures": [
+     "Qwen3MoeForCausalLM"
+    ],
+    "model_type": "qwen3_moe"
+   }
+  },
+  "Qwen/Qwen3-30B-A3B": {
+   "id": "Qwen/Qwen3-30B-A3B",
+   "pipeline_tag": "text-generation",
+   "library_name": "transformers",
+   "transformersInfo": {
+    "auto_model": "AutoModelForCausalLM",
+    "pipeline_tag": "text-generation",
+    "processor": "AutoTokenizer"
+   },
+   "config": {
+    "architectures": [
+     "Qwen3MoeForCausalLM"
+    ],
+    "model_type": "qwen3_moe"
+   }
+  },
+  "Qwen/Qwen3-32B": {
+   "id": "Qwen/Qwen3-32B",
+   "pipeline_tag": "text-generation",
+   "library_name": "transformers",
+   "transformersInfo": {
+    "auto_model": "AutoModelForCausalLM",
+    "pipeline_tag": "text-generation",
+    "processor": "AutoTokenizer"
+   },
+   "config": {
+    "architectures": [
+     "Qwen3ForCausalLM"
+    ],
+    "model_type": "qwen3"
+   }
+  },
+  "Qwen/Qwen3-8B": {
+   "id": "Qwen/Qwen3-8B",
+   "pipeline_tag": "text-generation",
+   "library_name": "transformers",
+   "transformersInfo": {
+    "auto_model": "AutoModelForCausalLM",
+    "pipeline_tag": "text-generation",
+    "processor": "AutoTokenizer"
+   },
+   "config": {
+    "architectures": [
+     "Qwen3ForCausalLM"
+    ],
+    "model_type": "qwen3"
+   }
+  },
+  "Qwen/Qwen3-Coder-Next": {
+   "id": "Qwen/Qwen3-Coder-Next",
+   "pipeline_tag": "text-generation",
+   "library_name": "transformers",
+   "transformersInfo": {
+    "auto_model": "AutoModelForCausalLM",
+    "pipeline_tag": "text-generation",
+    "processor": "AutoTokenizer"
+   },
+   "config": {
+    "architectures": [
+     "Qwen3NextForCausalLM"
+    ],
+    "model_type": "qwen3_next"
+   }
+  },
+  "Qwen/Qwen3-VL-235B-A22B-Instruct": {
+   "id": "Qwen/Qwen3-VL-235B-A22B-Instruct",
+   "pipeline_tag": "image-text-to-text",
+   "library_name": "transformers",
+   "transformersInfo": {
+    "auto_model": "AutoModelForMultimodalLM",
+    "pipeline_tag": "image-text-to-text",
+    "processor": "AutoProcessor"
+   },
+   "config": {
+    "architectures": [
+     "Qwen3VLMoeForConditionalGeneration"
+    ],
+    "model_type": "qwen3_vl_moe"
+   }
+  },
+  "Qwen/Qwen3.5-35B-A3B": {
+   "id": "Qwen/Qwen3.5-35B-A3B",
+   "pipeline_tag": "image-text-to-text",
+   "library_name": "transformers",
+   "transformersInfo": {
+    "auto_model": "AutoModelForMultimodalLM",
+    "pipeline_tag": "image-text-to-text",
+    "processor": "AutoProcessor"
+   },
+   "config": {
+    "architectures": [
+     "Qwen3_5MoeForConditionalGeneration"
+    ],
+    "model_type": "qwen3_5_moe"
+   }
+  },
+  "Qwen/Qwen3.8-2.4T-A95B": {
+   "id": "Qwen/Qwen3.8-2.4T-A95B",
+   "pipeline_tag": "text-generation",
+   "library_name": "transformers",
+   "transformersInfo": {
+    "auto_model": "AutoModelForCausalLM",
+    "pipeline_tag": "text-generation",
+    "processor": "AutoTokenizer"
+   },
+   "config": {
+    "architectures": [
+     "Qwen3_5MoeForCausalLM"
+    ],
+    "model_type": "qwen3_5_moe_text"
+   }
+  },
+  "Qwen/Qwen3.8-27B": {
+   "id": "Qwen/Qwen3.8-27B",
+   "pipeline_tag": "image-text-to-text",
+   "library_name": "transformers",
+   "transformersInfo": {
+    "auto_model": "AutoModelForMultimodalLM",
+    "pipeline_tag": "image-text-to-text",
+    "processor": "AutoProcessor"
+   },
+   "config": {
+    "architectures": [
+     "Qwen3_5ForConditionalGeneration"
+    ],
+    "model_type": "qwen3_5"
+   }
+  },
+  "Qwen/Qwen3.8-Flash-Next": {
+   "id": "Qwen/Qwen3.8-Flash-Next",
+   "pipeline_tag": "image-text-to-text",
+   "library_name": "transformers",
+   "transformersInfo": {
+    "auto_model": "AutoModelForMultimodalLM",
+    "pipeline_tag": "image-text-to-text",
+    "processor": "AutoProcessor"
+   },
+   "config": {
+    "architectures": [
+     "Qwen4ExpForConditionalGeneration"
+    ],
+    "model_type": "qwen4_exp"
+   }
+  },
+  "THUDM/glm-4-9b-chat": {
+   "id": "zai-org/glm-4-9b-chat",
+   "library_name": "transformers",
+   "transformersInfo": {
+    "auto_model": "AutoModel"
+   },
+   "config": {
+    "architectures": [
+     "ChatGLMModel"
+    ],
+    "model_type": "chatglm",
+    "auto_map": {
+     "AutoConfig": "configuration_chatglm.ChatGLMConfig",
+     "AutoModel": "modeling_chatglm.ChatGLMForConditionalGeneration",
+     "AutoModelForCausalLM": "modeling_chatglm.ChatGLMForConditionalGeneration",
+     "AutoModelForSeq2SeqLM": "modeling_chatglm.ChatGLMForConditionalGeneration",
+     "AutoModelForSequenceClassification": "modeling_chatglm.ChatGLMForSequenceClassification"
+    }
+   }
+  },
+  "THUDM/glm-4-9b": {
+   "id": "zai-org/glm-4-9b",
+   "pipeline_tag": "text-generation",
+   "library_name": "transformers",
+   "transformersInfo": {
+    "auto_model": "AutoModel"
+   },
+   "config": {
+    "architectures": [
+     "ChatGLMModel"
+    ],
+    "model_type": "chatglm",
+    "auto_map": {
+     "AutoConfig": "configuration_chatglm.ChatGLMConfig",
+     "AutoModel": "modeling_chatglm.ChatGLMForConditionalGeneration",
+     "AutoModelForCausalLM": "modeling_chatglm.ChatGLMForConditionalGeneration",
+     "AutoModelForSeq2SeqLM": "modeling_chatglm.ChatGLMForConditionalGeneration",
+     "AutoModelForSequenceClassification": "modeling_chatglm.ChatGLMForSequenceClassification"
+    }
+   }
+  },
+  "XiaomiMiMo/MiMo-7B-RL": {
+   "id": "XiaomiMiMo/MiMo-7B-RL",
+   "pipeline_tag": "text-generation",
+   "library_name": "transformers",
+   "transformersInfo": {
+    "auto_model": "AutoModelForCausalLM",
+    "custom_class": "modeling_mimo.MiMoForCausalLM",
+    "pipeline_tag": "text-generation"
+   },
+   "config": {
+    "architectures": [
+     "MiMoForCausalLM"
+    ],
+    "model_type": "mimo",
+    "auto_map": {
+     "AutoConfig": "configuration_mimo.MiMoConfig",
+     "AutoModel": "modeling_mimo.MiMoModel",
+     "AutoModelForCausalLM": "modeling_mimo.MiMoForCausalLM"
+    }
+   }
+  },
+  "XiaomiMiMo/MiMo-V2-Flash": {
+   "id": "XiaomiMiMo/MiMo-V2-Flash",
+   "pipeline_tag": "text-generation",
+   "library_name": "transformers",
+   "transformersInfo": {
+    "auto_model": "AutoModelForCausalLM",
+    "pipeline_tag": "text-generation",
+    "processor": "AutoTokenizer"
+   },
+   "config": {
+    "architectures": [
+     "MiMoV2FlashForCausalLM"
+    ],
+    "model_type": "mimo_v2_flash",
+    "auto_map": {
+     "AutoConfig": "configuration_mimo_v2_flash.MiMoV2FlashConfig",
+     "AutoModel": "modeling_mimo_v2_flash.MiMoV2FlashModel",
+     "AutoModelForCausalLM": "modeling_mimo_v2_flash.MiMoV2FlashForCausalLM"
+    }
+   }
+  },
+  "XiaomiMiMo/MiMo-V2.5-Pro": {
+   "id": "XiaomiMiMo/MiMo-V2.5-Pro",
+   "pipeline_tag": "text-generation",
+   "library_name": "transformers",
+   "transformersInfo": {
+    "auto_model": "AutoModelForCausalLM",
+    "custom_class": "modeling_mimo_v2.MiMoV2ForCausalLM",
+    "pipeline_tag": "text-generation"
+   },
+   "config": {
+    "architectures": [
+     "MiMoV2ForCausalLM"
+    ],
+    "model_type": "mimo_v2",
+    "auto_map": {
+     "AutoConfig": "configuration_mimo_v2.MiMoV2Config",
+     "AutoModel": "modeling_mimo_v2.MiMoV2Model",
+     "AutoModelForCausalLM": "modeling_mimo_v2.MiMoV2ForCausalLM"
+    }
+   }
+  },
+  "XiaomiMiMo/MiMo-V2.5": {
+   "id": "XiaomiMiMo/MiMo-V2.5",
+   "pipeline_tag": "text-generation",
+   "library_name": "transformers",
+   "transformersInfo": {
+    "auto_model": "AutoModelForCausalLM",
+    "custom_class": "modeling_mimo_v2.MiMoV2ForCausalLM",
+    "pipeline_tag": "text-generation"
+   },
+   "config": {
+    "architectures": [
+     "MiMoV2ForCausalLM"
+    ],
+    "model_type": "mimo_v2",
+    "auto_map": {
+     "AutoConfig": "configuration_mimo_v2.MiMoV2Config",
+     "AutoModel": "modeling_mimo_v2.MiMoV2Model",
+     "AutoModelForCausalLM": "modeling_mimo_v2.MiMoV2ForCausalLM"
+    }
+   }
+  },
+  "XiaomiMiMo/MiMo-V2.6-Pro-RL": {
+   "id": "XiaomiMiMo/MiMo-V2.6-Pro-RL",
+   "pipeline_tag": "text-generation",
+   "library_name": "transformers",
+   "transformersInfo": {
+    "auto_model": "AutoModelForCausalLM",
+    "custom_class": "modeling_mimo_v2.MiMoV2ForCausalLM",
+    "pipeline_tag": "text-generation"
+   },
+   "config": {
+    "architectures": [
+     "MiMoV2ForCausalLM"
+    ],
+    "model_type": "mimo_v2",
+    "auto_map": {
+     "AutoConfig": "configuration_mimo_v2.MiMoV2Config",
+     "AutoModel": "modeling_mimo_v2.MiMoV2Model",
+     "AutoModelForCausalLM": "modeling_mimo_v2.MiMoV2ForCausalLM"
+    }
+   }
+  },
+  "deepseek-ai/DeepSeek-R1": {
+   "id": "deepseek-ai/DeepSeek-R1",
+   "pipeline_tag": "text-generation",
+   "library_name": "transformers",
+   "transformersInfo": {
+    "auto_model": "AutoModelForCausalLM",
+    "pipeline_tag": "text-generation",
+    "processor": "AutoTokenizer"
+   },
+   "config": {
+    "architectures": [
+     "DeepseekV3ForCausalLM"
+    ],
+    "model_type": "deepseek_v3",
+    "auto_map": {
+     "AutoConfig": "configuration_deepseek.DeepseekV3Config",
+     "AutoModel": "modeling_deepseek.DeepseekV3Model",
+     "AutoModelForCausalLM": "modeling_deepseek.DeepseekV3ForCausalLM"
+    }
+   }
+  },
+  "deepseek-ai/DeepSeek-V2-Lite": {
+   "id": "deepseek-ai/DeepSeek-V2-Lite",
+   "pipeline_tag": "text-generation",
+   "library_name": "transformers",
+   "transformersInfo": {
+    "auto_model": "AutoModelForCausalLM",
+    "pipeline_tag": "text-generation",
+    "processor": "AutoTokenizer"
+   },
+   "config": {
+    "architectures": [
+     "DeepseekV2ForCausalLM"
+    ],
+    "model_type": "deepseek_v2",
+    "auto_map": {
+     "AutoConfig": "configuration_deepseek.DeepseekV2Config",
+     "AutoModel": "modeling_deepseek.DeepseekV2Model",
+     "AutoModelForCausalLM": "modeling_deepseek.DeepseekV2ForCausalLM"
+    }
+   }
+  },
+  "deepseek-ai/DeepSeek-V2": {
+   "id": "deepseek-ai/DeepSeek-V2",
+   "pipeline_tag": "text-generation",
+   "library_name": "transformers",
+   "transformersInfo": {
+    "auto_model": "AutoModelForCausalLM",
+    "pipeline_tag": "text-generation",
+    "processor": "AutoTokenizer"
+   },
+   "config": {
+    "architectures": [
+     "DeepseekV2ForCausalLM"
+    ],
+    "model_type": "deepseek_v2",
+    "auto_map": {
+     "AutoConfig": "configuration_deepseek.DeepseekV2Config",
+     "AutoModel": "modeling_deepseek.DeepseekV2Model",
+     "AutoModelForCausalLM": "modeling_deepseek.DeepseekV2ForCausalLM"
+    }
+   }
+  },
+  "deepseek-ai/DeepSeek-V3.1": {
+   "id": "deepseek-ai/DeepSeek-V3.1",
+   "pipeline_tag": "text-generation",
+   "library_name": "transformers",
+   "transformersInfo": {
+    "auto_model": "AutoModelForCausalLM",
+    "pipeline_tag": "text-generation",
+    "processor": "AutoTokenizer"
+   },
+   "config": {
+    "architectures": [
+     "DeepseekV3ForCausalLM"
+    ],
+    "model_type": "deepseek_v3",
+    "auto_map": {
+     "AutoConfig": "configuration_deepseek.DeepseekV3Config",
+     "AutoModel": "modeling_deepseek.DeepseekV3Model",
+     "AutoModelForCausalLM": "modeling_deepseek.DeepseekV3ForCausalLM"
+    }
+   }
+  },
+  "deepseek-ai/DeepSeek-V3.2-Exp": {
+   "id": "deepseek-ai/DeepSeek-V3.2-Exp",
+   "pipeline_tag": "text-generation",
+   "library_name": "transformers",
+   "transformersInfo": {
+    "auto_model": "AutoModelForCausalLM",
+    "pipeline_tag": "text-generation",
+    "processor": "AutoTokenizer"
+   },
+   "config": {
+    "architectures": [
+     "DeepseekV32ForCausalLM"
+    ],
+    "model_type": "deepseek_v32"
+   }
+  },
+  "deepseek-ai/DeepSeek-V3.2": {
+   "id": "deepseek-ai/DeepSeek-V3.2",
+   "pipeline_tag": "text-generation",
+   "library_name": "transformers",
+   "transformersInfo": {
+    "auto_model": "AutoModelForCausalLM",
+    "pipeline_tag": "text-generation",
+    "processor": "AutoTokenizer"
+   },
+   "config": {
+    "architectures": [
+     "DeepseekV32ForCausalLM"
+    ],
+    "model_type": "deepseek_v32"
+   }
+  },
+  "deepseek-ai/DeepSeek-V3": {
+   "id": "deepseek-ai/DeepSeek-V3",
+   "pipeline_tag": "text-generation",
+   "library_name": "transformers",
+   "transformersInfo": {
+    "auto_model": "AutoModelForCausalLM",
+    "pipeline_tag": "text-generation",
+    "processor": "AutoTokenizer"
+   },
+   "config": {
+    "architectures": [
+     "DeepseekV3ForCausalLM"
+    ],
+    "model_type": "deepseek_v3",
+    "auto_map": {
+     "AutoConfig": "configuration_deepseek.DeepseekV3Config",
+     "AutoModel": "modeling_deepseek.DeepseekV3Model",
+     "AutoModelForCausalLM": "modeling_deepseek.DeepseekV3ForCausalLM"
+    }
+   }
+  },
+  "deepseek-ai/DeepSeek-V4-Flash": {
+   "id": "deepseek-ai/DeepSeek-V4-Flash",
+   "pipeline_tag": "text-generation",
+   "library_name": "transformers",
+   "transformersInfo": {
+    "auto_model": "AutoModelForCausalLM",
+    "pipeline_tag": "text-generation",
+    "processor": "AutoTokenizer"
+   },
+   "config": {
+    "architectures": [
+     "DeepseekV4ForCausalLM"
+    ],
+    "model_type": "deepseek_v4"
+   }
+  },
+  "deepseek-ai/DeepSeek-V4-Pro": {
+   "id": "deepseek-ai/DeepSeek-V4-Pro",
+   "pipeline_tag": "text-generation",
+   "library_name": "transformers",
+   "transformersInfo": {
+    "auto_model": "AutoModelForCausalLM",
+    "pipeline_tag": "text-generation",
+    "processor": "AutoTokenizer"
+   },
+   "config": {
+    "architectures": [
+     "DeepseekV4ForCausalLM"
+    ],
+    "model_type": "deepseek_v4"
+   }
+  },
+  "google/gemma-2-27b": {
+   "id": "google/gemma-2-27b",
+   "pipeline_tag": "text-generation",
+   "library_name": "transformers",
+   "transformersInfo": {
+    "auto_model": "AutoModelForCausalLM",
+    "pipeline_tag": "text-generation",
+    "processor": "AutoTokenizer"
+   },
+   "config": {
+    "architectures": [
+     "Gemma2ForCausalLM"
+    ],
+    "model_type": "gemma2"
+   }
+  },
+  "google/gemma-2-9b": {
+   "id": "google/gemma-2-9b",
+   "pipeline_tag": "text-generation",
+   "library_name": "transformers",
+   "transformersInfo": {
+    "auto_model": "AutoModelForCausalLM",
+    "pipeline_tag": "text-generation",
+    "processor": "AutoTokenizer"
+   },
+   "config": {
+    "architectures": [
+     "Gemma2ForCausalLM"
+    ],
+    "model_type": "gemma2"
+   }
+  },
+  "google/gemma-4-12B-it": {
+   "id": "google/gemma-4-12B-it",
+   "pipeline_tag": "any-to-any",
+   "library_name": "transformers",
+   "transformersInfo": {
+    "auto_model": "AutoModelForMultimodalLM",
+    "pipeline_tag": "image-text-to-text",
+    "processor": "AutoProcessor"
+   },
+   "config": {
+    "architectures": [
+     "Gemma4UnifiedForConditionalGeneration"
+    ],
+    "model_type": "gemma4_unified"
+   }
+  },
+  "inclusionAI/Ling-2.6-1T": {
+   "id": "inclusionAI/Ling-2.6-1T",
+   "pipeline_tag": "text-generation",
+   "library_name": "transformers",
+   "transformersInfo": {
+    "auto_model": "AutoModelForCausalLM",
+    "custom_class": "modeling_bailing_moe_v2_5.BailingMoeV2_5ForCausalLM",
+    "pipeline_tag": "text-generation"
+   },
+   "config": {
+    "architectures": [
+     "BailingMoeV2_5ForCausalLM"
+    ],
+    "model_type": "bailing_hybrid",
+    "auto_map": {
+     "AutoConfig": "configuration_bailing_moe_v2_5.BailingMoeV2_5Config",
+     "AutoModel": "modeling_bailing_moe_v2_5.BailingMoeV2_5Model",
+     "AutoModelForCausalLM": "modeling_bailing_moe_v2_5.BailingMoeV2_5ForCausalLM"
+    }
+   }
+  },
+  "meituan-longcat/LongCat-Flash-Omni": {
+   "id": "meituan-longcat/LongCat-Flash-Omni",
+   "pipeline_tag": "any-to-any",
+   "library_name": "transformers",
+   "transformersInfo": {
+    "auto_model": "AutoModelForCausalLM",
+    "pipeline_tag": "text-generation"
+   },
+   "config": {
+    "architectures": [
+     "LongcatFlashOmniForCausalLM"
+    ],
+    "auto_map": {
+     "AutoConfig": "configuration_longcat_flash.LongcatFlashConfig",
+     "AutoModel": "modeling_longcat_flash.LongcatFlashModel",
+     "AutoModelForCausalLM": "modeling_longcat_flash.LongcatFlashForCausalLM"
+    }
+   }
+  },
+  "meituan-longcat/LongCat-Flash-Thinking-2601": {
+   "id": "meituan-longcat/LongCat-Flash-Thinking-2601",
+   "pipeline_tag": "text-generation",
+   "library_name": "LongCat-Flash-Thinking-2601",
+   "transformersInfo": {
+    "auto_model": "LongcatCausalLM"
+   },
+   "config": {
+    "architectures": [
+     "LongcatCausalLM"
+    ],
+    "auto_map": {
+     "AutoConfig": "configuration_longcat.LongcatConfig",
+     "AutoModel": "modeling_longcat.LongcatModel",
+     "AutoModelForCausalLM": "modeling_longcat.LongcatForCausalLM"
+    }
+   }
+  },
+  "meta-llama/Llama-2-7b-hf": {
+   "id": "meta-llama/Llama-2-7b-hf",
+   "pipeline_tag": "text-generation",
+   "library_name": "transformers",
+   "transformersInfo": {
+    "auto_model": "AutoModelForCausalLM",
+    "pipeline_tag": "text-generation",
+    "processor": "AutoTokenizer"
+   },
+   "config": {
+    "architectures": [
+     "LlamaForCausalLM"
+    ],
+    "model_type": "llama"
+   }
+  },
+  "meta-llama/Llama-3.2-1B": {
+   "id": "meta-llama/Llama-3.2-1B",
+   "pipeline_tag": "text-generation",
+   "library_name": "transformers",
+   "transformersInfo": {
+    "auto_model": "AutoModelForCausalLM",
+    "pipeline_tag": "text-generation",
+    "processor": "AutoTokenizer"
+   },
+   "config": {
+    "architectures": [
+     "LlamaForCausalLM"
+    ],
+    "model_type": "llama"
+   }
+  },
+  "meta-llama/Llama-3.2-3B": {
+   "id": "meta-llama/Llama-3.2-3B",
+   "pipeline_tag": "text-generation",
+   "library_name": "transformers",
+   "transformersInfo": {
+    "auto_model": "AutoModelForCausalLM",
+    "pipeline_tag": "text-generation",
+    "processor": "AutoTokenizer"
+   },
+   "config": {
+    "architectures": [
+     "LlamaForCausalLM"
+    ],
+    "model_type": "llama"
+   }
+  },
+  "mistralai/Mistral-7B-v0.1": {
+   "id": "mistralai/Mistral-7B-v0.1",
+   "pipeline_tag": "text-generation",
+   "library_name": "transformers",
+   "transformersInfo": {
+    "auto_model": "AutoModelForCausalLM",
+    "pipeline_tag": "text-generation",
+    "processor": "AutoTokenizer"
+   },
+   "config": {
+    "architectures": [
+     "MistralForCausalLM"
+    ],
+    "model_type": "mistral"
+   }
+  },
+  "mistralai/Mistral-Nemo-Base-2407": {
+   "id": "mistralai/Mistral-Nemo-Base-2407",
+   "library_name": "vllm",
+   "config": {
+    "architectures": [
+     "MistralForCausalLM"
+    ],
+    "model_type": "mistral"
+   }
+  },
+  "moonshotai/Kimi-K2-Base": {
+   "id": "moonshotai/Kimi-K2-Base",
+   "pipeline_tag": "text-generation",
+   "library_name": "transformers",
+   "transformersInfo": {
+    "auto_model": "AutoModelForCausalLM",
+    "pipeline_tag": "text-generation"
+   },
+   "config": {
+    "architectures": [
+     "DeepseekV3ForCausalLM"
+    ],
+    "model_type": "kimi_k2",
+    "auto_map": {
+     "AutoConfig": "configuration_deepseek.DeepseekV3Config",
+     "AutoModel": "modeling_deepseek.DeepseekV3Model",
+     "AutoModelForCausalLM": "modeling_deepseek.DeepseekV3ForCausalLM"
+    }
+   }
+  },
+  "moonshotai/Kimi-K2-Instruct": {
+   "id": "moonshotai/Kimi-K2-Instruct",
+   "pipeline_tag": "text-generation",
+   "library_name": "transformers",
+   "transformersInfo": {
+    "auto_model": "AutoModelForCausalLM",
+    "pipeline_tag": "text-generation"
+   },
+   "config": {
+    "architectures": [
+     "DeepseekV3ForCausalLM"
+    ],
+    "model_type": "kimi_k2",
+    "auto_map": {
+     "AutoConfig": "configuration_deepseek.DeepseekV3Config",
+     "AutoModel": "modeling_deepseek.DeepseekV3Model",
+     "AutoModelForCausalLM": "modeling_deepseek.DeepseekV3ForCausalLM"
+    }
+   }
+  },
+  "moonshotai/Kimi-K2-Thinking": {
+   "id": "moonshotai/Kimi-K2-Thinking",
+   "pipeline_tag": "text-generation",
+   "library_name": "transformers",
+   "transformersInfo": {
+    "auto_model": "AutoModelForCausalLM",
+    "pipeline_tag": "text-generation"
+   },
+   "config": {
+    "architectures": [
+     "DeepseekV3ForCausalLM"
+    ],
+    "model_type": "kimi_k2",
+    "auto_map": {
+     "AutoConfig": "configuration_deepseek.DeepseekV3Config",
+     "AutoModel": "modeling_deepseek.DeepseekV3Model",
+     "AutoModelForCausalLM": "modeling_deepseek.DeepseekV3ForCausalLM"
+    }
+   }
+  },
+  "moonshotai/Kimi-K2.5": {
+   "id": "moonshotai/Kimi-K2.5",
+   "pipeline_tag": "image-text-to-text",
+   "library_name": "transformers",
+   "transformersInfo": {
+    "auto_model": "AutoModel",
+    "custom_class": "modeling_kimi_k25.KimiK25ForConditionalGeneration",
+    "pipeline_tag": "feature-extraction",
+    "processor": "AutoProcessor"
+   },
+   "config": {
+    "architectures": [
+     "KimiK25ForConditionalGeneration"
+    ],
+    "model_type": "kimi_k25",
+    "auto_map": {
+     "AutoConfig": "configuration_kimi_k25.KimiK25Config",
+     "AutoModel": "modeling_kimi_k25.KimiK25ForConditionalGeneration",
+     "AutoModelForCausalLM": "modeling_kimi_k25.KimiK25ForConditionalGeneration"
+    }
+   }
+  },
+  "moonshotai/Kimi-K3": {
+   "id": "moonshotai/Kimi-K3",
+   "pipeline_tag": "image-text-to-text",
+   "library_name": "transformers",
+   "transformersInfo": {
+    "auto_model": "AutoModel",
+    "custom_class": "modeling_kimi_k3.KimiK3ForConditionalGeneration",
+    "pipeline_tag": "feature-extraction"
+   },
+   "config": {
+    "architectures": [
+     "KimiK3ForConditionalGeneration"
+    ],
+    "model_type": "kimi_k3",
+    "auto_map": {
+     "AutoConfig": "configuration_kimi_k3.KimiK3Config",
+     "AutoModel": "modeling_kimi_k3.KimiK3ForConditionalGeneration",
+     "AutoModelForCausalLM": "modeling_kimi_k3.KimiK3ForConditionalGeneration"
+    }
+   }
+  },
+  "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-BF16": {
+   "id": "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-BF16",
+   "pipeline_tag": "text-generation",
+   "library_name": "transformers",
+   "transformersInfo": {
+    "auto_model": "AutoModelForCausalLM",
+    "pipeline_tag": "text-generation",
+    "processor": "AutoTokenizer"
+   },
+   "config": {
+    "architectures": [
+     "NemotronHForCausalLM"
+    ],
+    "model_type": "nemotron_h",
+    "auto_map": {
+     "AutoConfig": "configuration_nemotron_h.NemotronHConfig",
+     "AutoModel": "modeling_nemotron_h.NemotronHForCausalLM",
+     "AutoModelForCausalLM": "modeling_nemotron_h.NemotronHForCausalLM"
+    }
+   }
+  },
+  "nvidia/NVIDIA-Nemotron-3-Ultra-550B-A55B-BF16": {
+   "id": "nvidia/NVIDIA-Nemotron-3-Ultra-550B-A55B-BF16",
+   "pipeline_tag": "text-generation",
+   "library_name": "transformers",
+   "transformersInfo": {
+    "auto_model": "AutoModelForCausalLM",
+    "pipeline_tag": "text-generation",
+    "processor": "AutoTokenizer"
+   },
+   "config": {
+    "architectures": [
+     "NemotronHForCausalLM"
+    ],
+    "model_type": "nemotron_h"
+   }
+  },
+  "openai/gpt-oss-20b": {
+   "id": "openai/gpt-oss-20b",
+   "pipeline_tag": "text-generation",
+   "library_name": "transformers",
+   "transformersInfo": {
+    "auto_model": "AutoModelForCausalLM",
+    "pipeline_tag": "text-generation",
+    "processor": "AutoTokenizer"
+   },
+   "config": {
+    "architectures": [
+     "GptOssForCausalLM"
+    ],
+    "model_type": "gpt_oss"
+   }
+  },
+  "stepfun-ai/Step-3.7-Flash": {
+   "id": "stepfun-ai/Step-3.7-Flash",
+   "pipeline_tag": "image-text-to-text",
+   "library_name": "transformers",
+   "transformersInfo": {
+    "auto_model": "AutoModelForMultimodalLM",
+    "pipeline_tag": "image-text-to-text",
+    "processor": "AutoProcessor"
+   },
+   "config": {
+    "architectures": [
+     "Step3p7ForConditionalGeneration"
+    ],
+    "model_type": "step3p7",
+    "auto_map": {
+     "AutoConfig": "configuration_step3p7.Step3p7Config",
+     "AutoProcessor": "processing_step3.Step3VLProcessor",
+     "AutoModelForCausalLM": "modeling_step3p7.Step3p7ForConditionalGeneration"
+    }
+   }
+  },
+  "tencent/HunyuanOCR": {
+   "id": "tencent/HunyuanOCR",
+   "pipeline_tag": "image-text-to-text",
+   "library_name": "transformers",
+   "transformersInfo": {
+    "auto_model": "AutoModelForMultimodalLM",
+    "pipeline_tag": "image-text-to-text",
+    "processor": "AutoProcessor"
+   },
+   "config": {
+    "architectures": [
+     "HunYuanVLForConditionalGeneration"
+    ],
+    "model_type": "hunyuan_vl"
+   }
+  },
+  "zai-org/GLM-4.5-Air": {
+   "id": "zai-org/GLM-4.5-Air",
+   "pipeline_tag": "text-generation",
+   "library_name": "transformers",
+   "transformersInfo": {
+    "auto_model": "AutoModelForCausalLM",
+    "pipeline_tag": "text-generation",
+    "processor": "AutoTokenizer"
+   },
+   "config": {
+    "architectures": [
+     "Glm4MoeForCausalLM"
+    ],
+    "model_type": "glm4_moe"
+   }
+  },
+  "zai-org/GLM-4.5": {
+   "id": "zai-org/GLM-4.5",
+   "pipeline_tag": "text-generation",
+   "library_name": "transformers",
+   "transformersInfo": {
+    "auto_model": "AutoModelForCausalLM",
+    "pipeline_tag": "text-generation",
+    "processor": "AutoTokenizer"
+   },
+   "config": {
+    "architectures": [
+     "Glm4MoeForCausalLM"
+    ],
+    "model_type": "glm4_moe"
+   }
+  },
+  "zai-org/GLM-5.1": {
+   "id": "zai-org/GLM-5.1",
+   "pipeline_tag": "text-generation",
+   "library_name": "transformers",
+   "transformersInfo": {
+    "auto_model": "AutoModelForCausalLM",
+    "pipeline_tag": "text-generation",
+    "processor": "AutoTokenizer"
+   },
+   "config": {
+    "architectures": [
+     "GlmMoeDsaForCausalLM"
+    ],
+    "model_type": "glm_moe_dsa"
+   }
+  },
+  "zai-org/GLM-5.2": {
+   "id": "zai-org/GLM-5.2",
+   "pipeline_tag": "text-generation",
+   "library_name": "transformers",
+   "transformersInfo": {
+    "auto_model": "AutoModelForCausalLM",
+    "pipeline_tag": "text-generation",
+    "processor": "AutoTokenizer"
+   },
+   "config": {
+    "architectures": [
+     "GlmMoeDsaForCausalLM"
+    ],
+    "model_type": "glm_moe_dsa"
+   }
+  },
+  "zai-org/GLM-5.3-Flash": {
+   "id": "zai-org/GLM-5.3-Flash",
+   "pipeline_tag": "image-text-to-text",
+   "library_name": "transformers",
+   "transformersInfo": {
+    "auto_model": "AutoModelForMultimodalLM",
+    "pipeline_tag": "image-text-to-text",
+    "processor": "AutoProcessor"
+   },
+   "config": {
+    "architectures": [
+     "Glm5NextForConditionalGeneration"
+    ],
+    "model_type": "glm5_next"
+   }
+  },
+  "zai-org/GLM-5": {
+   "id": "zai-org/GLM-5",
+   "pipeline_tag": "text-generation",
+   "library_name": "transformers",
+   "transformersInfo": {
+    "auto_model": "AutoModelForCausalLM",
+    "pipeline_tag": "text-generation",
+    "processor": "AutoTokenizer"
+   },
+   "config": {
+    "architectures": [
+     "GlmMoeDsaForCausalLM"
+    ],
+    "model_type": "glm_moe_dsa"
+   }
+  }
+ },
+ "outside": {
+  "Qwen/Qwen3-Omni-30B-A3B-Instruct": {
+   "id": "Qwen/Qwen3-Omni-30B-A3B-Instruct",
+   "pipeline_tag": "any-to-any",
+   "library_name": "transformers",
+   "transformersInfo": {
+    "auto_model": "AutoModelForMultimodalLM",
+    "pipeline_tag": "text-to-audio",
+    "processor": "AutoProcessor"
+   },
+   "config": {
+    "architectures": [
+     "Qwen3OmniMoeForConditionalGeneration"
+    ],
+    "model_type": "qwen3_omni_moe"
+   },
+   "siblings": [
+    {
+     "rfilename": ".gitattributes"
+    },
+    {
+     "rfilename": "README.md"
+    },
+    {
+     "rfilename": "chat_template.json"
+    },
+    {
+     "rfilename": "config.json"
+    },
+    {
+     "rfilename": "generation_config.json"
+    },
+    {
+     "rfilename": "merges.txt"
+    },
+    {
+     "rfilename": "model-00001-of-00015.safetensors"
+    },
+    {
+     "rfilename": "model-00002-of-00015.safetensors"
+    },
+    {
+     "rfilename": "model-00003-of-00015.safetensors"
+    },
+    {
+     "rfilename": "model-00004-of-00015.safetensors"
+    },
+    {
+     "rfilename": "model-00005-of-00015.safetensors"
+    },
+    {
+     "rfilename": "model-00006-of-00015.safetensors"
+    },
+    {
+     "rfilename": "model-00007-of-00015.safetensors"
+    },
+    {
+     "rfilename": "model-00008-of-00015.safetensors"
+    },
+    {
+     "rfilename": "model-00009-of-00015.safetensors"
+    },
+    {
+     "rfilename": "model-00010-of-00015.safetensors"
+    },
+    {
+     "rfilename": "model-00011-of-00015.safetensors"
+    },
+    {
+     "rfilename": "model-00012-of-00015.safetensors"
+    },
+    {
+     "rfilename": "model-00013-of-00015.safetensors"
+    },
+    {
+     "rfilename": "model-00014-of-00015.safetensors"
+    },
+    {
+     "rfilename": "model-00015-of-00015.safetensors"
+    },
+    {
+     "rfilename": "model.safetensors.index.json"
+    },
+    {
+     "rfilename": "preprocessor_config.json"
+    },
+    {
+     "rfilename": "tokenizer_config.json"
+    },
+    {
+     "rfilename": "vocab.json"
+    }
+   ]
+  },
+  "mistralai/Voxtral-Mini-4B-Realtime-2602": {
+   "id": "mistralai/Voxtral-Mini-4B-Realtime-2602",
+   "pipeline_tag": "automatic-speech-recognition",
+   "library_name": "vllm",
+   "config": {
+    "architectures": [
+     "VoxtralRealtimeForConditionalGeneration"
+    ],
+    "model_type": "voxtral_realtime"
+   },
+   "siblings": [
+    {
+     "rfilename": ".gitattributes"
+    },
+    {
+     "rfilename": "README.md"
+    },
+    {
+     "rfilename": "config.json"
+    },
+    {
+     "rfilename": "consolidated.safetensors"
+    },
+    {
+     "rfilename": "generation_config.json"
+    },
+    {
+     "rfilename": "model.safetensors"
+    },
+    {
+     "rfilename": "params.json"
+    },
+    {
+     "rfilename": "processor_config.json"
+    },
+    {
+     "rfilename": "tekken.json"
+    }
+   ]
+  },
+  "BAAI/bge-m3": {
+   "id": "BAAI/bge-m3",
+   "pipeline_tag": "sentence-similarity",
+   "library_name": "sentence-transformers",
+   "config": {
+    "architectures": [
+     "XLMRobertaModel"
+    ],
+    "model_type": "xlm-roberta"
+   },
+   "siblings": [
+    {
+     "rfilename": ".gitattributes"
+    },
+    {
+     "rfilename": "1_Pooling/config.json"
+    },
+    {
+     "rfilename": "README.md"
+    },
+    {
+     "rfilename": "colbert_linear.pt"
+    },
+    {
+     "rfilename": "config.json"
+    },
+    {
+     "rfilename": "config_sentence_transformers.json"
+    },
+    {
+     "rfilename": "imgs/.DS_Store"
+    },
+    {
+     "rfilename": "imgs/bm25.jpg"
+    },
+    {
+     "rfilename": "imgs/long.jpg"
+    },
+    {
+     "rfilename": "imgs/miracl.jpg"
+    },
+    {
+     "rfilename": "imgs/mkqa.jpg"
+    },
+    {
+     "rfilename": "imgs/nqa.jpg"
+    },
+    {
+     "rfilename": "imgs/others.webp"
+    },
+    {
+     "rfilename": "long.jpg"
+    },
+    {
+     "rfilename": "modules.json"
+    },
+    {
+     "rfilename": "onnx/Constant_7_attr__value"
+    },
+    {
+     "rfilename": "onnx/config.json"
+    },
+    {
+     "rfilename": "onnx/model.onnx"
+    },
+    {
+     "rfilename": "onnx/model.onnx_data"
+    },
+    {
+     "rfilename": "onnx/sentencepiece.bpe.model"
+    },
+    {
+     "rfilename": "onnx/special_tokens_map.json"
+    },
+    {
+     "rfilename": "onnx/tokenizer.json"
+    },
+    {
+     "rfilename": "onnx/tokenizer_config.json"
+    },
+    {
+     "rfilename": "pytorch_model.bin"
+    },
+    {
+     "rfilename": "sentence_bert_config.json"
+    },
+    {
+     "rfilename": "sentencepiece.bpe.model"
+    },
+    {
+     "rfilename": "sparse_linear.pt"
+    },
+    {
+     "rfilename": "special_tokens_map.json"
+    },
+    {
+     "rfilename": "tokenizer.json"
+    },
+    {
+     "rfilename": "tokenizer_config.json"
+    }
+   ]
+  },
+  "sentence-transformers/all-MiniLM-L6-v2": {
+   "id": "sentence-transformers/all-MiniLM-L6-v2",
+   "pipeline_tag": "sentence-similarity",
+   "library_name": "sentence-transformers",
+   "transformersInfo": {
+    "auto_model": "AutoModel",
+    "pipeline_tag": "feature-extraction",
+    "processor": "AutoTokenizer"
+   },
+   "config": {
+    "architectures": [
+     "BertModel"
+    ],
+    "model_type": "bert"
+   },
+   "siblings": [
+    {
+     "rfilename": ".gitattributes"
+    },
+    {
+     "rfilename": "1_Pooling/config.json"
+    },
+    {
+     "rfilename": "README.md"
+    },
+    {
+     "rfilename": "config.json"
+    },
+    {
+     "rfilename": "config_sentence_transformers.json"
+    },
+    {
+     "rfilename": "data_config.json"
+    },
+    {
+     "rfilename": "model.safetensors"
+    },
+    {
+     "rfilename": "modules.json"
+    },
+    {
+     "rfilename": "onnx/model.onnx"
+    },
+    {
+     "rfilename": "onnx/model_O1.onnx"
+    },
+    {
+     "rfilename": "onnx/model_O2.onnx"
+    },
+    {
+     "rfilename": "onnx/model_O3.onnx"
+    },
+    {
+     "rfilename": "onnx/model_O4.onnx"
+    },
+    {
+     "rfilename": "onnx/model_qint8_arm64.onnx"
+    },
+    {
+     "rfilename": "onnx/model_qint8_avx512.onnx"
+    },
+    {
+     "rfilename": "onnx/model_qint8_avx512_vnni.onnx"
+    },
+    {
+     "rfilename": "onnx/model_quint8_avx2.onnx"
+    },
+    {
+     "rfilename": "openvino/openvino_model.bin"
+    },
+    {
+     "rfilename": "openvino/openvino_model.xml"
+    },
+    {
+     "rfilename": "openvino/openvino_model_qint8_quantized.bin"
+    },
+    {
+     "rfilename": "openvino/openvino_model_qint8_quantized.xml"
+    },
+    {
+     "rfilename": "pytorch_model.bin"
+    },
+    {
+     "rfilename": "rust_model.ot"
+    },
+    {
+     "rfilename": "sentence_bert_config.json"
+    },
+    {
+     "rfilename": "special_tokens_map.json"
+    },
+    {
+     "rfilename": "tf_model.h5"
+    },
+    {
+     "rfilename": "tokenizer.json"
+    },
+    {
+     "rfilename": "tokenizer_config.json"
+    },
+    {
+     "rfilename": "train_script.py"
+    },
+    {
+     "rfilename": "vocab.txt"
+    }
+   ]
+  },
+  "stabilityai/stable-diffusion-xl-base-1.0": {
+   "id": "stabilityai/stable-diffusion-xl-base-1.0",
+   "pipeline_tag": "text-to-image",
+   "library_name": "diffusers",
+   "config": {},
+   "siblings": [
+    {
+     "rfilename": ".gitattributes"
+    },
+    {
+     "rfilename": "01.png"
+    },
+    {
+     "rfilename": "LICENSE.md"
+    },
+    {
+     "rfilename": "README.md"
+    },
+    {
+     "rfilename": "comparison.png"
+    },
+    {
+     "rfilename": "model_index.json"
+    },
+    {
+     "rfilename": "pipeline.png"
+    },
+    {
+     "rfilename": "scheduler/scheduler_config.json"
+    },
+    {
+     "rfilename": "sd_xl_base_1.0.safetensors"
+    },
+    {
+     "rfilename": "sd_xl_base_1.0_0.9vae.safetensors"
+    },
+    {
+     "rfilename": "sd_xl_offset_example-lora_1.0.safetensors"
+    },
+    {
+     "rfilename": "text_encoder/config.json"
+    },
+    {
+     "rfilename": "text_encoder/flax_model.msgpack"
+    },
+    {
+     "rfilename": "text_encoder/model.fp16.safetensors"
+    },
+    {
+     "rfilename": "text_encoder/model.onnx"
+    },
+    {
+     "rfilename": "text_encoder/model.safetensors"
+    },
+    {
+     "rfilename": "text_encoder/openvino_model.bin"
+    },
+    {
+     "rfilename": "text_encoder/openvino_model.xml"
+    },
+    {
+     "rfilename": "text_encoder_2/config.json"
+    },
+    {
+     "rfilename": "text_encoder_2/flax_model.msgpack"
+    },
+    {
+     "rfilename": "text_encoder_2/model.fp16.safetensors"
+    },
+    {
+     "rfilename": "text_encoder_2/model.onnx"
+    },
+    {
+     "rfilename": "text_encoder_2/model.onnx_data"
+    },
+    {
+     "rfilename": "text_encoder_2/model.safetensors"
+    },
+    {
+     "rfilename": "text_encoder_2/openvino_model.bin"
+    },
+    {
+     "rfilename": "text_encoder_2/openvino_model.xml"
+    },
+    {
+     "rfilename": "tokenizer/merges.txt"
+    },
+    {
+     "rfilename": "tokenizer/special_tokens_map.json"
+    },
+    {
+     "rfilename": "tokenizer/tokenizer_config.json"
+    },
+    {
+     "rfilename": "tokenizer/vocab.json"
+    },
+    {
+     "rfilename": "tokenizer_2/merges.txt"
+    },
+    {
+     "rfilename": "tokenizer_2/special_tokens_map.json"
+    },
+    {
+     "rfilename": "tokenizer_2/tokenizer_config.json"
+    },
+    {
+     "rfilename": "tokenizer_2/vocab.json"
+    },
+    {
+     "rfilename": "unet/config.json"
+    },
+    {
+     "rfilename": "unet/diffusion_flax_model.msgpack"
+    },
+    {
+     "rfilename": "unet/diffusion_pytorch_model.fp16.safetensors"
+    },
+    {
+     "rfilename": "unet/diffusion_pytorch_model.safetensors"
+    },
+    {
+     "rfilename": "unet/model.onnx"
+    },
+    {
+     "rfilename": "unet/model.onnx_data"
+    },
+    {
+     "rfilename": "unet/openvino_model.bin"
+    },
+    {
+     "rfilename": "unet/openvino_model.xml"
+    },
+    {
+     "rfilename": "vae/config.json"
+    },
+    {
+     "rfilename": "vae/diffusion_flax_model.msgpack"
+    },
+    {
+     "rfilename": "vae/diffusion_pytorch_model.fp16.safetensors"
+    },
+    {
+     "rfilename": "vae/diffusion_pytorch_model.safetensors"
+    },
+    {
+     "rfilename": "vae_1_0/config.json"
+    },
+    {
+     "rfilename": "vae_1_0/diffusion_pytorch_model.fp16.safetensors"
+    },
+    {
+     "rfilename": "vae_1_0/diffusion_pytorch_model.safetensors"
+    },
+    {
+     "rfilename": "vae_decoder/config.json"
+    },
+    {
+     "rfilename": "vae_decoder/model.onnx"
+    },
+    {
+     "rfilename": "vae_decoder/openvino_model.bin"
+    },
+    {
+     "rfilename": "vae_decoder/openvino_model.xml"
+    },
+    {
+     "rfilename": "vae_encoder/config.json"
+    },
+    {
+     "rfilename": "vae_encoder/model.onnx"
+    },
+    {
+     "rfilename": "vae_encoder/openvino_model.bin"
+    },
+    {
+     "rfilename": "vae_encoder/openvino_model.xml"
+    }
+   ]
+  },
+  "Qwen/Qwen2.5-Omni-7B": {
+   "id": "Qwen/Qwen2.5-Omni-7B",
+   "pipeline_tag": "any-to-any",
+   "library_name": "transformers",
+   "transformersInfo": {
+    "auto_model": "AutoModel",
+    "processor": "AutoProcessor"
+   },
+   "config": {
+    "architectures": [
+     "Qwen2_5OmniModel"
+    ],
+    "model_type": "qwen2_5_omni"
+   },
+   "siblings": [
+    {
+     "rfilename": ".gitattributes"
+    },
+    {
+     "rfilename": "LICENSE"
+    },
+    {
+     "rfilename": "README.md"
+    },
+    {
+     "rfilename": "added_tokens.json"
+    },
+    {
+     "rfilename": "chat_template.json"
+    },
+    {
+     "rfilename": "config.json"
+    },
+    {
+     "rfilename": "generation_config.json"
+    },
+    {
+     "rfilename": "merges.txt"
+    },
+    {
+     "rfilename": "model-00001-of-00005.safetensors"
+    },
+    {
+     "rfilename": "model-00002-of-00005.safetensors"
+    },
+    {
+     "rfilename": "model-00003-of-00005.safetensors"
+    },
+    {
+     "rfilename": "model-00004-of-00005.safetensors"
+    },
+    {
+     "rfilename": "model-00005-of-00005.safetensors"
+    },
+    {
+     "rfilename": "model.safetensors.index.json"
+    },
+    {
+     "rfilename": "preprocessor_config.json"
+    },
+    {
+     "rfilename": "special_tokens_map.json"
+    },
+    {
+     "rfilename": "spk_dict.pt"
+    },
+    {
+     "rfilename": "tokenizer.json"
+    },
+    {
+     "rfilename": "tokenizer_config.json"
+    },
+    {
+     "rfilename": "vocab.json"
+    }
+   ]
+  }
+ },
+ "own_forward": {
+  "stepfun-ai/Step-5-Preview": {
+   "id": "stepfun-ai/Step-5-Preview",
+   "config": {
+    "architectures": [
+     "Step5ForConditionalGeneration"
+    ],
+    "model_type": "step5_vl"
+   },
+   "siblings": [
+    {
+     "rfilename": ".gitattributes"
+    },
+    {
+     "rfilename": "LICENSE-CN.txt"
+    },
+    {
+     "rfilename": "LICENSE.txt"
+    },
+    {
+     "rfilename": "README.md"
+    },
+    {
+     "rfilename": "chat_template.jinja"
+    },
+    {
+     "rfilename": "config.json"
+    },
+    {
+     "rfilename": "fp8_vit_sidecar_ready.json"
+    },
+    {
+     "rfilename": "inference/README.md"
+    },
+    {
+     "rfilename": "inference/README.zh.md"
+    },
+    {
+     "rfilename": "inference/convert.py"
+    },
+    {
+     "rfilename": "inference/generate.py"
+    },
+    {
+     "rfilename": "inference/kernel.py"
+    },
+    {
+     "rfilename": "inference/model.py"
+    },
+    {
+     "rfilename": "inference/requirements.txt"
+    },
+    {
+     "rfilename": "inference/test_vision.py"
+    },
+    {
+     "rfilename": "inference/validate_vision.py"
+    },
+    {
+     "rfilename": "inference/vision_encoder.py"
+    },
+    {
+     "rfilename": "model.safetensors.index.json"
+    },
+    {
+     "rfilename": "special_tokens_map.json"
+    },
+    {
+     "rfilename": "tokenizer.json"
+    },
+    {
+     "rfilename": "tokenizer_config.json"
+    },
+    {
+     "rfilename": "vit.safetensors"
+    }
+   ]
+  }
+ }
+}

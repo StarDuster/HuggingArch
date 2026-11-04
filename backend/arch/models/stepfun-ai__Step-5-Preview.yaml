@@ -1,0 +1,357 @@
+# Step-5-Preview (StepFun). 600B total / 27B active sparse MoE VLM, 1M context.
+#
+# Text backbone: 92 layers, hybrid attention on a 4-layer cycle read from
+# `text_config.layer_types` — three `sliding_attention` layers (window 512,
+# FULL RoPE) then one `full_attention` layer, which is NOT dense: it is a CSA
+# block-compress sparse layer (partial RoPE on the leading third of each head,
+# plus a region indexer that pools 8 consecutive tokens into one FP8 summary,
+# scores the summaries with a weighted-ReLU sum over 16 indexer heads, and
+# attends only the top 512 regions plus the query's own). Every layer carries
+# per-head QK-RMSNorm before the rotation and a per-head sigmoid output gate
+# (`g_proj`, `use_head_wise_attn_gate`).
+#
+# FFN: layers 0-2 and 91 are dense clamped SwiGLU; layers 3-90
+# (`moe_layer_list`) are 352-expert MoE — sigmoid router with a
+# selection-only `router_bias`, renormalized weights, ×3 routed scale — plus
+# one wide shared expert stored as a SIBLING of the MoE block
+# (`layers.N.share_expert.*`). Every SwiGLU in the model clamps AFTER the
+# activation (`silu(gate).clamp(max=7) * up.clamp(±7)`).
+#
+# Three MTP heads at `model.layers.{92,93,94}`: enorm/hnorm + concat + eh_proj
+# + a sliding-attention dense pre-norm block, each with its own
+# `transformer.shared_head.{norm,output}` logits head.
+#
+# Vision: a 47-block Perception-Encoder ViT (LayerScale, 2-D axial RoPE,
+# QuickGELU) + two 3x3 stride-2 downsamplers + `vit_large_projector` into the
+# text width; crops run through the same tower before each overview image.
+#
+# Quantization: ONLY the routed experts of layers 3-87 are FP8 block-scaled
+# (128x128) — a `quant_context.overrides` row names layers 88-90, whose expert
+# bank the checkpoint ships unquantized. Those three layers' experts, every
+# and shared FFNs, the router gate, the vision tower, the embedding and the
+# heads are BF16; every norm, the router bias, `sparse_indexer_w` and
+# `ssmax_s` are F32.
+#
+# Family convention carried over from the reviewed Step-3.x specs: StepFun's
+# RMSNorm is zero-centered (`x / rms(x) · (1 + w)`, inference/model.py:955-975).
+# `rmsnorm` is the op for it here, as in `step3p7_flash.yaml` and the Step-3.x
+# library components; the `1 +` is a constant on the stored gain and changes
+# neither the ops that run nor any dataflow edge.
+match:
+  model_type: [step5_vl]
+  model_id: ["stepfun-ai/Step-5-Preview"]
+
+drafts:
+  - gqa_qknorm_partial_rope_gated_region_sparse_attention
+  - region_softmax_pool_compressor
+  - region_softmax_pool_compressor_decode
+  - moe_ffn_packed_debias_no_shared
+  - gated_experts_silu_clamped
+  - swiglu_ffn_silu_clamped
+  - perception_encoder_rope2d_tower
+  - vit_layerscale_rope2d_quickgelu_block
+  - vit_fused_qkv_rope2d_attention
+  - vit_quick_gelu_mlp
+
+components:
+  attention: gqa_qknorm_partial_rope_gated_region_sparse_attention
+  attention_swa: swa_qknorm_gated_full_rope_attention
+  ffn_dense: swiglu_ffn_silu_clamped
+  ffn_moe: moe_ffn_packed_debias_no_shared
+  norm: rmsnorm
+  block: pre_norm
+
+dims:
+  # --- text backbone ---
+  d_model:          config.text_config.hidden_size                     # 4096
+  n_heads:          config.text_config.num_attention_heads             # 64 (both attention classes)
+  n_kv_heads:       config.text_config.num_attention_groups            # 4  (GQA groups == DSA provider groups)
+  d_head:           config.text_config.head_dim                        # 192
+  # partial_rotary_factors is 1/3 on every full_attention layer and 1.0 on
+  # every sliding one (config), and the span is rounded to an even width:
+  # `rotary_span = round(192/3) = 64` (inference/model.py:1295-1296). Only the
+  # sparse layers read d_rope / d_nope; the sliding component rotates d_head.
+  d_rope:           "d_head // 3"                                      # 64
+  d_nope:           "d_head - d_rope"                                  # 128
+  s_window:         config.text_config.sliding_window ?? "512"         # 512, the sliding layers' ring
+  d_ffn:            config.text_config.intermediate_size               # 13824 (dense layers + MTP)
+  d_ffn_expert:     config.text_config.moe_intermediate_size           # 1536
+  d_ffn_shared:     config.text_config.share_expert_dim ?? d_ffn_expert # 1536
+  n_vocab:          config.text_config.vocab_size                      # 128896
+  n_layers:         config.text_config.num_hidden_layers               # 92
+  n_experts:        config.text_config.moe_num_experts                 # 352
+  n_experts_active: config.text_config.moe_top_k                       # 8
+  n_shared_experts: "1"                                                # one wide share_expert per MoE layer (model.py:2097-2105)
+  # `Step5MoE.route` has no group stage at all (model.py:2020-2030): one
+  # top-k over every expert.
+  n_expert_groups:  "1"
+  n_groups_active:  "1"
+  # `if self.renormalize` — config.norm_expert_weight (model.py:2028).
+  n_topk_renorm:    config.text_config.norm_expert_weight ?? "1"
+  # `return weights * self.scaling_factor` is unconditional (model.py:2030),
+  # so the scale step always runs; its value is moe_router_scaling_factor.
+  n_routed_scale:   "1"
+  # `clamped_swiglu(..., limit)`: swiglu_limits[layer] for the routed experts
+  # and the dense MLPs, swiglu_limits_shared[layer] for the shared expert —
+  # 7.0 on every layer of this checkpoint (model.py:1990, :2091-2093, :2108).
+  clamp_limit:        config.text_config.swiglu_limits.0 ?? "7.0"
+  clamp_limit_shared: config.text_config.swiglu_limits_shared.0 ?? "7.0"
+  n_mtp_layers:     config.text_config.num_nextn_predict_layers ?? "0" # 3
+  # --- CSA sparse indexer (text_config.sparse_config) ---
+  n_indexer_heads:      config.text_config.sparse_config.sparse_indexer_num_heads  # 16 = 4 provider groups x 4
+  # The indexer's heads come in provider groups, one per KV group — the
+  # publisher refuses any other pairing ("DSA provider groups must align with
+  # attention KV groups", inference/model.py:370-384) — and a rank builds the
+  # Q/W heads of its own KV groups only (model.py:1437-1446). The component
+  # writes its indexer head axis `n_kv_heads * n_indexer_group_heads`, so TP
+  # splits it the way it splits k_proj.
+  n_indexer_group_heads: "n_indexer_heads // n_kv_heads"                     # 4
+  d_indexer_head:       config.text_config.sparse_config.proxy_dim                 # 256
+  # The indexer rotates the leading sparse_indexer_rope_dim channels of each
+  # head: `build_rope_cache(rotary_span=sparse_indexer_rope_dim)` makes
+  # half-width tables (model.py:1512-1537, kernel.py:1772-1810) and the
+  # kernel rotates `2 * table width` channels (kernel.py:85-178, :1986).
+  d_indexer_rope:       config.text_config.sparse_config.sparse_indexer_rope_dim   # 32
+  # Tokens pooled into one region summary (`region_block_size`), and the
+  # regions a query keeps (`topk`).
+  compress_ratio:   config.text_config.sparse_config.region_block_size   # 8
+  n_topk_blocks:    config.text_config.sparse_config.topk                # 512
+  # The query's own region is appended to the selection unconditionally
+  # (kernel.py `_append_current_region_kernel` / `_decode_pack_kernel`), so a
+  # query reads at most (512 + 1) x 8 = 4104 cached tokens.
+  n_topk_keys:      "(n_topk_blocks + 1) * compress_ratio"
+  s_max:            config.text_config.max_position_embeddings           # 1048576
+  # --- vision tower (Perception Encoder) ---
+  d_vis_model:      config.vision_config.width                           # 1536
+  n_vis_heads:      config.vision_config.heads                           # 16
+  d_vis_head:       "d_vis_model // n_vis_heads"                          # 96
+  d_vis_ffn:        "8960"                                               # int(width * mlp_ratio), mlp_ratio = 8960/1536
+  n_vis_layers:     config.vision_config.layers                          # 47
+  s_patch:          config.vision_config.patch_size                      # 14
+  n_vis_channels:   config.vision_config.num_channels ?? "3"
+  n_vis_pos_slots:  "2704"                                               # (image_size / patch_size)^2 = (728/14)^2 = 52*52
+  s_vis_image:      config.vision_config.image_size                      # 728 — the overview view's side
+  # The crops' side: 81 rows per crop (config.patch_token_len) is a 9x9 grid
+  # after the two stride-2 downsamplers, so the ViT grid is 36x36 and the crop
+  # is 36 * 14 = 504 px.
+  s_vis_crop:       "504"
+  s_vis_ds_kernel:  "3"
+  s_vis_ds_stride:  config.understand_projector_stride ?? "2"            # 2: 52 -> 26 -> 13
+  d_vis_ds_out1:    "3072"                                               # 2 * width
+  d_vis_ds_out2:    "6144"                                               # 4 * width — the projector's input
+
+# Per-layer rope: `rope_theta` is a list (10000.0 on sliding layers,
+# 1e7 on full-attention ones) and `rope_scaling` (llama3) applies ONLY to the
+# layer types in `yarn_only_types` = ["full_attention"]
+# (inference/model.py:477-482) — per-layer rope parameters, a constant the op
+# vocabulary has no field for.
+view:
+  rope_theta: config.text_config.rope_theta
+  rope_scaling: config.text_config.rope_scaling
+  norm.eps: config.text_config.rms_norm_eps
+  hidden_act: config.vision_config.hidden_act
+
+blocks:
+  # MoE layer. Pre-norm, but the routed pack (`moe.*`) and the shared expert
+  # (`share_expert.*`) are SIBLINGS at the layer root, and `_feed_forward`
+  # adds them in FP32 before the single TP all-reduce
+  # (inference/model.py:2113-2123), so this is one add of two branches that
+  # both read `post_attention_layernorm`, not a nested `mlp`.
+  step5_moe_block:
+    params:
+      attn: { kind: component }
+      norm: { kind: component, default: rmsnorm }
+    graph:
+      input_layernorm:          { op: <norm>, in: x, dim: d_model, weight_axes: [{ replicated: true }] }
+      self_attn:                { op: <attn>, in: input_layernorm }
+      attn_residual:            { op: add, in: [x, self_attn], dim: d_model }
+      post_attention_layernorm: { op: <norm>, in: attn_residual, dim: d_model, weight_axes: [{ replicated: true }] }
+      moe:                      { op: moe_ffn_packed_debias_no_shared, in: post_attention_layernorm }
+      share_expert:             { op: swiglu_ffn_silu_clamped, role: ffn_moe_shared, in: post_attention_layernorm, dims: { d_model: d_model, d_ffn: d_ffn_shared, clamp_limit: clamp_limit_shared } }
+      ffn_combined:             { op: add, in: [moe, share_expert], dim: d_model }
+      out:                      { op: add, in: [attn_residual, ffn_combined], dim: d_model }
+    outputs: [out]
+
+  # MTP layer. `layer_types[92:95]` is sliding_attention x3 and 92-94 sit
+  # outside `moe_layer_list`, so the inner block is a windowed dense pre-norm
+  # layer. The checkpoint stores that block's leaves at the MTP layer root
+  # (`model.layers.X.{input_layernorm,self_attn.*,post_attention_layernorm,mlp.*}`)
+  # beside enorm / hnorm / eh_proj, with only the head under
+  # `transformer.shared_head.*` — so `transformer` holds no module segment.
+  #
+  # The repo's own forward does not run an MTP step (Step5Model builds
+  # `num_hidden_layers` layers, inference/model.py:2154-2164, and
+  # `layer_type()` exposes the trailing entries at :397-409 for the serving
+  # stacks); the head's wiring follows vLLM's Step-3.5 MTP layer, which the
+  # model card's `--spec-method mtp` selects and which stores exactly these
+  # tensors (`step3p5_mtp_block`).
+  step5_mtp_block:
+    inputs: [x, inputs_embeds]
+    graph:
+      layer: { op: step3p5_mtp_block, in: [x, inputs_embeds], module: null,
+               params: { inner: { template: pre_norm, params: { attn: swa_qknorm_gated_full_rope_attention, ffn: swiglu_ffn_silu_clamped } } },
+               inner_modules: { transformer: null } }
+    outputs: [layer]
+
+model_inputs:
+  input_ids: { kind: tokens }
+  # One overview image per image, resized to image_size x image_size (728) by
+  # the checkpoint's external preprocessing (`_encode_images` requires sides
+  # that are multiples of patch_size, inference/vision_encoder.py:483-485).
+  pixel_values: { kind: image, axes: [n_img, img_h, img_w], fixed: { img_h: s_vis_image, img_w: s_vis_image } }
+  # Each image's crops (`num_patches` counts them per overview image,
+  # inference/model.py:2381-2423), 81 rows each, emitted BEFORE that image's
+  # 169 overview rows.
+  patch_pixel_values:
+    kind: image
+    axes: [n_crops, crop_h, crop_w]
+    fixed: { crop_h: s_vis_crop, crop_w: s_vis_crop }
+    per_item_of: pixel_values
+
+# The language model's tensors sit under `model.`; the LM head and the whole
+# vision tower sit at the file root and declare their own paths.
+checkpoint: { root: model }
+
+model:
+  - { name: embed_tokens, inputs: [input_ids], op: embedding, boundary_role: input_embedding, dims: { n_vocab: n_vocab, d_model: d_model }, weight_axes: [{ world: attention, parts: n_vocab, fit: pad }, { replicated: true }] }
+
+  # Vision tower — one singleton wrapper invocation, so the architecture view
+  # renders one nested VISION card and the tower's tensors hang off the file
+  # root (`vision_model.*`, `vit_large_projector.*`) with no index of their own.
+  - name: vision
+    group: true
+    aux_kind: vision
+    checkpoint: { root: "" }
+    layers:
+      - name: vision.patchify
+        op: patchify
+        inputs: [pixel_values]
+        dims: { patch: s_patch, temporal: "1", channels: n_vis_channels, align: s_patch }
+        segment: item
+        source_anchor: "inference/vision_encoder.py:426-431 Conv2d(3, width, 14, stride 14); :473-487 grid = side // patch_size, sides must be positive multiples of patch_size; :263 is_causal=False — one attention segment per image"
+      - { name: vision, template: perception_encoder_rope2d_tower, inputs: [vision.patchify] }
+      # The crops run through the SAME tower with the same weights in a second
+      # call (`crops = self._encode_images(patches)`, inference/model.py:2416):
+      # 504 / 14 = a 36x36 grid, 36 -> 18 -> 9 = 81 rows each.
+      - name: vision.patchify_crops
+        op: patchify
+        inputs: [patch_pixel_values]
+        dims: { patch: s_patch, temporal: "1", channels: n_vis_channels, align: s_patch }
+        segment: item
+        source_anchor: "inference/model.py:2409-2416 patch_pixel_values reshaped to [sum(num_patches), 3, side, side] and encoded by the same _encode_images; :2368-2379 grid = side // patch_size"
+      - { name: vision_crops, call: vision, inputs: [vision.patchify_crops] }
+      # Each image's crops laid end to end, then that image's overview rows
+      # (`merged.append(crops[offset:offset+count].flatten(0, 1))` then
+      # `merged.append(overview[i])`, inference/model.py:2417-2423).
+      - name: vision.crops_per_image
+        op: group_items
+        inputs: [vision_crops]
+        dims: { items: n_crops, groups: "B * n_img" }
+        source_anchor: "inference/model.py:2417-2423 per image: its num_patches crop feature blocks flattened, then its overview block"
+      - { name: vision.rows, op: concat, inputs: [vision.crops_per_image, vision], axis: 1 }
+
+  # The image rows replace their placeholder rows of the token embeddings
+  # before the decoder runs (`inputs_embeds[mask] = features`,
+  # inference/model.py:2442-2448).
+  - name: embed_merge
+    op: scatter_rows_replace
+    inputs: [embed_tokens, vision.rows]
+    prompt_slots: { domain: pixel_values, defines: true, source_anchor: "inference/model.py:2442-2448 mask = input_ids == image_token_id; embed_tokens(input_ids.masked_fill(mask, 0)); inputs_embeds[mask] = features" }
+
+  - name: layers
+    inputs: [embed_merge]
+    repeat: n_layers
+    streams:
+      hidden: { carries: true }
+    per_layer:
+      assign:
+        # MoE layers (`moe_layer_list` = 3..90) split by attention class:
+        # `layer_types` says full_attention every 4th layer from 3, and a
+        # full_attention layer IS a CSA sparse layer here
+        # (`sparse_config.apply_to_layer_types == ["full_attention"]` and
+        # `enabled`, inference/model.py:410-422).
+        - { type: sparse_moe, from: config.text_config.moe_layer_list, within: { from: config.text_config.layer_types, is: full_attention } }
+        - { type: swa_moe,    from: config.text_config.moe_layer_list, within: { from: config.text_config.layer_types, is: sliding_attention } }
+        # Dense-FFN layers: 91 is full_attention (and carries a full indexer),
+        # 0-2 are sliding.
+        - { type: sparse_dense, from: config.text_config.layer_types, is: full_attention }
+        - { type: swa_dense,    from: config.text_config.layer_types, is: sliding_attention }
+      map:
+        sparse_moe:   { template: step5_moe_block, params: { attn: gqa_qknorm_partial_rope_gated_region_sparse_attention } }
+        swa_moe:      { template: step5_moe_block, params: { attn: swa_qknorm_gated_full_rope_attention } }
+        sparse_dense: { attention: gqa_qknorm_partial_rope_gated_region_sparse_attention, ffn: swiglu_ffn_silu_clamped }
+        swa_dense:    { attention: swa_qknorm_gated_full_rope_attention, ffn: swiglu_ffn_silu_clamped }
+
+  - { name: norm, op: rmsnorm, dim: d_model, weight_axes: [{ replicated: true }], inputs: [layers] }
+  - { name: lm_head, op: linear, checkpoint: { path: lm_head }, boundary_role: output_head, dims: { in: d_model, out: n_vocab }, weight_axes: [{ world: attention, parts: n_vocab, fit: pad }, { replicated: true }], inputs: [norm] }
+
+  # MTP heads — three layers continuing the backbone's index space at
+  # `model.layers.{92,93,94}`. Each reads the backbone's final norm (the first
+  # one) or the previous MTP layer's hidden state, plus the next token's
+  # embedding from the shared `embed_tokens`.
+  - name: mtp
+    group: true
+    aux_kind: mtp
+    checkpoint: { prefix: model.layers, index: { after: backbone } }
+    inputs: [norm]
+    repeat: n_mtp_layers
+    streams:
+      hidden: { carries: true }
+    layers:
+      - name: mtp
+        template: step5_mtp_block
+        inputs: [norm, embed_tokens]
+
+# `quantization_config`: quant_method fp8, e4m3, weight_block_size [128, 128],
+# with `modules_to_not_convert` naming — in the SERVING framework's vocabulary,
+# not the checkpoint's (inference/model.py:426-460) — every attention
+# projection, every dense and shared FFN, the router gates, the vision tower,
+# the embedding, both heads, and the routed experts of layers 88, 89 and 90.
+# What is left FP8 is exactly the routed expert bank of layers 3-87, each
+# `[352, out, in]` tensor with a `[352, out/128, in/128]` F32
+# `weight_scale_inv` sibling (`_StackedExpertWeight`, model.py:1902-1959).
+quant_context:
+  per_role:
+    # The routed expert banks: FP8-E4M3 with one F32 scale per 128x128 tile
+    # (`weight_block_size: [128, 128]`), i.e. a `[352, out/128, in/128]`
+    # `weight_scale_inv` beside each `[352, out, in]` weight.
+    ffn_moe: { method: fp8, block_h: 128, block_w: 128 }
+    # The shared expert is excluded from quantization on every layer
+    # (`modules_to_not_convert` lists every `share_expert.*`).
+    ffn_moe_shared: { method: none }
+    # `moe.gate.weight` is BF16 and `moe.router_bias` F32 (model.py:2007-2013).
+    router: { method: none }
+    # The F32 indexer tensors: `sparse_indexer_w` is built in F32
+    # (model.py:1446), `sparse_indexer_k_norm` is an F32 nn.LayerNorm (:1448),
+    # `sparse_indexer_q_norm` an F32 Step5RMSNorm (:967) and `ssmax_s` an F32
+    # buffer (:1455-1457). The indexer's q / k / z projections are BF16 and
+    # carry the component's plain `attention` role.
+    attention_indexer: { method: none, dtype: F32 }
+    default: { method: none }
+  overrides:
+    # Layers 88, 89 and 90 ship the same expert tensors unquantized, with no
+    # scale sibling: `quantization_config.modules_to_not_convert` names those
+    # three layers' `moe.experts.w13_weight` / `w2_weight` literally, which
+    # `Step5Config._consume_quantization_config` reads as `bf16_expert_layers`
+    # (inference/model.py:426-464) and `_StackedExpertWeight` then declares
+    # `weight_scale_inv` only for the quantized layers (:1945-1959). Nothing
+    # else about these layers differs — same component, same graph, same
+    # `ffn_moe` role — so the layer set is what this row names. The config
+    # states the indices themselves rather than any per-layer field, so the
+    # row states them the same way.
+    - select:
+        layers: ["88", "89", "90"]
+        tensors_re: '\.moe\.(?:gate_proj|up_proj|down_proj)\.weight$'
+      dtype: BF16
+      method: none
+    # Every norm is an F32 parameter (Step5RMSNorm keeps its weight in F32,
+    # model.py:967; norm_dtype: float32).
+    - { tensors_re: '\.input_layernorm\.weight$', dtype: F32 }
+    - { tensors_re: '\.post_attention_layernorm\.weight$', dtype: F32 }
+    - { tensors_re: '\.self_attn\.(?:q_norm|k_norm)\.weight$', dtype: F32 }
+    # `nn.Parameter(zeros(moe_num_experts, dtype=torch.float32))` (model.py:2010-2013).
+    - { tensors_re: '\.moe\.router_bias$', dtype: F32 }
+    - { tensors_re: '^model\.norm\.weight$', dtype: F32 }
+    - { tensors_re: '\.(?:enorm|hnorm)\.weight$', dtype: F32 }
+    - { tensors_re: '\.shared_head\.norm\.weight$', dtype: F32 }
+  default_dtype: BF16

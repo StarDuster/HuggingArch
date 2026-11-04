@@ -1,0 +1,18 @@
+# Qwen3.5-MoE linear-attention layer (3 of every 4 backbone layers).
+# Pure pre_norm binding + checkpoint naming: HF stores the linear-attn
+# weights under `linear_attn.*` (not `self_attn.*`), so the adapter
+# rewrites the standard `self_attn` slot to `linear_attn`.
+role: block
+description: "Qwen3.5-MoE linear-attention layer: pre-norm + gated_delta_net_attention + scaled-shared MoE FFN, naming its attention `linear_attn` as the checkpoint does."
+
+graph:
+  layer:
+    module: null
+    op: pre_norm
+    in: x
+    params:
+      attn: gated_delta_net_attention
+      ffn:  moe_ffn_fused_scaled_shared
+    inner_modules:
+      self_attn: linear_attn
+outputs: [layer]

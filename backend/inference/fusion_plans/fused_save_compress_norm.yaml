@@ -1,0 +1,51 @@
+# DeepSeek-V4.1 CSA2 compressor (ratio 2), the pool and its norm — vLLM's
+# `fused_save_compress_norm`.
+#
+# Naive subgraph (csa2_compressor_gated, after the wkv / wgate GEMMs): the
+# complete groups of compress_ratio tokens are softmax-pooled per channel by
+# the gate and the pooled row RMS-normalised into the pre-RoPE latent:
+#
+#   kv_g, gate_g = view_split(slice(kv)), view_split(slice(gate))
+#   latent       = rmsnorm(Σ_r kv_g · softmax_r(gate_g))
+#
+# The decode form (csa2_compressor_gated_decode) has no `slice` to the
+# complete groups — one token a step — and is the `_decode` plan: a pattern
+# node matches one spec node, so the two spellings need two plans.
+#
+# vLLM (audited at v0.32.0) runs it as one Triton launch that also saves the
+# open group's fp32 kv/score rows to the compressor state ring
+# (vllm/models/deepseek_v41/common/ops/fused_compress_quant_cache.py:22,
+# `_fused_save_compress_norm_kernel` launched once at :94; `tl.sum(kv *
+# tl.softmax(score, 0), 0)` at :164 / :211, the norm in `_store_latent`
+# :216), from `DeepseekCompressor.forward`
+# (models/deepseek_v41/compressor.py:250, call :283), reached for every
+# compressing layer in prefill and decode alike
+# (models/deepseek_v41/attention.py:873). The kernel reads the fused
+# wkv | wgate GEMM output; the GEMMs stay outside. The state rows are carried
+# by `kv_weighted` and `softmax`; their per-step read lands on this launch
+# (`traffic._settle_cache_reads`).
+#
+# The rope + compressed-cache insert after it is a second launch
+# (`fused_compress_rope_store`). sglang (audited at v0.5.22), where `use_fused_compress` (sm100+ / gfx950, dsv41_sparse.py:101-134), runs
+# pool + norm + rope + store as one launch: `c2_prefill_norm_rope_store` in eager prefill (srt/layers/attention/deepseek_v4_backend.py:3086-3101 → :3239),
+# `c2_decode_norm_rope_store` in decode (:3121-3125 → :3231); elsewhere (sm<100, prefill graph :3013-3025, CP :3054) it pools with torch ops (:3273-3308, `dsv41_sparse.py:170-172` then `finish`'s norm :166-167),
+# sm<100 decode via `c2_decode_pool` (:3146-3169). The fused launch is
+# a boundary that spans this component and
+# the store component, which a plan cannot (one scope per match). Not bound.
+
+fused_op: fused_save_compress_norm
+
+naive_pattern:
+  nodes:
+    kv_complete:    { op: slice,       inputs: [external.kv] }
+    score_complete: { op: slice,       inputs: [external.score] }
+    kv_window:      { op: view_split,  inputs: [kv_complete.out] }
+    score_window:   { op: view_split,  inputs: [score_complete.out] }
+    softmax:        { op: softmax_act, inputs: [score_window.out] }
+    kv_weighted:    { op: mul,         inputs: [kv_window.out, softmax.out] }
+    pool:           { op: sum_reduce,  inputs: [kv_weighted.out] }
+    norm:           { op: rmsnorm,     inputs: [pool.out] }
+  io_mapping:
+    kv:     external.kv
+    score:  external.score
+    output: norm.out

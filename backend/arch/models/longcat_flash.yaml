@@ -1,0 +1,95 @@
+# LongCat-Flash family (incl. Thinking).
+# Per-layer structure is unusual: two MLA attention branches + two dense
+# SwiGLU FFNs + one routed-expert MoE, wired as stacked pre-norm residuals.
+# The MoE router has an additive per-expert bias (aux-loss-free balancing)
+# and a small pool of zero-compute experts (n_zero_experts) that act as
+# load-balance reserve capacity — extra router classes that hold no weights.
+# LongCat-Flash-Thinking-2601 ships config.json with no `model_type` key
+# (only `architectures: ["LongcatCausalLM"]`), so the lowercased architecture
+# name is listed alongside the model_type spellings.
+match:
+  model_type: [longcat_flash, longcatflash, longcat, longcatcausallm]
+derived_from: deepseek_v3
+
+components:
+  attention: mla_attention
+  ffn_dense: swiglu_ffn
+  ffn_moe: moe_ffn
+  norm: rmsnorm
+
+dims:
+  d_model:    config.hidden_size
+  n_heads:    config.num_attention_heads
+  d_qk_nope:    config.qk_nope_head_dim
+  d_qk_rope:    config.qk_rope_head_dim
+  d_v_head:   config.v_head_dim ?? d_qk_nope
+  d_kv_lora:    config.kv_lora_rank
+  d_q_lora:   config.q_lora_rank
+  d_ffn:    config.ffn_hidden_size
+  d_ffn_expert:   config.expert_ffn_hidden_size
+  n_vocab:    config.vocab_size
+  n_layers:    config.num_layers
+  n_experts:    config.n_routed_experts
+  n_zero_experts:   config.zero_expert_num ?? "0"
+  n_experts_active:    config.moe_topk
+  n_topk_renorm: config.norm_topk_prob ?? "0"   # LongcatFlashConfig default: False
+  n_mtp_layers: config.num_nextn_predict_layers ?? "1"
+  s_max: config.max_position_embeddings
+
+view:
+  rope_theta: config.rope_theta
+  rope_scaling: config.rope_scaling
+  norm.eps: config.rms_norm_eps
+
+# Block topology lives in components/library/longcat_block.yaml (main backbone)
+# and components/library/longcat_mtp_block.yaml (speculative MTP head).
+
+model_inputs:
+  input_ids: { kind: tokens }
+
+# The transformers base model's tensors sit under `model.`; the LM head
+# beside it declares its own path.
+checkpoint: { root: model }
+
+model:
+  - { name: embed_tokens, inputs: [input_ids], op: embedding, boundary_role: input_embedding, dims: { n_vocab: n_vocab, d_model: d_model }, weight_axes: [{ world: attention, parts: n_vocab, fit: pad }, { replicated: true }] }
+  - { name: layers, template: longcat_block, repeat: n_layers, inputs: [embed_tokens], streams: { hidden: { carries: true } }}
+  - { name: norm, op: rmsnorm, dim: d_model, weight_axes: [{ replicated: true }] , inputs: [layers]}
+  - { name: lm_head, op: linear, checkpoint: { path: lm_head }, boundary_role: output_head, dims: { in: d_model, out: n_vocab }, weight_axes: [{ world: attention, parts: n_vocab, fit: pad }, { replicated: true }] , inputs: [norm]}
+  # Speculative MTP head: its own embedding table (enorm reads it; vLLM
+  # longcat_flash_mtp.py `self.embed_tokens`) + one transformer block, with
+  # its own norms and projection. ONE group named `mtp`: sub-entry names
+  # are canonical HF paths (not prefixed), so checkpoint paths are unchanged —
+  # and the embedding table + final norm attribute to the head instead of the
+  # backbone. The block names the backbone norm in its own `inputs:`: the
+  # group's attachment lands on its FIRST stage (the embedding), and the
+  # embedding has the same width as the norm, so a wrong edge would pass
+  # every shape check in silence.
+  - name: mtp
+    group: true
+    aux_kind: mtp
+    checkpoint: { prefix: model.mtp.layers, index: local }
+    inputs: [norm]
+    layers:
+      - { name: mtp.embed_tokens, inputs: [input_ids], op: embedding, dims: { n_vocab: n_vocab, d_model: d_model }, weight_axes: [{ world: attention, parts: n_vocab, fit: pad }, { replicated: true }] }
+      - { name: mtp.layers, template: longcat_mtp_block, repeat: n_mtp_layers, inputs: [norm, mtp.embed_tokens], streams: { hidden: { carries: true } }}
+      - { name: mtp.norm, op: rmsnorm, dim: d_model, weight_axes: [{ replicated: true }] , inputs: [mtp.layers]}
+      # MTP logits use the main lm_head; the checkpoint has no MTP head (vLLM longcat_flash_mtp.py compute_logits).
+      - { name: mtp_logits, op: linear, boundary_role: output_head, dims: { in: d_model, out: n_vocab }, weight_axes: [{ world: attention, parts: n_vocab, fit: pad }, { replicated: true }], tied_weight: { to: lm_head } , inputs: [mtp.norm]}
+
+# Most weights are BF16, but the noaux_tc router (`mlp.router.classifier.weight`
+# and the additive `e_score_correction_bias`) is stored in F32 — same as the
+# MiMo-V2.5-Pro router (DSv3 keeps only the bias in F32).
+quant_context:
+  per_role:
+    attention: { method: none }
+    ffn_dense: { method: none }
+    ffn_moe:   { method: none }
+    router:    { method: none }
+    default:   { method: none }
+  overrides:
+    - tensors_re: 'mlp\.router\.classifier\.weight$'
+      dtype: F32
+    - tensors_re: 'e_score_correction_bias$'
+      dtype: F32
+  default_dtype: BF16

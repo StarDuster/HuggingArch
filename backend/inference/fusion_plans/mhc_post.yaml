@@ -1,0 +1,41 @@
+# The hyper-connection POST-mix of a finished sublayer — one launch
+# (`mhc_post`).
+#
+# A manifold hyper-connection model keeps `n_hidden_copies` parallel residual
+# copies. When a sublayer (attention or FFN) finishes, its [T, d] output is
+# spread back over the copies by the `post` coefficients and the copies are
+# cross-mixed by the `comb` matrix, both produced by the pre-mix that opened
+# the sublayer:
+#
+#   y = post ⊙ sublayer_out + comb ⊗ residual        # [T, hc, d]
+#
+# Naive subgraph (`hc_combine`, the only child of the `hc_post` component):
+# two broadcasts, the multiply, the cross-mix and the add.
+#
+# vLLM (audited at v0.32.0) runs it as one TileLang launch,
+# `mhc_post_tilelang` (model_executor/kernels/mhc/tilelang.py, the
+# `mhc_fused_post_pre_tilelang` wrapper's first launch on its large-token
+# path, and the launch the model issues on its own at the stack exit and
+# before a pipeline cut). sglang (audited at v0.5.22) runs the same boundary,
+# `mhc_post_tilelang` (kernels/ops/layernorm/mhc.py).
+#
+# One of two or three launches: the kernel writes the new multi-copy residual
+# and the next launch reads it. On the small-token path the frameworks fuse
+# this with the following pre-mix GEMM instead — `mhc_fused_post_pre`, the
+# larger pattern, tried first.
+
+fused_op: mhc_post
+
+naive_pattern:
+  nodes:
+    post_broadcast:     { op: broadcast, inputs: [external.post] }
+    sublayer_broadcast: { op: broadcast, inputs: [external.sublayer] }
+    post_term:          { op: mul,       inputs: [post_broadcast.out, sublayer_broadcast.out] }
+    comb_mix:           { op: hc_mix,    inputs: [external.comb, external.residual] }
+    residual_add:       { op: add,       inputs: [post_term.out, comb_mix.out] }
+  io_mapping:
+    post:     external.post
+    sublayer: external.sublayer
+    comb:     external.comb
+    residual: external.residual
+    output:   residual_add.out

@@ -1,0 +1,21 @@
+# Qwen3-VL-MoE deepstack visual patch merger (use_postshuffle_norm=True).
+#
+# Forward (Qwen3VLMoeVisionPatchMerger.forward, postshuffle branch):
+#   x = x.view(-1, n_spatial_merge^2 * d_vis_model)   # concat 2x2 neighbours -> 4608
+#   x = norm(x)                                        # LayerNorm over 4608
+#   x = linear_fc2(gelu(linear_fc1(x)))                # 4608 -> 4608 -> d_model
+#
+# The merged width is `d_vis_merge` (HF `hidden_size = context_dim *
+# spatial_merge_size**2`). vLLM builds each deepstack merger as
+# `qwen3_vl.Qwen3_VisionPatchMerger`, like the final merger: linear_fc1
+# ColumnParallelLinear and linear_fc2 RowParallelLinear over that width.
+role: aux_block
+description: "Qwen3-VL-MoE deepstack merger: 2x2 spatial merge -> post-shuffle LayerNorm(4608) -> fc1 -> gelu -> fc2 to text d_model."
+
+graph:
+  merge:       { op: spatial_merge, in: x, dims: { n_spatial_merge: n_spatial_merge } }
+  norm:        { op: layernorm, in: merge, dim: d_vis_merge, weight_axes: [{ replicated: true }] }
+  linear_fc1:  { op: linear, in: norm, dims: { in: d_vis_merge, out: d_vis_merge, bias: "1" }, weight_axes: [{ world: dense_ffn, parts: d_vis_merge, fit: exact }, { replicated: true }] }
+  gelu:        { op: gelu, in: linear_fc1, dim: d_vis_merge }
+  linear_fc2:  { op: linear, in: gelu, dims: { in: d_vis_merge, out: d_model, bias: "1" }, weight_axes: [{ replicated: true }, { world: dense_ffn, parts: d_vis_merge, fit: exact }] }
+outputs: [linear_fc2]

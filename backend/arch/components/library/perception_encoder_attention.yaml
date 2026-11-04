@@ -1,0 +1,39 @@
+# Perception Encoder ViT attention (CLIP-style fused QKV + biased out_proj).
+# Used by: Step-3.7-Flash vision tower, inside perception_encoder_block.
+#
+# Stored as ONE Linear's weight+bias: `nn.MultiheadAttention` keeps them as
+# the bare parameters `in_proj_weight` / `in_proj_bias`, so the `in_proj`
+# biased linear declares those suffixes (`tensor_suffix`).
+#
+# Required dims: d_vis_model, n_vis_heads, d_vis_head   (d_vis_model = n_vis_heads * d_vis_head)
+
+role: attention
+description: "PE-style MHA: fused biased QKV linear + biased out_proj."
+cache:
+  family: ViT
+  entries:
+    - { node: v_split, kind: kv }
+graph:
+  # Sharded axes are written in head-decomposed form (`n_vis_heads * d_vis_head`) so the
+  # `shard_symbols: [n_vis_heads]` match fires on the fused QKV / out_proj weights —
+  # the cross-component convention (cf. gqa_fused_qkv's `in: "n_heads * d_head"`).
+  # `d_vis_model` is kept only for the REPLICATED residual sides (in_proj input,
+  # out_proj output) that TP does not shard.
+  in_proj:           { op: linear, in: x, dims: { in: d_vis_model, out: "3 * n_vis_heads * d_vis_head", bias: "1" }, tensor_suffix: { weight: _weight, bias: _bias }, weight_axes: [{ segments: [{ segment: q, extent: "n_vis_heads * d_vis_head", world: attention, parts: n_vis_heads, fit: replica_cells }, { segment: k, extent: "n_vis_heads * d_vis_head", world: attention, parts: n_vis_heads, fit: replica_cells }, { segment: v, extent: "n_vis_heads * d_vis_head", world: attention, parts: n_vis_heads, fit: replica_cells }] }, { replicated: true }] }
+  q_slice:           { op: slice, in: in_proj, dims: { in: "3 * n_vis_heads * d_vis_head", out: "n_vis_heads * d_vis_head" } }
+  k_slice:           { op: slice, in: in_proj, dims: { in: "3 * n_vis_heads * d_vis_head", out: "n_vis_heads * d_vis_head" } }
+  v_slice:           { op: slice, in: in_proj, dims: { in: "3 * n_vis_heads * d_vis_head", out: "n_vis_heads * d_vis_head" } }
+  q_split_view:      { op: view_split, in: q_slice, axis: -1, dims: { in: "n_vis_heads * d_vis_head", n_heads: n_vis_heads, d_head: d_vis_head } }
+  q_split:           { op: transpose, in: q_split_view, axes: [0, 2, 1, 3] }
+  k_split_view:      { op: view_split, in: k_slice, axis: -1, dims: { in: "n_vis_heads * d_vis_head", n_heads: n_vis_heads, d_head: d_vis_head } }
+  k_split:           { op: transpose, in: k_split_view, axes: [0, 2, 1, 3] }
+  v_split_view:      { op: view_split, in: v_slice, axis: -1, dims: { in: "n_vis_heads * d_vis_head", n_heads: n_vis_heads, d_head: d_vis_head } }
+  v_split:           { op: transpose, in: v_split_view, axes: [0, 2, 1, 3] }
+  # Bidirectional: every query sees every key of its image (vLLM step_vl.py:223,247 MMEncoderAttention, non-causal per crop).
+  qk_score:          { op: attention_score, in: [q_split, k_split], dims: { is_causal: "0", n_heads: n_vis_heads, d_head: d_vis_head } }
+  softmax:           { op: softmax, in: qk_score, dims: { is_causal: "0", n_heads: n_vis_heads } }
+  apply:             { op: attention_apply, in: [softmax, v_split], dims: { is_causal: "0", n_heads: n_vis_heads, d_head: d_vis_head } }
+  merge_t:           { op: transpose, in: apply, axes: [0, 2, 1, 3] }
+  merge:             { op: view_merge, in: merge_t }
+  out_proj:          { op: linear, in: merge, dims: { in: "n_vis_heads * d_vis_head", out: d_vis_model, bias: "1" }, weight_axes: [{ replicated: true }, { world: attention, parts: n_vis_heads, fit: replica_cells }] }
+outputs: [out_proj]

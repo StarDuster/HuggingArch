@@ -1,0 +1,44 @@
+# SituGLU activation fusion — `situ(gate) * up` collapsed into one
+# elementwise op, matching vLLM's `SituAndMul` and sglang's
+# `srt.layers.activation.SituAndMul`.
+#
+# Naive subgraph (Kimi-K3 `gated_ffn` with `act: situ`):
+#   situ: y = β·tanh(gate/β)·sigmoid(gate)
+#   mul:  z = y * up
+#
+# silu_and_mul / gelu_and_mul already cover SwiGLU / GeGLU. Situ is the
+# same topology with a different gate nonlinearity; without this plan
+# the Kimi-K3 FFN stays four launches (gate GEMM, situ, mul, down GEMM)
+# while both serving stacks fuse situ×up.
+#
+# vLLM:  CustomOp "situ_and_mul" (model_executor/layers/activation.py)
+# sglang: SituAndMul (srt/layers/activation.py)
+#
+# Cost preservation: Cost.combine sums the matched values.
+
+fused_op: situ_and_mul
+
+naive_pattern:
+  nodes:
+    situ: { op: situ, inputs: [external.gate] }
+    mul:  { op: mul,  inputs: [situ.out, external.up] }
+    quant: { op: quantise_activation, inputs: [mul.out], optional: true }
+  io_mapping:
+    gate:   external.gate
+    up:     external.up
+    output: quant.out
+
+# Output contract — the act-and-mul family's rule (conditions principle,
+# 2026-10-19): an elementwise activation epilogue writes at the precision
+# its consuming GEMM reads. Framework examples: vLLM's activation-quant
+# fusion folds the per-token-group quantise into silu_and_mul
+# (compilation/passes/fusion/act_quant_fusion.py `SiluMulBlockQuantPattern`
+# :179, pass :277), and sglang's DeepSeek MLP writes the FP8 operand and its
+# per-128 scales from the activation launch (`silu_and_mul_contig_post_quant`,
+# srt/models/deepseek_v2.py:390-417). Which activations a given release's
+# pass happens to cover is framework detail not modelled. The graph gates
+# it: the launch takes the `quantise_activation` cast after it as an optional
+# member, which exists only where the consuming GEMM reads a quantised
+# operand, and binds it only when that cast is the output's one reader
+# (`fusion.Fusion._closed` — a consumer that wants the row wide keeps the
+# cast apart). A BF16 deployment has no cast and is unaffected.

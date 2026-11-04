@@ -1,0 +1,92 @@
+# Kimi Delta Attention's whole decode mixer in one launch: the three causal
+# short convs with their SiLU, the head views, q/k L2 norm, the per-channel
+# bounded forget gate from the raw low-rank projection, beta, the delta-rule
+# recurrence, and the output RMSNorm gated by sigmoid(g).
+#
+# Naive subgraph (kimi_k3_kda_attention, from the q/k/v projections, f_b,
+# b and g_proj to the gated core output before `o_merge_heads` / `o_proj`):
+#
+#   q, k, v = head-first views of silu(conv1d(.))      (q/k get l2norm)
+#   g       = lower_bound * sigmoid((f_b + dt_bias) * exp(a_log))
+#   beta    = sigmoid(beta_raw)
+#   o       = gated_delta_rule(q, k, v, g, beta)
+#   out     = rmsnorm(o) * sigmoid(head-first view of g_proj)
+#
+# It contains `causal_conv1d` x3, `fused_recurrent_kda_per_channel` and
+# `rmsnorm_gated`; being larger it is tried first, and where its condition
+# rejects a walk those smaller launches match as before.
+#
+# DECODE, a step that does not speculate (`dims: {n_verify: [1]}`),
+# Kimi-K3 (`KimiK3ForConditionalGeneration`):
+#   vLLM (v0.32.0): `ops.fused_kda_decode` (models/kimi_k3/nvidia/kda.py
+#     :1012-1028; csrc/kimi_k3/fused_kda_decode_kernel.cu), taken in a
+#     decode-only batch with no speculative tokens (:985-990) when
+#     `resolve_kda_decode_backend` picks "native" (:286-312, the default
+#     "auto", `additional_config.kda_decode_backend` :683-687): local heads
+#     in {12, 24, 48, 96}, head width 128, conv width 4, no speculation,
+#     BF16 inputs and conv state, FP32 recurrent state, the binary built,
+#     compute capability 9.0 or family 10.x / 12.x
+#     (`is_fused_kda_decode_supported` :161-188). Otherwise vLLM runs the
+#     separate chain (packed conv, `fused_recurrent_kda_packed_decode`,
+#     gated norm), which is what a speculative step is billed as — see the
+#     binding comment for why the SM10x speculative FlashInfer path is
+#     billed on that default path instead.
+#   sglang (v0.5.22): the JIT `kda_fused_decode`
+#     (kernels/ops/attention/kda_fused_decode.py:112; `covered()` :54-109,
+#     heads and shapes :63-86, dtypes and strides :87-108), from
+#     srt/layers/attention/linear/kda_backend.py:864-897 on the plain decode
+#     path, when the model staged its static inputs (srt/models/kimi_k3.py
+#     :1906-2003), which it does only for the shapes the kernel is compiled
+#     for: 12 local heads of 128 (attention TP 8), CUDA, not NPU. A
+#     speculative verify is not this plan: sglang's CuteDSL verify kernel
+#     spans the same ops but also writes a per-draft-token conv window and
+#     SSM snapshot (kda_decode_mtp.py:150-157, :530-600) that the graph does
+#     not declare — see the binding.
+#
+# The three conv states and the recurrent state are carried by absorbed
+# nodes; their reads move onto this launch.
+
+fused_op: fused_kda_decode
+
+naive_pattern:
+  nodes:
+    q_conv:           { op: conv1d,      inputs: [external.q] }
+    q_silu:           { op: silu,        inputs: [q_conv.out] }
+    q_split:          { op: view_split,  inputs: [q_silu.out] }
+    q_heads:          { op: transpose,   inputs: [q_split.out] }
+    q_norm:           { op: l2norm,      inputs: [q_heads.out] }
+    k_conv:           { op: conv1d,      inputs: [external.k] }
+    k_silu:           { op: silu,        inputs: [k_conv.out] }
+    k_split:          { op: view_split,  inputs: [k_silu.out] }
+    k_heads:          { op: transpose,   inputs: [k_split.out] }
+    k_norm:           { op: l2norm,      inputs: [k_heads.out] }
+    v_conv:           { op: conv1d,      inputs: [external.v] }
+    v_silu:           { op: silu,        inputs: [v_conv.out] }
+    v_split:          { op: view_split,  inputs: [v_silu.out] }
+    v_heads:          { op: transpose,   inputs: [v_split.out] }
+    forget:           { op: add,         inputs: [external.forget_raw, external.dt_bias] }
+    forget_split:     { op: view_split,  inputs: [forget.out] }
+    forget_heads:     { op: transpose,   inputs: [forget_split.out] }
+    rate:             { op: exp,         inputs: [external.a_log] }
+    gate_rate:        { op: mul,         inputs: [forget_heads.out, rate.out] }
+    gate_sigmoid:     { op: sigmoid,     inputs: [gate_rate.out] }
+    gate_bound:       { op: scale_const, inputs: [gate_sigmoid.out] }
+    beta:             { op: sigmoid,     inputs: [external.beta_raw] }
+    rule:
+      op: gated_delta_rule
+      inputs: [q_norm.out, k_norm.out, v_heads.out, gate_bound.out, beta.out]
+    out_norm:         { op: rmsnorm,     inputs: [rule.out] }
+    out_gate_split:   { op: view_split,  inputs: [external.out_gate_raw] }
+    out_gate_heads:   { op: transpose,   inputs: [out_gate_split.out] }
+    out_gate_sigmoid: { op: sigmoid,     inputs: [out_gate_heads.out] }
+    gated:            { op: mul,         inputs: [out_norm.out, out_gate_sigmoid.out] }
+  io_mapping:
+    q:            external.q
+    k:            external.k
+    v:            external.v
+    forget_raw:   external.forget_raw
+    dt_bias:      external.dt_bias
+    a_log:        external.a_log
+    beta_raw:     external.beta_raw
+    out_gate_raw: external.out_gate_raw
+    output:       gated.out

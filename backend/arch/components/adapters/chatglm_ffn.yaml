@@ -1,0 +1,20 @@
+# ChatGLM-style FFN adapter: swiglu_ffn_fused with the ChatGLM
+# checkpoint's nn.Module names — `dense_h_to_4h` for the fused
+# gate+up linear (HF stores it as one `[2*d_ffn, d_model]` tensor under that
+# attribute), `dense_4h_to_h` for the down projection. The wrapper's
+# `ffn` node is primary so the matcher's `<wrapper>.weight` resolves
+# the FFN module slot itself (though for ChatGLM the leaf weight
+# tensors live one layer deeper at `<wrapper>.dense_*.weight`, this
+# still gets the path-prefix right).
+role: ffn_dense
+description: "ChatGLM FFN shim: swiglu_ffn_fused stored as dense_h_to_4h/dense_4h_to_h."
+
+graph:
+  ffn:
+    module: null
+    op: swiglu_ffn_fused
+    in: x
+    inner_modules:
+      gate_up_proj: dense_h_to_4h
+      down_proj:    dense_4h_to_h
+outputs: [ffn]

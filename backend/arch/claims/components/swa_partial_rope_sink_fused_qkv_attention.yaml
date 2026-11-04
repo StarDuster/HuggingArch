@@ -1,0 +1,10 @@
+schema: huggingarch.claims/v1
+subject: swa_partial_rope_sink_fused_qkv_attention
+axioms:
+  checks:
+  - kind: kv_growth
+    storage: windowed
+    bound: s_window
+    src: modeling_mimo_v2.py::MiMoV2Attention — sliding-window attention with window
+      s_window=config.sliding_window; cached positions cap at min(s_ctx, s_window),
+      evicted past the window.

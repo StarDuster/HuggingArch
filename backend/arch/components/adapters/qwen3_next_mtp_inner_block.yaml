@@ -1,0 +1,15 @@
+# Qwen3-Next MTP head's inner transformer block: the Qwen3.5-MoE MTP binding
+# (`qwen35_mtp_inner_block`) with one position per token — Qwen3-Next's rope
+# parameters carry no `mrope_section`, so its attention keeps `rope_emb`.
+role: block
+description: "Qwen3-Next MTP inner block: pre-norm + fused-QZ sigmoid-gated GQA + non-fused experts with scaled-shared gate."
+
+graph:
+  layer:
+    module: null
+    op: pre_norm
+    in: x
+    params:
+      attn: gqa_qknorm_partial_rope_sigmoid_gated_attention
+      ffn:  moe_ffn_scaled_shared_gate
+outputs: [layer]

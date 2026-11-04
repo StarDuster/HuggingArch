@@ -1,0 +1,147 @@
+# CSA2 attention — one sliding window plus a shared compressed KV cache,
+# scored in a single sparse call. First observed in DeepSeek-V4.1-Flash
+# (`Attention`, inference/model.py:613-789).
+#
+# `Attention.forward` (source/model.py:765-789) is this graph, line for line:
+#
+#   qr = self.q_norm(self.wq_a(x))                     # q-LoRA
+#   q  = self.wq_b(qr).unflatten(-1, (n_heads, head_dim))
+#   apply_rotary_emb(q[..., -rd:], freqs_cis)          # partial RoPE, last rd
+#   kv, topk_idxs = self._window_kv(x, freqs_cis, start_pos)
+#   if self.compress_ratio:
+#       compress_kv, compress_idxs = self._compress_kv(x, qr, start_pos, ...)
+#       kv = torch.cat([kv, compress_kv], dim=1)
+#       topk_idxs = torch.cat([topk_idxs, compress_idxs], dim=-1)
+#   o = sparse_attn(q, kv, self.attn_sink, topk_idxs, self.softmax_scale)
+#   apply_rotary_emb(o[..., -rd:], freqs_cis, True)    # INVERSE rope
+#   o = o.view(B, s, n_groups, -1)
+#   o = einsum("bsgd,grd->bsgr", o, wo_a)              # grouped output LoRA
+#   x = self.wo_b(o.flatten(2))
+#
+# `_compress_kv` (source/model.py:739-763) is the one thing a CSA2 layer
+# varies in. Its body calls two `nn.Module`s and glues them:
+#
+#   latent = self.compressor(x, start_pos)        # PRE-RoPE, kv sources only
+#   idxs   = self._compress_topk_idxs(x, qr, latent, …)   # → self.indexer
+#   apply_rotary_emb(latent[..., -rd:], freqs);  cache[…] = latent
+#   return shared_attn.compress_kv[:bsz, :compress_len], idxs
+#
+# so this graph names those three things as its own nodes — `compressor`,
+# `indexer`, `compressed` — and each is a PARAM the caller binds to the form
+# this layer runs:
+#
+#   layer kind          compressor               indexer                        compressed
+#   kv + index source   csa2_compressor_gated    csa2_indexer                   csa2_compress_store
+#   + candidate source  csa2_compressor_plain    csa2_indexer_candidate_source  csa2_compress_store
+#   index source only   csa2_shared_latent       csa2_indexer_shared_keys       csa2_compress_borrowed
+#   pure consumer       csa2_shared_latent       csa2_shared_selection          csa2_compress_borrowed
+#
+# Three nodes rather than one `_compress_kv` component, which would be the
+# more encapsulated reading: the engine records a KV cardinality per NODE, so
+# a wrapper can hand on only ONE of the method's two return values with its
+# cache law intact — the compressed rows the union joins. The selection would
+# have to cross as a secondary port, which arrives carrying the ROWS' length
+# (two lengths at one score is refused), and a port of a module-less wrapper
+# is also a reference the graph view cannot resolve. What the split costs is
+# the method's name; what it keeps is both of the modules it calls, under the
+# names the checkpoint has for them, and the dependency the in-place source
+# hides: the indexer reads the UNROTATED latent, the cache stores the rotated
+# one, so both hang off `compressor` and neither orders the other.
+#
+# The compressed KV cache and the indexer's key cache belong to the bound
+# components, not to this one: a consumer layer stores neither. What every
+# CSA2 layer stores is its own window, which is the one entry here.
+#
+# Required dims: d_model, n_heads, d_head, d_qk_rope, d_q_lora, d_out_lora,
+#   n_out_lora_groups, d_out_lora_group_in, s_window, and whatever the bound
+#   bound forms read (compress_ratio, n_indexer_heads, d_indexer_head,
+#   n_topk_keys, …).
+
+role: attention
+description: "CSA2 attention: SWA window ∪ a shared compressed KV read under a top-K selection, one sparse score with a per-head sink, q-LoRA, MQA latent (k_eq_v), inverse-RoPE output, grouped o-LoRA. `compressor` / `indexer` / `compressed` are the layer's `_compress_kv` form."
+attn_variant: CSA
+cache:
+  family: MLA
+  # The window is what this layer stores. `_compress_kv`'s compressed buffer
+  # and the indexer's key buffer are declared by the bound `compress`
+  # component, which is also the only place that knows whether this layer
+  # owns them or reads another layer's (source/model.py:668-679, 520-525).
+  entries:
+    - { node: kv_concat, kind: kv }
+params:
+  compressor: { kind: component }
+  indexer:    { kind: component }
+  compressed: { kind: component }
+graph:
+  # ---------------- query: q-LoRA + partial RoPE (no per-head q norm) --------
+  wq_a:          { op: linear, in: x, dims: { in: d_model, out: d_q_lora }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  q_norm:        { op: rmsnorm, in: wq_a, dim: d_q_lora, weight_axes: [{ replicated: true }] }
+  wq_b:          { op: linear, in: q_norm, dims: { in: d_q_lora, out: "n_heads * d_head" }, weight_axes: [{ world: attention, parts: n_heads, fit: replica_cells }, { replicated: true }] }
+  q_split:       { op: head_split, in: wq_b, dims: { n_heads: n_heads, d_head: d_head } }
+  q_pe_slice:    { op: slice, in: q_split, dims: { in: d_head, out: d_qk_rope, start: "d_head - d_qk_rope" } }
+  q_nope_slice:  { op: slice, in: q_split, dims: { in: d_head, out: "d_head - d_qk_rope", start: "0" } }
+  q_pe_rope:     { op: rope_emb, in: q_pe_slice, dim: d_qk_rope }
+  q_concat:      { op: concat, in: [q_nope_slice, q_pe_rope], dims: { in_a: "d_head - d_qk_rope", in_b: d_qk_rope, out: d_head } }
+
+  # ---------------- `_window_kv` (source/model.py:700-720) -------------------
+  # One latent of width head_dim shared by every query head and used as both
+  # K and V (k_eq_v, num_key_value_heads = 1).
+  wkv:           { op: linear, in: x, dims: { in: d_model, out: d_head }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  kv_norm:       { op: rmsnorm, in: wkv, dim: d_head, weight_axes: [{ replicated: true }] }
+  kv_pe_slice:   { op: slice, in: kv_norm, dims: { in: d_head, out: d_qk_rope, start: "d_head - d_qk_rope" } }
+  kv_nope_slice: { op: slice, in: kv_norm, dims: { in: d_head, out: "d_head - d_qk_rope", start: "0" } }
+  kv_pe_rope:    { op: rope_emb, in: kv_pe_slice, dim: d_qk_rope }
+  kv_concat:     { op: concat, in: [kv_nope_slice, kv_pe_rope], dims: { in_a: "d_head - d_qk_rope", in_b: d_qk_rope, out: d_head } }
+
+  # ---------------- `_compress_kv(x, qr, …)`, as its three parts ----------
+  # The compressed latent this layer has: pooled from its own KV by a
+  # `Compressor` (a kv source), or the rows the nearest kv source published
+  # (every other layer). PRE-RoPE — the indexer needs the unrotated form
+  # (source/model.py:528-531), which is why the rotation is `compressed`'s.
+  compressor: { op: <compressor>, in: x }
+  # `_compress_topk_idxs` (source/model.py:722-736): which compressed
+  # positions each query attends to — its own indexer's pick, or the one the
+  # nearest index source published.
+  indexer:    { op: <indexer>, in: [x, q_norm, compressor] }
+  # The rest of the method: rotate the latent, store it, and read back the
+  # rows the score joins — or, for a layer that owns no buffer, just the read
+  # (`module: null`: the method is no `nn.Module`, so the checkpoint has no
+  # segment here and what the store keeps hangs off `attn.` directly).
+  compressed: { op: <compressed>, in: compressor, module: null }
+
+  # ---------------- one sparse_attn call over the union ---------------------
+  # source/model.py:777-780
+  #   kv = torch.cat([kv, compress_kv], dim=1)
+  #   topk_idxs = torch.cat([topk_idxs, compress_idxs], dim=-1)
+  #   o = sparse_attn(q, kv, self.attn_sink, topk_idxs, self.softmax_scale)
+  # `kv_window` carries the eviction law on the half that is actually
+  # windowed; the score is dense over the union, so an swa_* score would
+  # window the compressed half away. The selection is the score's third
+  # operand for the reason every sparse score takes one: it is the list the
+  # kernel loads and reads the key under.
+  kv_window:     { op: sliding_window_kv, in: kv_concat, dims: { s_window: s_window } }
+  kv_union:      { op: kv_stream_concat, in: [kv_window, compressed] }
+  kv_broadcast:  { op: head_broadcast, in: kv_union, dims: { n_heads: n_heads } }
+  qk_score:      { op: attention_score, in: [q_concat, kv_broadcast, indexer], dims: { n_heads: n_heads, d_head: d_head } }
+  attn_sink:     { op: parameter_vector, dim: n_heads, weight_axes: [{ world: attention, parts: n_heads, fit: replica_cells }] }
+  softmax:       { op: softmax_with_sink, in: [qk_score, attn_sink], dims: { n_heads: n_heads } }
+  attn_apply:    { op: attention_apply, in: [softmax, kv_broadcast], dims: { n_heads: n_heads, d_head: d_head } }
+
+  # ---------------- inverse RoPE + grouped output LoRA ----------------------
+  # source/model.py:781 `apply_rotary_emb(o[..., -rd:], freqs_cis, True)` —
+  # the output's rope dims are rotated back with conjugate frequencies.
+  o_pe_slice:    { op: slice, in: attn_apply, dims: { in: d_head, out: d_qk_rope, start: "d_head - d_qk_rope" } }
+  o_nope_slice:  { op: slice, in: attn_apply, dims: { in: d_head, out: "d_head - d_qk_rope", start: "0" } }
+  o_pe_inverse_rope: { op: rope_emb_inverse, in: o_pe_slice, dim: d_qk_rope }
+  o_concat:      { op: concat, in: [o_nope_slice, o_pe_inverse_rope], dims: { in_a: "d_head - d_qk_rope", in_b: d_qk_rope, out: d_head } }
+  o_merge:       { op: head_merge, in: o_concat, dims: { n_heads: n_heads, d_head: d_head } }
+  # Grouped output LoRA exactly as written: `o.view(B, s, n_groups, -1)` then
+  # `einsum("bsgd,grd->bsgr", o, wo_a)` (source/model.py:783-788) — o_groups
+  # independent d→r maps, not one dense (n_heads*d_head)→(o_groups*d_out_lora).
+  # The checkpoint stores the bank flattened, so params agree either way; the
+  # flops do not (a dense reading overstates them by n_out_lora_groups).
+  o_group_split: { op: head_split, in: o_merge, dims: { n_heads: n_out_lora_groups, d_head: d_out_lora_group_in } }
+  wo_a:          { op: per_head_linear, in: o_group_split, dims: { n_heads: n_out_lora_groups, in: d_out_lora_group_in, out: d_out_lora }, weight_axes: [{ world: attention, parts: n_out_lora_groups, fit: replica_cells }, { replicated: true }, { replicated: true }] }
+  wo_a_merge:    { op: head_merge, in: wo_a, dims: { n_heads: n_out_lora_groups, d_head: d_out_lora } }
+  wo_b:          { op: linear, in: wo_a_merge, dims: { in: "n_out_lora_groups * d_out_lora", out: d_model }, weight_axes: [{ replicated: true }, { world: attention, parts: n_out_lora_groups, fit: replica_cells }] }
+outputs: [wo_b]

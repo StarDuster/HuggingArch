@@ -1,0 +1,4 @@
+description: "NVFP4 (E2M1) with one E4M3 scale per 16 elements."
+source: "vLLM `nvfp4` KV cache (KVQuantMode.NVFP4: packed fp4 data + fp8 block scales, vllm/v1/kv_cache_interface.py:48)"
+dtype: FP4_E2M1
+scale: { granularity: per-group, group: 16, dtype: F8_E4M3 }

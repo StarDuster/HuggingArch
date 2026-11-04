@@ -1,0 +1,28 @@
+# Gated FFN with a PARAMETERIZED activation.
+#
+#   act(gate_proj(x)) · up_proj(x)  →  down_proj
+#
+# This is the general form of the gated-FFN family. The nonlinearity is a
+# component parameter (`act`, default `silu`) instead of being baked into a
+# bespoke per-activation component — so SwiGLU (silu), GeGLU (gelu), Kimi-K3's
+# SituAndMul (situ), and any future gated activation are the SAME topology with
+# a different `act`, no new component. The activation identity still lives in
+# the resolved op name (`<act>` substitutes to the concrete `silu`/`gelu`/`situ`
+# op), so the graph, FLOPs, and tooltips stay activation-specific.
+#
+# (`swiglu_ffn` / `geglu_ffn` are `gated_ffn` with a fixed `act`.)
+#
+# Required dims: d_model, d_ffn (and the constants the act op takes: situ
+# reads `situ_beta` / `situ_linear_beta` from the frame).  Params: act (default silu).
+
+role: ffn_dense
+description: "Gated FFN with parameterized activation: act(gate_proj)·up_proj → down_proj. act ∈ {silu, gelu, situ, …}."
+params:
+  act: { kind: component, default: silu }
+graph:
+  gate_proj: { op: linear, in: x, dims: { in: d_model, out: d_ffn }, weight_axes: [{ placement_by_symbol: { d_ffn: { world: dense_ffn, parts: d_ffn, fit: exact }, d_ffn_expert: { world: moe_expert, parts: d_ffn, fit: exact }, d_ffn_shared: { world: dense_ffn, parts: d_ffn, fit: exact } } }, { replicated: true }] }
+  up_proj:   { op: linear, in: x, dims: { in: d_model, out: d_ffn }, weight_axes: [{ placement_by_symbol: { d_ffn: { world: dense_ffn, parts: d_ffn, fit: exact }, d_ffn_expert: { world: moe_expert, parts: d_ffn, fit: exact }, d_ffn_shared: { world: dense_ffn, parts: d_ffn, fit: exact } } }, { replicated: true }] }
+  act:       { op: <act>, in: gate_proj, dim: d_ffn }
+  gate_mul:  { op: mul, in: [act, up_proj], dim: d_ffn }
+  down_proj: { op: linear, in: gate_mul, dims: { in: d_ffn, out: d_model }, weight_axes: [{ replicated: true }, { placement_by_symbol: { d_ffn: { world: dense_ffn, parts: d_ffn, fit: exact }, d_ffn_expert: { world: moe_expert, parts: d_ffn, fit: exact }, d_ffn_shared: { world: dense_ffn, parts: d_ffn, fit: exact } } }] }
+outputs: [down_proj]

@@ -1,0 +1,33 @@
+# Final-logit soft-cap, c · tanh(logits / c), in one launch — in place where
+# the logits are already fp32, and into the fp32 buffer otherwise.
+#
+# Naive subgraph (logit_softcap — Gemma 2, Gemma 4):
+#
+#   y = scale_out(tanh(scale_in(logits)))
+#
+#   sglang (audited at v0.5.22): `LogitsProcessor` applies
+#     `fused_softcap(logits, final_logit_softcapping)` whenever the model sets
+#     it; on CUDA with fp16/bf16 logits (logits_processor.py:948-952) the soft-cap
+#     and the logits' fp32 upcast are one launch, `softcap_to_float32_logits`
+#     (kernels/ops/activation/softcap.py:145, kernel :72-102, CAST_TO_FP32; from
+#     `_copy_logits_to_buffer`, :1171); fp32 logits take the in-place
+#     `softcap_inplace_logits` (:141, logits_processor.py:960-962). The same in prefill and decode.
+#   vLLM (audited at v0.32.0): three eager ops in `LogitsProcessor.forward`
+#     (model_executor/layers/logits_processor.py:113-116: divide, tanh,
+#     multiply), on the full-vocabulary logits, for every gemma class
+#     (gemma2.py:343, gemma3.py:402, gemma4.py:1458, gemma4_mtp.py:492,
+#     gemma4_dspark.py:304, gemma3n.py:1133 all build this processor with
+#     `soft_cap=`). No fused kernel exists and no compilation pass matches
+#     the three; whether Inductor fuses them is the standing
+#     generic-pointwise question, so vLLM does not bind this plan.
+
+fused_op: softcap_logits
+
+naive_pattern:
+  nodes:
+    scale_in:  { op: scale_const, inputs: [external.x] }
+    tanh:      { op: tanh,        inputs: [scale_in.out] }
+    scale_out: { op: scale_const, inputs: [tanh.out] }
+  io_mapping:
+    x:      external.x
+    output: scale_out.out

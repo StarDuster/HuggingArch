@@ -1,0 +1,52 @@
+# Qwen3-Next with its MTP head: qwen3_next.yaml plus the aux stack. Config.json
+# does not declare the head (no mtp_num_hidden_layers); the checkpoint does —
+# Qwen3-Next-80B-A3B-Instruct ships `mtp.*`, Qwen3-Coder-Next does not — so an
+# identity file picks this base or qwen3_next by what its checkpoint holds.
+#
+# Everything but `model:` is inherited from qwen3_next. `model:` is restated
+# whole because a `base:` merge replaces a key rather than appending to it.
+base: qwen3_next
+derived_from: qwen3_next
+
+model_inputs:
+  input_ids: { kind: tokens }
+
+model:
+  - { name: model.embed_tokens, inputs: [input_ids], op: embedding, boundary_role: input_embedding, dims: { n_vocab: n_vocab, d_model: d_model }, weight_axes: [{ world: attention, parts: n_vocab, fit: pad }, { replicated: true }] }
+  - name: model.layers
+    inputs: [model.embed_tokens]
+    repeat: n_layers
+    streams:
+      hidden: { carries: true }
+    per_layer:
+      assign:
+        - { type: full,   from: "config.layer_types ?? absent", is: full_attention }
+        - { type: linear, from: "config.layer_types ?? absent", is: linear_attention }
+        - { type: full,   stride: full_attn_interval, offset: "full_attn_interval - 1" }
+        - { type: linear, rest: true }
+      map:
+        full:   { attention: gqa_qknorm_partial_rope_sigmoid_gated_attention,
+                  ffn: moe_ffn_scaled_shared_gate }
+        linear: { template: qwen3_next_linear_moe_block }
+  - { name: model.norm, op: rmsnorm, dim: d_model, weight_axes: [{ replicated: true }] , inputs: [model.layers]}
+  - { name: lm_head, op: linear, boundary_role: output_head, dims: { in: d_model, out: n_vocab }, weight_axes: [{ world: attention, parts: n_vocab, fit: pad }, { replicated: true }], tied_weight: { to: model.embed_tokens, when: config.tie_word_embeddings } , inputs: [model.norm]}
+
+  # Wrapper tensors unindexed under `mtp.`; inner decoder at `mtp.layers.X.*`.
+  # Inner topology is the backbone full layer (pre_norm + gated GQA + scaled
+  # shared MoE). Bound through qwen3_next_mtp_inner_block so this file does not
+  # synthesize a second `pre_norm` into spec.blocks. One MTP layer; the
+  # config declares no count.
+  - name: mtp
+    group: true
+    aux_kind: mtp
+    checkpoint: { prefix: mtp.layers, index: local }
+    inputs: [model.norm]
+    layers:
+      - { name: mtp.pre_fc_norm_embedding, op: rmsnorm, dim: d_model, weight_axes: [{ replicated: true }] , inputs: [model.embed_tokens]}
+      - { name: mtp.pre_fc_norm_hidden, op: rmsnorm, dim: d_model, weight_axes: [{ replicated: true }], inputs: [model.norm] }
+      - { name: mtp.concat, op: concat, dims: { in_a: d_model, in_b: d_model, out: "2 * d_model" }, inputs: [mtp.pre_fc_norm_embedding, mtp.pre_fc_norm_hidden] }
+      - { name: mtp.fc, op: linear, dims: { in: "2 * d_model", out: d_model }, weight_axes: [{ replicated: true }, { replicated: true }] , inputs: [mtp.concat]}
+      - { name: mtp.layers, template: qwen3_next_mtp_inner_block, repeat: "1", inputs: [mtp.fc], streams: { hidden: { carries: true } }}
+      - { name: mtp.norm, op: rmsnorm, dim: d_model, weight_axes: [{ replicated: true }] , inputs: [mtp.layers]}
+      # MTP logits use the main lm_head (vLLM qwen3_5_mtp.py / qwen3_next_mtp.py compute_logits).
+      - { name: mtp_logits, op: linear, boundary_role: output_head, dims: { in: d_model, out: n_vocab }, weight_axes: [{ world: attention, parts: n_vocab, fit: pad }, { replicated: true }], tied_weight: { to: lm_head } , inputs: [mtp.norm]}

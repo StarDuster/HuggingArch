@@ -1,0 +1,120 @@
+# Pre-norm decoder block wrapped in independent Hyper-Connections (iHC).
+#
+# Structure (modeling_hy_v4.py HYV4DecoderLayer.forward:706-743 and
+# HYV4HyperConnection.forward:647-666): the carried hidden state is
+# [B, s_ctx, n_hidden_copies, d_model] — n_hidden_copies parallel streams set
+# up once after the embedding. Each sublayer (attn, ffn) is bracketed by one
+# iHC module:
+#
+#   pre : flat = flatten(x); mixes = Linear(flat, hc_fn) * rsqrt(mean(flat²)+eps)
+#         — the source multiplies the linear output by the unweighted-RMSNorm
+#         SCALAR (HYV4UnweightedRMSNorm returns torch.rsqrt(mean+eps),
+#         modeling_hy_v4.py:67-75), which by linearity equals
+#         Linear(rmsnorm_unscaled(flat)); that is how it is written below —
+#         pre  = sigmoid(mixes_pre * scale[0] + base[:n]) + hc_eps
+#         post = hc_magnitude * sigmoid(mixes_post * scale[1] + base[n:]) + hc_eps
+#         reduced = sum(pre ⊗ x, copies axis)              # [B,s_ctx,d_model]
+#   sublayer runs on reduced (pre-norm: input_layernorm / post_attention_layernorm)
+#   post: x' = post ⊗ sublayer_out + x                     # broadcast + add
+#
+# The `+ hc_eps` after each gate (config.hc_eps = 1e-6; pre: after the sigmoid,
+# post: after the hc_magnitude scale; modeling_hy_v4.py:661,663) is the
+# registered `add_const` primitive, wired after each gate.
+#
+# Unlike DeepSeek-V4's hc_pre/hc_post (library dsv4_block) there is NO sinkhorn
+# and NO comb cross-mix matrix: post-mixing is a plain per-stream scalar gate
+# times the sublayer output plus the carried streams (modeling_hy_v4.py:734,741).
+# The gate decomposes into registered mul/add/sigmoid: base.split(hc_mult) and
+# scale.unbind(0) in the source are the slice nodes below, and the [1] scale
+# slice broadcast-multiplies the [B,s_ctx,n_hidden_copies] logits.
+#
+# Checkpoint naming (flat per layer):
+#   hc_attn_layer.hc_pre.{hc_fn [2n, n·d_model], hc_base [2n], hc_scale [2]}
+#   hc_mlp_layer.hc_pre.{hc_fn, hc_base, hc_scale}        (mirror for the FFN)
+#
+# Required dims: d_model, n_hidden_copies (config.hc_mult).
+
+role: block
+description: "Pre-norm decoder block with independent Hyper-Connections (iHC): sigmoid-gated n_hidden_copies→1 pre-reduce and 1→n_hidden_copies post-spread around attn and ffn, no sinkhorn/comb. Hy4."
+
+inputs: [x]
+
+params:
+  attn: { kind: component }
+  ffn:  { kind: component }
+
+graph:
+  # ---- attention-side iHC (HYV4HyperConnection, modeling_hy_v4.py:647-666) ----
+  hc_attn_layer.hc_pre.hc_fn:    { op: parameter_tensor, shape: ["2 * n_hidden_copies", "n_hidden_copies * d_model"], weight_axes: [{ replicated: true }, { replicated: true }] }
+  hc_attn_layer.hc_pre.hc_base:  { op: parameter_vector, dim: "2 * n_hidden_copies", weight_axes: [{ replicated: true }] }
+  hc_attn_layer.hc_pre.hc_scale: { op: parameter_vector, dim: "2", weight_axes: [{ replicated: true }] }
+  attn_hc_flat:        { op: view_merge, in: x }
+  # Linear(flat)·rsqrt(mean(flat²)) == Linear(rmsnorm_unscaled(flat)) — linearity.
+  attn_hc_norm:        { op: rmsnorm_unscaled, in: attn_hc_flat, dim: "n_hidden_copies * d_model" }
+  attn_hc_mixes:       { op: linear_external_weight, in: [attn_hc_norm, hc_attn_layer.hc_pre.hc_fn], dims: { in: "n_hidden_copies * d_model", out: "2 * n_hidden_copies" } }
+  # source: pre_logits, post_logits = mixes.split(hc_mult); pre_b, post_b =
+  # base.split(hc_mult); pre_scale, post_scale = scale.unbind(0)
+  attn_hc_pre_logits:  { op: slice, in: attn_hc_mixes, dims: { in: "2 * n_hidden_copies", out: n_hidden_copies, start: "0" } }
+  attn_hc_post_logits: { op: slice, in: attn_hc_mixes, dims: { in: "2 * n_hidden_copies", out: n_hidden_copies, start: n_hidden_copies } }
+  attn_hc_pre_base:    { op: slice, in: hc_attn_layer.hc_pre.hc_base, dims: { in: "2 * n_hidden_copies", out: n_hidden_copies, start: "0" } }
+  attn_hc_post_base:   { op: slice, in: hc_attn_layer.hc_pre.hc_base, dims: { in: "2 * n_hidden_copies", out: n_hidden_copies, start: n_hidden_copies } }
+  attn_hc_pre_scale:   { op: slice, in: hc_attn_layer.hc_pre.hc_scale, dims: { in: "2", out: "1", start: "0" } }
+  attn_hc_post_scale:  { op: slice, in: hc_attn_layer.hc_pre.hc_scale, dims: { in: "2", out: "1", start: "1" } }
+  # pre = sigmoid(pre_logits * pre_scale + pre_b) + hc_eps
+  attn_hc_pre_scaled:  { op: mul, in: [attn_hc_pre_logits, attn_hc_pre_scale], dims: { dim: n_hidden_copies, out: "1" } }
+  attn_hc_pre_shifted: { op: add, in: [attn_hc_pre_scaled, attn_hc_pre_base], dim: n_hidden_copies }
+  attn_hc_pre_sig:     { op: sigmoid, in: attn_hc_pre_shifted, dim: n_hidden_copies }
+  attn_hc_pre:         { op: add_const, in: attn_hc_pre_sig, dim: n_hidden_copies }
+  # post = hc_magnitude * sigmoid(post_logits * post_scale + post_b) + hc_eps;
+  # the magnitude multiply is scale_const (value 2.0 from config.hc_magnitude
+  # — a constant, not read back); the + hc_eps is the add_const that follows.
+  attn_hc_post_scaled:  { op: mul, in: [attn_hc_post_logits, attn_hc_post_scale], dims: { dim: n_hidden_copies, out: "1" } }
+  attn_hc_post_shifted: { op: add, in: [attn_hc_post_scaled, attn_hc_post_base], dim: n_hidden_copies }
+  attn_hc_post_sig:     { op: sigmoid, in: attn_hc_post_shifted, dim: n_hidden_copies }
+  attn_hc_post_mag:     { op: scale_const, in: attn_hc_post_sig, dims: { in: n_hidden_copies } }
+  attn_hc_post:         { op: add_const, in: attn_hc_post_mag, dim: n_hidden_copies }
+  attn_hc_reduce:       { op: hc_weighted_reduce, in: [x, attn_hc_pre], dims: { n_hidden_copies: n_hidden_copies, d_model: d_model } }
+
+  input_layernorm:     { op: rmsnorm, in: attn_hc_reduce, dim: d_model, weight_axes: [{ replicated: true }] }
+  self_attn:           { op: <attn>, in: input_layernorm }
+
+  # post-mix: x + post ⊗ attn (modeling_hy_v4.py:734)
+  attn_post_b:         { op: broadcast, in: attn_hc_post, axis: -1, dims: { width: d_model } }
+  attn_out_b:          { op: broadcast, in: self_attn, axis: -2, dims: { width: n_hidden_copies } }
+  attn_spread_term:    { op: mul, in: [attn_post_b, attn_out_b], dim: d_model }
+  attn_hc_out:         { op: add, in: [attn_spread_term, x], dim: d_model }
+
+  # ---- ffn-side iHC (mirror) ----
+  hc_mlp_layer.hc_pre.hc_fn:    { op: parameter_tensor, shape: ["2 * n_hidden_copies", "n_hidden_copies * d_model"], weight_axes: [{ replicated: true }, { replicated: true }] }
+  hc_mlp_layer.hc_pre.hc_base:  { op: parameter_vector, dim: "2 * n_hidden_copies", weight_axes: [{ replicated: true }] }
+  hc_mlp_layer.hc_pre.hc_scale: { op: parameter_vector, dim: "2", weight_axes: [{ replicated: true }] }
+  ffn_hc_flat:         { op: view_merge, in: attn_hc_out }
+  ffn_hc_norm:         { op: rmsnorm_unscaled, in: ffn_hc_flat, dim: "n_hidden_copies * d_model" }
+  ffn_hc_mixes:        { op: linear_external_weight, in: [ffn_hc_norm, hc_mlp_layer.hc_pre.hc_fn], dims: { in: "n_hidden_copies * d_model", out: "2 * n_hidden_copies" } }
+  ffn_hc_pre_logits:   { op: slice, in: ffn_hc_mixes, dims: { in: "2 * n_hidden_copies", out: n_hidden_copies, start: "0" } }
+  ffn_hc_post_logits:  { op: slice, in: ffn_hc_mixes, dims: { in: "2 * n_hidden_copies", out: n_hidden_copies, start: n_hidden_copies } }
+  ffn_hc_pre_base:     { op: slice, in: hc_mlp_layer.hc_pre.hc_base, dims: { in: "2 * n_hidden_copies", out: n_hidden_copies, start: "0" } }
+  ffn_hc_post_base:    { op: slice, in: hc_mlp_layer.hc_pre.hc_base, dims: { in: "2 * n_hidden_copies", out: n_hidden_copies, start: n_hidden_copies } }
+  ffn_hc_pre_scale:    { op: slice, in: hc_mlp_layer.hc_pre.hc_scale, dims: { in: "2", out: "1", start: "0" } }
+  ffn_hc_post_scale:   { op: slice, in: hc_mlp_layer.hc_pre.hc_scale, dims: { in: "2", out: "1", start: "1" } }
+  ffn_hc_pre_scaled:   { op: mul, in: [ffn_hc_pre_logits, ffn_hc_pre_scale], dims: { dim: n_hidden_copies, out: "1" } }
+  ffn_hc_pre_shifted:  { op: add, in: [ffn_hc_pre_scaled, ffn_hc_pre_base], dim: n_hidden_copies }
+  ffn_hc_pre_sig:      { op: sigmoid, in: ffn_hc_pre_shifted, dim: n_hidden_copies }
+  ffn_hc_pre:          { op: add_const, in: ffn_hc_pre_sig, dim: n_hidden_copies }
+  ffn_hc_post_scaled:  { op: mul, in: [ffn_hc_post_logits, ffn_hc_post_scale], dims: { dim: n_hidden_copies, out: "1" } }
+  ffn_hc_post_shifted: { op: add, in: [ffn_hc_post_scaled, ffn_hc_post_base], dim: n_hidden_copies }
+  ffn_hc_post_sig:     { op: sigmoid, in: ffn_hc_post_shifted, dim: n_hidden_copies }
+  ffn_hc_post_mag:     { op: scale_const, in: ffn_hc_post_sig, dims: { in: n_hidden_copies } }
+  ffn_hc_post:         { op: add_const, in: ffn_hc_post_mag, dim: n_hidden_copies }
+  ffn_hc_reduce:       { op: hc_weighted_reduce, in: [attn_hc_out, ffn_hc_pre], dims: { n_hidden_copies: n_hidden_copies, d_model: d_model } }
+
+  post_attention_layernorm: { op: rmsnorm, in: ffn_hc_reduce, dim: d_model, weight_axes: [{ replicated: true }] }
+  mlp:               { op: <ffn>, in: post_attention_layernorm }
+
+  # post-mix: x + post ⊗ ffn (modeling_hy_v4.py:741)
+  ffn_post_b:          { op: broadcast, in: ffn_hc_post, axis: -1, dims: { width: d_model } }
+  ffn_out_b:           { op: broadcast, in: mlp, axis: -2, dims: { width: n_hidden_copies } }
+  ffn_spread_term:     { op: mul, in: [ffn_post_b, ffn_out_b], dim: d_model }
+  out:                 { op: add, in: [ffn_spread_term, attn_hc_out], dim: d_model }
+
+outputs: [out]

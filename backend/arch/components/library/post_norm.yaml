@@ -1,0 +1,19 @@
+# Post-norm transformer block (BERT/GPT-2-style decoder layer).
+# Topology: attention → +residual → norm → FFN → +residual → norm.
+# See `pre_norm.yaml` for usage; parameter slots are identical.
+role: block
+description: "Post-norm transformer block: attn → +x → norm → ffn → +x → norm. BERT/GPT-2 style."
+
+params:
+  attn: { kind: component }
+  ffn:  { kind: component }
+  norm: { kind: component, default: layernorm }
+
+graph:
+  self_attn:                { op: <attn>, in: x }
+  post_attn_add:            { op: add, in: [x, self_attn], dim: d_model }
+  post_attention_layernorm: { op: <norm>, in: post_attn_add, dim: d_model, weight_axes: [{ replicated: true }] }
+  mlp:                      { op: <ffn>, in: post_attention_layernorm }
+  post_ffn_add:             { op: add, in: [post_attention_layernorm, mlp], dim: d_model }
+  out:                      { op: <norm>, in: post_ffn_add, dim: d_model, weight_axes: [{ replicated: true }] }
+outputs: [out]

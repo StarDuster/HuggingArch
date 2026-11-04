@@ -1,0 +1,80 @@
+# DeepSeek-V4 attention input preparation — vLLM's
+# `fused_deepseek_v4_qnorm_rope_kv_rope_quant_insert` kernel.
+#
+# Naive subgraph (dsv4_{csa,hca,swa_only}_attention): the query side
+# normalizes every head without a gain, rotates its last d_qk_rope dims and
+# re-joins them; the latent-KV side rotates its last d_qk_rope dims and
+# re-joins them:
+#
+#   q_norm = rmsnorm_unscaled(q)                        # per head, over d_head
+#   q_rope_slice, q_norope_slice = slice(q_norm), slice(q_norm)
+#   q_concat = concat(q_norope_slice, rope_emb(q_rope_slice))
+#   kv_rope_slice, kv_norope_slice = slice(kv), slice(kv)
+#   kv_concat = concat(kv_norope_slice, rope_emb(kv_rope_slice))  # the cached SWA row
+#
+# vLLM (audited at v0.32.0) runs the whole of it as one launch per layer
+# (vllm/models/deepseek_v4/attention.py:759 `_fused_qnorm_rope_kv_insert`,
+# called at :593, the op at :800):
+#   "Q side: q_head_norm (per-head RMSNorm, no weight) + GPT-J RoPE / KV side:
+#    GPT-J RoPE + UE8M0 FP8 quant + paged cache insert" (:793-799), dispatched to
+#   `torch.ops._C.fused_deepseek_v4_qnorm_rope_kv_rope_quant_insert`.
+# q is read once and written once; the separate norm pass, the rope-slice
+# round trip and the re-join the unfused chain bills are inside the kernel.
+#
+# `feeds` fixes which rope is the query's: the two halves have the same
+# shape, and only the attention score's operand positions tell them apart.
+
+# KNOWN BOUNDARY GAP (named 2026-10-22, not yet reconciled). The launch above
+# also QUANTISES the latent row to UE8M0 FP8 and INSERTS it into the paged
+# sliding-window cache. This naive pattern stops at `kv_concat`: it has no node
+# for the quantisation and none for the cache write. So the pattern prices
+# less work than the kernel does, and the three statements of this span's
+# boundary do not agree —
+#   this pattern       norm + rope, ending at a concat;
+#   the signature      `fused_qnorm_rope_kv_insert` in op_signatures_catalog,
+#                      which declares the paged cache as a `role="kv"` operand
+#                      and so describes the insert;
+#   the torch floor    `kernel_bench/providers/rope.py`, norm + rope only.
+# Consequence if ignored: a speedup computed from that floor divides the real
+# launch (norm + rope + FP8 quant + paged insert) by only norm + rope, so the
+# denominator is too cheap and the ratio is inflated. NO PROLOGUE SPEEDUP HAS
+# BEEN PUBLISHED for this reason — the fused kernel is not currently runnable
+# on the measurement box (its compiled ops are CUDA 13 builds; that box's
+# driver is 12.9), so only floor rows exist and no ratio was taken.
+# Fixing it means choosing the boundary once and moving all three together:
+# either add the quant + store nodes here, or narrow the signature and say
+# the span is the norm/rope prologue alone. Either way it is a plan change
+# with its own review, not a floor tweak.
+
+fused_op: fused_qnorm_rope_kv_insert
+
+naive_pattern:
+  nodes:
+    q_norm:          { op: rmsnorm_unscaled, inputs: [external.q] }
+    q_rope_slice:    { op: slice,    inputs: [q_norm.out] }
+    q_norope_slice:  { op: slice,    inputs: [q_norm.out] }
+    q_rope:          { op: rope_emb, inputs: [q_rope_slice.out], feeds: q }
+    q_concat:        { op: concat,   inputs: [q_norope_slice.out, q_rope.out] }
+    kv_rope_slice:   { op: slice,    inputs: [external.kv] }
+    kv_norope_slice: { op: slice,    inputs: [external.kv] }
+    kv_rope:         { op: rope_emb, inputs: [kv_rope_slice.out], feeds: k }
+    kv_concat:       { op: concat,   inputs: [kv_norope_slice.out, kv_rope.out] }
+    k_out_quant: { op: quantise_activation, inputs: [kv_concat.out], optional: true }
+  io_mapping:
+    q:      external.q
+    kv:     external.kv
+    output: q_concat.out
+    k_out:  k_out_quant.out
+
+# Output contract, the KV side's: the rotated row is written quantised into
+# the paged cache, which is a new buffer, so the whole of the latent KV row
+# crosses this launch on both sides. Absent the declaration the byte price
+# would read the absorbed `slice`/`concat` pair on that side as a
+# re-partition nobody moved (`fusion._passed_through`) and bill the rope
+# lanes alone — an eighth of the row at d_qk_rope 64 of d_head 512 — while
+# the kernel reads every lane to quantise it and writes every lane of the
+# cache line. The q side needs no such correction: its own norm reads the
+# whole of q and writes the whole of q_concat, which is what the boundary
+# already prices. A cast on the cache-bound row, where one stands, is the
+# optional `k_out_quant` member.
+allocates_output: "vllm.models.deepseek_v4.attention.DeepseekV4Attention._fused_qnorm_rope_kv_insert (attention.py:759, the op at :800): 'KV side: GPT-J RoPE + UE8M0 FP8 quant + paged cache insert' (:793-799)"

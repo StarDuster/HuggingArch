@@ -1,0 +1,189 @@
+# Qwen3-VL-MoE 235B-A22B. Text backbone is homogeneous GQA+QK-norm + packed
+# fused-expert MoE (no shared expert). Vision is inlined like Qwen3.5:
+# patch embed, pos embed, 27 ViT blocks, final merger. DeepStack: the vision
+# blocks append their carried `hidden` after blocks deepstack_visual_indexes
+# (8, 16, 24) to the stream `deepstack`, and merger j of
+# `deepstack_merger_list` reads element j, appending its output to
+# `deepstack_feat`. The merged image features replace the image-token
+# positions of the text embedding (`embed_merge`, HF `masked_scatter`), and
+# decoder layer j < n_deepstack adds element j of `deepstack_feat` to the
+# visual positions of its output (`_deepstack_process`).
+components:
+  attention: gqa_qknorm_attention
+  block: pre_norm
+  ffn_moe: moe_ffn_fused_packed
+  norm: rmsnorm
+dims:
+  s_max: config.text_config.max_position_embeddings   # published context length
+  d_model: config.text_config.hidden_size
+  n_heads: config.text_config.num_attention_heads
+  n_kv_heads: config.text_config.num_key_value_heads
+  d_head: config.text_config.head_dim
+  d_ffn: config.text_config.intermediate_size
+  d_ffn_expert: config.text_config.moe_intermediate_size
+  n_vocab: config.text_config.vocab_size
+  n_layers: config.text_config.num_hidden_layers
+  n_experts: config.text_config.num_experts
+  n_experts_active: config.text_config.num_experts_per_tok
+  # Qwen3VLMoeTextTopKRouter.forward renormalizes unconditionally
+  # (`router_top_value /= router_top_value.sum(...)`); the text config has no
+  # norm_topk_prob field.
+  n_topk_renorm: "1"
+  # The same forward (modeling_qwen3_vl_moe.py:136-144) has no group limit and
+  # no routed_scaling_factor multiply; the text config has neither field.
+  n_expert_groups: "1"
+  n_groups_active: "1"
+  n_routed_scale: "0"
+  d_vis_model: config.vision_config.hidden_size
+  n_vis_heads: config.vision_config.num_heads
+  d_vis_head: d_vis_model // n_vis_heads
+  d_vis_ffn: config.vision_config.intermediate_size
+  n_vis_layers: config.vision_config.depth
+  n_vis_channels: config.vision_config.in_channels
+  s_patch: config.vision_config.patch_size
+  s_patch_temporal: config.vision_config.temporal_patch_size
+  n_spatial_merge: config.vision_config.spatial_merge_size
+  n_vis_pos_slots: config.vision_config.num_position_embeddings
+  d_vis_merge: n_spatial_merge * n_spatial_merge * d_vis_model
+  d_proj_out: config.vision_config.out_hidden_size
+  n_deepstack: len(config.vision_config.deepstack_visual_indexes)
+match:
+  model_type: [qwen3_vl_moe]
+  model_id: [Qwen/Qwen3-VL-235B-A22B-Instruct]
+model_inputs:
+  input_ids: { kind: tokens }
+  # Images per request, then each image's size as the processor hands it to
+  # the tower (after its smart_resize to a multiple of 32).
+  pixel_values: { kind: image, axes: [n_img, img_h, img_w] }
+  # Videos per request, then each video's sampled frames and processed size;
+  # the forward reads `pixel_values_videos` through the image tower
+  # (transformers 5.17 qwen3_vl_moe/modeling_qwen3_vl_moe.py
+  # get_video_features -> get_image_features).
+  pixel_values_videos: { kind: video, axes: [n_vid, vid_frames, vid_h, vid_w] }
+
+# The transformers base model's tensors sit under `model.`; the LM head
+# beside it declares its own path.
+checkpoint: { root: model }
+
+model:
+  - {boundary_role: input_embedding, dims: {d_model: d_model, n_vocab: n_vocab},
+    name: language_model.embed_tokens, inputs: [input_ids], op: embedding, weight_axes: [{fit: pad, parts: n_vocab,
+        world: attention}, {replicated: true}]}
+  - name: visual
+    group: true
+    aux_kind: vision
+    checkpoint: {prefix: model.visual.blocks, index: local}
+    layers:
+      # The processor resizes each image to a multiple of
+      # patch_size * merge_size = 16 * 2 = 32, repeats it into
+      # temporal_patch_size = 2 frames and cuts 16x16x2 patches of 3
+      # channels, one row each, each 2x2 merge window contiguous; one
+      # attention segment per temporal patch, which for an image is the
+      # whole image.
+      - name: visual.patchify
+        op: patchify
+        inputs: [pixel_values]
+        dims: {patch: s_patch, temporal: s_patch_temporal, channels: n_vis_channels, align: "s_patch * n_spatial_merge"}
+        segment: temporal_patch
+        source_anchor: "transformers 5.17 qwen2_vl/image_processing_qwen2_vl.py:62-88 smart_resize, factor = patch_size * merge_size (:226); :164-198 patchify, a still image expanded to temporal_patch_size (:189-191); vision_utils.py:42-65 cu_seqlens one segment per temporal patch (an image has one)"
+      - {name: visual.patch_embed.proj, inputs: [visual.patchify], op: linear,
+         dims: {in: "n_vis_channels * s_patch_temporal * s_patch * s_patch",
+                out: d_vis_model, bias: "1"},
+         weight_axes: [{replicated: true}, {replicated: true}]}
+      # Learned position table, bilinearly interpolated to the patch grid:
+      # Qwen3VLMoeVisionModel.forward
+      #   pos_embeds = (self.pos_embed(interp_indices) * interp_weights[:, :, None]).sum(1)
+      #   hidden_states = hidden_states + pos_embeds
+      # 4 table rows per patch, weighted and summed, then added; one fused
+      # lookup-and-add with no expanded intermediate:
+      #   y[p] = x[p] + sum_{k<4} w[p,k] * pos_embed[idx[p,k]]
+      - {name: visual.pos_embed.weight, op: parameter_tensor,
+         shape: [n_vis_pos_slots, d_vis_model],
+         weight_axes: [{replicated: true}, {replicated: true}]}
+      - {name: visual.pos_add, op: position_table_add,
+         inputs: [visual.patch_embed.proj, visual.pos_embed.weight], dim: d_vis_model}
+      - name: visual.blocks
+        template: qwen35_vision_block
+        repeat: n_vis_layers
+        inputs: [visual.pos_add]
+        streams:
+          hidden: { carries: true }
+          deepstack: { from: hidden, after: config.vision_config.deepstack_visual_indexes,
+                       index: block, src: "if layer_num in self.deepstack_visual_indexes:" }
+      - {name: visual.merger.norm, op: layernorm, dim: d_vis_model,
+         inputs: [visual.blocks], weight_axes: [{replicated: true}]}
+      - {name: visual.merger.merge, op: spatial_merge,
+         dims: {n_spatial_merge: n_spatial_merge}, inputs: [visual.merger.norm]}
+      # vLLM `qwen3_vl.Qwen3_VisionPatchMerger`: linear_fc1 is
+      # ColumnParallelLinear, linear_fc2 RowParallelLinear over d_vis_merge.
+      - {name: visual.merger.linear_fc1, op: linear,
+         dims: {in: d_vis_merge, out: d_vis_merge, bias: "1"},
+         weight_axes: [{world: dense_ffn, parts: d_vis_merge, fit: exact}, {replicated: true}],
+         inputs: [visual.merger.merge]}
+      - {name: visual.merger.gelu, op: gelu, dim: d_vis_merge,
+         inputs: [visual.merger.linear_fc1]}
+      - {name: visual.merger.linear_fc2, op: linear,
+         dims: {in: d_vis_merge, out: d_proj_out, bias: "1"},
+         weight_axes: [{replicated: true}, {world: dense_ffn, parts: d_vis_merge, fit: exact}],
+         inputs: [visual.merger.gelu]}
+      # Merger j reads element j of `deepstack`: a stack that carries
+      # nothing, its iterations side by side.
+      - name: visual.deepstack_merger_list
+        template: qwen3_vl_deepstack_merger
+        repeat: n_deepstack
+        checkpoint: {prefix: model.visual.deepstack_merger_list, index: local}
+        inputs: [deepstack]
+        streams:
+          deepstack_feat: { from: out, after: every, index: block,
+                            src: "deepstack_feature_lists.append(deepstack_feature)" }
+  # The videos, through the same tower with the same weights in a call of
+  # their own (vLLM v0.30.0 qwen3_vl.py:2903-2918), one attention segment per
+  # temporal patch (:792-797; the processor repeats the last frame to a
+  # whole temporal patch, video_processing_qwen3_vl.py:236-240); its
+  # DeepStack features add onto the video's positions too (:2922-2961).
+  - { name: video, call: visual, inputs: [pixel_values_videos] }
+  # `inputs_embeds = inputs_embeds.masked_scatter(image_mask, image_embeds)`,
+  # the videos' rows at their own positions in the same scatter.
+  - name: language_model.embed_merge
+    op: scatter_rows_replace
+    inputs: [language_model.embed_tokens, visual.merger.linear_fc2, video.merger.linear_fc2]
+    prompt_slots:
+      visual.merger.linear_fc2: {domain: pixel_values, defines: true,
+                                 source_anchor: "vLLM models/utils.py:636-672 _merge_multimodal_embeddings inputs_embeds[is_multimodal] = mm_embeds_flat; qwen3_vl.py:2920-2938"}
+      video.merger.linear_fc2: {domain: pixel_values_videos, defines: true,
+                                source_anchor: "vLLM v0.30.0 models/qwen3_vl.py:2363-2365 grid_t*h*w/merge^2 rows per video, merged with the images by models/utils.py _merge_multimodal_embeddings"}
+  # Layers 0..n_deepstack-1 add element j of `deepstack_feat` to their output.
+  - name: language_model.layers
+    repeat: n_layers
+    inputs: [language_model.embed_merge]
+    streams:
+      hidden: { carries: true }
+      # DeepStack adds onto the image's own prompt positions (the same
+      # `is_multimodal` mask), defining none.
+      deepstack_feat: { read: each,
+                        prompt_slots: {domain: pixel_values, defines: false,
+                                       source_anchor: "vLLM qwen3_vl.py:2863-2902 _compute_deepstack_embeds on the is_multimodal positions; qwen3_vl.py:1675-1681 added in the first decoder layers"} }
+      deepstack_feat_video: { read: each,
+                              prompt_slots: {domain: pixel_values_videos, defines: false,
+                                             source_anchor: "vLLM v0.30.0 qwen3_vl.py:2922-2961 _compute_deepstack_embeds splits every multimodal embedding, the videos' included, onto their is_multimodal positions"} }
+    per_layer:
+      assign:
+        - {type: ds, range: ["0", "n_deepstack - 1"]}
+        - {type: moe, rest: true}
+      # The text tower rotates by multimodal positions: `rope_scaling` carries
+      # `mrope_section` [24, 20, 20] (interleaved), which vLLM / sglang run as
+      # `MRotaryEmbedding` (modeling_qwen3_vl_moe.py text rotary embedding;
+      # sglang qwen3_vl_moe.py:32 -> qwen3_moe.py:515-530). The attention
+      # takes it as its `rope` parameter.
+      map:
+        ds: {template: qwen3_vl_deepstack_decoder_block,
+             params: {attn: {template: gqa_qknorm_attention, params: {rope: mrope}},
+                      ffn: moe_ffn_fused_packed}}
+        moe: {template: pre_norm,
+              params: {attn: {template: gqa_qknorm_attention, params: {rope: mrope}},
+                       ffn: moe_ffn_fused_packed, norm: rmsnorm}}
+  - {dim: d_model, name: language_model.norm, op: rmsnorm, weight_axes: [{replicated: true}],
+    inputs: [language_model.layers]}
+  - {boundary_role: output_head, dims: {in: d_model, out: n_vocab}, in: language_model.norm,
+    name: lm_head, op: linear, checkpoint: {path: lm_head}, weight_axes: [{fit: pad, parts: n_vocab, world: attention},
+      {replicated: true}]}

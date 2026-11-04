@@ -1,0 +1,59 @@
+# Qwen QSA indexer query prep: per-head Gemma RMSNorm (norm · (1 + w)) and
+# the partial MRoPE over the first d_rope dims, re-joined, in one launch.
+#
+# Naive subgraph (qwen_qsa_attention, the indexer's query after its head
+# split):
+#
+#   q = rmsnorm_unscaled(q) * w          # indexer.q_layernorm
+#   q = concat(mrope(q[..., :d_rope]), q[..., d_rope:])
+#
+#   vLLM (audited at v0.32.0): with `use_fused_qsa_prepare`
+#     (models/qwen4_exp/nvidia/qsa.py:496-498: the main fused qk-norm/rope/gate
+#     is on and `_supports_fused_pre_indexer`, indexer_qsa.py:64-86) ONE
+#     `qsa_prepare` launch (ops/qsa_prepare.py:504, kernel :112; from
+#     QSAIndexer.forward, indexer_qsa.py:310) does this query prep, the key
+#     side — the pending-ring write and, for every completed block, pool + norm
+#     + rope + compressed-cache store (key work items :296-...) — and the main
+#     attention's q/k norm + rope + gate and K/V cache write. The spec spells
+#     those in three scopes: this chain, the `qwen_qsa_key_pool` sub-component
+#     (`qsa_index_k_compress_store`) and the main q/k chain that
+#     `fused_qk_rmsnorm_rope_gate_split_gain` takes, so vLLM is billed three
+#     launches for its one — bytes right, they share no intermediate.
+#     `_supports_fused_pre_indexer` also asks NeoX rope, MRoPE interleaved with
+#     sum(section) = rotary_dim / 2 (or none), one index KV head and a
+#     power-of-two compress ratio > 1 (indexer_qsa.py:72-85): assumed of the
+#     default (Qwen4Exp) config, not asked; index head 128 and rotary 64 are
+#     asked through `dims`.
+#   sglang (audited at v0.5.22): `QSAIndexer.project_qk`
+#     (srt/layers/attention/qsa/qsa_indexer.py:160-205) runs
+#     `qsa_index_q_norm_rope_store` (kernels/ops/attention/qsa_indexer.py:69),
+#     q norm + rope plus the raw-key ring write, when `_use_fused_prep` holds
+#     (:126-138: CUDA, bf16/fp16, index head in {64, 128, 256}, even rotary
+#     dim, 0 or 3 MRoPE sections, an fp32 CUDA cos/sin cache, not
+#     `mrope_interleaved_glm`). Called for every forward, prefill and decode
+#     (`_forward_impl` :695).
+#
+# The same chain is the main attention's q in the same layer; there the
+# larger `fused_qk_rmsnorm_rope_gate_split_gain` (both frameworks, same model
+# class and device) has already taken it.
+#
+# `feeds: q` is what keeps it off the indexer KEY's norm → rope → re-join,
+# which is the same six ops: the query's rotation reaches the indexer score's
+# `q` operand, while the key's output goes to the compressed cache and reaches
+# no operand at all. Without it the key chain is this plan's match wherever
+# the wider `qsa_index_k_compress_store` does not run first (sglang decode).
+
+fused_op: qsa_index_q_norm_rope
+
+naive_pattern:
+  nodes:
+    rmsnorm:      { op: rmsnorm_unscaled, inputs: [external.q] }
+    norm:         { op: mul,              inputs: [rmsnorm.out, external.weight] }
+    rope_slice:   { op: slice,            inputs: [norm.out] }
+    norope_slice: { op: slice,            inputs: [norm.out] }
+    rope:         { op: mrope,            inputs: [rope_slice.out], feeds: q }
+    concat:       { op: concat,           inputs: [rope.out, norope_slice.out] }
+  io_mapping:
+    q:      external.q
+    weight: external.weight
+    output: concat.out

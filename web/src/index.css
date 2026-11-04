@@ -1,0 +1,598 @@
+@import "tailwindcss";
+
+/* Self-hosted HF-compatible faces. `block` (plus the build-time preload in
+ * vite.config.ts) prevents a system-font flash that reads as text suddenly
+ * shrinking when Source Sans swaps in. Non-Latin text intentionally falls
+ * through to the system stack. */
+@font-face {
+  font-family: "Source Sans 3 Variable";
+  font-style: normal;
+  font-display: block;
+  font-weight: 200 900;
+  src: url("@fontsource-variable/source-sans-3/files/source-sans-3-latin-wght-normal.woff2")
+    format("woff2-variations");
+  unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
+}
+@font-face {
+  font-family: "Source Sans 3 Variable";
+  font-style: normal;
+  font-display: block;
+  font-weight: 200 900;
+  src: url("@fontsource-variable/source-sans-3/files/source-sans-3-latin-ext-wght-normal.woff2")
+    format("woff2-variations");
+  unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;
+}
+@font-face {
+  font-family: "IBM Plex Mono";
+  font-style: normal;
+  font-display: block;
+  font-weight: 400;
+  src: url("@fontsource/ibm-plex-mono/files/ibm-plex-mono-latin-400-normal.woff2")
+    format("woff2");
+  unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
+}
+@font-face {
+  font-family: "IBM Plex Mono";
+  font-style: normal;
+  font-display: block;
+  font-weight: 600;
+  src: url("@fontsource/ibm-plex-mono/files/ibm-plex-mono-latin-600-normal.woff2")
+    format("woff2");
+  unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
+}
+
+@theme {
+  --default-font-family: "Source Sans 3 Variable", "Source Sans Pro",
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  --font-sans: "Source Sans 3 Variable", "Source Sans Pro",
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo,
+    Monaco, Consolas, monospace;
+  /* The product's informational density needs a larger base scale than
+   * Tailwind's defaults. Define the scale once here — not with a runtime
+   * media override — so lazy route chunks, scrollbars, and viewport changes
+   * cannot make text reflow from one size to another. */
+  --text-sm: 1rem;
+  --text-sm--line-height: 1.5rem;
+  --text-xs: 0.875rem;
+  --text-xs--line-height: 1.25rem;
+  --text-13: 0.875rem;
+  --text-13--line-height: 1.25rem;
+  --text-11: 0.75rem;
+  --text-11--line-height: 1.125rem;
+  --text-10: 0.6875rem;
+  --text-10--line-height: 1rem;
+}
+
+/* Fluid page gutter, shared by the top nav, footer, and every data page.
+ * HF-style wide layouts keep their content off the viewport edge with a
+ * viewport-proportional gutter; clamp it so phones stay compact while wide
+ * desktops settle at a predictable 4rem. The 2560px ceiling keeps text and
+ * tables from stretching without bound on ultra-wide displays. */
+.page-shell {
+  --page-gutter: clamp(1rem, 3vw, 4rem);
+  width: 100%;
+  max-width: 2560px;
+  margin-inline: auto;
+  padding-inline: var(--page-gutter);
+}
+
+.mono { font-family: var(--font-mono); }
+
+/* A DataTable whose columns the reader resized lays out at the dragged
+ * widths; a column narrowed below its content wraps it instead of spilling
+ * into the next one (no clipping: a cell's formula popover hangs out of it). */
+table[data-resized] > * > tr > td,
+table[data-resized] > * > tr > th,
+table[data-resized] > * > tr > td *,
+table[data-resized] > * > tr > th * { white-space: normal; overflow-wrap: anywhere; }
+/* …and a cell's capped content follows the dragged width, not its own. */
+table[data-resized] [data-cap] { width: auto; max-width: 100%; }
+
+.card {
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+/* vanilla main.css .metric-card (base + warm-paper polish) */
+.metric-card {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(160deg, #fffdf8 0%, #fff7ed 60%, #ffedd5 100%);
+  border: 1px solid #fde9cd;
+  border-radius: 12px;
+  padding: 16px;
+}
+.metric-card::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 3px;
+  background: linear-gradient(180deg, #fbbf24, #ea580c);
+  opacity: 0.85;
+}
+/* vanilla main.css attention type badges on #result-attention */
+.attention-mha { background: linear-gradient(135deg, #ffeaa7 0%, #fdcb6e 100%); }
+.attention-gqa { background: linear-gradient(135deg, #dfe6e9 0%, #b2bec3 100%); }
+.attention-mla { background: linear-gradient(135deg, #a29bfe 0%, #6c5ce7 100%); }
+.layer-attention { border-left: 4px solid #F59E0B; }
+.layer-mlp { border-left: 4px solid #2e7d32; }
+.layer-moe { border-left: 4px solid #F97316; }
+.layer-norm { border-left: 4px solid #01579b; }
+.layer-embedding { border-left: 4px solid #c2185b; }
+
+/* vanilla main.css .tab-active — Inspector result tabs */
+.tab-active {
+    border-bottom: 3px solid #FF9D00;
+    color: #FF9D00;
+}
+.loading-spinner {
+  border: 3px solid #f3f3f3;
+  border-top: 3px solid #FF9D00;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  animation: spin 1s linear infinite;
+}
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+/* ComputeProgress without a reported count: the amber fill slides in its
+ * track until the server says how far the work got. */
+.progress-indeterminate {
+  width: 40%;
+  animation: progress-slide 1.2s ease-in-out infinite;
+}
+@keyframes progress-slide {
+  0% { margin-left: 0; }
+  50% { margin-left: 60%; }
+  100% { margin-left: 0; }
+}
+/* ComputeProgress's little rocket: the outer span is placed at the fill's
+ * tip (its `left` transitions as the count advances; `-slide` flies it back
+ * and forth while the count is unknown), the inner span bobs and points the
+ * 🚀 glyph — which is drawn nose-up-right — along the bar. */
+.progress-rocket {
+  position: absolute;
+  bottom: 100%;
+  margin-bottom: 1px;
+  transform: translateX(-50%);
+  transition: left 0.5s ease;
+  font-size: 14px;
+  line-height: 1;
+  pointer-events: none;
+}
+.progress-rocket-body {
+  display: inline-block;
+  animation: rocket-bob 1.6s ease-in-out infinite;
+}
+.progress-rocket-slide {
+  animation: rocket-fly 1.2s ease-in-out infinite;
+}
+@keyframes rocket-bob {
+  0%, 100% { transform: rotate(45deg) translateY(0); }
+  50% { transform: rotate(45deg) translateY(-2px); }
+}
+@keyframes rocket-fly {
+  0% { left: 2%; }
+  50% { left: 97%; }
+  100% { left: 2%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .progress-indeterminate, .progress-rocket-body, .progress-rocket-slide { animation: none; }
+}
+/* vanilla main.css .fade-in — Inspector #results */
+.fade-in {
+    animation: fadeIn 0.5s ease-in;
+}
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Inspector Compare representative block DAG — vanilla main.css `.dag-*`. */
+/* Light canvas: slate-50 under a faint dot grid, so white node cards and the
+   tinted compound frames read as layers above it. */
+.dag-container {
+  background-color: #f8fafc;
+  background-image: radial-gradient(rgba(100,116,139,0.18) 1px, transparent 1px);
+  background-size: 18px 18px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  color: #1e293b;
+}
+/* Fusion popover: keep the absorbed subgraph inside the card. */
+#fusion-popover-dag .dag-node-box { max-width: 160px; }
+#fusion-popover-dag .dag-svg-container { max-width: 100%; overflow: hidden; }
+.dag-block-compare { padding: 16px; min-height: 400px; }
+.dag-svg-container {
+  position: relative;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: visible;
+}
+.dag-svg-container svg.dag-edges { display: block; }
+.dag-svg-container .dag-elk-nodes { position: relative; z-index: 1; }
+.dag-node-slot { box-sizing: border-box; }
+/* Pin the node card to fill its ELK-allocated (measured) slot so edge
+   endpoints meet the visible box and tall cards can't spill onto the node
+   below. The off-screen measurement twin is NOT a slot child, so it still
+   sizes naturally. */
+.dag-node-slot > .dag-node-box { width: 100%; height: 100%; box-sizing: border-box; }
+.dag-node-box {
+  display: inline-block;
+  padding: 8px 18px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #1e293b;
+  position: relative;
+  z-index: 2;
+  cursor: default;
+  min-width: 80px;
+  max-width: 360px;
+  overflow-wrap: anywhere;
+}
+.dag-node-box.expandable { cursor: pointer; }
+.dag-node-box.expandable:hover { filter: brightness(0.96); }
+/* Expanded compound: a dashed container sized to ELK's computed box, with a
+   small clickable label tab pinned at its top-left corner. Children render as
+   absolute siblings inside it, and edges route within. */
+.dag-compound-wrap.expanded {
+  position: absolute;
+  border: 1px dashed rgba(100,116,139,0.55);
+  border-radius: 10px;
+  /* Edges inside the compound draw underneath it (svg below the node layer),
+     so the fill must stay a near-transparent tint. */
+  background: rgba(100,116,139,0.05);
+}
+.dag-elk-collapse-tab {
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 10px;
+  font-size: 12px;
+  line-height: 1.2;
+}
+.dag-node-box .expand-icon {
+  position: absolute;
+  right: -10px;
+  top: -8px;
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #475569;
+  box-shadow: 0 1px 2px rgba(15,23,42,0.08);
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+/* Categories: white card + a 4px accent on the left edge in the category
+   hue; the fill is only a whisper of the same hue. */
+.dag-node-box.s-io { background: #f1f5f9; border: 1.5px solid #94a3b8; border-radius: 20px; color: #475569; font-size: 12px; padding: 5px 16px; }
+.dag-node-box.s-attn { background: #eff6ff; border: 1px solid #bfdbfe; border-left: 4px solid #3b82f6; box-shadow: 0 1px 2px rgba(15,23,42,0.06); }
+.dag-node-box.s-ffn { background: #fff7ed; border: 1px solid #fed7aa; border-left: 4px solid #f97316; box-shadow: 0 1px 2px rgba(15,23,42,0.06); }
+.dag-node-box.s-moe { background: #f5f3ff; border: 1px solid #ddd6fe; border-left: 4px solid #8b5cf6; box-shadow: 0 1px 2px rgba(15,23,42,0.06); }
+.dag-node-box.s-norm { background: #ffffff; border: 1px dashed #94a3b8; color: #334155; }
+.dag-node-box.s-res { background: #ffffff; border: 1.5px dashed #f87171; border-radius: 50%; width: 36px; height: 36px; padding: 0; display: inline-flex; align-items: center; justify-content: center; font-size: 16px; color: #dc2626; }
+.dag-node-box.s-op { background: #ffffff; border: 1px solid #cbd5e1; box-shadow: 0 1px 2px rgba(15,23,42,0.06); }
+/* Architecture diff: shared skeleton (neutral) vs each variant's own ops. */
+.dag-node-box.s-diff-shared { background: #ffffff; border: 1px solid #cbd5e1; color: #475569; }
+/* N-way diff: subset overlap (dashed neutral — deliberately NOT a palette
+   color, so it can't be mistaken for an owner) + per-owner uniques (PALETTE). */
+.dag-node-box.s-diff-partial { background: #f1f5f9; border: 1.5px dashed #64748b; color: #1e293b; }
+.dag-node-box.s-diff-u0 { background: rgba(78,121,167,0.12); border: 1.5px solid #4e79a7; color: #1e3a5f; }
+.dag-node-box.s-diff-u1 { background: rgba(242,142,43,0.12); border: 1.5px solid #f28e2b; color: #7c3d0a; }
+.dag-node-box.s-diff-u2 { background: rgba(89,161,79,0.12); border: 1.5px solid #59a14f; color: #234a1d; }
+.dag-node-box.s-diff-u3 { background: rgba(225,87,89,0.12); border: 1.5px solid #e15759; color: #7f1d1f; }
+.dag-node-box.s-diff-u4 { background: rgba(118,183,178,0.14); border: 1.5px solid #76b7b2; color: #1f4d4a; }
+.dag-node-box.s-diff-u5 { background: rgba(237,201,72,0.16); border: 1.5px solid #edc948; color: #5c4a06; }
+.dag-node-box.s-diff-u6 { background: rgba(176,122,161,0.12); border: 1.5px solid #b07aa1; color: #5b2e4f; }
+.dag-node-box.s-diff-u7 { background: rgba(255,157,167,0.16); border: 1.5px solid #ff9da7; color: #7f2733; }
+/* Paired in every compared entry, but some declared attribute differs. */
+.dag-node-box.s-diff-changed { background: #ffffff; border: 2px solid #d97706; color: #1e293b; }
+/* A compare view's per-entry line (BlockDag.tsx `compare`). */
+.dag-compare-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 1px 4px; margin-top: 2px; font-family: var(--font-mono); font-size: 10px; font-weight: 400; color: #334155; text-align: left; }
+.dag-compare-row .dag-kv-line { margin-top: 0; flex-basis: 100%; padding-left: 13px; }
+.dag-compare-swatch.dag-node-box { display: inline-block; width: 9px; height: 9px; min-width: 0; padding: 0; border-radius: 2px; flex: none; }
+.dag-compare-text { flex: 1 1 0; min-width: 0; white-space: normal; }
+/* Alternatives into one port, always open, side by side. */
+.dag-compound-wrap.dag-group { border-style: dotted; border-color: rgba(217,119,6,0.7); }
+.dag-node-box.s-comm { background: #fffbeb; border: 1px solid #fde68a; border-left: 4px solid #f59e0b; color: #92400e; box-shadow: 0 1px 2px rgba(15,23,42,0.06); }
+.dag-node-box.s-fused { background: #dbeafe; border: 1.5px solid #3b82f6; border-left: 4px solid #2563eb; color: #1e3a8a; box-shadow: 0 1px 2px rgba(15,23,42,0.06); }
+.dag-node-box.s-view {
+  background: rgba(255,255,255,0.7);
+  border: 1px dashed #94a3b8;
+  border-radius: 16px;
+  padding: 3px 12px;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 400;
+  font-style: italic;
+}
+.dag-node-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dag-node-detail { font-size: 11px; color: #64748b; margin-top: 1px; }
+.dag-op-formula {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: #4f46e5;
+  margin-top: 2px;
+  letter-spacing: -0.1px;
+}
+/* KV cache marks (BlockDag.tsx `KVBadges` / `kvClass` / `Legend`). Teal is the
+   cache colour, shared with the cache edge; a recurrent state is pink. */
+.dag-kv-line { margin-top: 4px; display: flex; flex-wrap: wrap; gap: 3px; }
+.dag-kv-badge { display: inline-block; padding: 0 5px; border-radius: 4px; font-size: 9.5px; font-weight: 600; white-space: nowrap; }
+.dag-kv-badge.kv-write { background: #ccfbf1; color: #0f766e; border: 1px solid #14b8a6; }
+.dag-kv-badge.kv-read { background: #ffffff; color: #0f766e; border: 1px dashed #14b8a6; }
+.dag-kv-badge.kv-state { background: #fce7f3; color: #be185d; border: 1px solid #ec4899; }
+.dag-node-box.kv-w { box-shadow: 0 0 0 2px rgba(20,184,166,0.9); }
+.dag-node-box.kv-r { outline: 1.5px dashed #14b8a6; outline-offset: 2px; }
+.dag-node-box.kv-s { outline: 3px double #ec4899; outline-offset: 1px; }
+.dag-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; padding: 4px 6px 8px; font-size: 11px; color: #64748b; }
+.dag-legend-item { display: inline-flex; align-items: center; gap: 5px; }
+.dag-legend-swatch.dag-node-box { display: inline-block; width: 14px; height: 10px; padding: 0; min-width: 0; }
+.dag-badge { display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 8px; font-size: 10px; background: #ede9fe; color: #6d28d9; font-weight: 500; }
+.dag-dtype-badge { display: inline-block; margin-left: 4px; padding: 0px 4px; border-radius: 4px; font-size: 9px; font-weight: 500; background: #fef9c3; color: #a16207; }
+.dag-dtype-line { margin-top: 4px; }
+.dag-view-shape {
+  font-family: var(--font-mono);
+  font-style: normal;
+  font-size: 10px;
+  color: #64748b;
+  margin-top: 2px;
+}
+.dag-view-shape .arrow { color: #94a3b8; margin: 0 3px; }
+.dag-view-shape .dag-shape-token { white-space: nowrap; }
+.dag-absorbed-params {
+  margin-top: 4px;
+  padding-top: 3px;
+  border-top: 1px dashed #e2e8f0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px 6px;
+  align-items: baseline;
+  font-size: 10px;
+  color: #64748b;
+}
+.dag-absorbed-label {
+  font-size: 8.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #94a3b8;
+  margin-right: 2px;
+}
+.dag-absorbed-item {
+  font-family: var(--font-mono);
+  white-space: nowrap;
+}
+.dag-absorbed-shape { color: #94a3b8; margin-left: 3px; }
+
+/* Architecture view — vanilla main.css `.arch-*`. */
+.arch-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    color: #1e293b;
+    padding: 32px;
+}
+.arch-badge {
+    display: inline-block;
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    color: #334155;
+    border-radius: 6px;
+    padding: 2px 10px;
+    font-size: 13px;
+    font-weight: 500;
+    margin-right: 6px;
+}
+.arch-layer {
+    background: #f8fafc;
+    border: 1px dashed #cbd5e1;
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin: 0 auto;
+    max-width: 600px;
+    position: relative;
+    transition: background 0.2s, max-width 0.4s ease;
+}
+.arch-layer:has(.arch-detail-panel.open),
+.arch-layer.is-expanded,
+.arch-cycle-container:has(.arch-detail-panel.open),
+.arch-cycle-container.is-expanded {
+    max-width: 100%;
+}
+.arch-cycle-container {
+    max-width: 600px;
+    margin: 0 auto;
+    transition: max-width 0.4s ease;
+}
+.arch-layer:hover {
+    background: #f1f5f9;
+}
+.arch-layer.type-embedding, .arch-layer.type-lm_head {
+    background: #eef2ff;
+    border: 1px solid #a5b4fc;
+}
+.arch-layer.type-norm {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+}
+.arch-layer.type-dense_block, .arch-layer.type-moe_block {
+    border: 1px dashed #94a3b8;
+}
+.arch-connector {
+    width: 2px;
+    height: 24px;
+    background: #cbd5e1;
+    margin: 0 auto;
+}
+.arch-expand-btn {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    color: #64748b;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    transition: all 0.2s;
+}
+.arch-expand-btn:hover {
+    background: #f1f5f9;
+    color: #0f172a;
+}
+.arch-detail-panel {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.4s ease;
+    margin-top: 0;
+}
+.arch-detail-panel.open {
+    max-height: 20000px;
+    margin-top: 12px;
+}
+.arch-detail-panel .mermaid-inner {
+    background: #f8fafc;
+    border-radius: 8px;
+    padding: 16px;
+    max-width: 600px;
+    margin: 0 auto;
+}
+.arch-summary-table {
+    display: flex;
+    justify-content: center;
+    gap: 0;
+    margin-top: 24px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    overflow: hidden;
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+}
+.arch-summary-cell {
+    flex: 1;
+    text-align: center;
+    padding: 10px 8px;
+    border-right: 1px solid #e2e8f0;
+}
+.arch-summary-cell:last-child { border-right: none; }
+.arch-summary-cell .label { font-size: 11px; color: #64748b; margin-bottom: 2px; }
+.arch-summary-cell .value { font-size: 15px; font-weight: 600; }
+
+@media (max-width: 639px) {
+  /* Editor layer-group table: each group is a card, slots first, numbers after. */
+  #pg-group-table-box { overflow-x: auto; max-width: 100%; }
+  #pg-group-table thead { display: none; }
+  #pg-group-table, #pg-group-table tbody { display: block; width: 100%; max-width: 100%; }
+  #pg-group-table tr.pg-group-row,
+  #pg-group-table tr.pg-result-row,
+  #pg-group-table tr.pg-result-model-level {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 10px;
+    margin-bottom: 8px;
+    background: #fff;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+  #pg-group-table td {
+    display: block;
+    padding: 2px 0;
+    white-space: normal;
+    text-align: left;
+    max-width: 100%;
+    min-width: 0;
+  }
+  #pg-group-table .pg-g-slots { order: -2; }
+  #pg-group-table .pg-g-slots > div { flex-wrap: wrap; white-space: normal; min-width: 0; max-width: 100%; }
+  #pg-group-table select { max-width: 100%; min-width: 0; }
+  #pg-group-table .pg-g-num { order: 8; }
+  #pg-group-table tr[data-group-errors],
+  #pg-group-table tr[data-group-dims],
+  #pg-group-table tr[data-group-diff] {
+    display: block;
+    margin-bottom: 8px;
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 640px) {
+  /* Fancy tip popover (#ha-tip, max-w-md = 384 px) — cap to viewport
+     minus the 8 px safety pad that `_positionTip` already uses, so
+     on 360-wide screens the popover doesn't reach edge-to-edge. */
+  #ha-tip { max-width: calc(100vw - 16px) !important; }
+  /* vanilla main.css: drop the 600px cap so the inner DAG can size
+     to the viewport; horizontal scroll stays inside the card. */
+  .arch-layer { max-width: none; padding: 12px 14px; overflow-wrap: anywhere; }
+  /* Tighter card and a summary strip that wraps instead of squeezing. */
+  .arch-card { padding: 16px; }
+  .arch-summary-table { flex-wrap: wrap; }
+  .arch-summary-cell { min-width: 25%; }
+}
+.dag-edges .dag-edge-label { font: 10px ui-monospace, SFMono-Regular, Menlo, monospace; fill: #64748b; paint-order: stroke; stroke: #f8fafc; stroke-width: 3px; }
+
+/* A pinned table column (DataTable): held at the frame's left edge while the
+ * table scrolls sideways, opaque so the columns it passes over go under it.
+ * In the components layer, so a cell's own background utility still wins. */
+@layer components {
+  td[data-pinned] {
+    z-index: 1;
+    background-color: var(--color-white);
+  }
+  tr:hover > td[data-pinned] {
+    background-color: var(--color-gray-50);
+  }
+  th[data-pinned] {
+    z-index: 2;
+    background-image: linear-gradient(to bottom, #fff8ee, var(--color-orange-100));
+  }
+  td[data-pinned="edge"] {
+    box-shadow: inset -1px 0 0 var(--color-gray-200), 4px 0 6px -4px rgb(0 0 0 / 0.12);
+  }
+}
+
+/* Architecture overview as a graph (`ArchGraph`): fixed-width boxes ELK
+   places; a box opened onto its block's DAG widens and the graph re-lays. */
+.arch-node-card { width: 320px; }
+.arch-node-section { width: 300px; }
+.arch-node-card .arch-layer, .arch-node-section .arch-layer,
+.arch-node-card .arch-cycle-container { max-width: none; }
+.arch-node:has(.arch-detail-panel.open) { width: min(1100px, 92vw); }
+.arch-node-input {
+    font: 11px var(--font-mono);
+    color: #475569;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 999px;
+    padding: 3px 12px;
+    white-space: nowrap;
+}
+.arch-edge-label { font: 10px ui-monospace, SFMono-Regular, Menlo, monospace; fill: #b45309; paint-order: stroke; stroke: #ffffff; stroke-width: 3px; }
+.arch-node-card.arch-node-wide { width: 500px; }
+.arch-stream-tick { font: 9px ui-monospace, SFMono-Regular, Menlo, monospace; fill: #94a3b8; }
+.arch-stream-label { font: 10px ui-monospace, SFMono-Regular, Menlo, monospace; fill: #92400e; }
+.arch-variant-slot { margin-top: 3px; line-height: 1.35; }
+.arch-variant-slot > div { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.dag-stream-line { font: 10px ui-monospace, SFMono-Regular, Menlo, monospace; color: #b45309; margin-top: 2px; }

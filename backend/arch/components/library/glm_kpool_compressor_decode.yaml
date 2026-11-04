@@ -1,0 +1,61 @@
+# GLM k-pool indexer compressor — decode form.
+#
+# One token per step: its raw K and gate score join the pending pool's ring;
+# when the pool completes (once every compress_ratio steps) the ring's rows are
+# softmax(gate + ape)-pooled into one key and appended to the pooled cache
+# (vLLM v0.30.0 model_executor/layers/sparse_attn_indexer_kpool.py:704
+# `kpool_decode_update_and_maybe_write_cache_batched`; sglang v0.5.21
+# srt/mem_cache/memory_pool.py:5050-5080 `kpool_decode_update_index_cache`).
+# HF instead re-pools its whole raw [k, gate] cache every step
+# (modeling_glm5_next.py:827); see `glm_kpool_compressor` for why the pooled
+# keys are bit-identical.
+#
+# The frame is the DSv4 compressor's decode form: `view_split axis: 1` turns
+# [B, S, D] into [B, S/m, m, D] with no tail, and the slot axis is the pools a
+# step completes — `s_ctx / compress_ratio`, the Rational average one token
+# makes — so the pool costs m rows once per m tokens.
+#
+# Required dims: as `glm_kpool_compressor`. Same tensors, same cache entries.
+
+description: "GLM k-pool indexer compressor, decode form — one token per step into the ring; the pool computed and cached once every compress_ratio steps."
+inputs: [keys, gates]
+cache:
+  entries:
+    - { node: pooled_out, kind: index_key }
+    # Read when a pool completes — the same pools a step completes as the
+    # slot axis below — not every token.
+    - { state: key_state,  kind: compressor_state, carrier: pool_weighted, shape: [compress_ratio, d_indexer_head], reads: "s_ctx / compress_ratio", dtype: bf16 }
+    - { state: gate_state, kind: compressor_state, carrier: pool_probs,    shape: [compress_ratio, d_indexer_head], reads: "s_ctx / compress_ratio", dtype: bf16 }
+graph:
+  keys_win: { op: view_split, in: keys,  axis: 1, dims: { s_slots: "s_ctx / compress_ratio", window: compress_ratio } }
+  gate_win: { op: view_split, in: gates, axis: 1, dims: { s_slots: "s_ctx / compress_ratio", window: compress_ratio } }
+  indexer.index_kpool_compress_ape: { op: parameter_tensor, role: attention_indexer, shape: [compress_ratio, d_indexer_head], weight_axes: [{ replicated: true }, { replicated: true }] }
+  pool_logits:
+    op: position_table_add
+    in: [gate_win, indexer.index_kpool_compress_ape]
+    dim: d_indexer_head
+    formula: "y[b, slot, p, d] = gate[b, slot, p, d] + index_kpool_compress_ape[p, d]   (each token's row as it joins the ring; p = pos mod m)"
+  pool_probs:
+    op: softmax_act
+    in: pool_logits
+    dim: compress_ratio
+    axis: 2
+    formula: "w[b, slot, p, d] = exp(y[b, slot, p, d]) / Σ_{p'<m} exp(y[b, slot, p', d])   (over the m ring rows, once per m tokens)"
+  pool_weighted:
+    op: mul
+    in: [keys_win, pool_probs]
+    dim: d_indexer_head
+    formula: "y[b, slot, p, d] = key_ring[b, p, d] · w[b, slot, p, d]"
+  pool_keys:
+    op: sum_reduce
+    in: pool_weighted
+    axis: 2
+    dims: { in: compress_ratio }
+    formula: "pool_keys[b, slot, d] = Σ_{p<m} weighted[b, slot, p, d]   (one pooled key per pool)"
+  pooled_out:
+    op: token_pool_compressor
+    in: pool_keys
+    dim: d_indexer_head
+    dims: { compress_ratio: compress_ratio }
+    formula: "cached pooled key = pool_keys   (storage ⌈s_kv/m⌉, read ⌊s_kv/m⌋ complete pools)"
+outputs: [pooled_out]

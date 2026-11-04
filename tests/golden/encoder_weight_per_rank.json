@@ -1,0 +1,694 @@
+{
+  "Qwen__Qwen3-VL-235B-A22B-Instruct": {
+    "1": {
+      "visual": {
+        "bytes_per_rank": 1152776672,
+        "nodes": {
+          "qwen35_vision_block@visual|attn.proj": 71725824,
+          "qwen35_vision_block@visual|attn.qkv": 215177472,
+          "qwen35_vision_block@visual|mlp.linear_fc1": 267975648,
+          "qwen35_vision_block@visual|mlp.linear_fc2": 267805440,
+          "qwen35_vision_block@visual|norm1": 124416,
+          "qwen35_vision_block@visual|norm2": 124416,
+          "qwen3_vl_deepstack_merger@visual|linear_fc1": 127429632,
+          "qwen3_vl_deepstack_merger@visual|linear_fc2": 113270784,
+          "qwen3_vl_deepstack_merger@visual|norm": 55296,
+          "visual.merger.linear_fc1": 42476544,
+          "visual.merger.linear_fc2": 37756928,
+          "visual.merger.norm": 4608,
+          "visual.patch_embed.proj": 3541248,
+          "visual.pos_embed.weight": 5308416
+        }
+      }
+    },
+    "8": {
+      "visual": {
+        "bytes_per_rank": 152248220,
+        "nodes": {
+          "qwen35_vision_block@visual|attn.proj": 9020160,
+          "qwen35_vision_block@visual|attn.qkv": 26897184,
+          "qwen35_vision_block@visual|mlp.linear_fc1": 33496956,
+          "qwen35_vision_block@visual|mlp.linear_fc2": 33530112,
+          "qwen35_vision_block@visual|norm1": 124416,
+          "qwen35_vision_block@visual|norm2": 124416,
+          "qwen3_vl_deepstack_merger@visual|linear_fc1": 15928704,
+          "qwen3_vl_deepstack_merger@visual|linear_fc2": 14180352,
+          "qwen3_vl_deepstack_merger@visual|norm": 55296,
+          "visual.merger.linear_fc1": 5309568,
+          "visual.merger.linear_fc2": 4726784,
+          "visual.merger.norm": 4608,
+          "visual.patch_embed.proj": 3541248,
+          "visual.pos_embed.weight": 5308416
+        }
+      }
+    }
+  },
+  "Qwen__Qwen3.5-35B-A3B": {
+    "1": {
+      "vision": {
+        "bytes_per_rank": 893142496,
+        "nodes": {
+          "qwen35_vision_tower@vision|blocks.attn.proj": 71725824,
+          "qwen35_vision_tower@vision|blocks.attn.qkv": 215177472,
+          "qwen35_vision_tower@vision|blocks.mlp.linear_fc1": 267975648,
+          "qwen35_vision_tower@vision|blocks.mlp.linear_fc2": 267805440,
+          "qwen35_vision_tower@vision|blocks.norm1": 124416,
+          "qwen35_vision_tower@vision|blocks.norm2": 124416,
+          "qwen35_vision_tower@vision|merger.linear_fc1": 42476544,
+          "qwen35_vision_tower@vision|merger.linear_fc2": 18878464,
+          "qwen35_vision_tower@vision|merger.norm": 4608,
+          "qwen35_vision_tower@vision|patch_embed.proj": 3541248,
+          "qwen35_vision_tower@vision|pos_embed.weight": 5308416
+        }
+      }
+    },
+    "8": {
+      "vision": {
+        "bytes_per_rank": 119720476,
+        "nodes": {
+          "qwen35_vision_tower@vision|blocks.attn.proj": 9020160,
+          "qwen35_vision_tower@vision|blocks.attn.qkv": 26897184,
+          "qwen35_vision_tower@vision|blocks.mlp.linear_fc1": 33496956,
+          "qwen35_vision_tower@vision|blocks.mlp.linear_fc2": 33530112,
+          "qwen35_vision_tower@vision|blocks.norm1": 124416,
+          "qwen35_vision_tower@vision|blocks.norm2": 124416,
+          "qwen35_vision_tower@vision|merger.linear_fc1": 5309568,
+          "qwen35_vision_tower@vision|merger.linear_fc2": 2363392,
+          "qwen35_vision_tower@vision|merger.norm": 4608,
+          "qwen35_vision_tower@vision|patch_embed.proj": 3541248,
+          "qwen35_vision_tower@vision|pos_embed.weight": 5308416
+        }
+      }
+    }
+  },
+  "Qwen__Qwen3.8-27B": {
+    "1": {
+      "vision": {
+        "bytes_per_rank": 921460192,
+        "nodes": {
+          "qwen35_vision_tower@vision|blocks.attn.proj": 71725824,
+          "qwen35_vision_tower@vision|blocks.attn.qkv": 215177472,
+          "qwen35_vision_tower@vision|blocks.mlp.linear_fc1": 267975648,
+          "qwen35_vision_tower@vision|blocks.mlp.linear_fc2": 267805440,
+          "qwen35_vision_tower@vision|blocks.norm1": 124416,
+          "qwen35_vision_tower@vision|blocks.norm2": 124416,
+          "qwen35_vision_tower@vision|merger.linear_fc1": 42476544,
+          "qwen35_vision_tower@vision|merger.linear_fc2": 47196160,
+          "qwen35_vision_tower@vision|merger.norm": 4608,
+          "qwen35_vision_tower@vision|patch_embed.proj": 3541248,
+          "qwen35_vision_tower@vision|pos_embed.weight": 5308416
+        }
+      }
+    },
+    "8": {
+      "vision": {
+        "bytes_per_rank": 123265564,
+        "nodes": {
+          "qwen35_vision_tower@vision|blocks.attn.proj": 9020160,
+          "qwen35_vision_tower@vision|blocks.attn.qkv": 26897184,
+          "qwen35_vision_tower@vision|blocks.mlp.linear_fc1": 33496956,
+          "qwen35_vision_tower@vision|blocks.mlp.linear_fc2": 33530112,
+          "qwen35_vision_tower@vision|blocks.norm1": 124416,
+          "qwen35_vision_tower@vision|blocks.norm2": 124416,
+          "qwen35_vision_tower@vision|merger.linear_fc1": 5309568,
+          "qwen35_vision_tower@vision|merger.linear_fc2": 5908480,
+          "qwen35_vision_tower@vision|merger.norm": 4608,
+          "qwen35_vision_tower@vision|patch_embed.proj": 3541248,
+          "qwen35_vision_tower@vision|pos_embed.weight": 5308416
+        }
+      }
+    }
+  },
+  "Qwen__Qwen3.8-Flash-Next": {
+    "1": {
+      "vision": {
+        "bytes_per_rank": 897862112,
+        "nodes": {
+          "qwen35_vision_tower@vision|blocks.attn.proj": 71725824,
+          "qwen35_vision_tower@vision|blocks.attn.qkv": 215177472,
+          "qwen35_vision_tower@vision|blocks.mlp.linear_fc1": 267975648,
+          "qwen35_vision_tower@vision|blocks.mlp.linear_fc2": 267805440,
+          "qwen35_vision_tower@vision|blocks.norm1": 124416,
+          "qwen35_vision_tower@vision|blocks.norm2": 124416,
+          "qwen35_vision_tower@vision|merger.linear_fc1": 42476544,
+          "qwen35_vision_tower@vision|merger.linear_fc2": 23598080,
+          "qwen35_vision_tower@vision|merger.norm": 4608,
+          "qwen35_vision_tower@vision|patch_embed.proj": 3541248,
+          "qwen35_vision_tower@vision|pos_embed.weight": 5308416
+        }
+      }
+    },
+    "8": {
+      "vision": {
+        "bytes_per_rank": 120311324,
+        "nodes": {
+          "qwen35_vision_tower@vision|blocks.attn.proj": 9020160,
+          "qwen35_vision_tower@vision|blocks.attn.qkv": 26897184,
+          "qwen35_vision_tower@vision|blocks.mlp.linear_fc1": 33496956,
+          "qwen35_vision_tower@vision|blocks.mlp.linear_fc2": 33530112,
+          "qwen35_vision_tower@vision|blocks.norm1": 124416,
+          "qwen35_vision_tower@vision|blocks.norm2": 124416,
+          "qwen35_vision_tower@vision|merger.linear_fc1": 5309568,
+          "qwen35_vision_tower@vision|merger.linear_fc2": 2954240,
+          "qwen35_vision_tower@vision|merger.norm": 4608,
+          "qwen35_vision_tower@vision|patch_embed.proj": 3541248,
+          "qwen35_vision_tower@vision|pos_embed.weight": 5308416
+        }
+      }
+    }
+  },
+  "XiaomiMiMo__MiMo-V2.5": {
+    "1": {
+      "audio": {
+        "bytes_per_rank": 522254336,
+        "nodes": {
+          "mimo_v2_5_audio_encoder@audio|audio_encoder.input_local_transformer.layers.input_layernorm": 12288,
+          "mimo_v2_5_audio_encoder@audio|audio_encoder.input_local_transformer.layers.mlp.down_proj": 50331648,
+          "mimo_v2_5_audio_encoder@audio|audio_encoder.input_local_transformer.layers.mlp.gate_proj": 50331648,
+          "mimo_v2_5_audio_encoder@audio|audio_encoder.input_local_transformer.layers.mlp.up_proj": 50331648,
+          "mimo_v2_5_audio_encoder@audio|audio_encoder.input_local_transformer.layers.post_attention_layernorm": 12288,
+          "mimo_v2_5_audio_encoder@audio|audio_encoder.input_local_transformer.layers.self_attn.k_proj": 12595200,
+          "mimo_v2_5_audio_encoder@audio|audio_encoder.input_local_transformer.layers.self_attn.o_proj": 12582912,
+          "mimo_v2_5_audio_encoder@audio|audio_encoder.input_local_transformer.layers.self_attn.q_proj": 12595200,
+          "mimo_v2_5_audio_encoder@audio|audio_encoder.input_local_transformer.layers.self_attn.v_proj": 12595200,
+          "mimo_v2_5_audio_encoder@audio|audio_encoder.input_local_transformer.norm": 2048,
+          "mimo_v2_5_audio_encoder@audio|audio_encoder.projection.mlp.0": 134217728,
+          "mimo_v2_5_audio_encoder@audio|audio_encoder.projection.mlp.2": 134217728,
+          "speech_embeddings": 52428800
+        }
+      },
+      "visual": {
+        "bytes_per_rank": 1457188864,
+        "nodes": {
+          "mimo_v2_5_vision_block_full@visual|attn.proj": 20981760,
+          "mimo_v2_5_vision_block_full@visual|attn.qkv": 31481856,
+          "mimo_v2_5_vision_block_full@visual|mlp.down_proj": 47196160,
+          "mimo_v2_5_vision_block_full@visual|mlp.gate_proj": 47222784,
+          "mimo_v2_5_vision_block_full@visual|mlp.up_proj": 47222784,
+          "mimo_v2_5_vision_block_full@visual|norm1": 10240,
+          "mimo_v2_5_vision_block_full@visual|norm2": 10240,
+          "mimo_v2_5_vision_block_sink@visual|attn.proj": 125890560,
+          "mimo_v2_5_vision_block_sink@visual|attn.qkv": 188891136,
+          "mimo_v2_5_vision_block_sink@visual|attn.sinks": 1536,
+          "mimo_v2_5_vision_block_sink@visual|mlp.down_proj": 283176960,
+          "mimo_v2_5_vision_block_sink@visual|mlp.gate_proj": 283336704,
+          "mimo_v2_5_vision_block_sink@visual|mlp.up_proj": 283336704,
+          "mimo_v2_5_vision_block_sink@visual|norm1": 61440,
+          "mimo_v2_5_vision_block_sink@visual|norm2": 61440,
+          "visual.merger.ln_q": 2560,
+          "visual.merger.mlp.0": 52428800,
+          "visual.merger.mlp.2": 41943040,
+          "visual.patch_embed.proj": 3932160
+        }
+      }
+    },
+    "8": {
+      "audio": {
+        "bytes_per_rank": 522254336,
+        "nodes": {
+          "mimo_v2_5_audio_encoder@audio|audio_encoder.input_local_transformer.layers.input_layernorm": 12288,
+          "mimo_v2_5_audio_encoder@audio|audio_encoder.input_local_transformer.layers.mlp.down_proj": 50331648,
+          "mimo_v2_5_audio_encoder@audio|audio_encoder.input_local_transformer.layers.mlp.gate_proj": 50331648,
+          "mimo_v2_5_audio_encoder@audio|audio_encoder.input_local_transformer.layers.mlp.up_proj": 50331648,
+          "mimo_v2_5_audio_encoder@audio|audio_encoder.input_local_transformer.layers.post_attention_layernorm": 12288,
+          "mimo_v2_5_audio_encoder@audio|audio_encoder.input_local_transformer.layers.self_attn.k_proj": 12595200,
+          "mimo_v2_5_audio_encoder@audio|audio_encoder.input_local_transformer.layers.self_attn.o_proj": 12582912,
+          "mimo_v2_5_audio_encoder@audio|audio_encoder.input_local_transformer.layers.self_attn.q_proj": 12595200,
+          "mimo_v2_5_audio_encoder@audio|audio_encoder.input_local_transformer.layers.self_attn.v_proj": 12595200,
+          "mimo_v2_5_audio_encoder@audio|audio_encoder.input_local_transformer.norm": 2048,
+          "mimo_v2_5_audio_encoder@audio|audio_encoder.projection.mlp.0": 134217728,
+          "mimo_v2_5_audio_encoder@audio|audio_encoder.projection.mlp.2": 134217728,
+          "speech_embeddings": 52428800
+        }
+      },
+      "visual": {
+        "bytes_per_rank": 185842368,
+        "nodes": {
+          "mimo_v2_5_vision_block_full@visual|attn.proj": 2631680,
+          "mimo_v2_5_vision_block_full@visual|attn.qkv": 3935232,
+          "mimo_v2_5_vision_block_full@visual|mlp.down_proj": 5908480,
+          "mimo_v2_5_vision_block_full@visual|mlp.gate_proj": 5902848,
+          "mimo_v2_5_vision_block_full@visual|mlp.up_proj": 5902848,
+          "mimo_v2_5_vision_block_full@visual|norm1": 10240,
+          "mimo_v2_5_vision_block_full@visual|norm2": 10240,
+          "mimo_v2_5_vision_block_sink@visual|attn.proj": 15790080,
+          "mimo_v2_5_vision_block_sink@visual|attn.qkv": 23611392,
+          "mimo_v2_5_vision_block_sink@visual|attn.sinks": 192,
+          "mimo_v2_5_vision_block_sink@visual|mlp.down_proj": 35450880,
+          "mimo_v2_5_vision_block_sink@visual|mlp.gate_proj": 35417088,
+          "mimo_v2_5_vision_block_sink@visual|mlp.up_proj": 35417088,
+          "mimo_v2_5_vision_block_sink@visual|norm1": 61440,
+          "mimo_v2_5_vision_block_sink@visual|norm2": 61440,
+          "visual.merger.ln_q": 2560,
+          "visual.merger.mlp.0": 6553600,
+          "visual.merger.mlp.2": 5242880,
+          "visual.patch_embed.proj": 3932160
+        }
+      }
+    }
+  },
+  "XiaomiMiMo__MiMo-V2.6-Pro-RL": {
+    "1": {
+      "audio": {
+        "bytes_per_rank": 589363200,
+        "nodes": {
+          "mimo_v2_5_audio_encoder@audio|audio_encoder.input_local_transformer.layers.input_layernorm": 12288,
+          "mimo_v2_5_audio_encoder@audio|audio_encoder.input_local_transformer.layers.mlp.down_proj": 50331648,
+          "mimo_v2_5_audio_encoder@audio|audio_encoder.input_local_transformer.layers.mlp.gate_proj": 50331648,
+          "mimo_v2_5_audio_encoder@audio|audio_encoder.input_local_transformer.layers.mlp.up_proj": 50331648,
+          "mimo_v2_5_audio_encoder@audio|audio_encoder.input_local_transformer.layers.post_attention_layernorm": 12288,
+          "mimo_v2_5_audio_encoder@audio|audio_encoder.input_local_transformer.layers.self_attn.k_proj": 12595200,
+          "mimo_v2_5_audio_encoder@audio|audio_encoder.input_local_transformer.layers.self_attn.o_proj": 12582912,
+          "mimo_v2_5_audio_encoder@audio|audio_encoder.input_local_transformer.layers.self_attn.q_proj": 12595200,
+          "mimo_v2_5_audio_encoder@audio|audio_encoder.input_local_transformer.layers.self_attn.v_proj": 12595200,
+          "mimo_v2_5_audio_encoder@audio|audio_encoder.input_local_transformer.norm": 2048,
+          "mimo_v2_5_audio_encoder@audio|audio_encoder.projection.mlp.0": 134217728,
+          "mimo_v2_5_audio_encoder@audio|audio_encoder.projection.mlp.2": 201326592,
+          "speech_embeddings": 52428800
+        }
+      },
+      "visual": {
+        "bytes_per_rank": 1478160384,
+        "nodes": {
+          "mimo_v2_5_vision_block_full@visual|attn.proj": 20981760,
+          "mimo_v2_5_vision_block_full@visual|attn.qkv": 31481856,
+          "mimo_v2_5_vision_block_full@visual|mlp.down_proj": 47196160,
+          "mimo_v2_5_vision_block_full@visual|mlp.gate_proj": 47222784,
+          "mimo_v2_5_vision_block_full@visual|mlp.up_proj": 47222784,
+          "mimo_v2_5_vision_block_full@visual|norm1": 10240,
+          "mimo_v2_5_vision_block_full@visual|norm2": 10240,
+          "mimo_v2_5_vision_block_sink@visual|attn.proj": 125890560,
+          "mimo_v2_5_vision_block_sink@visual|attn.qkv": 188891136,
+          "mimo_v2_5_vision_block_sink@visual|attn.sinks": 1536,
+          "mimo_v2_5_vision_block_sink@visual|mlp.down_proj": 283176960,
+          "mimo_v2_5_vision_block_sink@visual|mlp.gate_proj": 283336704,
+          "mimo_v2_5_vision_block_sink@visual|mlp.up_proj": 283336704,
+          "mimo_v2_5_vision_block_sink@visual|norm1": 61440,
+          "mimo_v2_5_vision_block_sink@visual|norm2": 61440,
+          "visual.merger.ln_q": 2560,
+          "visual.merger.mlp.0": 52428800,
+          "visual.merger.mlp.2": 62914560,
+          "visual.patch_embed.proj": 3932160
+        }
+      }
+    },
+    "8": {
+      "audio": {
+        "bytes_per_rank": 589363200,
+        "nodes": {
+          "mimo_v2_5_audio_encoder@audio|audio_encoder.input_local_transformer.layers.input_layernorm": 12288,
+          "mimo_v2_5_audio_encoder@audio|audio_encoder.input_local_transformer.layers.mlp.down_proj": 50331648,
+          "mimo_v2_5_audio_encoder@audio|audio_encoder.input_local_transformer.layers.mlp.gate_proj": 50331648,
+          "mimo_v2_5_audio_encoder@audio|audio_encoder.input_local_transformer.layers.mlp.up_proj": 50331648,
+          "mimo_v2_5_audio_encoder@audio|audio_encoder.input_local_transformer.layers.post_attention_layernorm": 12288,
+          "mimo_v2_5_audio_encoder@audio|audio_encoder.input_local_transformer.layers.self_attn.k_proj": 12595200,
+          "mimo_v2_5_audio_encoder@audio|audio_encoder.input_local_transformer.layers.self_attn.o_proj": 12582912,
+          "mimo_v2_5_audio_encoder@audio|audio_encoder.input_local_transformer.layers.self_attn.q_proj": 12595200,
+          "mimo_v2_5_audio_encoder@audio|audio_encoder.input_local_transformer.layers.self_attn.v_proj": 12595200,
+          "mimo_v2_5_audio_encoder@audio|audio_encoder.input_local_transformer.norm": 2048,
+          "mimo_v2_5_audio_encoder@audio|audio_encoder.projection.mlp.0": 134217728,
+          "mimo_v2_5_audio_encoder@audio|audio_encoder.projection.mlp.2": 201326592,
+          "speech_embeddings": 52428800
+        }
+      },
+      "visual": {
+        "bytes_per_rank": 188463808,
+        "nodes": {
+          "mimo_v2_5_vision_block_full@visual|attn.proj": 2631680,
+          "mimo_v2_5_vision_block_full@visual|attn.qkv": 3935232,
+          "mimo_v2_5_vision_block_full@visual|mlp.down_proj": 5908480,
+          "mimo_v2_5_vision_block_full@visual|mlp.gate_proj": 5902848,
+          "mimo_v2_5_vision_block_full@visual|mlp.up_proj": 5902848,
+          "mimo_v2_5_vision_block_full@visual|norm1": 10240,
+          "mimo_v2_5_vision_block_full@visual|norm2": 10240,
+          "mimo_v2_5_vision_block_sink@visual|attn.proj": 15790080,
+          "mimo_v2_5_vision_block_sink@visual|attn.qkv": 23611392,
+          "mimo_v2_5_vision_block_sink@visual|attn.sinks": 192,
+          "mimo_v2_5_vision_block_sink@visual|mlp.down_proj": 35450880,
+          "mimo_v2_5_vision_block_sink@visual|mlp.gate_proj": 35417088,
+          "mimo_v2_5_vision_block_sink@visual|mlp.up_proj": 35417088,
+          "mimo_v2_5_vision_block_sink@visual|norm1": 61440,
+          "mimo_v2_5_vision_block_sink@visual|norm2": 61440,
+          "visual.merger.ln_q": 2560,
+          "visual.merger.mlp.0": 6553600,
+          "visual.merger.mlp.2": 7864320,
+          "visual.patch_embed.proj": 3932160
+        }
+      }
+    }
+  },
+  "deepseek-ai__DeepSeek-V4.1-Flash": {
+    "1": {
+      "vision": {
+        "bytes_per_rank": 970536960,
+        "nodes": {
+          "dsv41_vision_tower@vision|aligner.w1": 94382080,
+          "dsv41_vision_tower@vision|aligner.w2": 52439040,
+          "dsv41_vision_tower@vision|image_end": 10240,
+          "dsv41_vision_tower@vision|image_newline": 10240,
+          "dsv41_vision_tower@vision|image_start": 10240,
+          "dsv41_vision_tower@vision|vision.blocks.attn.wo": 67174400,
+          "dsv41_vision_tower@vision|vision.blocks.attn.wqkv": 201523200,
+          "dsv41_vision_tower@vision|vision.blocks.mlp.w1": 369098752,
+          "dsv41_vision_tower@vision|vision.blocks.mlp.w2": 184549376,
+          "dsv41_vision_tower@vision|vision.blocks.norm1": 65536,
+          "dsv41_vision_tower@vision|vision.blocks.norm2": 65536,
+          "dsv41_vision_tower@vision|vision.norm": 2048,
+          "dsv41_vision_tower@vision|vision.patch_embed.proj": 1206272
+        }
+      }
+    },
+    "8": {
+      "vision": {
+        "bytes_per_rank": 251041792,
+        "nodes": {
+          "dsv41_vision_tower@vision|aligner.w1": 94382080,
+          "dsv41_vision_tower@vision|aligner.w2": 52439040,
+          "dsv41_vision_tower@vision|image_end": 10240,
+          "dsv41_vision_tower@vision|image_newline": 10240,
+          "dsv41_vision_tower@vision|image_start": 10240,
+          "dsv41_vision_tower@vision|vision.blocks.attn.wo": 8454144,
+          "dsv41_vision_tower@vision|vision.blocks.attn.wqkv": 25190400,
+          "dsv41_vision_tower@vision|vision.blocks.mlp.w1": 46137344,
+          "dsv41_vision_tower@vision|vision.blocks.mlp.w2": 23068672,
+          "dsv41_vision_tower@vision|vision.blocks.norm1": 65536,
+          "dsv41_vision_tower@vision|vision.blocks.norm2": 65536,
+          "dsv41_vision_tower@vision|vision.norm": 2048,
+          "dsv41_vision_tower@vision|vision.patch_embed.proj": 1206272
+        }
+      }
+    }
+  },
+  "google__gemma-4-12B-it": {
+    "1": {
+      "audio": {
+        "bytes_per_rank": 4915200,
+        "nodes": {
+          "embed_audio.embedding_projection": 4915200
+        }
+      },
+      "vision": {
+        "bytes_per_rank": 99844608,
+        "nodes": {
+          "gemma4_vision_embedder@vision|embed_vision.embedding_projection": 29491200,
+          "gemma4_vision_embedder@vision|vision_embedder.patch_dense": 53091840,
+          "gemma4_vision_embedder@vision|vision_embedder.patch_ln1": 27648,
+          "gemma4_vision_embedder@vision|vision_embedder.patch_ln2": 15360,
+          "gemma4_vision_embedder@vision|vision_embedder.pos_embedding": 17203200,
+          "gemma4_vision_embedder@vision|vision_embedder.pos_norm": 15360
+        }
+      }
+    },
+    "8": {
+      "audio": {
+        "bytes_per_rank": 4915200,
+        "nodes": {
+          "embed_audio.embedding_projection": 4915200
+        }
+      },
+      "vision": {
+        "bytes_per_rank": 53389248,
+        "nodes": {
+          "gemma4_vision_embedder@vision|embed_vision.embedding_projection": 29491200,
+          "gemma4_vision_embedder@vision|vision_embedder.patch_dense": 6636480,
+          "gemma4_vision_embedder@vision|vision_embedder.patch_ln1": 27648,
+          "gemma4_vision_embedder@vision|vision_embedder.patch_ln2": 15360,
+          "gemma4_vision_embedder@vision|vision_embedder.pos_embedding": 17203200,
+          "gemma4_vision_embedder@vision|vision_embedder.pos_norm": 15360
+        }
+      }
+    }
+  },
+  "moonshotai__Kimi-K2.5": {
+    "1": {
+      "vision": {
+        "bytes_per_rank": 942287840,
+        "nodes": {
+          "kimi_k25_vision_tower@vision|mm_projector.pre_norm": 4608,
+          "kimi_k25_vision_tower@vision|mm_projector.proj.0": 42476544,
+          "kimi_k25_vision_tower@vision|mm_projector.proj.2": 66074624,
+          "kimi_k25_vision_tower@vision|vision_tower.encoder.blocks.mlp.fc0": 267975648,
+          "kimi_k25_vision_tower@vision|vision_tower.encoder.blocks.mlp.fc1": 267805440,
+          "kimi_k25_vision_tower@vision|vision_tower.encoder.blocks.norm0": 124416,
+          "kimi_k25_vision_tower@vision|vision_tower.encoder.blocks.norm1": 124416,
+          "kimi_k25_vision_tower@vision|vision_tower.encoder.blocks.wo": 71725824,
+          "kimi_k25_vision_tower@vision|vision_tower.encoder.blocks.wqkv": 215177472,
+          "kimi_k25_vision_tower@vision|vision_tower.encoder.final_layernorm": 4608,
+          "kimi_k25_vision_tower@vision|vision_tower.patch_embed.pos_emb.weight": 9437184,
+          "kimi_k25_vision_tower@vision|vision_tower.patch_embed.proj": 1357056
+        }
+      }
+    },
+    "8": {
+      "vision": {
+        "bytes_per_rank": 222547868,
+        "nodes": {
+          "kimi_k25_vision_tower@vision|mm_projector.pre_norm": 4608,
+          "kimi_k25_vision_tower@vision|mm_projector.proj.0": 42476544,
+          "kimi_k25_vision_tower@vision|mm_projector.proj.2": 66074624,
+          "kimi_k25_vision_tower@vision|vision_tower.encoder.blocks.mlp.fc0": 33496956,
+          "kimi_k25_vision_tower@vision|vision_tower.encoder.blocks.mlp.fc1": 33530112,
+          "kimi_k25_vision_tower@vision|vision_tower.encoder.blocks.norm0": 124416,
+          "kimi_k25_vision_tower@vision|vision_tower.encoder.blocks.norm1": 124416,
+          "kimi_k25_vision_tower@vision|vision_tower.encoder.blocks.wo": 9020160,
+          "kimi_k25_vision_tower@vision|vision_tower.encoder.blocks.wqkv": 26897184,
+          "kimi_k25_vision_tower@vision|vision_tower.encoder.final_layernorm": 4608,
+          "kimi_k25_vision_tower@vision|vision_tower.patch_embed.pos_emb.weight": 9437184,
+          "kimi_k25_vision_tower@vision|vision_tower.patch_embed.proj": 1357056
+        }
+      }
+    }
+  },
+  "moonshotai__Kimi-K3": {
+    "1": {
+      "vision": {
+        "bytes_per_rank": 894717952,
+        "nodes": {
+          "kimi_k3_vision_tower@vision|mm_projector.post_norm": 14336,
+          "kimi_k3_vision_tower@vision|mm_projector.proj.0": 33554432,
+          "kimi_k3_vision_tower@vision|mm_projector.proj.2": 58720256,
+          "kimi_k3_vision_tower@vision|vision_tower.encoder.blocks.mlp.fc0": 226492416,
+          "kimi_k3_vision_tower@vision|vision_tower.encoder.blocks.mlp.fc1": 226492416,
+          "kimi_k3_vision_tower@vision|vision_tower.encoder.blocks.norm0": 55296,
+          "kimi_k3_vision_tower@vision|vision_tower.encoder.blocks.norm1": 55296,
+          "kimi_k3_vision_tower@vision|vision_tower.encoder.blocks.wo": 84934656,
+          "kimi_k3_vision_tower@vision|vision_tower.encoder.blocks.wqkv": 254803968,
+          "kimi_k3_vision_tower@vision|vision_tower.encoder.final_layernorm": 2048,
+          "kimi_k3_vision_tower@vision|vision_tower.patch_embed.pos_emb.weight": 8388608,
+          "kimi_k3_vision_tower@vision|vision_tower.patch_embed.proj": 1204224
+        }
+      }
+    },
+    "8": {
+      "vision": {
+        "bytes_per_rank": 894717952,
+        "nodes": {
+          "kimi_k3_vision_tower@vision|mm_projector.post_norm": 14336,
+          "kimi_k3_vision_tower@vision|mm_projector.proj.0": 33554432,
+          "kimi_k3_vision_tower@vision|mm_projector.proj.2": 58720256,
+          "kimi_k3_vision_tower@vision|vision_tower.encoder.blocks.mlp.fc0": 226492416,
+          "kimi_k3_vision_tower@vision|vision_tower.encoder.blocks.mlp.fc1": 226492416,
+          "kimi_k3_vision_tower@vision|vision_tower.encoder.blocks.norm0": 55296,
+          "kimi_k3_vision_tower@vision|vision_tower.encoder.blocks.norm1": 55296,
+          "kimi_k3_vision_tower@vision|vision_tower.encoder.blocks.wo": 84934656,
+          "kimi_k3_vision_tower@vision|vision_tower.encoder.blocks.wqkv": 254803968,
+          "kimi_k3_vision_tower@vision|vision_tower.encoder.final_layernorm": 2048,
+          "kimi_k3_vision_tower@vision|vision_tower.patch_embed.pos_emb.weight": 8388608,
+          "kimi_k3_vision_tower@vision|vision_tower.patch_embed.proj": 1204224
+        }
+      }
+    }
+  },
+  "stepfun-ai__Step-3.7-Flash": {
+    "1": {
+      "vision": {
+        "bytes_per_rank": 3962029568,
+        "nodes": {
+          "step3p7_perception_encoder_tower@vision|vision_model.conv1": 1806336,
+          "step3p7_perception_encoder_tower@vision|vision_model.ln_pre": 6144,
+          "step3p7_perception_encoder_tower@vision|vision_model.positional_embedding": 8306688,
+          "step3p7_perception_encoder_tower@vision|vision_model.transformer.resblocks.attn.in_proj": 665754624,
+          "step3p7_perception_encoder_tower@vision|vision_model.transformer.resblocks.attn.out_proj": 221918208,
+          "step3p7_perception_encoder_tower@vision|vision_model.transformer.resblocks.ln_1": 288768,
+          "step3p7_perception_encoder_tower@vision|vision_model.transformer.resblocks.ln_2": 288768,
+          "step3p7_perception_encoder_tower@vision|vision_model.transformer.resblocks.ls_1.gamma": 144384,
+          "step3p7_perception_encoder_tower@vision|vision_model.transformer.resblocks.ls_2.gamma": 144384,
+          "step3p7_perception_encoder_tower@vision|vision_model.transformer.resblocks.mlp.c_fc": 1294522880,
+          "step3p7_perception_encoder_tower@vision|vision_model.transformer.resblocks.mlp.c_proj": 1293825024,
+          "step3p7_perception_encoder_tower@vision|vision_model.vit_downsampler1": 84940800,
+          "step3p7_perception_encoder_tower@vision|vision_model.vit_downsampler2": 339750912,
+          "step3p7_perception_encoder_tower@vision|vit_large_projector": 50331648
+        }
+      }
+    },
+    "8": {
+      "vision": {
+        "bytes_per_rank": 920764096,
+        "nodes": {
+          "step3p7_perception_encoder_tower@vision|vision_model.conv1": 1806336,
+          "step3p7_perception_encoder_tower@vision|vision_model.ln_pre": 6144,
+          "step3p7_perception_encoder_tower@vision|vision_model.positional_embedding": 8306688,
+          "step3p7_perception_encoder_tower@vision|vision_model.transformer.resblocks.attn.in_proj": 83219328,
+          "step3p7_perception_encoder_tower@vision|vision_model.transformer.resblocks.attn.out_proj": 27866112,
+          "step3p7_perception_encoder_tower@vision|vision_model.transformer.resblocks.ln_1": 288768,
+          "step3p7_perception_encoder_tower@vision|vision_model.transformer.resblocks.ln_2": 288768,
+          "step3p7_perception_encoder_tower@vision|vision_model.transformer.resblocks.ls_1.gamma": 144384,
+          "step3p7_perception_encoder_tower@vision|vision_model.transformer.resblocks.ls_2.gamma": 144384,
+          "step3p7_perception_encoder_tower@vision|vision_model.transformer.resblocks.mlp.c_fc": 161815360,
+          "step3p7_perception_encoder_tower@vision|vision_model.transformer.resblocks.mlp.c_proj": 161854464,
+          "step3p7_perception_encoder_tower@vision|vision_model.vit_downsampler1": 84940800,
+          "step3p7_perception_encoder_tower@vision|vision_model.vit_downsampler2": 339750912,
+          "step3p7_perception_encoder_tower@vision|vit_large_projector": 50331648
+        }
+      }
+    }
+  },
+  "stepfun-ai__Step-5-Preview": {
+    "1": {
+      "vision": {
+        "bytes_per_rank": 3962029568,
+        "nodes": {
+          "perception_encoder_rope2d_tower@vision|vision_model.conv1": 1806336,
+          "perception_encoder_rope2d_tower@vision|vision_model.ln_pre": 6144,
+          "perception_encoder_rope2d_tower@vision|vision_model.positional_embedding": 8306688,
+          "perception_encoder_rope2d_tower@vision|vision_model.transformer.resblocks.attn.in_proj": 665754624,
+          "perception_encoder_rope2d_tower@vision|vision_model.transformer.resblocks.attn.out_proj": 221918208,
+          "perception_encoder_rope2d_tower@vision|vision_model.transformer.resblocks.ln_1": 288768,
+          "perception_encoder_rope2d_tower@vision|vision_model.transformer.resblocks.ln_2": 288768,
+          "perception_encoder_rope2d_tower@vision|vision_model.transformer.resblocks.ls_1.gamma": 144384,
+          "perception_encoder_rope2d_tower@vision|vision_model.transformer.resblocks.ls_2.gamma": 144384,
+          "perception_encoder_rope2d_tower@vision|vision_model.transformer.resblocks.mlp.c_fc": 1294522880,
+          "perception_encoder_rope2d_tower@vision|vision_model.transformer.resblocks.mlp.c_proj": 1293825024,
+          "perception_encoder_rope2d_tower@vision|vision_model.vit_downsampler1": 84940800,
+          "perception_encoder_rope2d_tower@vision|vision_model.vit_downsampler2": 339750912,
+          "perception_encoder_rope2d_tower@vision|vit_large_projector": 50331648
+        }
+      }
+    },
+    "8": {
+      "vision": {
+        "bytes_per_rank": 920764096,
+        "nodes": {
+          "perception_encoder_rope2d_tower@vision|vision_model.conv1": 1806336,
+          "perception_encoder_rope2d_tower@vision|vision_model.ln_pre": 6144,
+          "perception_encoder_rope2d_tower@vision|vision_model.positional_embedding": 8306688,
+          "perception_encoder_rope2d_tower@vision|vision_model.transformer.resblocks.attn.in_proj": 83219328,
+          "perception_encoder_rope2d_tower@vision|vision_model.transformer.resblocks.attn.out_proj": 27866112,
+          "perception_encoder_rope2d_tower@vision|vision_model.transformer.resblocks.ln_1": 288768,
+          "perception_encoder_rope2d_tower@vision|vision_model.transformer.resblocks.ln_2": 288768,
+          "perception_encoder_rope2d_tower@vision|vision_model.transformer.resblocks.ls_1.gamma": 144384,
+          "perception_encoder_rope2d_tower@vision|vision_model.transformer.resblocks.ls_2.gamma": 144384,
+          "perception_encoder_rope2d_tower@vision|vision_model.transformer.resblocks.mlp.c_fc": 161815360,
+          "perception_encoder_rope2d_tower@vision|vision_model.transformer.resblocks.mlp.c_proj": 161854464,
+          "perception_encoder_rope2d_tower@vision|vision_model.vit_downsampler1": 84940800,
+          "perception_encoder_rope2d_tower@vision|vision_model.vit_downsampler2": 339750912,
+          "perception_encoder_rope2d_tower@vision|vit_large_projector": 50331648
+        }
+      }
+    }
+  },
+  "tencent__HunyuanOCR": {
+    "1": {
+      "vit": {
+        "bytes_per_rank": 914396128,
+        "nodes": {
+          "hunyuan_vl_vision_tower@vit|vit.embeddings.patch_embedding": 1771776,
+          "hunyuan_vl_vision_tower@vit|vit.embeddings.position_embedding.weight": 37751040,
+          "hunyuan_vl_vision_tower@vit|vit.layers.input_layernorm": 124416,
+          "hunyuan_vl_vision_tower@vit|vit.layers.mlp.mlp.fc1": 267975648,
+          "hunyuan_vl_vision_tower@vit|vit.layers.mlp.mlp.fc2": 267805440,
+          "hunyuan_vl_vision_tower@vit|vit.layers.post_attention_layernorm": 124416,
+          "hunyuan_vl_vision_tower@vit|vit.layers.self_attn.k_proj": 71725824,
+          "hunyuan_vl_vision_tower@vit|vit.layers.self_attn.o_proj": 71725824,
+          "hunyuan_vl_vision_tower@vit|vit.layers.self_attn.q_proj": 71725824,
+          "hunyuan_vl_vision_tower@vit|vit.layers.self_attn.v_proj": 71725824,
+          "hunyuan_vl_vision_tower@vit|vit.perceive.after_rms": 2048,
+          "hunyuan_vl_vision_tower@vit|vit.perceive.before_rms": 2304,
+          "hunyuan_vl_vision_tower@vit|vit.perceive.image_begin": 2048,
+          "hunyuan_vl_vision_tower@vit|vit.perceive.image_end": 2048,
+          "hunyuan_vl_vision_tower@vit|vit.perceive.image_newline": 9216,
+          "hunyuan_vl_vision_tower@vit|vit.perceive.image_sep": 2048,
+          "hunyuan_vl_vision_tower@vit|vit.perceive.mlp": 9439232,
+          "hunyuan_vl_vision_tower@vit|vit.perceive.proj.0": 21238272,
+          "hunyuan_vl_vision_tower@vit|vit.perceive.proj.2": 21242880
+        }
+      }
+    },
+    "8": {
+      "vit": {
+        "bytes_per_rank": 194656156,
+        "nodes": {
+          "hunyuan_vl_vision_tower@vit|vit.embeddings.patch_embedding": 1771776,
+          "hunyuan_vl_vision_tower@vit|vit.embeddings.position_embedding.weight": 37751040,
+          "hunyuan_vl_vision_tower@vit|vit.layers.input_layernorm": 124416,
+          "hunyuan_vl_vision_tower@vit|vit.layers.mlp.mlp.fc1": 33496956,
+          "hunyuan_vl_vision_tower@vit|vit.layers.mlp.mlp.fc2": 33530112,
+          "hunyuan_vl_vision_tower@vit|vit.layers.post_attention_layernorm": 124416,
+          "hunyuan_vl_vision_tower@vit|vit.layers.self_attn.k_proj": 8965728,
+          "hunyuan_vl_vision_tower@vit|vit.layers.self_attn.o_proj": 9020160,
+          "hunyuan_vl_vision_tower@vit|vit.layers.self_attn.q_proj": 8965728,
+          "hunyuan_vl_vision_tower@vit|vit.layers.self_attn.v_proj": 8965728,
+          "hunyuan_vl_vision_tower@vit|vit.perceive.after_rms": 2048,
+          "hunyuan_vl_vision_tower@vit|vit.perceive.before_rms": 2304,
+          "hunyuan_vl_vision_tower@vit|vit.perceive.image_begin": 2048,
+          "hunyuan_vl_vision_tower@vit|vit.perceive.image_end": 2048,
+          "hunyuan_vl_vision_tower@vit|vit.perceive.image_newline": 9216,
+          "hunyuan_vl_vision_tower@vit|vit.perceive.image_sep": 2048,
+          "hunyuan_vl_vision_tower@vit|vit.perceive.mlp": 9439232,
+          "hunyuan_vl_vision_tower@vit|vit.perceive.proj.0": 21238272,
+          "hunyuan_vl_vision_tower@vit|vit.perceive.proj.2": 21242880
+        }
+      }
+    }
+  },
+  "zai-org__GLM-5.3-Flash": {
+    "1": {
+      "vision": {
+        "bytes_per_rank": 1127254016,
+        "nodes": {
+          "model.visual.downsample": 33562624,
+          "model.visual.merger.down_proj": 83886080,
+          "model.visual.merger.gate_proj": 83886080,
+          "model.visual.merger.post_projection_norm": 16384,
+          "model.visual.merger.proj": 33554432,
+          "model.visual.merger.up_proj": 83886080,
+          "model.visual.patch_embed.proj": 2410496,
+          "model.visual.post_layernorm": 2048,
+          "vit_qknorm_clamped_swiglu_block@vision|attn.k_norm": 3072,
+          "vit_qknorm_clamped_swiglu_block@vision|attn.proj": 50380800,
+          "vit_qknorm_clamped_swiglu_block@vision|attn.q_norm": 3072,
+          "vit_qknorm_clamped_swiglu_block@vision|attn.qkv": 151142400,
+          "vit_qknorm_clamped_swiglu_block@vision|mlp.down_proj": 201375744,
+          "vit_qknorm_clamped_swiglu_block@vision|mlp.gate_proj": 201523200,
+          "vit_qknorm_clamped_swiglu_block@vision|mlp.up_proj": 201523200,
+          "vit_qknorm_clamped_swiglu_block@vision|norm1": 49152,
+          "vit_qknorm_clamped_swiglu_block@vision|norm2": 49152
+        }
+      }
+    },
+    "8": {
+      "vision": {
+        "bytes_per_rank": 172576768,
+        "nodes": {
+          "model.visual.downsample": 33562624,
+          "model.visual.merger.down_proj": 10485760,
+          "model.visual.merger.gate_proj": 10485760,
+          "model.visual.merger.post_projection_norm": 16384,
+          "model.visual.merger.proj": 4194304,
+          "model.visual.merger.up_proj": 10485760,
+          "model.visual.patch_embed.proj": 2410496,
+          "model.visual.post_layernorm": 2048,
+          "vit_qknorm_clamped_swiglu_block@vision|attn.k_norm": 3072,
+          "vit_qknorm_clamped_swiglu_block@vision|attn.proj": 6340608,
+          "vit_qknorm_clamped_swiglu_block@vision|attn.q_norm": 3072,
+          "vit_qknorm_clamped_swiglu_block@vision|attn.qkv": 18892800,
+          "vit_qknorm_clamped_swiglu_block@vision|mlp.down_proj": 25214976,
+          "vit_qknorm_clamped_swiglu_block@vision|mlp.gate_proj": 25190400,
+          "vit_qknorm_clamped_swiglu_block@vision|mlp.up_proj": 25190400,
+          "vit_qknorm_clamped_swiglu_block@vision|norm1": 49152,
+          "vit_qknorm_clamped_swiglu_block@vision|norm2": 49152
+        }
+      }
+    }
+  }
+}

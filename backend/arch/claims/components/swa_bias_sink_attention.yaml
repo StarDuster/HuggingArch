@@ -1,0 +1,9 @@
+schema: huggingarch.claims/v1
+subject: swa_bias_sink_attention
+axioms:
+  checks:
+  - kind: kv_growth
+    storage: windowed
+    bound: s_window
+    src: 'SWA cache contract: cached K and V positions are bounded by s_window and
+      do not grow beyond the active sliding window.'

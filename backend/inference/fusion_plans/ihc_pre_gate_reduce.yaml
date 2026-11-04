@@ -1,0 +1,97 @@
+# Independent Hyper-Connections pre, launch 2 of 2: turn both mix vectors
+# into sigmoid gates and reduce the n residual copies with the pre gate —
+# the post gate falling out as the launch's second output.
+#
+# What the kernel computes (vLLM triton_ihc.py:78-150, sglang
+# hy4_ihc.py:102-165):
+#
+#   rsqrt = 1/√(sumsq/(n·d_model) + norm_eps)
+#   pre   = sigmoid(mix_pre  · rsqrt · scale[0] + base[:n]) + hc_eps
+#   post  = magnitude · sigmoid(mix_post · rsqrt · scale[1] + base[n:]) + hc_eps
+#   y     = Σ_c pre[c] · x[c]                                  # [T, d_model]
+#
+# The `rsqrt` line is the kernel's, NOT a node this plan absorbs, and the two
+# are not the same division. The whole `rmsnorm_unscaled` node is inside
+# launch 1 (`ihc_pre_mix` takes `flat`, `norm` and `mixes`); nothing in the
+# pattern below is any part of the norm. The kernel's true split is between
+# the norm and the GEMM — launch 1 takes the sum of squares and runs the mix
+# dot products against the RAW row, launch 2 scales those dot products by
+# rsqrt (vLLM triton_ihc.py:116-124, sglang hy4_ihc.py:140-146) — whereas
+# the component wrote the same
+# arithmetic the other way round, `Linear(rmsnorm_unscaled(flat))`, by the
+# linearity its own comment derives
+# (hc_independent_pre_norm_block.yaml:52). The identity is exact, so the
+# bytes and the FLOPs are the same either way; but it means no graph node
+# sits on the seam the frameworks launch across, and the two plans therefore
+# partition the naive nodes along a different line than the kernels
+# partition the arithmetic. Which is also why the partials the two launches
+# exchange are not the graph's mix vector — see `ihc_pre_mix.yaml`.
+#
+# Naive subgraph (hc_independent_pre_norm_block, Hy4): the two `slice`s of
+# the mix vector, the two `slice`s each of `hc_scale` and `hc_base`, the two
+# gate chains (mul → add → sigmoid, the post one through `scale_const` for
+# hc_magnitude, each closed by the `add_const` that is hc_eps), and the
+# `hc_weighted_reduce` sub-component's broadcast → mul → sum_reduce.
+#
+# The register-only intermediates this removes are the reduce's: the gate
+# broadcast and the weighted copy are both [T, n, d_model], and the kernel
+# accumulates them in a register block per hidden tile (vLLM
+# triton_ihc.py:137-151, sglang hy4_ihc.py:156-165) rather than writing
+# either. It reads x once and writes y once.
+#
+# Both frameworks run the iHC pre as TWO Triton launches; this is the
+# second, and `ihc_pre_mix` the first — see that plan for the default-install
+# argument, the hpc single-kernel variant it rules out, and what the split-K
+# partials between the two cost.
+#   vLLM (audited at v0.32.0): `_ihc_pre_stage2`
+#     (models/hy_v4/nvidia/triton_ihc.py:78, launched :254) inside
+#     `triton_ihc_pre` (:199), from `HYV4HCPreLayer.forward`
+#     (models/hy_v4/nvidia/hc.py:115).
+#   sglang (audited at v0.5.22): `_hy4_ihc_pre_stage2`
+#     (kernels/ops/layernorm/hy4_ihc.py:103, launched :273) inside
+#     `fused_hy4_ihc_pre` (:204), from `HYV4HCPreLayer.forward`
+#     (srt/models/hunyuan_v4.py:117).
+# Prefill and decode take the same call in both.
+#
+# The RMSNorm that follows the reduce is NOT in this launch. Folding it in is
+# an hpc-only option both wrappers expose and neither default install takes:
+# vLLM leaves `norm_owner` unset (hc.py:76-77) and sglang passes `rms_weight`
+# only when hpc answers (srt/models/hunyuan_v4.py:192-201), running `norm`
+# as its own launch at :202-203.
+#
+# The post gate survives the launch — the sublayer's post-mix reads it after
+# attention or the MLP has run — so it stays an exposed port, as the
+# frameworks' wrappers also return it (vLLM triton_ihc.py:274, sglang
+# hy4_ihc.py:300). Its fp32 allocation (vLLM :231, sglang :249) is the
+# operand-dtype question the fp32-promotion work states on the walk, not a
+# width this plan declares.
+
+fused_op: ihc_pre_gate_reduce
+
+naive_pattern:
+  nodes:
+    pre_logits:   { op: slice,       inputs: [external.mixes] }
+    post_logits:  { op: slice,       inputs: [external.mixes] }
+    pre_scale:    { op: slice,       inputs: [external.scale] }
+    post_scale:   { op: slice,       inputs: [external.scale] }
+    pre_base:     { op: slice,       inputs: [external.base] }
+    post_base:    { op: slice,       inputs: [external.base] }
+    pre_scaled:   { op: mul,         inputs: [pre_logits.out, pre_scale.out] }
+    pre_shifted:  { op: add,         inputs: [pre_scaled.out, pre_base.out] }
+    pre_sig:      { op: sigmoid,     inputs: [pre_shifted.out] }
+    pre:          { op: add_const,   inputs: [pre_sig.out] }
+    post_scaled:  { op: mul,         inputs: [post_logits.out, post_scale.out] }
+    post_shifted: { op: add,         inputs: [post_scaled.out, post_base.out] }
+    post_sig:     { op: sigmoid,     inputs: [post_shifted.out] }
+    post_mag:     { op: scale_const, inputs: [post_sig.out] }
+    post:         { op: add_const,   inputs: [post_mag.out] }
+    gate_spread:  { op: broadcast,   inputs: [pre.out] }
+    weighted:     { op: mul,         inputs: [external.x, gate_spread.out] }
+    reduced:      { op: sum_reduce,  inputs: [weighted.out] }
+  io_mapping:
+    x:        external.x
+    mixes:    external.mixes
+    scale:    external.scale
+    base:     external.base
+    output:   reduced.out
+    post_out: post.out

@@ -1,0 +1,34 @@
+# Gemma 4 decoder block (Gemma4TextDecoderLayer.forward).
+#
+# 4-norm topology with a learnable [1] scalar that multiplies the final
+# residual:
+#   residual = x
+#   x = input_layernorm(x); x = self_attn(x); x = post_attention_layernorm(x)
+#   x = residual + x                            # attn residual
+#   residual = x
+#   x = pre_feedforward_layernorm(x); x = mlp(x); x = post_feedforward_layernorm(x)
+#   x = residual + x                            # mlp residual
+#   x *= layer_scalar                           # learnable [1] scalar
+#
+# Shared between the sliding-window and full-attention layers — they swap
+# the `attn` param. FFN defaults to gemma_geglu_ffn (tanh-approximate GELU).
+role: block
+description: "Gemma 4 decoder layer: 4 RMSNorms (input/post-attn/pre-ffn/post-ffn) + a learnable [1] layer_scalar multiplying the final residual. Parameterized attn (sliding/full) + ffn."
+
+params:
+  attn: { kind: component }
+  ffn:  { kind: component, default: gemma_geglu_ffn }
+  norm: { kind: component, default: rmsnorm }
+
+graph:
+  input_layernorm:            { op: <norm>, in: x, dim: d_model, weight_axes: [{ replicated: true }] }
+  self_attn:                  { op: <attn>, in: input_layernorm }
+  post_attention_layernorm:   { op: <norm>, in: self_attn, dim: d_model, weight_axes: [{ replicated: true }] }
+  attn_residual:              { op: add, in: [x, post_attention_layernorm], dim: d_model }
+  pre_feedforward_layernorm:  { op: <norm>, in: attn_residual, dim: d_model, weight_axes: [{ replicated: true }] }
+  mlp:                        { op: <ffn>, in: pre_feedforward_layernorm }
+  post_feedforward_layernorm: { op: <norm>, in: mlp, dim: d_model, weight_axes: [{ replicated: true }] }
+  mlp_residual:               { op: add, in: [attn_residual, post_feedforward_layernorm], dim: d_model }
+  layer_scalar:               { op: parameter_vector, dim: "1", weight_axes: [{ replicated: true }] }
+  out:                        { op: mul, in: [mlp_residual, layer_scalar], dim: d_model }
+outputs: [out]

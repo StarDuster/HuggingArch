@@ -1,0 +1,27 @@
+schema: huggingarch.claims/v1
+subject: qwen_qsa_attention
+axioms:
+  checks:
+  - kind: kv_growth
+    node: key_concat
+    storage: per_token
+    expect: n_kv_heads * d_head
+    src: modeling_qwen4_exp.py::Qwen4ExpTextAttention.forward `key_states, value_states
+      = past_key_values.update(key_states, value_states, self.layer_idx)` (K, n_kv_heads
+      x head_dim per token)
+  - kind: kv_growth
+    node: v_split_heads
+    storage: per_token
+    expect: n_kv_heads * d_head
+    src: modeling_qwen4_exp.py::Qwen4ExpTextAttention.forward `past_key_values.update(...)`
+      (V, n_kv_heads x head_dim per token)
+  - kind: kv_growth
+    node: index_k_pool.pooled_out
+    storage: per_token
+    expect: d_indexer_head
+    src: 'vLLM v0.32.0 models/qwen4_exp/common/qsa_cache.py:865-876 `QSACompressedKeyCache`
+      "normed, group-first-RoPE key at one row per complete group" (`tokens_per_state=compress_ratio`);
+      sglang v0.5.22 mem_cache/qsa_kv_pool.py:58-69 "per-token QSA index-cache cost: compressed
+      keys only". One index_head_dim row per compress_ratio tokens, growing with context. HF
+      instead caches the raw per-token key (modeling_qwen4_exp.py:708) and re-pools it per
+      query (:734); the pooled keys are bit-identical once a block is complete.'

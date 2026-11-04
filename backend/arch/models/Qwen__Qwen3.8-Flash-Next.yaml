@@ -1,0 +1,285 @@
+# Qwen3.8-Flash-Next  (config.model_type == qwen4_exp,
+#                      architecture Qwen4ExpForConditionalGeneration)
+#
+# ~180B-param multimodal MoE with a HYBRID linear/full attention backbone wrapped
+# in Hyper-Connections (widened residual stream), a packed-Parameter MoE FFN on
+# every layer, a Per-Layer-Embedding (PLE) n-gram parameter bank on ONE layer, a
+# ViT vision tower + spatial merger, and a single-layer MTP speculative head.
+#
+# ---------------------------------------------------------------------------
+# Backbone (48 layers, model.language_model.layers.*)
+# ---------------------------------------------------------------------------
+#   - Residual stream is widened to `n_hidden_copies` (=hc_count=4) parallel
+#     copies right after the embedding (`hc_expand` broadcast, axis -2) and
+#     reduced back at the head by `hyper_connection_mixer` (a low-rank
+#     read-gate + mean over copies). Every attn / mlp sub-block is wrapped in a
+#     Gated-Residual / Hyper-Connection (modeling_qwen4_exp.py:1003-1031):
+#       normed = hc_norm(x); g = sigmoid(up(silu(down(normed)/hc)))
+#       lane   = mean_copies(g * normed)
+#       write  = 2*sigmoid(block_inject_weight(normed)/hc)   (per copy)
+#   - PLE (layer 1) is added to the WIDENED stream before the attn HC.
+#   - Attention alternates per config.text_config.layer_types (:1261): 36 Gated-DeltaNet LINEAR layers (library
+#     `gated_delta_net_attention`, node `linear_attn`) + 12 full Qwen-Sparse
+#     Attention layers (library `qwen_qsa_attention`, node `self_attn`) at the
+#     `full_attention_interval == 4` positions (3,7,…,47).
+#   - PLE n-gram bank (library `qwen_ple`) is on layer_idx 1: ple_layer_ids ([2])
+#     is 1-based (modeling_qwen4_exp.py:1268 tests `layer_idx + 1 in
+#     config.ple_layer_ids`); checkpoint `model.language_model.layers.1.ple.*`
+#     agrees with the config.
+#   - Every layer's FFN is the packed fused-expert MoE (library
+#     `moe_ffn_fused_scaled_shared`, node `mlp`): Qwen4ExpTextSparseMoeBlock
+#     (modeling_qwen4_exp.py:981) is Qwen3.5-MoE's block — top-k router,
+#     packed gate_up_proj / down_proj experts, sigmoid-gated shared expert.
+#
+# TRANSFORMERS COULD NOT BUILD THIS SKELETON, so config fields + checkpoint
+# tensor namespaces/shapes (snapshot JSON) are the primary evidence. All
+# tensors are BF16 except the three PLE I64 index buffers.
+match:
+  model_type: [qwen4_exp]
+  model_id: ["Qwen/Qwen3.8-Flash-Next"]
+
+components:
+  norm: rmsnorm
+
+dims:
+  s_max: config.text_config.max_position_embeddings   # published context length
+  # --- text backbone ---
+  d_model:            config.text_config.hidden_size          # 2560
+  n_heads:            config.text_config.num_attention_heads   # 24
+  n_kv_heads:         config.text_config.num_key_value_heads   # 2
+  d_head:             config.text_config.head_dim              # 256
+  d_rope:             "d_head // 4"                            # 64  (partial_rotary_factor 0.25)
+  d_nope:             "d_head - d_rope"                        # 192
+  d_ffn_expert:       config.text_config.moe_intermediate_size          # 640
+  d_ffn_shared:       config.text_config.shared_expert_intermediate_size ?? "512"  # 640; Qwen4ExpTextConfig's default when the field is absent (transformers 5.17.0 qwen4_exp/configuration_qwen4_exp.py:130)
+  n_vocab:            config.text_config.vocab_size            # 248320
+  n_layers:           config.text_config.num_hidden_layers     # 48
+  # --- MoE ---
+  n_experts:          config.text_config.num_experts           # 512
+  n_experts_active:   config.text_config.num_experts_per_tok   # 10
+  # Top-k renormalisation switch for router_softmax_topk. config.json omits
+  # norm_topk_prob; the config class default is True (configuration_qwen4_exp.py:163),
+  # applied at modeling_qwen4_exp.py:974-975 (router_top_value /= sum).
+  n_topk_renorm:      config.text_config.norm_topk_prob ?? "1"
+  # The same router (Qwen4ExpTextTopKRouter.forward, modeling_qwen4_exp.py:
+  # 969-978) has no group limit and no routed_scaling_factor multiply; the
+  # text config has neither n_group nor routed_scaling_factor.
+  n_expert_groups:    "1"
+  n_groups_active:    "1"
+  n_routed_scale:     "0"
+  # --- QSA sparse indexer ---
+  n_indexer_heads:    config.text_config.indexer_n_heads       # 4
+  d_indexer_head:     config.text_config.indexer_head_dim      # 128
+  n_topk_keys:        config.text_config.indexer_budget        # 2048 (token budget)
+  compress_ratio:     config.text_config.indexer_compress_ratio  # 4 (indexer key-block size; 2048/4 = 512 blocks selected)
+  # --- Gated-DeltaNet linear attention ---
+  n_lin_k_heads:      config.text_config.linear_num_key_heads    # 16
+  d_lin_k_head:       config.text_config.linear_key_head_dim     # 128
+  n_lin_v_heads:      config.text_config.linear_num_value_heads  # 48
+  d_lin_v_head:       config.text_config.linear_value_head_dim   # 128
+  s_conv_kernel:      config.text_config.linear_conv_kernel_dim  # 4
+  # --- Hyper-Connections ---
+  n_hidden_copies:    config.text_config.hc_count              # 4
+  d_hc_mix:           config.text_config.hc_lowrank            # 320
+  # --- PLE n-gram module (modeling_qwen4_exp.py:1085-1091, :1199-1201) ---
+  n_ngram:            config.text_config.ngram_size                                # 3
+  n_ngram_heads_per_gram: config.text_config.heads_per_ngram                       # 8
+  n_ngram_heads:      "(n_ngram - 1) * n_ngram_heads_per_gram"                     # 16 (:1087)
+  d_ple:              config.text_config.ple_embed_dim                             # 2560
+  d_ngram_head:       "d_ple // n_ngram_heads"                                     # 160 (:1091)
+  # The table holds the 16 heads' vocabs, each the next prime after
+  # ngram_vocab_size_base (modeling_qwen4_exp.py:1099-1104), summed and
+  # padded to make_ngram_vocab_size_divisible_by (:1111-1113): a sum of
+  # primes, which a dim expression cannot state. The checkpoint stores it as
+  # `split_ngram_parts` shards; a shard's row count is read off its header.
+  n_ple_shards:       config.text_config.split_ngram_parts                         # 128
+  n_ple_rows_per_shard: checkpoint.model.language_model.layers.X.ple.ple_embedding.ngram_embedding.shard_0.weight[0]  # 2500012
+  n_ple_vocab:        "n_ple_shards * n_ple_rows_per_shard"                        # 320001536
+  s_ple_conv:         config.text_config.ple_conv_kernel_size                      # 4 (:1207-1214)
+  # --- MTP ---
+  n_mtp_layers:       config.text_config.mtp_num_hidden_layers ?? "1"   # 1
+  # --- vision tower ---
+  d_vis_model:        config.vision_config.hidden_size          # 1152
+  n_vis_heads:        config.vision_config.num_heads            # 16
+  d_vis_head:         "d_vis_model // n_vis_heads"              # 72
+  d_vis_ffn:          config.vision_config.intermediate_size    # 4304
+  n_vis_layers:       config.vision_config.depth                # 27
+  n_vis_pos_vocab:    config.vision_config.num_position_embeddings  # 2304
+  n_vis_channels:     config.vision_config.in_channels          # 3
+  s_patch:            config.vision_config.patch_size           # 16
+  s_patch_temporal:   config.vision_config.temporal_patch_size  # 2
+  n_spatial_merge:    config.vision_config.spatial_merge_size   # 2
+  d_vis_merge:        "n_spatial_merge * n_spatial_merge * d_vis_model"  # merger width (vLLM Qwen3_VisionPatchMerger hidden_size)
+  d_proj_out:         config.vision_config.out_hidden_size      # 2560
+
+model_inputs:
+  input_ids: { kind: tokens }
+  # Images per request, then each image's size as the processor hands it to
+  # the tower (after its smart_resize to a multiple of 32).
+  pixel_values: { kind: image, axes: [n_img, img_h, img_w] }
+  # Videos per request, then each video's sampled frames and processed
+  # size; the forward reads `pixel_values_videos` through the image tower
+  # (transformers 5.17 qwen3_5/modeling_qwen3_5.py:1474-1481 get_video_features runs get_image_features, :1626-1630).
+  pixel_values_videos: { kind: video, axes: [n_vid, vid_frames, vid_h, vid_w] }
+
+model:
+  # --- token embedding ---
+  - { name: model.language_model.embed_tokens, inputs: [input_ids], op: embedding, boundary_role: input_embedding, dims: { n_vocab: n_vocab, d_model: d_model }, weight_axes: [{ world: attention, parts: n_vocab, fit: pad }, { replicated: true }] }
+
+  # --- Vision tower + merger (aux group) ---
+  - name: vision
+    group: true
+    aux_kind: vision
+    checkpoint: { root: model.visual }
+    layers:
+      # The processor resizes each image to a multiple of patch_size *
+      # merge_size, repeats it into temporal_patch_size frames and cuts
+      # patch x patch x temporal patches of the image's channels, one row each,
+      # each merge window contiguous; one attention segment per temporal
+      # patch, which for an image is the whole image.
+      - name: model.visual.patchify
+        op: patchify
+        inputs: [pixel_values]
+        dims: { patch: s_patch, temporal: s_patch_temporal, channels: n_vis_channels, align: "s_patch * n_spatial_merge" }
+        segment: temporal_patch
+        source_anchor: "the tower is Qwen3.5's (vision_config patch_size 16, temporal_patch_size 2, spatial_merge_size 2; no processor config in the snapshot), whose processor is transformers 5.17 qwen2_vl/image_processing_qwen2_vl.py:62-88 smart_resize, factor = patch_size * merge_size (:226); :164-198 patchify, a still image expanded to temporal_patch_size (:189-191); vision_utils.py:42-65 cu_seqlens one segment per temporal patch (an image has one)"
+      # patch_embed -> + interpolated pos_embed -> blocks -> merger.
+      - { name: model.visual, inputs: [model.visual.patchify], template: qwen35_vision_tower }
+  # The videos, through the same tower with the same weights in a call of
+  # their own, one attention segment per temporal patch (the processor
+  # repeats the last frame to a whole temporal patch).
+  - { name: video, call: vision, inputs: [pixel_values_videos] }
+
+  # --- Vision → text merge (before the HC widen) ---
+  # modeling_qwen4_exp.py:2348 `inputs_embeds = inputs_embeds.masked_scatter(image_mask, image_embeds)`
+  # and :2359 (same for video_embeds): the merger output rows REPLACE the
+  # image/video placeholder-token rows of the [B,s,d_model] token embeddings,
+  # on inputs_embeds, i.e. before language_model widens to hc_count copies (:1480).
+  - name: model.language_model.embed_merge
+    op: scatter_rows_replace
+    inputs: [model.language_model.embed_tokens, model.visual, model.video]
+    prompt_slots:
+      model.visual: { domain: pixel_values, defines: true, source_anchor: "modeling_qwen4_exp.py:2348 inputs_embeds.masked_scatter(image_mask, image_embeds)" }
+      model.video: { domain: pixel_values_videos, defines: true, source_anchor: "vLLM v0.30.0 models/qwen3_vl.py:2363-2365 grid_t*h*w/merge^2 rows per video, merged with the images by models/utils.py _merge_multimodal_embeddings (the video token positions); transformers qwen3_5/modeling_qwen3_5.py:1626-1640 masked_scatter(video_mask, video_embeds)" }
+
+  # --- Hyper-Connection entry: widen [B,s,d_model] -> [B,s,n_hidden_copies,d_model] ---
+  # Zero-FLOP / zero-param view replicate along a new axis (-2).
+  # modeling_qwen4_exp.py:1480 `hidden_states.repeat(1, 1, hc_count)`.
+  - { name: hc_expand, op: broadcast, in: model.language_model.embed_merge, axis: -2, dims: { width: n_hidden_copies } }
+
+  # --- decoder stack (widened residual stream in/out) ---
+  - name: model.language_model.layers
+    repeat: n_layers
+    inputs: [hc_expand, input_ids]
+    streams: { hidden: { carries: true } }
+    per_layer:
+      assign:
+        # A layer's attention kind (layer_types, :1261) and its PLE n-gram bank
+        # are independent axes. config.text_config.ple_layer_ids ([2]) is 1-BASED:
+        # modeling_qwen4_exp.py:1268 builds the PLE on layer_idx where
+        # `layer_idx + 1 in config.ple_layer_ids`, i.e. layer_idx 1 (checkpoint
+        # model.language_model.layers.1.ple.* agrees). The PLE generators come
+        # first, so the plain generators below take the remaining layers.
+        - { type: ple_linear, from: config.text_config.layer_types, is: linear_attention, within: { from: config.text_config.ple_layer_ids, base: 1 } }
+        - { type: ple_full,   from: config.text_config.layer_types, is: full_attention,   within: { from: config.text_config.ple_layer_ids, base: 1 } }
+        # modeling_qwen4_exp.py:1261 `self.layer_type = config.layer_types[layer_idx]`
+        - { type: full,   from: config.text_config.layer_types, is: full_attention }     # QSA full attention
+        - { type: linear, from: config.text_config.layer_types, is: linear_attention }   # Gated-DeltaNet linear attn
+      map:
+        ple_linear: { template: qwen_hc_ple_block }
+        ple_full:   { template: qwen_hc_full_ple_block }
+        full:   { template: qwen_hc_full_block }
+        linear: { template: qwen_hc_linear_block }
+
+  # --- Hyper-Connection exit mixer: reduce widened stream back to one d_model lane ---
+  # Checkpoint: model.language_model.hyper_connection_mixer.{hc_norm,input_mix_weight_down,input_mix_weight_up}.
+  # There is NO separate final RMSNorm in this checkpoint — hc_norm IS it.
+  # hc_norm is a GROUPED Qwen4ExpTextRMSNorm(hc*d, group_size=d_model)
+  # (modeling_qwen4_exp.py:1009, class :152-170): per-copy RMS over d_model on
+  # the [B,S,hc,d] stream, flattened, then × (1 + weight[hc*d]).
+  - { name: model.language_model.hyper_connection_mixer.hc_norm_rms, op: rmsnorm_unscaled, in: model.language_model.layers, dim: d_model }
+  - { name: model.language_model.hyper_connection_mixer.merge, op: view_merge, in: model.language_model.hyper_connection_mixer.hc_norm_rms }
+  - { name: model.language_model.hyper_connection_mixer.hc_norm.weight, op: parameter_vector, dim: "n_hidden_copies * d_model", weight_axes: [{ replicated: true }] }
+  - { name: model.language_model.hyper_connection_mixer.hc_norm, op: mul, in: [model.language_model.hyper_connection_mixer.merge, model.language_model.hyper_connection_mixer.hc_norm.weight], dim: "n_hidden_copies * d_model" }   # y = norm · (1 + w)
+  - { name: model.language_model.hyper_connection_mixer.input_mix_weight_down, op: linear, in: model.language_model.hyper_connection_mixer.hc_norm, dims: { in: "n_hidden_copies * d_model", out: d_hc_mix }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  # Same Qwen4ExpTextGatedResidual (use_combine=False) as the in-block HCs
+  # (modeling_qwen4_exp.py:1021-1029): silu(down(normed)/hc) → up → sigmoid,
+  # gate × NORMED stream, MEAN over copies.
+  - { name: model.language_model.hyper_connection_mixer.mix_scale, op: scale_const, in: model.language_model.hyper_connection_mixer.input_mix_weight_down, dims: { in: d_hc_mix } }   # y = x / n_hidden_copies
+  - { name: model.language_model.hyper_connection_mixer.mix_act, op: silu, in: model.language_model.hyper_connection_mixer.mix_scale, dim: d_hc_mix }
+  - { name: model.language_model.hyper_connection_mixer.input_mix_weight_up, op: linear, in: model.language_model.hyper_connection_mixer.mix_act, dims: { in: d_hc_mix, out: "n_hidden_copies * d_model" }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  - { name: model.language_model.hyper_connection_mixer.gate, op: sigmoid, in: model.language_model.hyper_connection_mixer.input_mix_weight_up, dim: "n_hidden_copies * d_model" }
+  - { name: model.language_model.hyper_connection_mixer.gated, op: mul, in: [model.language_model.hyper_connection_mixer.hc_norm, model.language_model.hyper_connection_mixer.gate], dim: "n_hidden_copies * d_model" }
+  - { name: model.language_model.hyper_connection_mixer.split, op: view_split, in: model.language_model.hyper_connection_mixer.gated, axis: -1, dims: { n_heads: n_hidden_copies, d_head: d_model } }
+  - { name: model.language_model.hyper_connection_mixer.reduce_sum, op: sum_reduce, in: model.language_model.hyper_connection_mixer.split, axis: 2, dims: { in: n_hidden_copies } }
+  - { name: model.language_model.hyper_connection_mixer.reduce, op: scale_const, in: model.language_model.hyper_connection_mixer.reduce_sum, dims: { in: d_model } }   # y = x / n_hidden_copies (sum → mean over copies)
+
+  # --- output head (untied: config.tie_word_embeddings == false) ---
+  - { name: lm_head, op: linear, boundary_role: output_head, in: model.language_model.hyper_connection_mixer.reduce, dims: { in: d_model, out: n_vocab }, weight_axes: [{ world: attention, parts: n_vocab, fit: pad }, { replicated: true }], tied_weight: { to: model.language_model.embed_tokens, when: config.tie_word_embeddings } }
+
+  # --- MTP speculative head (aux group) ---
+  # The HF modeling file does not run the MTP head: modeling_qwen4_exp.py:1322
+  # drops every `^mtp.*` tensor on load. The wiring below follows vLLM's
+  # Qwen4Exp MTP (vllm b2863c0d, vllm/models/qwen4_exp/nvidia/mtp.py), which
+  # SGLang's agrees with (sglang ad7a9b5, python/sglang/srt/models/
+  # qwen4_exp_mtp.py:106-116 `_fuse_residual_linear_shared`):
+  #   e = fc_embedding(pre_fc_norm_embedding(embed_tokens(input_ids)))  [B,s,d]   (mtp.py:293-294)
+  #   h = pre_fc_norm_hidden(h_backbone)   # one GemmaRMSNorm over hc*d (:227-229, :302)
+  #   h = fc_hidden(h.view(..., hc, d))    # one d->d weight shared by the copies (:301-306)
+  #   h = layers[0](h, prev_block_output=e, prev_injection=None)
+  #       # e is added to every copy with unit weight before the layer's first
+  #       # mix (:314-322; nvidia/model.py:291-294; nvidia/hyperconnection.py:183-197)
+  #   logits = lm_head(hyper_connection_mixer(h))   (:335-340, :425-428)
+  # The backbone hidden it reads is the widened, pre-final-mixer stream
+  # (mtp.py:296-299). The embedding table and lm_head are the target's
+  # (`_remap_mtp_weight_name`, mtp.py:89-115; the checkpoint has no mtp head).
+  # The aux_kind: mtp group keeps the draft out of the backbone totals.
+  - name: mtp
+    group: true
+    aux_kind: mtp
+    checkpoint: { prefix: mtp.layers, index: local }
+    inputs: [model.language_model.layers]
+    layers:
+      # --- MTP entry: embedding branch (mtp.py:293-294) ---
+      - { name: mtp.pre_fc_norm_embedding, op: rmsnorm, dim: d_model, weight_axes: [{ replicated: true }], in: model.language_model.embed_tokens }
+      - { name: mtp.fc_embedding, op: linear, in: mtp.pre_fc_norm_embedding, dims: { in: d_model, out: d_model }, weight_axes: [{ replicated: true }, { replicated: true }] }
+      # --- MTP entry: hidden branch (mtp.py:300-306) ---
+      - { name: mtp.pre_fc_norm_hidden_merge, op: view_merge, in: model.language_model.layers }
+      - { name: mtp.pre_fc_norm_hidden, op: rmsnorm, dim: "n_hidden_copies * d_model", weight_axes: [{ replicated: true }], in: mtp.pre_fc_norm_hidden_merge }
+      - { name: mtp.pre_fc_norm_hidden_split, op: view_split, in: mtp.pre_fc_norm_hidden, axis: -1, dims: { n_heads: n_hidden_copies, d_head: d_model } }
+      - { name: mtp.fc_hidden, op: linear, in: mtp.pre_fc_norm_hidden_split, dims: { in: d_model, out: d_model }, weight_axes: [{ replicated: true }, { replicated: true }] }
+      # --- the embedding joins every copy with unit weight (sglang qwen4_exp_mtp.py:116) ---
+      - { name: mtp.embedding_bcast, op: broadcast, in: mtp.fc_embedding, axis: -2, dims: { width: n_hidden_copies } }
+      - { name: mtp.fuse, op: add, in: [mtp.fc_hidden, mtp.embedding_bcast], dim: d_model }
+      # --- the one MTP decoder layer (mtp.layers.0.*): a full-attention (QSA)
+      # HC block, Qwen4ExpDecoderLayer(layer_type="qwen_sparse_attention")
+      # (mtp.py:210-217), bound to the backbone's own template; weight identity
+      # keys on stack + template + path.
+      - { name: mtp.layers, template: qwen_hc_full_block, in: [mtp.fuse, input_ids], repeat: n_mtp_layers, streams: { hidden: { carries: true } } }
+      # --- MTP exit: the final mixer, GatedResidual(use_combine=False) with
+      # hc_per_branch_norm (mtp.py:230-243), the same module as the backbone's
+      # exit mixer, then the target's lm_head (mtp.py:425-428) ---
+      - { name: mtp.hyper_connection_mixer.hc_norm_rms, op: rmsnorm_unscaled, in: mtp.layers, dim: d_model }
+      - { name: mtp.hyper_connection_mixer.merge, op: view_merge, in: mtp.hyper_connection_mixer.hc_norm_rms }
+      - { name: mtp.hyper_connection_mixer.hc_norm.weight, op: parameter_vector, dim: "n_hidden_copies * d_model", weight_axes: [{ replicated: true }] }
+      - { name: mtp.hyper_connection_mixer.hc_norm, op: mul, in: [mtp.hyper_connection_mixer.merge, mtp.hyper_connection_mixer.hc_norm.weight], dim: "n_hidden_copies * d_model" }   # y = norm · (1 + w)
+      - { name: mtp.hyper_connection_mixer.input_mix_weight_down, op: linear, in: mtp.hyper_connection_mixer.hc_norm, dims: { in: "n_hidden_copies * d_model", out: d_hc_mix }, weight_axes: [{ replicated: true }, { replicated: true }] }
+      - { name: mtp.hyper_connection_mixer.mix_scale, op: scale_const, in: mtp.hyper_connection_mixer.input_mix_weight_down, dims: { in: d_hc_mix } }   # y = x / n_hidden_copies
+      - { name: mtp.hyper_connection_mixer.mix_act, op: silu, in: mtp.hyper_connection_mixer.mix_scale, dim: d_hc_mix }
+      - { name: mtp.hyper_connection_mixer.input_mix_weight_up, op: linear, in: mtp.hyper_connection_mixer.mix_act, dims: { in: d_hc_mix, out: "n_hidden_copies * d_model" }, weight_axes: [{ replicated: true }, { replicated: true }] }
+      - { name: mtp.hyper_connection_mixer.gate, op: sigmoid, in: mtp.hyper_connection_mixer.input_mix_weight_up, dim: "n_hidden_copies * d_model" }
+      - { name: mtp.hyper_connection_mixer.gated, op: mul, in: [mtp.hyper_connection_mixer.hc_norm, mtp.hyper_connection_mixer.gate], dim: "n_hidden_copies * d_model" }
+      - { name: mtp.hyper_connection_mixer.split, op: view_split, in: mtp.hyper_connection_mixer.gated, axis: -1, dims: { n_heads: n_hidden_copies, d_head: d_model } }
+      - { name: mtp.hyper_connection_mixer.reduce_sum, op: sum_reduce, in: mtp.hyper_connection_mixer.split, axis: 2, dims: { in: n_hidden_copies } }
+      - { name: mtp.hyper_connection_mixer.reduce, op: scale_const, in: mtp.hyper_connection_mixer.reduce_sum, dims: { in: d_model } }   # y = x / n_hidden_copies
+      - { name: mtp_logits, op: linear, boundary_role: output_head, in: mtp.hyper_connection_mixer.reduce, dims: { in: d_model, out: n_vocab }, weight_axes: [{ world: attention, parts: n_vocab, fit: pad }, { replicated: true }], tied_weight: { to: lm_head } }
+
+# Quantization context: everything BF16 on disk, except the three PLE I64 index
+# buffers (bare nn.Parameters, no .weight suffix). parameter_vector ops fall
+# through to default_dtype unless overridden, so the storage-byte gate needs the
+# I64 override to count 8 bytes/elem (35 elems total across the 3 buffers).
+quant_context:
+  default_dtype: BF16
+  overrides:
+    - tensors_re: '\.ple_embedding\.(?:layer_multipliers|ngram_heads_offsets|ngram_heads_vocab_sizes)$'
+      dtype: I64

@@ -1,0 +1,37 @@
+# MiMo-V2.5 vision tower full-attention block (4/28 vision blocks at
+# indices 0, 9, 18, 27 — the `fullatt_block_indexes`).
+#
+# Same projections, RoPE and MLP as mimo_v2_5_vision_block_sink; the attention
+# is full (every patch of the image) and carries no sink.
+#
+# Required dims: d_vis_model, n_vis_heads, n_vis_kv_heads, d_vis_head, d_vis_ffn
+role: block
+description: "MiMo-V2.5 ViT full-attention block: biased fused-QKV GQA + biased SwiGLU MLP, no sink. 4/28 vision blocks."
+
+graph:
+  norm1:            { op: rmsnorm, in: x, dim: d_vis_model, weight_axes: [{ replicated: true }] }
+  attn.qkv:         { op: linear, in: norm1, dims: { in: d_vis_model, out: "n_vis_heads * d_vis_head + n_vis_kv_heads * d_vis_head + n_vis_kv_heads * d_vis_head", bias: "1" }, weight_axes: [{ segments: [{ segment: q, extent: "n_vis_heads * d_vis_head", world: attention, parts: n_vis_heads, fit: replica_cells }, { segment: k, extent: "n_vis_kv_heads * d_vis_head", world: attention, parts: n_vis_kv_heads, fit: replica_cells }, { segment: v, extent: "n_vis_kv_heads * d_vis_head", world: attention, parts: n_vis_kv_heads, fit: replica_cells }] }, { replicated: true }] }
+  attn.q_slice:     { op: slice, in: attn.qkv, dims: { in: "n_vis_heads * d_vis_head + n_vis_kv_heads * d_vis_head + n_vis_kv_heads * d_vis_head", out: "n_vis_heads * d_vis_head" } }
+  attn.k_slice:     { op: slice, in: attn.qkv, dims: { in: "n_vis_heads * d_vis_head + n_vis_kv_heads * d_vis_head + n_vis_kv_heads * d_vis_head", out: "n_vis_kv_heads * d_vis_head" } }
+  attn.v_slice:     { op: slice, in: attn.qkv, dims: { in: "n_vis_heads * d_vis_head + n_vis_kv_heads * d_vis_head + n_vis_kv_heads * d_vis_head", out: "n_vis_kv_heads * d_vis_head" } }
+  attn.q_split:     { op: head_split, in: attn.q_slice, dims: { n_heads: n_vis_heads, d_head: d_vis_head } }
+  attn.k_split:     { op: head_split, in: attn.k_slice, dims: { n_heads: n_vis_kv_heads, d_head: d_vis_head } }
+  attn.v_split:     { op: head_split, in: attn.v_slice, dims: { n_heads: n_vis_kv_heads, d_head: d_vis_head } }
+  # q and k rotated on every block (vLLM mimo_v2_omni.py:287-290).
+  attn.q_rope:      { op: rope_2d, in: attn.q_split, dim: d_vis_head }
+  attn.k_rope:      { op: rope_2d, in: attn.k_split, dim: d_vis_head }
+  # Bidirectional: every query sees every key of its image (vLLM mimo_v2_omni.py:185,292-303 MMEncoderAttention, non-causal per image).
+  attn.qk_score:    { op: attention_score, in: [attn.q_rope, attn.k_rope], dims: { is_causal: "0", n_heads: n_vis_heads, d_head: d_vis_head } }
+  attn.softmax:     { op: softmax, in: attn.qk_score, dims: { is_causal: "0", n_heads: n_vis_heads } }
+  attn.apply:       { op: attention_apply, in: [attn.softmax, attn.v_split], dims: { is_causal: "0", n_heads: n_vis_heads, d_head: d_vis_head } }
+  attn.merge:       { op: head_merge, in: attn.apply, dims: { n_heads: n_vis_heads, d_head: d_vis_head } }
+  attn.proj:        { op: linear, in: attn.merge, dims: { in: "n_vis_heads * d_vis_head", out: d_vis_model, bias: "1" }, weight_axes: [{ replicated: true }, { world: attention, parts: n_vis_heads, fit: replica_cells }] }
+  attn_residual:    { op: add, in: [x, attn.proj], dim: d_vis_model }
+  norm2:            { op: rmsnorm, in: attn_residual, dim: d_vis_model, weight_axes: [{ replicated: true }] }
+  mlp.gate_proj:    { op: linear, in: norm2, dims: { in: d_vis_model, out: d_vis_ffn, bias: "1" }, weight_axes: [{ world: dense_ffn, parts: d_vis_ffn, fit: exact }, { replicated: true }] }
+  mlp.up_proj:      { op: linear, in: norm2, dims: { in: d_vis_model, out: d_vis_ffn, bias: "1" }, weight_axes: [{ world: dense_ffn, parts: d_vis_ffn, fit: exact }, { replicated: true }] }
+  mlp.silu:         { op: silu, in: mlp.gate_proj, dim: d_vis_ffn }
+  mlp.gated:        { op: mul, in: [mlp.silu, mlp.up_proj], dim: d_vis_ffn }
+  mlp.down_proj:    { op: linear, in: mlp.gated, dims: { in: d_vis_ffn, out: d_vis_model, bias: "1" }, weight_axes: [{ replicated: true }, { world: dense_ffn, parts: d_vis_ffn, fit: exact }] }
+  out:              { op: add, in: [attn_residual, mlp.down_proj], dim: d_vis_model }
+outputs: [out]

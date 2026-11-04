@@ -1,0 +1,14 @@
+# Provider env: fa3 — SOURCE BUILD, provisioned OUT OF BAND.
+# GENERATED from the provider registry (`python -m kernel_bench envs`). Edit the provider, not this file.
+# Import gate (what availability checks, and what the build actually needs): flash_attn_interface
+# Providers: flash_attention_v3, flash_attention_v3_kvcache
+#
+# build hopper/ from github.com/Dao-AILab/flash-attention (needs sm90)
+#
+# The lines below are what pip CAN install. If that is only torch, this
+# library is not reproducible from the repo and someone has to build it.
+torch>=2.5
+pydantic
+pyyaml
+huggingface-hub
+httpx

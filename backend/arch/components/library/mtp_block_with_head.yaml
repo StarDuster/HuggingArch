@@ -1,0 +1,48 @@
+# Multi-Token Prediction (MTP) head with private token embedding +
+# private head linear. Used by DeepSeek-V3 / V3.2: each MTP layer ships
+# its own embed_tokens (n_vocab × d_model) and shared_head.head (d_model × n_vocab) on top of
+# the inner transformer block.
+#
+# Sibling: `mtp_block_shared_head` for variants (e.g. GLM-MoE-DSA) that
+# reuse the main backbone's embed + lm_head instead of carrying private
+# copies.
+#
+# Topology:
+#   embed_tokens(input_ids) → enorm
+#   x                       → hnorm           (in parallel)
+#
+# Formals: `x` is the backbone's hidden state, `input_ids` the token ids the
+# private embedding looks up (the stage passes the model input).
+#   concat(enorm, hnorm) → eh_proj → inner block → shared_head.norm → shared_head.head
+#
+# `inner` param accepts any block compound op (typically pre_norm with
+# the main backbone's MoE attn/ffn combo).
+#
+# Required dims: d_model, n_vocab.
+role: aux_block
+description: "MTP head with private token embedding + private head linear. DSv3, V3.2."
+
+inputs: [x, input_ids]
+
+params:
+  inner:    { kind: component }
+  norm:     { kind: component, default: rmsnorm }
+
+graph:
+  embed_tokens:      { op: embedding, in: input_ids, dims: { n_vocab: n_vocab, d_model: d_model }, weight_axes: [{ world: attention, parts: n_vocab, fit: pad }, { replicated: true }] }
+  enorm:             { op: <norm>, in: embed_tokens, dim: d_model, weight_axes: [{ replicated: true }] }
+  hnorm:             { op: <norm>, in: x, dim: d_model, weight_axes: [{ replicated: true }] }
+  concat:            { op: concat, in: [enorm, hnorm], dim: "2 * d_model" }
+  eh_proj:           { op: linear, in: concat, dims: { in: "2 * d_model", out: d_model }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  # `module: null` — the checkpoint has no module here. DeepSeek-V3 / V3.2 stores
+  # an MTP layer as one more entry in the main `layers` index space
+  # (`model.layers.61.self_attn.q_a_proj.weight`), so the inner block's
+  # leaves hang directly off the MTP prefix. Consumers whose checkpoint
+  # DOES hold a module here say so at the call site.
+  transformer:       { op: <inner>, in: eh_proj, module: null }
+  shared_head.norm:  { op: <norm>, in: transformer, dim: d_model, weight_axes: [{ replicated: true }] }
+  # The draft's logits: vLLM computes them only at the sampled positions
+  # (v1/spec_decode/llm_base_proposer.py:613, `last_hidden_states[token_indices_to_sample]`
+  # before compute_logits), so this is an output head.
+  shared_head.head:  { op: linear, in: shared_head.norm, dims: { in: d_model, out: n_vocab }, weight_axes: [{ world: attention, parts: n_vocab, fit: pad }, { replicated: true }], boundary_role: output_head }
+outputs: [shared_head.head]

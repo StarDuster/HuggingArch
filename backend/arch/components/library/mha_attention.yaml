@@ -1,0 +1,49 @@
+# MHA Attention (no RoPE, used with learned positional embeddings)
+# Used by: OPT.
+#
+# Required dims: d_model, n_heads, d_head
+
+role: attention
+description: "Plain multi-head attention (n_kv_heads=n_heads). Older transformers, ViT-style towers."
+cache:
+  family: MHA
+  entries:
+    - { node: k_split_heads, kind: kv }
+    - { node: v_split_heads, kind: kv }
+graph:
+  q_proj:
+    op: linear
+    in: x
+    dims: { in: d_model, out: "n_heads * d_head" }
+    weight_axes:
+      - { world: attention, parts: n_heads, fit: replica_cells }
+      - { replicated: true }
+  k_proj:
+    op: linear
+    in: x
+    dims: { in: d_model, out: "n_heads * d_head" }
+    weight_axes:
+      - { world: attention, parts: n_heads, fit: replica_cells }
+      - { replicated: true }
+  v_proj:
+    op: linear
+    in: x
+    dims: { in: d_model, out: "n_heads * d_head" }
+    weight_axes:
+      - { world: attention, parts: n_heads, fit: replica_cells }
+      - { replicated: true }
+  q_split_heads:      { op: head_split, in: q_proj, dims: { n_heads: n_heads, d_head: d_head } }
+  k_split_heads:      { op: head_split, in: k_proj, dims: { n_heads: n_heads, d_head: d_head } }
+  v_split_heads:      { op: head_split, in: v_proj, dims: { n_heads: n_heads, d_head: d_head } }
+  qk_score:        { op: attention_score, in: [q_split_heads, k_split_heads], dims: { n_heads: n_heads, d_head: d_head } }
+  softmax:         { op: softmax, in: qk_score, dims: { n_heads: n_heads } }
+  attn_apply:      { op: attention_apply, in: [softmax, v_split_heads], dims: { n_heads: n_heads, d_head: d_head } }
+  o_merge_heads:      { op: head_merge, in: attn_apply, dims: { n_heads: n_heads, d_head: d_head } }
+  o_proj:
+    op: linear
+    in: o_merge_heads
+    dims: { in: "n_heads * d_head", out: d_model }
+    weight_axes:
+      - { replicated: true }
+      - { world: attention, parts: n_heads, fit: replica_cells }
+outputs: [o_proj]

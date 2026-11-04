@@ -1,0 +1,4 @@
+# Identity file for meta-llama/Llama-2-7b-hf
+base: llama2
+match:
+  model_id: [meta-llama/Llama-2-7b-hf]

@@ -1,0 +1,9 @@
+schema: huggingarch.claims/v1
+subject: hunyuan_text_qknorm_attention
+axioms:
+  checks:
+  - kind: kv_growth
+    storage: per_token
+    expect: 2 * n_kv_heads * d_head
+    src: modeling_hunyuan_vl.py::HunYuanVLDenseV1Attention.forward `past_key_values.update(key_states,
+      value_states, self.layer_idx)` (GQA n_kv_heads=8 d_head=128)

@@ -1,0 +1,16 @@
+# GELU FFN (standard 2-layer FFN with bias)
+# Used by: OPT.
+#
+# Linear layers include bias by default (standard FFN convention). Override
+# via `Fb: "0"` when a caller has bias-free FFN.
+#
+# Required dims: d_model, d_ffn
+# Optional dims: Fb (bias flag, default "1")
+
+role: ffn_dense
+description: "Plain 2-linear GELU FFN (no gating). OPT, GPT-2 era."
+graph:
+  up_proj:   { op: linear, in: x, dims: { in: d_model, out: d_ffn, bias: Fb }, weight_axes: [{ placement_by_symbol: { d_ffn: { world: dense_ffn, parts: d_ffn, fit: exact }, d_vis_ffn: { world: dense_ffn, parts: d_ffn, fit: exact }, d_audio_ffn: { replicated: true } } }, { replicated: true }] }
+  gelu:      { op: gelu, in: up_proj, dim: d_ffn }
+  down_proj: { op: linear, in: gelu, dims: { in: d_ffn, out: d_model, bias: Fb }, weight_axes: [{ replicated: true }, { placement_by_symbol: { d_ffn: { world: dense_ffn, parts: d_ffn, fit: exact }, d_vis_ffn: { world: dense_ffn, parts: d_ffn, fit: exact }, d_audio_ffn: { replicated: true } } }] }
+outputs: [down_proj]

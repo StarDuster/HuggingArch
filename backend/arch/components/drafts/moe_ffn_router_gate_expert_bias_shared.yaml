@@ -1,0 +1,15 @@
+# Naming adapter: the hy_v3 checkpoint stores the router linear as
+# `mlp.router.gate.weight` (HYV3TopKRouter.gate), while the library component
+# names the router node `router` and stores `mlp.router.weight`. Pure
+# checkpoint-naming shim; no graph structure of its own.
+role: ffn_moe
+description: "moe_ffn_router_expert_bias_shared with the router linear stored as router.gate, as the hy_v3 checkpoint names it."
+
+graph:
+  ffn:
+    module: null
+    op: moe_ffn_router_expert_bias_shared
+    in: x
+    inner_modules:
+      router: router.gate
+outputs: [ffn]

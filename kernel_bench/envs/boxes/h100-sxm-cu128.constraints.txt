@@ -1,0 +1,20 @@
+# The box's DEFAULT torch build: the pin for every env here that does not
+# state one itself. A generated env asks only for `torch>=2.5`, so uv would
+# take the newest, and PyPI's newest torch is a CUDA-13 build — which nothing
+# on this box loads except through the forward-compatibility user-mode driver,
+# given only to the envs named in `[library_env]`. For the rest, the cu128
+# build is both what this box's own kernel driver serves and what every
+# existing row of theirs was measured against, so it is pinned. (Which envs
+# those are is the registry's answer, not a list to keep here: it is the ones
+# whose pip spec names no exact torch and that `[env_requirements]` does not
+# override.)
+#
+# Not applied to an env the box overrides in `[env_requirements]`: an override
+# is that env's requirements in full, and layering this on top is what made the
+# second (CUDA-13) wheel stack unresolvable. A `--constraints` file an operator
+# passes explicitly is a different thing and does reach every env, overrides
+# included — see `box.library_requirements`.
+torch==2.8.0+cu128
+# torchvision follows torch: a newer one registers ops this torch lacks
+# (`torchvision::nms does not exist` when fla imports transformers).
+torchvision==0.23.0+cu128

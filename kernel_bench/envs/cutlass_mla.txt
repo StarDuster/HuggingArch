@@ -1,0 +1,14 @@
+# Provider env: cutlass_mla — SOURCE BUILD, provisioned OUT OF BAND.
+# GENERATED from the provider registry (`python -m kernel_bench envs`). Edit the provider, not this file.
+# Import gate (what availability checks, and what the build actually needs): sgl_kernel
+# Providers: cutlass_mla_decode
+#
+# sgl_kernel cutlass_mla_decode — SM100 (Blackwell) only
+#
+# The lines below are what pip CAN install. If that is only torch, this
+# library is not reproducible from the repo and someone has to build it.
+torch>=2.5
+pydantic
+pyyaml
+huggingface-hub
+httpx

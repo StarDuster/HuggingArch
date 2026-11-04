@@ -1,0 +1,25 @@
+# Bailing-MoE V2.5 (Ling-2.6) full-attention MoE decoder block.
+# Used at layer indices i where (i+1) % layer_group_size == 0 — the 10
+# layers (idx 7, 15, 23, 31, 39, 47, 55, 63, 71, 79) using full MLA
+# attention rather than the cheap linear-attention default.
+#
+# Pre_norm whose attention the checkpoint stores under `attention`, matching Bailing's
+# checkpoint nn.Module name `self.attention` (not `self.self_attn`).
+# Both the MLA component and the MoE FFN are bound DIRECTLY (not via
+# adapter wrappers) so block-level spec node paths are consistent with
+# the linear-attention block templates' paths, which share the same HF
+# tensor patterns.
+role: block
+description: "Bailing-MoE V2.5 full-attention layer: pre-norm + mla_attention_dense + moe_ffn_gate_expert_bias, naming its attention `attention` as the checkpoint does."
+
+graph:
+  layer:
+    module: null
+    op: pre_norm
+    in: x
+    params:
+      attn: mla_attention_dense
+      ffn:  moe_ffn_gate_expert_bias
+    inner_modules:
+      self_attn: attention
+outputs: [layer]

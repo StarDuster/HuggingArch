@@ -1,0 +1,79 @@
+# AWQ — aligned with `transformers.AwqConfig`.
+# HF official field set: bits, group_size, zero_point, backend,
+# modules_to_not_convert. Tensor names mirror GPTQ (`qweight`,
+# `qzeros`, `scales`) but no `g_idx`.
+description: "AWQ — qweight + scales + qzeros, no g_idx (transformers.AwqConfig)."
+
+# `bits` is the HF-canonical field. `w_bit` is autoawq's pre-HF
+# variant — kept as fallback because in-the-wild checkpoints from
+# the autoawq CLI still emit it.
+num_bits:
+  field_any: [bits, w_bit]
+badge: "AWQ W{num_bits}"
+
+# AWQ packs INT4 weights into I32 (8 elements per word).
+format_variants:
+  default:
+    packing_factor_per_num_bits: { 4: 8, 8: 4 }
+    storage_dtype: I32
+    # On-disk leaf is `qweight` (replaces `weight` after the dot
+    # separator); suffix is `.qweight` to keep the parent path intact.
+    weight_storage_suffix: ".qweight"
+
+# AWQ is always asymmetric INT (zero_point=true by default).
+numeric_format: [int_asym, int_sym]
+numeric_format_resolver:
+  - { when: "zero_point == true",  format: int_asym }
+  - { when: "zero_point == false", format: int_sym }
+  - { when: "true",                format: int_asym }   # AWQ default
+
+# AWQ uses per-group scales; group_size default 128.
+scale_strategy: [group]
+
+metadata_siblings:
+  - suffix: ".scales"
+    kind: scale
+    shape_per_strategy:
+      group: ["(in + group_size - 1) // group_size", "out"]
+    dtype: F16
+  - suffix: ".qzeros"
+    kind: zero_point
+    when: "zero_point == true"
+    shape_per_strategy:
+      group: ["(in + group_size - 1) // group_size", "out * num_bits // 32"]   # zeros packed 32/num_bits per I32
+    dtype: I32
+
+required_fields: [num_bits, group_size]
+valid_status: [compressed, frozen]
+
+# Defaults from `transformers.AwqConfig`. AWQ is asymmetric by default;
+# tools that want symmetric explicitly override `zero_point: false`.
+default_fields:
+  zero_point: true
+
+
+# A deployment's INT4 weight: 128-element groups. The format quantises the
+# weight only (W4A16): the kernel dequantises in place and runs at the
+# activation's dtype — there is no INT4 MMA column on the GPU sheet.
+deployment_fields:
+  num_bits: 4
+  group_size: 128
+activation_options:
+  w4a16: none
+
+# AWQ never quantises the activation: the kernel dequantises the INT4 weight
+# and runs at the activation's own dtype (W4A16), which is also why the
+# deployment option above offers only `w4a16`.
+activation:
+  reference:
+    - { when: "true", format: none }
+# Where "no activation quantisation" is read: vLLM serves these checkpoints
+# through the mixed-precision Marlin kernel — `AutoAWQMarlinLinearMethod.apply` hands
+# the activation to `self.kernel.apply_weights(layer, x, bias)`
+# (model_executor/layers/quantization/auto_awq.py:513-519), which calls
+# `apply_gptq_marlin_linear(input=x, ...)`
+# (kernels/linear/mixed_precision/marlin.py:223-240), and that function
+# quantises the activation only where an `input_dtype` of int8 / float8 is
+# configured (`marlin_quant_input`, layers/quantization/utils/marlin_utils.py
+# :698-744). An INT4 weight-only checkpoint configures none: the weight is
+# dequantised in-kernel and the matmul runs at the activation's own dtype.

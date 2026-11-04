@@ -1,0 +1,24 @@
+schema: huggingarch.claims/v1
+subject: dsv4_csa_attention
+axioms:
+  checks:
+  - kind: kv_growth
+    node: kv_concat
+    storage: windowed
+    bound: s_window
+    src: 'model.py::Attention.forward — the SWA latent KV is sliding-window: cached
+      positions = min(s_ctx, s_window), evicted past the window.'
+  - kind: kv_growth
+    node: compressor.pooled_out
+    storage: per_token
+    src: model.py::Compressor — the overlap KV compressor stores ⌈s_ctx/4⌉ positions
+      and keeps ALL of them (no eviction); the cache grows with the sequence, unlike
+      the SWA stream beside it.
+  - kind: kv_growth
+    node: indexer.compressor.pooled_out
+    storage: per_token
+    src: model.py::Indexer.__init__ `self.kv_cache = zeros(B, max_seq_len // compress_ratio,
+      index_head_dim)` — the lightning indexer scores ALL past compressed positions
+      to pick the sparse top-K (DSA attends BEYOND the local SWA window), so its FP8
+      key cache spans the full sequence (⌈s_ctx/4⌉ stored) and is NOT evicted by the attention
+      window.

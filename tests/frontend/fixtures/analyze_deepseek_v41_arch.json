@@ -1,0 +1,7127 @@
+{
+ "success": true,
+ "model_id": "deepseek-ai/DeepSeek-V4.1-Flash",
+ "dashboard": {
+  "total_params": 763205315794,
+  "total_active_params": 18199010257,
+  "total_params_formatted": "763.21B",
+  "total_active_params_formatted": "18.20B",
+  "total_decode_active_params": 17713741777,
+  "total_prefill_active_params": 8940199341,
+  "prefill_full_from": 2414,
+  "main_prefill_active_params": 8940199341,
+  "lookup_table_params": 196613849600,
+  "embedding_params": 661913600,
+  "non_embedding_params": 551218921584,
+  "flops_per_token": 35484080513,
+  "flops_per_token_g": "35.48G",
+  "total_flops": 35484080513,
+  "attention_flops": 11038000294,
+  "ffn_flops": 20834998379,
+  "attention_type": "SWA + CSA",
+  "attention_families": [
+   "SWA",
+   "MLA"
+  ],
+  "num_layers": 40,
+  "hidden_size": 5120,
+  "quant_metadata_params": 23563015184,
+  "quant_metadata_breakdown": [
+   {
+    "template": "dsv41_hc_block__attn-dsv4_swa_only_attention_ffn-dsv41_moe_vl",
+    "layer_count": 1,
+    "per_layer_params": 424831488,
+    "total_params": 424831488,
+    "leaves": [
+     {
+      "path": "attn.wq_a",
+      "op": "linear",
+      "params": 6400,
+      "params_symbolic": "d_model*d_q_lora",
+      "params_values": "5120*1280",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         40,
+         160
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "attn.wq_b",
+      "op": "linear",
+      "params": 40960,
+      "params_symbolic": "d_head*d_q_lora*n_heads",
+      "params_values": "512*1280*64",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         1024,
+         40
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "attn.wkv",
+      "op": "linear",
+      "params": 2560,
+      "params_symbolic": "d_head*d_model",
+      "params_values": "512*5120",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         16,
+         160
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "attn.wo_a",
+      "op": "per_head_linear",
+      "params": 32768,
+      "params_symbolic": "d_out_lora*d_out_lora_group_in*n_out_lora_groups",
+      "params_values": "1024*4096*8",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         256,
+         128
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "attn.wo_b",
+      "op": "linear",
+      "params": 40960,
+      "params_symbolic": "d_model*d_out_lora*n_out_lora_groups",
+      "params_values": "5120*1024*8",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         160,
+         256
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "ffn.experts.gate_proj",
+      "op": "linear",
+      "params": 141557760,
+      "params_symbolic": "d_ffn_expert*d_model*n_expert_copies",
+      "params_values": "2304*5120*384",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "out",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         384,
+         2304,
+         160
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "ffn.experts.up_proj",
+      "op": "linear",
+      "params": 141557760,
+      "params_symbolic": "d_ffn_expert*d_model*n_expert_copies",
+      "params_values": "2304*5120*384",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "out",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         384,
+         2304,
+         160
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "ffn.experts.down_proj",
+      "op": "linear",
+      "params": 141557760,
+      "params_symbolic": "d_ffn_expert*d_model*n_expert_copies",
+      "params_values": "2304*5120*384",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "out",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         384,
+         5120,
+         72
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "ffn.shared_experts.gate_proj",
+      "op": "linear",
+      "params": 11520,
+      "params_symbolic": "d_ffn_shared*d_model",
+      "params_values": "2304*5120",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         72,
+         160
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "ffn.shared_experts.up_proj",
+      "op": "linear",
+      "params": 11520,
+      "params_symbolic": "d_ffn_shared*d_model",
+      "params_values": "2304*5120",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         72,
+         160
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "ffn.shared_experts.down_proj",
+      "op": "linear",
+      "params": 11520,
+      "params_symbolic": "d_ffn_shared*d_model",
+      "params_values": "2304*5120",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         160,
+         72
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "template": "dsv41_hc_block_engram__attn-dsv4_swa_only_attention_ffn-dsv41_moe_vl",
+    "layer_count": 1,
+    "per_layer_params": 3497034432,
+    "total_params": 3497034432,
+    "leaves": [
+     {
+      "path": "engram.embed",
+      "op": "hash_embedding",
+      "params": 3072049344,
+      "params_symbolic": "d_ngram_head*n_vocab",
+      "params_values": "256*384006168",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 1 - 1) // 1",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         384006168,
+         8
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "engram.wkv",
+      "op": "linear",
+      "params": 153600,
+      "params_symbolic": "d_model*d_ngram_head*n_ngram_heads*(n_hidden_copies + 1)",
+      "params_values": "5120*256*24*(4 + 1)",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         800,
+         192
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "attn.wq_a",
+      "op": "linear",
+      "params": 6400,
+      "params_symbolic": "d_model*d_q_lora",
+      "params_values": "5120*1280",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         40,
+         160
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "attn.wq_b",
+      "op": "linear",
+      "params": 40960,
+      "params_symbolic": "d_head*d_q_lora*n_heads",
+      "params_values": "512*1280*64",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         1024,
+         40
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "attn.wkv",
+      "op": "linear",
+      "params": 2560,
+      "params_symbolic": "d_head*d_model",
+      "params_values": "512*5120",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         16,
+         160
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "attn.wo_a",
+      "op": "per_head_linear",
+      "params": 32768,
+      "params_symbolic": "d_out_lora*d_out_lora_group_in*n_out_lora_groups",
+      "params_values": "1024*4096*8",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         256,
+         128
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "attn.wo_b",
+      "op": "linear",
+      "params": 40960,
+      "params_symbolic": "d_model*d_out_lora*n_out_lora_groups",
+      "params_values": "5120*1024*8",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         160,
+         256
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "ffn.experts.gate_proj",
+      "op": "linear",
+      "params": 141557760,
+      "params_symbolic": "d_ffn_expert*d_model*n_expert_copies",
+      "params_values": "2304*5120*384",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "out",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         384,
+         2304,
+         160
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "ffn.experts.up_proj",
+      "op": "linear",
+      "params": 141557760,
+      "params_symbolic": "d_ffn_expert*d_model*n_expert_copies",
+      "params_values": "2304*5120*384",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "out",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         384,
+         2304,
+         160
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "ffn.experts.down_proj",
+      "op": "linear",
+      "params": 141557760,
+      "params_symbolic": "d_ffn_expert*d_model*n_expert_copies",
+      "params_values": "2304*5120*384",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "out",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         384,
+         5120,
+         72
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "ffn.shared_experts.gate_proj",
+      "op": "linear",
+      "params": 11520,
+      "params_symbolic": "d_ffn_shared*d_model",
+      "params_values": "2304*5120",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         72,
+         160
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "ffn.shared_experts.up_proj",
+      "op": "linear",
+      "params": 11520,
+      "params_symbolic": "d_ffn_shared*d_model",
+      "params_values": "2304*5120",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         72,
+         160
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "ffn.shared_experts.down_proj",
+      "op": "linear",
+      "params": 11520,
+      "params_symbolic": "d_ffn_shared*d_model",
+      "params_values": "2304*5120",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         160,
+         72
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "template": "dsv41_hc_block_engram__attn-csa2_attention__compressed-csa2_compress_store_compressor-csa2_compressor_gated_indexer-csa2_indexer_ffn-dsv41_moe_vl",
+    "layer_count": 1,
+    "per_layer_params": 3497123664,
+    "total_params": 3497123664,
+    "leaves": [
+     {
+      "path": "engram.embed",
+      "op": "hash_embedding",
+      "params": 3072133456,
+      "params_symbolic": "d_ngram_head*n_vocab",
+      "params_values": "256*384016682",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 1 - 1) // 1",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         384016682,
+         8
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "engram.wkv",
+      "op": "linear",
+      "params": 153600,
+      "params_symbolic": "d_model*d_ngram_head*n_ngram_heads*(n_hidden_copies + 1)",
+      "params_values": "5120*256*24*(4 + 1)",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         800,
+         192
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "attn.wq_a",
+      "op": "linear",
+      "params": 6400,
+      "params_symbolic": "d_model*d_q_lora",
+      "params_values": "5120*1280",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         40,
+         160
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "attn.wq_b",
+      "op": "linear",
+      "params": 40960,
+      "params_symbolic": "d_head*d_q_lora*n_heads",
+      "params_values": "512*1280*64",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         1024,
+         40
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "attn.wkv",
+      "op": "linear",
+      "params": 2560,
+      "params_symbolic": "d_head*d_model",
+      "params_values": "512*5120",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         16,
+         160
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "attn.indexer.score.wq_b",
+      "op": "linear",
+      "params": 5120,
+      "params_symbolic": "d_indexer_head*d_q_lora*n_indexer_heads",
+      "params_values": "128*1280*32",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         128,
+         40
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "attn.wo_a",
+      "op": "per_head_linear",
+      "params": 32768,
+      "params_symbolic": "d_out_lora*d_out_lora_group_in*n_out_lora_groups",
+      "params_values": "1024*4096*8",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         256,
+         128
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "attn.wo_b",
+      "op": "linear",
+      "params": 40960,
+      "params_symbolic": "d_model*d_out_lora*n_out_lora_groups",
+      "params_values": "5120*1024*8",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         160,
+         256
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "ffn.experts.gate_proj",
+      "op": "linear",
+      "params": 141557760,
+      "params_symbolic": "d_ffn_expert*d_model*n_expert_copies",
+      "params_values": "2304*5120*384",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "out",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         384,
+         2304,
+         160
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "ffn.experts.up_proj",
+      "op": "linear",
+      "params": 141557760,
+      "params_symbolic": "d_ffn_expert*d_model*n_expert_copies",
+      "params_values": "2304*5120*384",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "out",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         384,
+         2304,
+         160
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "ffn.experts.down_proj",
+      "op": "linear",
+      "params": 141557760,
+      "params_symbolic": "d_ffn_expert*d_model*n_expert_copies",
+      "params_values": "2304*5120*384",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "out",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         384,
+         5120,
+         72
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "ffn.shared_experts.gate_proj",
+      "op": "linear",
+      "params": 11520,
+      "params_symbolic": "d_ffn_shared*d_model",
+      "params_values": "2304*5120",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         72,
+         160
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "ffn.shared_experts.up_proj",
+      "op": "linear",
+      "params": 11520,
+      "params_symbolic": "d_ffn_shared*d_model",
+      "params_values": "2304*5120",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         72,
+         160
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "ffn.shared_experts.down_proj",
+      "op": "linear",
+      "params": 11520,
+      "params_symbolic": "d_ffn_shared*d_model",
+      "params_values": "2304*5120",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         160,
+         72
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "template": "dsv41_hc_block__attn-csa2_attention__compressed-csa2_compress_store_compressor-csa2_compressor_gated_indexer-csa2_indexer_ffn-dsv41_moe_vl",
+    "layer_count": 2,
+    "per_layer_params": 424836608,
+    "total_params": 849673216,
+    "leaves": [
+     {
+      "path": "attn.wq_a",
+      "op": "linear",
+      "params": 6400,
+      "params_symbolic": "d_model*d_q_lora",
+      "params_values": "5120*1280",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         40,
+         160
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "attn.wq_b",
+      "op": "linear",
+      "params": 40960,
+      "params_symbolic": "d_head*d_q_lora*n_heads",
+      "params_values": "512*1280*64",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         1024,
+         40
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "attn.wkv",
+      "op": "linear",
+      "params": 2560,
+      "params_symbolic": "d_head*d_model",
+      "params_values": "512*5120",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         16,
+         160
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "attn.indexer.score.wq_b",
+      "op": "linear",
+      "params": 5120,
+      "params_symbolic": "d_indexer_head*d_q_lora*n_indexer_heads",
+      "params_values": "128*1280*32",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         128,
+         40
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "attn.wo_a",
+      "op": "per_head_linear",
+      "params": 32768,
+      "params_symbolic": "d_out_lora*d_out_lora_group_in*n_out_lora_groups",
+      "params_values": "1024*4096*8",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         256,
+         128
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "attn.wo_b",
+      "op": "linear",
+      "params": 40960,
+      "params_symbolic": "d_model*d_out_lora*n_out_lora_groups",
+      "params_values": "5120*1024*8",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         160,
+         256
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "ffn.experts.gate_proj",
+      "op": "linear",
+      "params": 141557760,
+      "params_symbolic": "d_ffn_expert*d_model*n_expert_copies",
+      "params_values": "2304*5120*384",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "out",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         384,
+         2304,
+         160
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "ffn.experts.up_proj",
+      "op": "linear",
+      "params": 141557760,
+      "params_symbolic": "d_ffn_expert*d_model*n_expert_copies",
+      "params_values": "2304*5120*384",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "out",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         384,
+         2304,
+         160
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "ffn.experts.down_proj",
+      "op": "linear",
+      "params": 141557760,
+      "params_symbolic": "d_ffn_expert*d_model*n_expert_copies",
+      "params_values": "2304*5120*384",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "out",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         384,
+         5120,
+         72
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "ffn.shared_experts.gate_proj",
+      "op": "linear",
+      "params": 11520,
+      "params_symbolic": "d_ffn_shared*d_model",
+      "params_values": "2304*5120",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         72,
+         160
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "ffn.shared_experts.up_proj",
+      "op": "linear",
+      "params": 11520,
+      "params_symbolic": "d_ffn_shared*d_model",
+      "params_values": "2304*5120",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         72,
+         160
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "ffn.shared_experts.down_proj",
+      "op": "linear",
+      "params": 11520,
+      "params_symbolic": "d_ffn_shared*d_model",
+      "params_values": "2304*5120",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         160,
+         72
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "template": "dsv41_hc_block__attn-csa2_attention__compressed-csa2_compress_store_compressor-csa2_compressor_plain_indexer-csa2_indexer_candidate_source_ffn-dsv41_moe_vl",
+    "layer_count": 1,
+    "per_layer_params": 424836608,
+    "total_params": 424836608,
+    "leaves": [
+     {
+      "path": "attn.wq_a",
+      "op": "linear",
+      "params": 6400,
+      "params_symbolic": "d_model*d_q_lora",
+      "params_values": "5120*1280",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         40,
+         160
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "attn.wq_b",
+      "op": "linear",
+      "params": 40960,
+      "params_symbolic": "d_head*d_q_lora*n_heads",
+      "params_values": "512*1280*64",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         1024,
+         40
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "attn.wkv",
+      "op": "linear",
+      "params": 2560,
+      "params_symbolic": "d_head*d_model",
+      "params_values": "512*5120",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         16,
+         160
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "attn.indexer.score.wq_b",
+      "op": "linear",
+      "params": 5120,
+      "params_symbolic": "d_indexer_head*d_q_lora*n_indexer_heads",
+      "params_values": "128*1280*32",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         128,
+         40
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "attn.wo_a",
+      "op": "per_head_linear",
+      "params": 32768,
+      "params_symbolic": "d_out_lora*d_out_lora_group_in*n_out_lora_groups",
+      "params_values": "1024*4096*8",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         256,
+         128
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "attn.wo_b",
+      "op": "linear",
+      "params": 40960,
+      "params_symbolic": "d_model*d_out_lora*n_out_lora_groups",
+      "params_values": "5120*1024*8",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         160,
+         256
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "ffn.experts.gate_proj",
+      "op": "linear",
+      "params": 141557760,
+      "params_symbolic": "d_ffn_expert*d_model*n_expert_copies",
+      "params_values": "2304*5120*384",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "out",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         384,
+         2304,
+         160
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "ffn.experts.up_proj",
+      "op": "linear",
+      "params": 141557760,
+      "params_symbolic": "d_ffn_expert*d_model*n_expert_copies",
+      "params_values": "2304*5120*384",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "out",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         384,
+         2304,
+         160
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "ffn.experts.down_proj",
+      "op": "linear",
+      "params": 141557760,
+      "params_symbolic": "d_ffn_expert*d_model*n_expert_copies",
+      "params_values": "2304*5120*384",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "out",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         384,
+         5120,
+         72
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "ffn.shared_experts.gate_proj",
+      "op": "linear",
+      "params": 11520,
+      "params_symbolic": "d_ffn_shared*d_model",
+      "params_values": "2304*5120",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         72,
+         160
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "ffn.shared_experts.up_proj",
+      "op": "linear",
+      "params": 11520,
+      "params_symbolic": "d_ffn_shared*d_model",
+      "params_values": "2304*5120",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         72,
+         160
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "ffn.shared_experts.down_proj",
+      "op": "linear",
+      "params": 11520,
+      "params_symbolic": "d_ffn_shared*d_model",
+      "params_values": "2304*5120",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         160,
+         72
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "template": "dsv41_hc_block__attn-csa2_attention__compressed-csa2_compress_borrowed_compressor-csa2_shared_latent_indexer-csa2_indexer_shared_keys_ffn-dsv41_moe_vl",
+    "layer_count": 4,
+    "per_layer_params": 424836608,
+    "total_params": 1699346432,
+    "leaves": [
+     {
+      "path": "attn.wq_a",
+      "op": "linear",
+      "params": 6400,
+      "params_symbolic": "d_model*d_q_lora",
+      "params_values": "5120*1280",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         40,
+         160
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "attn.wq_b",
+      "op": "linear",
+      "params": 40960,
+      "params_symbolic": "d_head*d_q_lora*n_heads",
+      "params_values": "512*1280*64",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         1024,
+         40
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "attn.wkv",
+      "op": "linear",
+      "params": 2560,
+      "params_symbolic": "d_head*d_model",
+      "params_values": "512*5120",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         16,
+         160
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "attn.indexer.score.wq_b",
+      "op": "linear",
+      "params": 5120,
+      "params_symbolic": "d_indexer_head*d_q_lora*n_indexer_heads",
+      "params_values": "128*1280*32",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         128,
+         40
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "attn.wo_a",
+      "op": "per_head_linear",
+      "params": 32768,
+      "params_symbolic": "d_out_lora*d_out_lora_group_in*n_out_lora_groups",
+      "params_values": "1024*4096*8",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         256,
+         128
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "attn.wo_b",
+      "op": "linear",
+      "params": 40960,
+      "params_symbolic": "d_model*d_out_lora*n_out_lora_groups",
+      "params_values": "5120*1024*8",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         160,
+         256
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "ffn.experts.gate_proj",
+      "op": "linear",
+      "params": 141557760,
+      "params_symbolic": "d_ffn_expert*d_model*n_expert_copies",
+      "params_values": "2304*5120*384",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "out",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         384,
+         2304,
+         160
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "ffn.experts.up_proj",
+      "op": "linear",
+      "params": 141557760,
+      "params_symbolic": "d_ffn_expert*d_model*n_expert_copies",
+      "params_values": "2304*5120*384",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "out",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         384,
+         2304,
+         160
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "ffn.experts.down_proj",
+      "op": "linear",
+      "params": 141557760,
+      "params_symbolic": "d_ffn_expert*d_model*n_expert_copies",
+      "params_values": "2304*5120*384",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "out",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         384,
+         5120,
+         72
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "ffn.shared_experts.gate_proj",
+      "op": "linear",
+      "params": 11520,
+      "params_symbolic": "d_ffn_shared*d_model",
+      "params_values": "2304*5120",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         72,
+         160
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "ffn.shared_experts.up_proj",
+      "op": "linear",
+      "params": 11520,
+      "params_symbolic": "d_ffn_shared*d_model",
+      "params_values": "2304*5120",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         72,
+         160
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "ffn.shared_experts.down_proj",
+      "op": "linear",
+      "params": 11520,
+      "params_symbolic": "d_ffn_shared*d_model",
+      "params_values": "2304*5120",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         160,
+         72
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "template": "dsv41_hc_block__attn-csa2_attention__compressed-csa2_compress_borrowed_compressor-csa2_shared_latent_indexer-csa2_shared_selection_ffn-dsv41_moe_vl",
+    "layer_count": 15,
+    "per_layer_params": 424831488,
+    "total_params": 6372472320,
+    "leaves": [
+     {
+      "path": "attn.wq_a",
+      "op": "linear",
+      "params": 6400,
+      "params_symbolic": "d_model*d_q_lora",
+      "params_values": "5120*1280",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         40,
+         160
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "attn.wq_b",
+      "op": "linear",
+      "params": 40960,
+      "params_symbolic": "d_head*d_q_lora*n_heads",
+      "params_values": "512*1280*64",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         1024,
+         40
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "attn.wkv",
+      "op": "linear",
+      "params": 2560,
+      "params_symbolic": "d_head*d_model",
+      "params_values": "512*5120",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         16,
+         160
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "attn.wo_a",
+      "op": "per_head_linear",
+      "params": 32768,
+      "params_symbolic": "d_out_lora*d_out_lora_group_in*n_out_lora_groups",
+      "params_values": "1024*4096*8",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         256,
+         128
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "attn.wo_b",
+      "op": "linear",
+      "params": 40960,
+      "params_symbolic": "d_model*d_out_lora*n_out_lora_groups",
+      "params_values": "5120*1024*8",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         160,
+         256
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "ffn.experts.gate_proj",
+      "op": "linear",
+      "params": 141557760,
+      "params_symbolic": "d_ffn_expert*d_model*n_expert_copies",
+      "params_values": "2304*5120*384",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "out",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         384,
+         2304,
+         160
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "ffn.experts.up_proj",
+      "op": "linear",
+      "params": 141557760,
+      "params_symbolic": "d_ffn_expert*d_model*n_expert_copies",
+      "params_values": "2304*5120*384",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "out",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         384,
+         2304,
+         160
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "ffn.experts.down_proj",
+      "op": "linear",
+      "params": 141557760,
+      "params_symbolic": "d_ffn_expert*d_model*n_expert_copies",
+      "params_values": "2304*5120*384",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "out",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         384,
+         5120,
+         72
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "ffn.shared_experts.gate_proj",
+      "op": "linear",
+      "params": 11520,
+      "params_symbolic": "d_ffn_shared*d_model",
+      "params_values": "2304*5120",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         72,
+         160
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "ffn.shared_experts.up_proj",
+      "op": "linear",
+      "params": 11520,
+      "params_symbolic": "d_ffn_shared*d_model",
+      "params_values": "2304*5120",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         72,
+         160
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "ffn.shared_experts.down_proj",
+      "op": "linear",
+      "params": 11520,
+      "params_symbolic": "d_ffn_shared*d_model",
+      "params_values": "2304*5120",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         160,
+         72
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "template": "dspark_stage_first",
+    "layer_count": 1,
+    "per_layer_params": 141792768,
+    "total_params": 141792768,
+    "leaves": [
+     {
+      "path": "main_proj",
+      "op": "linear",
+      "params": 76800,
+      "params_symbolic": "3*d_model**2",
+      "params_values": "3*5120**2",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         160,
+         480
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "attn.wkv",
+      "op": "linear",
+      "params": 2560,
+      "params_symbolic": "d_head*d_model",
+      "params_values": "512*5120",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         16,
+         160
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "attn.wq_a",
+      "op": "linear",
+      "params": 6400,
+      "params_symbolic": "d_model*d_q_lora",
+      "params_values": "5120*1280",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         40,
+         160
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "attn.wq_b",
+      "op": "linear",
+      "params": 40960,
+      "params_symbolic": "d_head*d_q_lora*n_heads",
+      "params_values": "512*1280*64",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         1024,
+         40
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "attn.wo_a",
+      "op": "per_head_linear",
+      "params": 32768,
+      "params_symbolic": "d_out_lora*d_out_lora_group_in*n_out_lora_groups",
+      "params_values": "1024*4096*8",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         256,
+         128
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "attn.wo_b",
+      "op": "linear",
+      "params": 40960,
+      "params_symbolic": "d_model*d_out_lora*n_out_lora_groups",
+      "params_values": "5120*1024*8",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         160,
+         256
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "ffn.experts.gate_proj",
+      "op": "linear",
+      "params": 47185920,
+      "params_symbolic": "d_ffn_expert*d_model*n_expert_copies",
+      "params_values": "2304*5120*128",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "out",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         128,
+         2304,
+         160
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "ffn.experts.up_proj",
+      "op": "linear",
+      "params": 47185920,
+      "params_symbolic": "d_ffn_expert*d_model*n_expert_copies",
+      "params_values": "2304*5120*128",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "out",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         128,
+         2304,
+         160
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "ffn.experts.down_proj",
+      "op": "linear",
+      "params": 47185920,
+      "params_symbolic": "d_ffn_expert*d_model*n_expert_copies",
+      "params_values": "2304*5120*128",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "out",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         128,
+         5120,
+         72
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "ffn.shared_experts.gate_proj",
+      "op": "linear",
+      "params": 11520,
+      "params_symbolic": "d_ffn_shared*d_model",
+      "params_values": "2304*5120",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         72,
+         160
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "ffn.shared_experts.up_proj",
+      "op": "linear",
+      "params": 11520,
+      "params_symbolic": "d_ffn_shared*d_model",
+      "params_values": "2304*5120",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         72,
+         160
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "ffn.shared_experts.down_proj",
+      "op": "linear",
+      "params": 11520,
+      "params_symbolic": "d_ffn_shared*d_model",
+      "params_values": "2304*5120",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         160,
+         72
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "template": "dspark_stage_last",
+    "layer_count": 1,
+    "per_layer_params": 141715968,
+    "total_params": 141715968,
+    "leaves": [
+     {
+      "path": "attn.wkv",
+      "op": "linear",
+      "params": 2560,
+      "params_symbolic": "d_head*d_model",
+      "params_values": "512*5120",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         16,
+         160
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "attn.wq_a",
+      "op": "linear",
+      "params": 6400,
+      "params_symbolic": "d_model*d_q_lora",
+      "params_values": "5120*1280",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         40,
+         160
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "attn.wq_b",
+      "op": "linear",
+      "params": 40960,
+      "params_symbolic": "d_head*d_q_lora*n_heads",
+      "params_values": "512*1280*64",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         1024,
+         40
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "attn.wo_a",
+      "op": "per_head_linear",
+      "params": 32768,
+      "params_symbolic": "d_out_lora*d_out_lora_group_in*n_out_lora_groups",
+      "params_values": "1024*4096*8",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         256,
+         128
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "attn.wo_b",
+      "op": "linear",
+      "params": 40960,
+      "params_symbolic": "d_model*d_out_lora*n_out_lora_groups",
+      "params_values": "5120*1024*8",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         160,
+         256
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "ffn.experts.gate_proj",
+      "op": "linear",
+      "params": 47185920,
+      "params_symbolic": "d_ffn_expert*d_model*n_expert_copies",
+      "params_values": "2304*5120*128",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "out",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         128,
+         2304,
+         160
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "ffn.experts.up_proj",
+      "op": "linear",
+      "params": 47185920,
+      "params_symbolic": "d_ffn_expert*d_model*n_expert_copies",
+      "params_values": "2304*5120*128",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "out",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         128,
+         2304,
+         160
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "ffn.experts.down_proj",
+      "op": "linear",
+      "params": 47185920,
+      "params_symbolic": "d_ffn_expert*d_model*n_expert_copies",
+      "params_values": "2304*5120*128",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "out",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         128,
+         5120,
+         72
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "ffn.shared_experts.gate_proj",
+      "op": "linear",
+      "params": 11520,
+      "params_symbolic": "d_ffn_shared*d_model",
+      "params_values": "2304*5120",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         72,
+         160
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "ffn.shared_experts.up_proj",
+      "op": "linear",
+      "params": 11520,
+      "params_symbolic": "d_ffn_shared*d_model",
+      "params_values": "2304*5120",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         72,
+         160
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "ffn.shared_experts.down_proj",
+      "op": "linear",
+      "params": 11520,
+      "params_symbolic": "d_ffn_shared*d_model",
+      "params_values": "2304*5120",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         160,
+         72
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "template": "dspark_stage_mid",
+    "layer_count": 1,
+    "per_layer_params": 141715968,
+    "total_params": 141715968,
+    "leaves": [
+     {
+      "path": "attn.wkv",
+      "op": "linear",
+      "params": 2560,
+      "params_symbolic": "d_head*d_model",
+      "params_values": "512*5120",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         16,
+         160
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "attn.wq_a",
+      "op": "linear",
+      "params": 6400,
+      "params_symbolic": "d_model*d_q_lora",
+      "params_values": "5120*1280",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         40,
+         160
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "attn.wq_b",
+      "op": "linear",
+      "params": 40960,
+      "params_symbolic": "d_head*d_q_lora*n_heads",
+      "params_values": "512*1280*64",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         1024,
+         40
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "attn.wo_a",
+      "op": "per_head_linear",
+      "params": 32768,
+      "params_symbolic": "d_out_lora*d_out_lora_group_in*n_out_lora_groups",
+      "params_values": "1024*4096*8",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         256,
+         128
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "attn.wo_b",
+      "op": "linear",
+      "params": 40960,
+      "params_symbolic": "d_model*d_out_lora*n_out_lora_groups",
+      "params_values": "5120*1024*8",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         160,
+         256
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "ffn.experts.gate_proj",
+      "op": "linear",
+      "params": 47185920,
+      "params_symbolic": "d_ffn_expert*d_model*n_expert_copies",
+      "params_values": "2304*5120*128",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "out",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         128,
+         2304,
+         160
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "ffn.experts.up_proj",
+      "op": "linear",
+      "params": 47185920,
+      "params_symbolic": "d_ffn_expert*d_model*n_expert_copies",
+      "params_values": "2304*5120*128",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "out",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         128,
+         2304,
+         160
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "ffn.experts.down_proj",
+      "op": "linear",
+      "params": 47185920,
+      "params_symbolic": "d_ffn_expert*d_model*n_expert_copies",
+      "params_values": "2304*5120*128",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "out",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         128,
+         5120,
+         72
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "ffn.shared_experts.gate_proj",
+      "op": "linear",
+      "params": 11520,
+      "params_symbolic": "d_ffn_shared*d_model",
+      "params_values": "2304*5120",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         72,
+         160
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "ffn.shared_experts.up_proj",
+      "op": "linear",
+      "params": 11520,
+      "params_symbolic": "d_ffn_shared*d_model",
+      "params_values": "2304*5120",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         72,
+         160
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     },
+     {
+      "path": "ffn.shared_experts.down_proj",
+      "op": "linear",
+      "params": 11520,
+      "params_symbolic": "d_ffn_shared*d_model",
+      "params_values": "2304*5120",
+      "scales": [
+       {
+        "suffix": ".scale",
+        "kind": "scale",
+        "axes": [
+         "(out + 32 - 1) // 32",
+         "(in + 32 - 1) // 32"
+        ],
+        "shape": [
+         160,
+         72
+        ],
+        "dtype": "F8_E8M0FNU"
+       }
+      ]
+     }
+    ]
+   }
+  ],
+  "quant_metadata_scale_dtype": "ue8m0",
+  "quant_metadata_bytes": 23563015184,
+  "quant_metadata_formats": [
+   {
+    "dtype": "F8_E8M0FNU",
+    "bytes": 23563015184
+   }
+  ],
+  "quant_metadata_bytes_per_scale": 1.0,
+  "main_total_params": 748494684784,
+  "main_active_params": 16792514671,
+  "main_flops": 32299101830,
+  "aux_params": {
+   "vision": 485268480,
+   "mtp": 14225362530
+  },
+  "aux_active_params": {
+   "vision": 485268480,
+   "mtp": 921227106
+  },
+  "aux_flops": {
+   "mtp": 3184978683
+  },
+  "hf_model_storage_bytes": 486723007816.0,
+  "hf_quantization_metadata_bytes": 23563015184.0,
+  "hf_checkpoint_storage_bytes": 510286023000.0,
+  "spec_metadata_bytes": 23563015184,
+  "spec_checkpoint_bytes": 510286023000,
+  "metadata_storage_diff": 0,
+  "metadata_storage_diff_pct": 0.0,
+  "all_tensor_diff": 0,
+  "all_tensor_diff_pct": 0.0,
+  "checkpoint_anchored": true,
+  "hf_index_total_size": 510286023000,
+  "measured_tensor_diff": 0,
+  "measured_tensor_diff_pct": 0.0,
+  "weight_bytes": 510286023000,
+  "param_bytes": 486723007816,
+  "checkpoint_copies": [],
+  "spec_storage_bytes": 486723007816,
+  "storage_diff": 0.0,
+  "storage_diff_pct": 0.0,
+  "spec_unresolved_note": null,
+  "dtype_bytes": 0.5,
+  "weight_dtype": "MXFP4",
+  "precision": {
+   "profile_key": "857e7a8b364d",
+   "label": "As shipped",
+   "preset": "as_shipped",
+   "canonical": {
+    "weights": [],
+    "activations": [],
+    "compute": [],
+    "cache": [],
+    "layouts": []
+   }
+  },
+  "moe_enabled": true,
+  "moe_layers": 40,
+  "num_dense_ffn_layers": 0,
+  "vocab_size": 129280,
+  "aux_total_params": 14225362530,
+  "encoder_params": {
+   "vision": 485268480
+  },
+  "encoder_stacks": {
+   "vision": "vision"
+  },
+  "encoder_flops_per_item": {
+   "vision": {
+    "aux_kind": "vision",
+    "inputs": [
+     "pixel_values"
+    ],
+    "variables": [
+     "img_h",
+     "img_w"
+    ],
+    "symbolic": "2*B*bias*d_model*n_img*floor(floor(img_h/s_patch)*floor(img_w/s_patch)/n_spatial_merge^2) + B*bias*d_vis_model*n_img*floor(img_h/s_patch)*floor(img_w/s_patch) + 2*B*d_model^2*n_img*floor(floor(img_h/s_patch)*floor(img_w/s_patch)/n_spatial_merge^2) + 2*B*d_model*d_vis_model*n_img*n_spatial_merge^2*floor(floor(img_h/s_patch)*floor(img_w/s_patch)/n_spatial_merge^2) + 8*B*d_model*n_img*floor(floor(img_h/s_patch)*floor(img_w/s_patch)/n_spatial_merge^2) + 2*B*d_vis_model*n_img*n_vis_channels*s_patch^2*temporal*floor(img_h/s_patch)*floor(img_w/s_patch) + 2*B*d_vis_model*n_img*floor(img_h/s_patch)*floor(img_w/s_patch) + n_vis_layers*(2*B*bias*d_vis_ffn*n_img*floor(img_h/s_patch)*floor(img_w/s_patch) + 3*B*bias*d_vis_head*n_img*n_vis_heads*floor(img_h/s_patch)*floor(img_w/s_patch) + 2*B*bias*d_vis_model*n_img*floor(img_h/s_patch)*floor(img_w/s_patch) + 6*B*d_vis_ffn*d_vis_model*n_img*floor(img_h/s_patch)*floor(img_w/s_patch) + 5*B*d_vis_ffn*n_img*floor(img_h/s_patch)*floor(img_w/s_patch) + 8*B*d_vis_head*d_vis_model*n_img*n_vis_heads*floor(img_h/s_patch)*floor(img_w/s_patch) + 4*B*d_vis_head*n_img*n_vis_heads*floor(img_h/s_patch)^2*floor(img_w/s_patch)^2 + 6*B*d_vis_head*n_img*n_vis_heads*floor(img_h/s_patch)*floor(img_w/s_patch) + 6*B*d_vis_model*n_img*floor(img_h/s_patch)*floor(img_w/s_patch) + 5*B*n_img*n_vis_heads*floor(img_h/s_patch)^2*floor(img_w/s_patch)^2)",
+    "per_item": "133632*floor(img_h/14)^2*floor(img_w/14)^2 + 824265728*floor(img_h/14)*floor(img_w/14) + 146851840*floor(floor(img_h/14)*floor(img_w/14)/9)",
+    "per_item_readable": "133,632\u00b7\u230aimg_h/14\u230b^2\u00b7\u230aimg_w/14\u230b^2 + 824,265,728\u00b7\u230aimg_h/14\u230b\u00b7\u230aimg_w/14\u230b + 146,851,840\u00b7\u230a\u230aimg_h/14\u230b\u00b7\u230aimg_w/14\u230b/9\u230b",
+    "latex": "133632 \\left\\lfloor{\\frac{img_{h}}{14}}\\right\\rfloor^{2} \\left\\lfloor{\\frac{img_{w}}{14}}\\right\\rfloor^{2} + 824265728 \\left\\lfloor{\\frac{img_{h}}{14}}\\right\\rfloor \\left\\lfloor{\\frac{img_{w}}{14}}\\right\\rfloor + 146851840 \\left\\lfloor{\\frac{\\left\\lfloor{\\frac{img_{h}}{14}}\\right\\rfloor \\left\\lfloor{\\frac{img_{w}}{14}}\\right\\rfloor}{9}}\\right\\rfloor",
+    "description": "Encoder FLOPs per media item (encode phase)"
+   }
+  },
+  "encoder_total_params": 485268480,
+  "weight_totals": {
+   "lm": {
+    "weight_bytes": 509315486040,
+    "param_bytes": 485752470856,
+    "storage_by_dtype": [
+     {
+      "dtype": "MXFP4",
+      "bytes": 278585671680
+     },
+     {
+      "dtype": "F8_E4M3",
+      "bytes": 204015223296
+     },
+     {
+      "dtype": "scales",
+      "bytes": 23563015184
+     },
+     {
+      "dtype": "BF16",
+      "bytes": 2982346752
+     },
+     {
+      "dtype": "F32",
+      "bytes": 169229128
+     }
+    ]
+   },
+   "with_encoders": {
+    "weight_bytes": 510286023000,
+    "param_bytes": 486723007816,
+    "storage_by_dtype": [
+     {
+      "dtype": "MXFP4",
+      "bytes": 278585671680
+     },
+     {
+      "dtype": "F8_E4M3",
+      "bytes": 204015223296
+     },
+     {
+      "dtype": "scales",
+      "bytes": 23563015184
+     },
+     {
+      "dtype": "BF16",
+      "bytes": 3952883712
+     },
+     {
+      "dtype": "F32",
+      "bytes": 169229128
+     }
+    ]
+   }
+  },
+  "moe_active_experts": 6,
+  "moe_total_experts": 384
+ },
+ "layer_groups": [],
+ "block_graph": {
+  "dsv41_vision_tower": {
+   "inputs": [
+    "x"
+   ],
+   "outputs": [
+    "span_rows"
+   ],
+   "reads": [],
+   "nodes": [
+    {
+     "id": "x",
+     "op": "input",
+     "label": "input",
+     "style": "io",
+     "inputs": [],
+     "is_source": true,
+     "weight_bytes": 0,
+     "out_bytes": 0,
+     "access_bytes": 0,
+     "arithmetic_intensity": null,
+     "tensor_out": "[0,1,588]"
+    },
+    {
+     "id": "dsv41_vision_tower@vision|vision.patch_embed.proj",
+     "uid": 17,
+     "op": "linear",
+     "label": "vision.patch_embed.proj",
+     "role": null,
+     "tensor_name": "vision.patch_embed.proj",
+     "style": "op",
+     "inputs": [
+      "x"
+     ],
+     "input_ports": [
+      ""
+     ],
+     "detail": "W:588\u21921,024",
+     "has_bias": true,
+     "tensor_in": "[0,1,588]",
+     "tensor_out": "[0,1,1024]",
+     "flops": 0,
+     "params": 603136,
+     "storage_bytes": 1206272,
+     "flops_symbolic": "B*bias*d_vis_model*n_img*floor(img_h/s_patch)*floor(img_w/s_patch) + 2*B*d_vis_model*n_img*n_vis_channels*s_patch**2*temporal*floor(img_h/s_patch)*floor(img_w/s_patch)",
+     "flops_law": "B*bias*d_vis_model*n_img*floor(img_h/s_patch)*floor(img_w/s_patch) + 2*B*d_vis_model*n_img*n_vis_channels*s_patch**2*temporal*floor(img_h/s_patch)*floor(img_w/s_patch)",
+     "flops_values": "0",
+     "params_symbolic": "d_vis_model*n_vis_channels*s_patch**2 + d_vis_model",
+     "params_values": "1024*3*14**2 + 1024",
+     "tensor_in_symbolic": "[B*n_img,floor(img_h/s_patch)*floor(img_w/s_patch),n_vis_channels*s_patch**2*temporal]",
+     "tensor_out_symbolic": "[B*n_img,floor(img_h/s_patch)*floor(img_w/s_patch),d_vis_model]",
+     "weight_dtype": "BF16",
+     "weight_dtype_bytes": 2.0,
+     "_matched_tensor": "vision.patch_embed.proj.weight",
+     "act_dtype_bytes": 2.0,
+     "out_bytes": 0,
+     "weight_bytes": 1206272,
+     "access_bytes": 1206272,
+     "arithmetic_intensity": null
+    },
+    {
+     "id": "dsv41_vision_tower@vision|vision.blocks",
+     "uid": 18,
+     "op": "dsv41_vision_block",
+     "label": "vision.blocks",
+     "role": "aux_block",
+     "tensor_name": "vision.blocks",
+     "style": "op",
+     "inputs": [
+      "dsv41_vision_tower@vision|vision.patch_embed.proj"
+     ],
+     "input_ports": [
+      ""
+     ],
+     "op_formula_derived": "norm1 = rmsnorm(x)\nattn.wqkv = linear(norm1)\nattn.q_flat = slice(attn.wqkv)\nattn.q_split = head_split(attn.q_flat)\nattn.q_rope = rope_2d(attn.q_split)\nattn.k_flat = slice(attn.wqkv)\nattn.k_split = head_split(attn.k_flat)\nattn.k_rope = rope_2d(attn.k_split)\nattn.score = attention_score(attn.q_rope, attn.k_rope)\nattn.softmax = softmax(attn.score)\nattn.v_flat = slice(attn.wqkv)\nattn.v_split = head_split(attn.v_flat)\nattn.apply = attention_apply(attn.softmax, attn.v_split)\nattn.o_merge = head_merge(attn.apply)\nattn.wo = linear(attn.o_merge)\nattn_residual = add(x, attn.wo)\nnorm2 = rmsnorm(attn_residual)\nmlp.w1 = linear(norm2)\nmlp.gate = slice(mlp.w1)\nmlp.act = silu(mlp.gate)\nmlp.up = slice(mlp.w1)\nmlp.gated = mul(mlp.act, mlp.up)\nmlp.w2 = linear(mlp.gated)\nout = add(attn_residual, mlp.w2)",
+     "subtitle": "dsv41_vision_block",
+     "repeat": 32,
+     "active": 32,
+     "badge": "\u00d732",
+     "expandable": true,
+     "children": [
+      {
+       "id": "dsv41_vision_tower@vision|vision.blocks.norm1",
+       "uid": 19,
+       "op": "rmsnorm",
+       "label": "norm1",
+       "role": "aux_block",
+       "tensor_name": "norm1",
+       "style": "norm",
+       "inputs": [
+        "dsv41_vision_tower@vision|vision.patch_embed.proj"
+       ],
+       "input_ports": [
+        ""
+       ],
+       "op_formula": "y = x \u00b7 \u03b3 / sqrt(mean(x\u00b2) + \u03b5)",
+       "op_description": "Root-mean-square layer norm (elementwise, last-dim reduce). Llama, Qwen, DSv*, \u2026",
+       "detail": "dim=1,024",
+       "tensor_in": "[0,1,1024]",
+       "tensor_out": "[0,1,1024]",
+       "flops": 0,
+       "params": 1024,
+       "storage_bytes": 65536,
+       "flops_symbolic": "2*B*d_vis_model*n_img*floor(img_h/s_patch)*floor(img_w/s_patch)",
+       "flops_law": "2*B*d_vis_model*n_img*floor(img_h/s_patch)*floor(img_w/s_patch)",
+       "flops_values": "2*1024*1*0",
+       "params_symbolic": "d_vis_model",
+       "params_values": "1024",
+       "tensor_in_symbolic": "[B*n_img,floor(img_h/s_patch)*floor(img_w/s_patch),d_vis_model]",
+       "tensor_out_symbolic": "[B*n_img,floor(img_h/s_patch)*floor(img_w/s_patch),d_vis_model]",
+       "weight_dtype": "BF16",
+       "weight_dtype_bytes": 2.0,
+       "_matched_tensor": "vision.blocks.X.norm1.weight",
+       "act_dtype_bytes": 2.0,
+       "out_bytes": 0,
+       "weight_bytes": 2048,
+       "access_bytes": 2048,
+       "arithmetic_intensity": null
+      },
+      {
+       "id": "dsv41_vision_tower@vision|vision.blocks.attn.wqkv",
+       "uid": 20,
+       "op": "linear",
+       "label": "attn.wqkv",
+       "role": "aux_block",
+       "tensor_name": "attn.wqkv",
+       "style": "op",
+       "inputs": [
+        "dsv41_vision_tower@vision|vision.blocks.norm1"
+       ],
+       "input_ports": [
+        ""
+       ],
+       "detail": "W:1,024\u21923,072",
+       "has_bias": true,
+       "tensor_in": "[0,1,1024]",
+       "tensor_out": "[0,1,3\u00b764\u00b716]",
+       "flops": 0,
+       "params": 3148800,
+       "storage_bytes": 201523200,
+       "flops_symbolic": "3*B*bias*d_vis_head*n_img*n_vis_heads*floor(img_h/s_patch)*floor(img_w/s_patch) + 6*B*d_vis_head*d_vis_model*n_img*n_vis_heads*floor(img_h/s_patch)*floor(img_w/s_patch)",
+       "flops_law": "3*B*bias*d_vis_head*n_img*n_vis_heads*floor(img_h/s_patch)*floor(img_w/s_patch) + 6*B*d_vis_head*d_vis_model*n_img*n_vis_heads*floor(img_h/s_patch)*floor(img_w/s_patch)",
+       "flops_values": "1*1*0*3072 + 2*1024*1*0*3072",
+       "params_symbolic": "3*d_vis_head*d_vis_model*n_vis_heads + 3*d_vis_head*n_vis_heads",
+       "params_values": "3*64*1024*16 + 3*64*16",
+       "tensor_in_symbolic": "[B*n_img,floor(img_h/s_patch)*floor(img_w/s_patch),d_vis_model]",
+       "tensor_out_symbolic": "[B*n_img,floor(img_h/s_patch)*floor(img_w/s_patch),3*d_vis_head*n_vis_heads]",
+       "weight_dtype": "BF16",
+       "weight_dtype_bytes": 2.0,
+       "_matched_tensor": "vision.blocks.X.attn.wqkv.weight",
+       "act_dtype_bytes": 2.0,
+       "out_bytes": 0,
+       "weight_bytes": 6297600,
+       "access_bytes": 6297600,
+       "arithmetic_intensity": null
+      },
+      {
+       "id": "dsv41_vision_tower@vision|vision.blocks.attn.q_flat__dsv41_vision_block",
+       "uid": 21,
+       "op": "slice",
+       "label": "attn.q_flat",
+       "role": "aux_block",
+       "tensor_name": "attn.q_flat",
+       "style": "view",
+       "inputs": [
+        "dsv41_vision_tower@vision|vision.blocks.attn.wqkv"
+       ],
+       "input_ports": [
+        ""
+       ],
+       "op_description": "View-op: take a contiguous slice along a dim (zero FLOPs / zero HBM).",
+       "tensor_in": "[0,1,3072]",
+       "tensor_out": "[0,1,64\u00b716]",
+       "flops": 0,
+       "params": 0,
+       "storage_bytes": 0,
+       "flops_symbolic": "0",
+       "flops_law": "0",
+       "flops_values": "0",
+       "params_symbolic": "0",
+       "params_values": "0",
+       "tensor_in_symbolic": "[B*n_img,floor(img_h/s_patch)*floor(img_w/s_patch),3*d_vis_head*n_vis_heads]",
+       "tensor_out_symbolic": "[B*n_img,floor(img_h/s_patch)*floor(img_w/s_patch),d_vis_head*n_vis_heads]",
+       "act_dtype_bytes": 2.0,
+       "out_bytes": 0,
+       "weight_bytes": 0,
+       "access_bytes": 0,
+       "arithmetic_intensity": null
+      },
+      {
+       "id": "dsv41_vision_tower@vision|vision.blocks.attn.k_flat__dsv41_vision_block",
+       "uid": 22,
+       "op": "slice",
+       "label": "attn.k_flat",
+       "role": "aux_block",
+       "tensor_name": "attn.k_flat",
+       "style": "view",
+       "inputs": [
+        "dsv41_vision_tower@vision|vision.blocks.attn.wqkv"
+       ],
+       "input_ports": [
+        ""
+       ],
+       "op_description": "View-op: take a contiguous slice along a dim (zero FLOPs / zero HBM).",
+       "tensor_in": "[0,1,3072]",
+       "tensor_out": "[0,1,64\u00b716]",
+       "flops": 0,
+       "params": 0,
+       "storage_bytes": 0,
+       "flops_symbolic": "0",
+       "flops_law": "0",
+       "flops_values": "0",
+       "params_symbolic": "0",
+       "params_values": "0",
+       "tensor_in_symbolic": "[B*n_img,floor(img_h/s_patch)*floor(img_w/s_patch),3*d_vis_head*n_vis_heads]",
+       "tensor_out_symbolic": "[B*n_img,floor(img_h/s_patch)*floor(img_w/s_patch),d_vis_head*n_vis_heads]",
+       "act_dtype_bytes": 2.0,
+       "out_bytes": 0,
+       "weight_bytes": 0,
+       "access_bytes": 0,
+       "arithmetic_intensity": null
+      },
+      {
+       "id": "dsv41_vision_tower@vision|vision.blocks.attn.v_flat__dsv41_vision_block",
+       "uid": 23,
+       "op": "slice",
+       "label": "attn.v_flat",
+       "role": "aux_block",
+       "tensor_name": "attn.v_flat",
+       "style": "view",
+       "inputs": [
+        "dsv41_vision_tower@vision|vision.blocks.attn.wqkv"
+       ],
+       "input_ports": [
+        ""
+       ],
+       "op_description": "View-op: take a contiguous slice along a dim (zero FLOPs / zero HBM).",
+       "tensor_in": "[0,1,3072]",
+       "tensor_out": "[0,1,64\u00b716]",
+       "flops": 0,
+       "params": 0,
+       "storage_bytes": 0,
+       "flops_symbolic": "0",
+       "flops_law": "0",
+       "flops_values": "0",
+       "params_symbolic": "0",
+       "params_values": "0",
+       "tensor_in_symbolic": "[B*n_img,floor(img_h/s_patch)*floor(img_w/s_patch),3*d_vis_head*n_vis_heads]",
+       "tensor_out_symbolic": "[B*n_img,floor(img_h/s_patch)*floor(img_w/s_patch),d_vis_head*n_vis_heads]",
+       "act_dtype_bytes": 2.0,
+       "out_bytes": 0,
+       "weight_bytes": 0,
+       "access_bytes": 0,
+       "arithmetic_intensity": null
+      },
+      {
+       "id": "dsv41_vision_tower@vision|vision.blocks.attn.q_split",
+       "uid": 24,
+       "op": "head_split",
+       "label": "attn.q_split",
+       "role": "aux_block",
+       "tensor_name": "attn.q_split",
+       "style": "op",
+       "inputs": [
+        "dsv41_vision_tower@vision|vision.blocks.attn.q_flat__dsv41_vision_block"
+       ],
+       "input_ports": [
+        ""
+       ],
+       "op_formula_derived": "unflatten = view_split(x)\npermute = transpose(unflatten)",
+       "subtitle": "head_split",
+       "detail": "n_heads=16 d_head=64",
+       "expandable": true,
+       "children": [
+        {
+         "id": "dsv41_vision_tower@vision|vision.blocks.attn.q_split.unflatten__head_split",
+         "uid": 25,
+         "op": "view_split",
+         "label": "unflatten",
+         "role": "aux_block",
+         "tensor_name": "unflatten",
+         "style": "view",
+         "inputs": [
+          "dsv41_vision_tower@vision|vision.blocks.attn.q_flat__dsv41_vision_block"
+         ],
+         "input_ports": [
+          ""
+         ],
+         "op_description": "View-op: split the declared `axis:` into two factor sub-axes (zero FLOPs / zero HBM), named by the node's dims in order (outer, inner) \u2014 `axis: -1` with (n_heads, d_head) for a head split. Exact product: the split axis's extent must equal outer \u00b7 inner \u2014 drop a ragged tail with an explicit upstream `slice` (as DSv4's compressor slices to `(s_ctx // m) \u00b7 m` complete windows) rather than rounding here.",
+         "detail": "n_heads=16 d_head=64",
+         "tensor_in": "[0,1,1024]",
+         "tensor_out": "[0,1,16,64]",
+         "flops": 0,
+         "params": 0,
+         "storage_bytes": 0,
+         "flops_symbolic": "0",
+         "flops_law": "0",
+         "flops_values": "0",
+         "params_symbolic": "0",
+         "params_values": "0",
+         "tensor_in_symbolic": "[B*n_img,floor(img_h/s_patch)*floor(img_w/s_patch),d_vis_head*n_vis_heads]",
+         "tensor_out_symbolic": "[B*n_img,floor(img_h/s_patch)*floor(img_w/s_patch),n_vis_heads,d_vis_head]",
+         "act_dtype_bytes": 2.0,
+         "out_bytes": 0,
+         "weight_bytes": 0,
+         "access_bytes": 0,
+         "arithmetic_intensity": null
+        },
+        {
+         "id": "dsv41_vision_tower@vision|vision.blocks.attn.q_split.permute__head_split",
+         "uid": 26,
+         "op": "transpose",
+         "label": "permute",
+         "role": "aux_block",
+         "tensor_name": "permute",
+         "style": "view",
+         "inputs": [
+          "dsv41_vision_tower@vision|vision.blocks.attn.q_split.unflatten__head_split"
+         ],
+         "input_ports": [
+          ""
+         ],
+         "op_description": "View-op: reorder tensor axes (zero FLOPs / zero HBM in fused kernels). Permutation given by node `axes:`.",
+         "tensor_in": "[0,1,16,64]",
+         "tensor_out": "[0,16,1,64]",
+         "flops": 0,
+         "params": 0,
+         "storage_bytes": 0,
+         "flops_symbolic": "0",
+         "flops_law": "0",
+         "flops_values": "0",
+         "params_symbolic": "0",
+         "params_values": "0",
+         "tensor_in_symbolic": "[B*n_img,floor(img_h/s_patch)*floor(img_w/s_patch),n_vis_heads,d_vis_head]",
+         "tensor_out_symbolic": "[B*n_img,n_vis_heads,floor(img_h/s_patch)*floor(img_w/s_patch),d_vis_head]",
+         "act_dtype_bytes": 2.0,
+         "out_bytes": 0,
+         "weight_bytes": 0,
+         "access_bytes": 0,
+         "arithmetic_intensity": null
+        }
+       ],
+       "tensor_in": "[0,1,1024]",
+       "tensor_out": "[0,16,1,64]",
+       "flops": 0,
+       "params": 0,
+       "storage_bytes": 0,
+       "flops_symbolic": "0",
+       "flops_law": "0",
+       "flops_values": "0",
+       "params_symbolic": "0",
+       "params_values": "0",
+       "tensor_in_symbolic": "[B*n_img,floor(img_h/s_patch)*floor(img_w/s_patch),d_vis_head*n_vis_heads]",
+       "tensor_out_symbolic": "[B*n_img,n_vis_heads,floor(img_h/s_patch)*floor(img_w/s_patch),d_vis_head]",
+       "act_dtype_bytes": 2.0,
+       "out_bytes": 0,
+       "weight_bytes": 0,
+       "access_bytes": 0,
+       "arithmetic_intensity": null,
+       "child_edges": [
+        {
+         "id": "dsv41_vision_tower@vision|vision.blocks.attn.q_split.unflatten__head_split->dsv41_vision_tower@vision|vision.blocks.attn.q_split.permute__head_split:0",
+         "src": "dsv41_vision_tower@vision|vision.blocks.attn.q_split.unflatten__head_split",
+         "dst": "dsv41_vision_tower@vision|vision.blocks.attn.q_split.permute__head_split",
+         "tensor": "",
+         "shape": "[0,1,16,64]",
+         "port_label": ""
+        }
+       ]
+      },
+      {
+       "id": "dsv41_vision_tower@vision|vision.blocks.attn.k_split",
+       "uid": 27,
+       "op": "head_split",
+       "label": "attn.k_split",
+       "role": "aux_block",
+       "tensor_name": "attn.k_split",
+       "style": "op",
+       "inputs": [
+        "dsv41_vision_tower@vision|vision.blocks.attn.k_flat__dsv41_vision_block"
+       ],
+       "input_ports": [
+        ""
+       ],
+       "op_formula_derived": "unflatten = view_split(x)\npermute = transpose(unflatten)",
+       "subtitle": "head_split",
+       "detail": "n_heads=16 d_head=64",
+       "expandable": true,
+       "children": [
+        {
+         "id": "dsv41_vision_tower@vision|vision.blocks.attn.k_split.unflatten__head_split",
+         "uid": 28,
+         "op": "view_split",
+         "label": "unflatten",
+         "role": "aux_block",
+         "tensor_name": "unflatten",
+         "style": "view",
+         "inputs": [
+          "dsv41_vision_tower@vision|vision.blocks.attn.k_flat__dsv41_vision_block"
+         ],
+         "input_ports": [
+          ""
+         ],
+         "op_description": "View-op: split the declared `axis:` into two factor sub-axes (zero FLOPs / zero HBM), named by the node's dims in order (outer, inner) \u2014 `axis: -1` with (n_heads, d_head) for a head split. Exact product: the split axis's extent must equal outer \u00b7 inner \u2014 drop a ragged tail with an explicit upstream `slice` (as DSv4's compressor slices to `(s_ctx // m) \u00b7 m` complete windows) rather than rounding here.",
+         "detail": "n_heads=16 d_head=64",
+         "tensor_in": "[0,1,1024]",
+         "tensor_out": "[0,1,16,64]",
+         "flops": 0,
+         "params": 0,
+         "storage_bytes": 0,
+         "flops_symbolic": "0",
+         "flops_law": "0",
+         "flops_values": "0",
+         "params_symbolic": "0",
+         "params_values": "0",
+         "tensor_in_symbolic": "[B*n_img,floor(img_h/s_patch)*floor(img_w/s_patch),d_vis_head*n_vis_heads]",
+         "tensor_out_symbolic": "[B*n_img,floor(img_h/s_patch)*floor(img_w/s_patch),n_vis_heads,d_vis_head]",
+         "act_dtype_bytes": 2.0,
+         "out_bytes": 0,
+         "weight_bytes": 0,
+         "access_bytes": 0,
+         "arithmetic_intensity": null
+        },
+        {
+         "id": "dsv41_vision_tower@vision|vision.blocks.attn.k_split.permute__head_split",
+         "uid": 29,
+         "op": "transpose",
+         "label": "permute",
+         "role": "aux_block",
+         "tensor_name": "permute",
+         "style": "view",
+         "inputs": [
+          "dsv41_vision_tower@vision|vision.blocks.attn.k_split.unflatten__head_split"
+         ],
+         "input_ports": [
+          ""
+         ],
+         "op_description": "View-op: reorder tensor axes (zero FLOPs / zero HBM in fused kernels). Permutation given by node `axes:`.",
+         "tensor_in": "[0,1,16,64]",
+         "tensor_out": "[0,16,1,64]",
+         "flops": 0,
+         "params": 0,
+         "storage_bytes": 0,
+         "flops_symbolic": "0",
+         "flops_law": "0",
+         "flops_values": "0",
+         "params_symbolic": "0",
+         "params_values": "0",
+         "tensor_in_symbolic": "[B*n_img,floor(img_h/s_patch)*floor(img_w/s_patch),n_vis_heads,d_vis_head]",
+         "tensor_out_symbolic": "[B*n_img,n_vis_heads,floor(img_h/s_patch)*floor(img_w/s_patch),d_vis_head]",
+         "act_dtype_bytes": 2.0,
+         "out_bytes": 0,
+         "weight_bytes": 0,
+         "access_bytes": 0,
+         "arithmetic_intensity": null
+        }
+       ],
+       "tensor_in": "[0,1,1024]",
+       "tensor_out": "[0,16,1,64]",
+       "flops": 0,
+       "params": 0,
+       "storage_bytes": 0,
+       "flops_symbolic": "0",
+       "flops_law": "0",
+       "flops_values": "0",
+       "params_symbolic": "0",
+       "params_values": "0",
+       "tensor_in_symbolic": "[B*n_img,floor(img_h/s_patch)*floor(img_w/s_patch),d_vis_head*n_vis_heads]",
+       "tensor_out_symbolic": "[B*n_img,n_vis_heads,floor(img_h/s_patch)*floor(img_w/s_patch),d_vis_head]",
+       "act_dtype_bytes": 2.0,
+       "out_bytes": 0,
+       "weight_bytes": 0,
+       "access_bytes": 0,
+       "arithmetic_intensity": null,
+       "child_edges": [
+        {
+         "id": "dsv41_vision_tower@vision|vision.blocks.attn.k_split.unflatten__head_split->dsv41_vision_tower@vision|vision.blocks.attn.k_split.permute__head_split:0",
+         "src": "dsv41_vision_tower@vision|vision.blocks.attn.k_split.unflatten__head_split",
+         "dst": "dsv41_vision_tower@vision|vision.blocks.attn.k_split.permute__head_split",
+         "tensor": "",
+         "shape": "[0,1,16,64]",
+         "port_label": ""
+        }
+       ]
+      },
+      {
+       "id": "dsv41_vision_tower@vision|vision.blocks.attn.v_split",
+       "uid": 30,
+       "op": "head_split",
+       "label": "attn.v_split",
+       "role": "aux_block",
+       "tensor_name": "attn.v_split",
+       "style": "op",
+       "inputs": [
+        "dsv41_vision_tower@vision|vision.blocks.attn.v_flat__dsv41_vision_block"
+       ],
+       "input_ports": [
+        ""
+       ],
+       "op_formula_derived": "unflatten = view_split(x)\npermute = transpose(unflatten)",
+       "subtitle": "head_split",
+       "detail": "n_heads=16 d_head=64",
+       "expandable": true,
+       "children": [
+        {
+         "id": "dsv41_vision_tower@vision|vision.blocks.attn.v_split.unflatten__head_split",
+         "uid": 31,
+         "op": "view_split",
+         "label": "unflatten",
+         "role": "aux_block",
+         "tensor_name": "unflatten",
+         "style": "view",
+         "inputs": [
+          "dsv41_vision_tower@vision|vision.blocks.attn.v_flat__dsv41_vision_block"
+         ],
+         "input_ports": [
+          ""
+         ],
+         "op_description": "View-op: split the declared `axis:` into two factor sub-axes (zero FLOPs / zero HBM), named by the node's dims in order (outer, inner) \u2014 `axis: -1` with (n_heads, d_head) for a head split. Exact product: the split axis's extent must equal outer \u00b7 inner \u2014 drop a ragged tail with an explicit upstream `slice` (as DSv4's compressor slices to `(s_ctx // m) \u00b7 m` complete windows) rather than rounding here.",
+         "detail": "n_heads=16 d_head=64",
+         "tensor_in": "[0,1,1024]",
+         "tensor_out": "[0,1,16,64]",
+         "flops": 0,
+         "params": 0,
+         "storage_bytes": 0,
+         "flops_symbolic": "0",
+         "flops_law": "0",
+         "flops_values": "0",
+         "params_symbolic": "0",
+         "params_values": "0",
+         "tensor_in_symbolic": "[B*n_img,floor(img_h/s_patch)*floor(img_w/s_patch),d_vis_head*n_vis_heads]",
+         "tensor_out_symbolic": "[B*n_img,floor(img_h/s_patch)*floor(img_w/s_patch),n_vis_heads,d_vis_head]",
+         "act_dtype_bytes": 2.0,
+         "out_bytes": 0,
+         "weight_bytes": 0,
+         "access_bytes": 0,
+         "arithmetic_intensity": null
+        },
+        {
+         "id": "dsv41_vision_tower@vision|vision.blocks.attn.v_split.permute__head_split",
+         "uid": 32,
+         "op": "transpose",
+         "label": "permute",
+         "role": "aux_block",
+         "tensor_name": "permute",
+         "style": "view",
+         "inputs": [
+          "dsv41_vision_tower@vision|vision.blocks.attn.v_split.unflatten__head_split"
+         ],
+         "input_ports": [
+          ""
+         ],
+         "op_description": "View-op: reorder tensor axes (zero FLOPs / zero HBM in fused kernels). Permutation given by node `axes:`.",
+         "tensor_in": "[0,1,16,64]",
+         "tensor_out": "[0,16,1,64]",
+         "flops": 0,
+         "params": 0,
+         "storage_bytes": 0,
+         "flops_symbolic": "0",
+         "flops_law": "0",
+         "flops_values": "0",
+         "params_symbolic": "0",
+         "params_values": "0",
+         "tensor_in_symbolic": "[B*n_img,floor(img_h/s_patch)*floor(img_w/s_patch),n_vis_heads,d_vis_head]",
+         "tensor_out_symbolic": "[B*n_img,n_vis_heads,floor(img_h/s_patch)*floor(img_w/s_patch),d_vis_head]",
+         "act_dtype_bytes": 2.0,
+         "out_bytes": 0,
+         "weight_bytes": 0,
+         "access_bytes": 0,
+         "arithmetic_intensity": null
+        }
+       ],
+       "tensor_in": "[0,1,1024]",
+       "tensor_out": "[0,16,1,64]",
+       "flops": 0,
+       "params": 0,
+       "storage_bytes": 0,
+       "flops_symbolic": "0",
+       "flops_law": "0",
+       "flops_values": "0",
+       "params_symbolic": "0",
+       "params_values": "0",
+       "tensor_in_symbolic": "[B*n_img,floor(img_h/s_patch)*floor(img_w/s_patch),d_vis_head*n_vis_heads]",
+       "tensor_out_symbolic": "[B*n_img,n_vis_heads,floor(img_h/s_patch)*floor(img_w/s_patch),d_vis_head]",
+       "act_dtype_bytes": 2.0,
+       "out_bytes": 0,
+       "weight_bytes": 0,
+       "access_bytes": 0,
+       "arithmetic_intensity": null,
+       "child_edges": [
+        {
+         "id": "dsv41_vision_tower@vision|vision.blocks.attn.v_split.unflatten__head_split->dsv41_vision_tower@vision|vision.blocks.attn.v_split.permute__head_split:0",
+         "src": "dsv41_vision_tower@vision|vision.blocks.attn.v_split.unflatten__head_split",
+         "dst": "dsv41_vision_tower@vision|vision.blocks.attn.v_split.permute__head_split",
+         "tensor": "",
+         "shape": "[0,1,16,64]",
+         "port_label": ""
+        }
+       ]
+      },
+      {
+       "id": "dsv41_vision_tower@vision|vision.blocks.attn.q_rope__dsv41_vision_block",
+       "uid": 33,
+       "op": "rope_2d",
+       "label": "attn.q_rope",
+       "role": "aux_block",
+       "tensor_name": "attn.q_rope",
+       "style": "op",
+       "inputs": [
+        "dsv41_vision_tower@vision|vision.blocks.attn.q_split"
+       ],
+       "input_ports": [
+        ""
+       ],
+       "op_formula": "(x_i, x_j) \u2190 rotation by \u03b8_k \u00b7 pos_a(k)   (channel half k reads position stream a \u2208 {h, w})",
+       "op_description": "Two-axis rotary position embedding for a vision tower: each patch is rotated by its (h, w) grid position, half the frequencies from each axis, over the whole head. 4-D `(B, n_heads, s_ctx, dim)`, one node per tensor. Same per-element work as `rope`.",
+       "detail": "dim=64",
+       "tensor_in": "[0,16,1,64]",
+       "tensor_out": "[0,16,1,64]",
+       "flops": 0,
+       "params": 0,
+       "storage_bytes": 0,
+       "flops_symbolic": "3*B*d_vis_head*n_img*n_vis_heads*floor(img_h/s_patch)*floor(img_w/s_patch)",
+       "flops_law": "3*B*d_vis_head*n_img*n_vis_heads*floor(img_h/s_patch)*floor(img_w/s_patch)",
+       "flops_values": "3*64*16*1*0",
+       "params_symbolic": "0",
+       "params_values": "0",
+       "tensor_in_symbolic": "[B*n_img,n_vis_heads,floor(img_h/s_patch)*floor(img_w/s_patch),d_vis_head]",
+       "tensor_out_symbolic": "[B*n_img,n_vis_heads,floor(img_h/s_patch)*floor(img_w/s_patch),d_vis_head]",
+       "act_dtype_bytes": 2.0,
+       "out_bytes": 0,
+       "weight_bytes": 0,
+       "access_bytes": 0,
+       "arithmetic_intensity": null
+      },
+      {
+       "id": "dsv41_vision_tower@vision|vision.blocks.attn.k_rope__dsv41_vision_block",
+       "uid": 34,
+       "op": "rope_2d",
+       "label": "attn.k_rope",
+       "role": "aux_block",
+       "tensor_name": "attn.k_rope",
+       "style": "op",
+       "inputs": [
+        "dsv41_vision_tower@vision|vision.blocks.attn.k_split"
+       ],
+       "input_ports": [
+        ""
+       ],
+       "op_formula": "(x_i, x_j) \u2190 rotation by \u03b8_k \u00b7 pos_a(k)   (channel half k reads position stream a \u2208 {h, w})",
+       "op_description": "Two-axis rotary position embedding for a vision tower: each patch is rotated by its (h, w) grid position, half the frequencies from each axis, over the whole head. 4-D `(B, n_heads, s_ctx, dim)`, one node per tensor. Same per-element work as `rope`.",
+       "detail": "dim=64",
+       "tensor_in": "[0,16,1,64]",
+       "tensor_out": "[0,16,1,64]",
+       "flops": 0,
+       "params": 0,
+       "storage_bytes": 0,
+       "flops_symbolic": "3*B*d_vis_head*n_img*n_vis_heads*floor(img_h/s_patch)*floor(img_w/s_patch)",
+       "flops_law": "3*B*d_vis_head*n_img*n_vis_heads*floor(img_h/s_patch)*floor(img_w/s_patch)",
+       "flops_values": "3*64*16*1*0",
+       "params_symbolic": "0",
+       "params_values": "0",
+       "tensor_in_symbolic": "[B*n_img,n_vis_heads,floor(img_h/s_patch)*floor(img_w/s_patch),d_vis_head]",
+       "tensor_out_symbolic": "[B*n_img,n_vis_heads,floor(img_h/s_patch)*floor(img_w/s_patch),d_vis_head]",
+       "act_dtype_bytes": 2.0,
+       "out_bytes": 0,
+       "weight_bytes": 0,
+       "access_bytes": 0,
+       "arithmetic_intensity": null
+      },
+      {
+       "id": "dsv41_vision_tower@vision|vision.blocks.attn.score__dsv41_vision_block",
+       "uid": 35,
+       "op": "attention_score",
+       "label": "attn.score",
+       "role": "aux_block",
+       "tensor_name": "attn.score",
+       "style": "attn",
+       "inputs": [
+        "dsv41_vision_tower@vision|vision.blocks.attn.q_rope__dsv41_vision_block",
+        "dsv41_vision_tower@vision|vision.blocks.attn.k_rope__dsv41_vision_block"
+       ],
+       "input_ports": [
+        "",
+        ""
+       ],
+       "op_formula": "A = Q \u00b7 K\u1d40 / sqrt(d_head)",
+       "op_description": "Scaled dot-product attention scores (pre-softmax). FLOPs scale with s_pairs, the live (query, key) pairs.",
+       "input_roles": [
+        "q",
+        "k",
+        "select"
+       ],
+       "detail": "is_causal=0 n_heads=16 d_head=64",
+       "tensor_in": "[0,16,1,64], [0,16,1,64]",
+       "tensor_out": "[0,16,1,1]",
+       "flops": 0,
+       "params": 0,
+       "storage_bytes": 0,
+       "flops_symbolic": "2*B*d_vis_head*n_img*n_vis_heads*floor(img_h/s_patch)**2*floor(img_w/s_patch)**2",
+       "flops_law": "2*B*d_vis_head*n_img*n_vis_heads*floor(img_h/s_patch)**2*floor(img_w/s_patch)**2",
+       "flops_values": "0",
+       "params_symbolic": "0",
+       "params_values": "0",
+       "tensor_in_symbolic": "[B*n_img,n_vis_heads,floor(img_h/s_patch)*floor(img_w/s_patch),d_vis_head], [B*n_img,n_vis_heads,floor(img_h/s_patch)*floor(img_w/s_patch),d_vis_head]",
+       "tensor_out_symbolic": "[B*n_img,n_vis_heads,floor(img_h/s_patch)*floor(img_w/s_patch),floor(img_h/s_patch)*floor(img_w/s_patch)]",
+       "act_dtype_bytes": 2.0,
+       "out_bytes": 0,
+       "weight_bytes": 0,
+       "access_bytes": 0,
+       "arithmetic_intensity": null
+      },
+      {
+       "id": "dsv41_vision_tower@vision|vision.blocks.attn.softmax__dsv41_vision_block",
+       "uid": 36,
+       "op": "softmax",
+       "label": "attn.softmax",
+       "role": "aux_block",
+       "tensor_name": "attn.softmax",
+       "style": "attn",
+       "inputs": [
+        "dsv41_vision_tower@vision|vision.blocks.attn.score__dsv41_vision_block"
+       ],
+       "input_ports": [
+        ""
+       ],
+       "op_formula": "p[i] = exp(x[i]) / \u03a3\u2c7c exp(x[j])",
+       "op_description": "Row-wise softmax over the last dim (attention scores \u2192 weights).",
+       "detail": "is_causal=0 n_heads=16",
+       "tensor_in": "[0,16,1,1]",
+       "tensor_out": "[0,16,1,1]",
+       "flops": 0,
+       "params": 0,
+       "storage_bytes": 0,
+       "flops_symbolic": "5*B*n_img*n_vis_heads*floor(img_h/s_patch)**2*floor(img_w/s_patch)**2",
+       "flops_law": "5*B*n_img*n_vis_heads*floor(img_h/s_patch)**2*floor(img_w/s_patch)**2",
+       "flops_values": "0",
+       "params_symbolic": "0",
+       "params_values": "0",
+       "tensor_in_symbolic": "[B*n_img,n_vis_heads,floor(img_h/s_patch)*floor(img_w/s_patch),floor(img_h/s_patch)*floor(img_w/s_patch)]",
+       "tensor_out_symbolic": "[B*n_img,n_vis_heads,floor(img_h/s_patch)*floor(img_w/s_patch),floor(img_h/s_patch)*floor(img_w/s_patch)]",
+       "act_dtype_bytes": 2.0,
+       "out_bytes": 0,
+       "weight_bytes": 0,
+       "access_bytes": 0,
+       "arithmetic_intensity": null
+      },
+      {
+       "id": "dsv41_vision_tower@vision|vision.blocks.attn.apply__dsv41_vision_block",
+       "uid": 37,
+       "op": "attention_apply",
+       "label": "attn.apply",
+       "role": "aux_block",
+       "tensor_name": "attn.apply",
+       "style": "attn",
+       "inputs": [
+        "dsv41_vision_tower@vision|vision.blocks.attn.softmax__dsv41_vision_block",
+        "dsv41_vision_tower@vision|vision.blocks.attn.v_split"
+       ],
+       "input_ports": [
+        "",
+        ""
+       ],
+       "op_formula": "O = A \u00b7 V",
+       "op_description": "Attention-weighted value combine: softmax(QK\u1d40) \u00b7 V. FLOPs scale with s_pairs, the live (query, key) pairs.",
+       "input_roles": [
+        "probs",
+        "v"
+       ],
+       "detail": "is_causal=0 n_heads=16 d_head=64",
+       "tensor_in": "[0,16,1,1], [0,16,1,64]",
+       "tensor_out": "[0,16,1,64]",
+       "flops": 0,
+       "params": 0,
+       "storage_bytes": 0,
+       "flops_symbolic": "2*B*d_vis_head*n_img*n_vis_heads*floor(img_h/s_patch)**2*floor(img_w/s_patch)**2",
+       "flops_law": "2*B*d_vis_head*n_img*n_vis_heads*floor(img_h/s_patch)**2*floor(img_w/s_patch)**2",
+       "flops_values": "0",
+       "params_symbolic": "0",
+       "params_values": "0",
+       "tensor_in_symbolic": "[B*n_img,n_vis_heads,floor(img_h/s_patch)*floor(img_w/s_patch),floor(img_h/s_patch)*floor(img_w/s_patch)], [B*n_img,n_vis_heads,floor(img_h/s_patch)*floor(img_w/s_patch),d_vis_head]",
+       "tensor_out_symbolic": "[B*n_img,n_vis_heads,floor(img_h/s_patch)*floor(img_w/s_patch),d_vis_head]",
+       "act_dtype_bytes": 2.0,
+       "out_bytes": 0,
+       "weight_bytes": 0,
+       "access_bytes": 0,
+       "arithmetic_intensity": null
+      },
+      {
+       "id": "dsv41_vision_tower@vision|vision.blocks.attn.o_merge",
+       "uid": 38,
+       "op": "head_merge",
+       "label": "attn.o_merge",
+       "role": "aux_block",
+       "tensor_name": "attn.o_merge",
+       "style": "op",
+       "inputs": [
+        "dsv41_vision_tower@vision|vision.blocks.attn.apply__dsv41_vision_block"
+       ],
+       "input_ports": [
+        ""
+       ],
+       "op_formula_derived": "permute = transpose(x)\nflatten = view_merge(permute)",
+       "subtitle": "head_merge",
+       "detail": "n_heads=16 d_head=64",
+       "expandable": true,
+       "children": [
+        {
+         "id": "dsv41_vision_tower@vision|vision.blocks.attn.o_merge.permute__head_merge",
+         "uid": 39,
+         "op": "transpose",
+         "label": "permute",
+         "role": "aux_block",
+         "tensor_name": "permute",
+         "style": "view",
+         "inputs": [
+          "dsv41_vision_tower@vision|vision.blocks.attn.apply__dsv41_vision_block"
+         ],
+         "input_ports": [
+          ""
+         ],
+         "op_description": "View-op: reorder tensor axes (zero FLOPs / zero HBM in fused kernels). Permutation given by node `axes:`.",
+         "tensor_in": "[0,16,1,64]",
+         "tensor_out": "[0,1,16,64]",
+         "flops": 0,
+         "params": 0,
+         "storage_bytes": 0,
+         "flops_symbolic": "0",
+         "flops_law": "0",
+         "flops_values": "0",
+         "params_symbolic": "0",
+         "params_values": "0",
+         "tensor_in_symbolic": "[B*n_img,n_vis_heads,floor(img_h/s_patch)*floor(img_w/s_patch),d_vis_head]",
+         "tensor_out_symbolic": "[B*n_img,floor(img_h/s_patch)*floor(img_w/s_patch),n_vis_heads,d_vis_head]",
+         "act_dtype_bytes": 2.0,
+         "out_bytes": 0,
+         "weight_bytes": 0,
+         "access_bytes": 0,
+         "arithmetic_intensity": null
+        },
+        {
+         "id": "dsv41_vision_tower@vision|vision.blocks.attn.o_merge.flatten__head_merge",
+         "uid": 40,
+         "op": "view_merge",
+         "label": "flatten",
+         "role": "aux_block",
+         "tensor_name": "flatten",
+         "style": "view",
+         "inputs": [
+          "dsv41_vision_tower@vision|vision.blocks.attn.o_merge.permute__head_merge"
+         ],
+         "input_ports": [
+          ""
+         ],
+         "op_description": "View-op: collapse the last two axes into one, whose width is their product (zero FLOPs / zero HBM).",
+         "tensor_in": "[0,1,16,64]",
+         "tensor_out": "[0,1,64\u00b716]",
+         "flops": 0,
+         "params": 0,
+         "storage_bytes": 0,
+         "flops_symbolic": "0",
+         "flops_law": "0",
+         "flops_values": "0",
+         "params_symbolic": "0",
+         "params_values": "0",
+         "tensor_in_symbolic": "[B*n_img,floor(img_h/s_patch)*floor(img_w/s_patch),n_vis_heads,d_vis_head]",
+         "tensor_out_symbolic": "[B*n_img,floor(img_h/s_patch)*floor(img_w/s_patch),d_vis_head*n_vis_heads]",
+         "act_dtype_bytes": 2.0,
+         "out_bytes": 0,
+         "weight_bytes": 0,
+         "access_bytes": 0,
+         "arithmetic_intensity": null
+        }
+       ],
+       "tensor_in": "[0,16,1,64]",
+       "tensor_out": "[0,1,64\u00b716]",
+       "flops": 0,
+       "params": 0,
+       "storage_bytes": 0,
+       "flops_symbolic": "0",
+       "flops_law": "0",
+       "flops_values": "0",
+       "params_symbolic": "0",
+       "params_values": "0",
+       "tensor_in_symbolic": "[B*n_img,n_vis_heads,floor(img_h/s_patch)*floor(img_w/s_patch),d_vis_head]",
+       "tensor_out_symbolic": "[B*n_img,floor(img_h/s_patch)*floor(img_w/s_patch),d_vis_head*n_vis_heads]",
+       "act_dtype_bytes": 2.0,
+       "out_bytes": 0,
+       "weight_bytes": 0,
+       "access_bytes": 0,
+       "arithmetic_intensity": null,
+       "child_edges": [
+        {
+         "id": "dsv41_vision_tower@vision|vision.blocks.attn.o_merge.permute__head_merge->dsv41_vision_tower@vision|vision.blocks.attn.o_merge.flatten__head_merge:0",
+         "src": "dsv41_vision_tower@vision|vision.blocks.attn.o_merge.permute__head_merge",
+         "dst": "dsv41_vision_tower@vision|vision.blocks.attn.o_merge.flatten__head_merge",
+         "tensor": "",
+         "shape": "[0,1,16,64]",
+         "port_label": ""
+        }
+       ]
+      },
+      {
+       "id": "dsv41_vision_tower@vision|vision.blocks.attn.wo",
+       "uid": 41,
+       "op": "linear",
+       "label": "attn.wo",
+       "role": "aux_block",
+       "tensor_name": "attn.wo",
+       "style": "op",
+       "inputs": [
+        "dsv41_vision_tower@vision|vision.blocks.attn.o_merge"
+       ],
+       "input_ports": [
+        ""
+       ],
+       "detail": "W:1,024\u21921,024",
+       "has_bias": true,
+       "tensor_in": "[0,1,1024]",
+       "tensor_out": "[0,1,1024]",
+       "flops": 0,
+       "params": 1049600,
+       "storage_bytes": 67174400,
+       "flops_symbolic": "B*bias*d_vis_model*n_img*floor(img_h/s_patch)*floor(img_w/s_patch) + 2*B*d_vis_head*d_vis_model*n_img*n_vis_heads*floor(img_h/s_patch)*floor(img_w/s_patch)",
+       "flops_law": "B*bias*d_vis_model*n_img*floor(img_h/s_patch)*floor(img_w/s_patch) + 2*B*d_vis_head*d_vis_model*n_img*n_vis_heads*floor(img_h/s_patch)*floor(img_w/s_patch)",
+       "flops_values": "1*1024*1*0 + 2*1024*1*0*1024",
+       "params_symbolic": "d_vis_head*d_vis_model*n_vis_heads + d_vis_model",
+       "params_values": "64*1024*16 + 1024",
+       "tensor_in_symbolic": "[B*n_img,floor(img_h/s_patch)*floor(img_w/s_patch),d_vis_head*n_vis_heads]",
+       "tensor_out_symbolic": "[B*n_img,floor(img_h/s_patch)*floor(img_w/s_patch),d_vis_model]",
+       "weight_dtype": "BF16",
+       "weight_dtype_bytes": 2.0,
+       "_matched_tensor": "vision.blocks.X.attn.wo.weight",
+       "act_dtype_bytes": 2.0,
+       "out_bytes": 0,
+       "weight_bytes": 2099200,
+       "access_bytes": 2099200,
+       "arithmetic_intensity": null
+      },
+      {
+       "id": "dsv41_vision_tower@vision|vision.blocks.attn_residual__dsv41_vision_block",
+       "uid": 42,
+       "op": "add",
+       "label": "attn_residual",
+       "role": "aux_block",
+       "tensor_name": "attn_residual",
+       "style": "res",
+       "inputs": [
+        "dsv41_vision_tower@vision|vision.patch_embed.proj",
+        "dsv41_vision_tower@vision|vision.blocks.attn.wo"
+       ],
+       "input_ports": [
+        "",
+        ""
+       ],
+       "detail": "dim=1,024",
+       "tensor_in": "[0,1,1024], [0,1,1024]",
+       "tensor_out": "[0,1,1024]",
+       "flops": 0,
+       "params": 0,
+       "storage_bytes": 0,
+       "flops_symbolic": "B*d_vis_model*n_img*floor(img_h/s_patch)*floor(img_w/s_patch)",
+       "flops_law": "B*d_vis_model*n_img*floor(img_h/s_patch)*floor(img_w/s_patch)",
+       "flops_values": "1024*1*0",
+       "params_symbolic": "0",
+       "params_values": "0",
+       "tensor_in_symbolic": "[B*n_img,floor(img_h/s_patch)*floor(img_w/s_patch),d_vis_model], [B*n_img,floor(img_h/s_patch)*floor(img_w/s_patch),d_vis_model]",
+       "tensor_out_symbolic": "[B*n_img,floor(img_h/s_patch)*floor(img_w/s_patch),d_vis_model]",
+       "act_dtype_bytes": 2.0,
+       "out_bytes": 0,
+       "weight_bytes": 0,
+       "access_bytes": 0,
+       "arithmetic_intensity": null
+      },
+      {
+       "id": "dsv41_vision_tower@vision|vision.blocks.norm2",
+       "uid": 43,
+       "op": "rmsnorm",
+       "label": "norm2",
+       "role": "aux_block",
+       "tensor_name": "norm2",
+       "style": "norm",
+       "inputs": [
+        "dsv41_vision_tower@vision|vision.blocks.attn_residual__dsv41_vision_block"
+       ],
+       "input_ports": [
+        ""
+       ],
+       "op_formula": "y = x \u00b7 \u03b3 / sqrt(mean(x\u00b2) + \u03b5)",
+       "op_description": "Root-mean-square layer norm (elementwise, last-dim reduce). Llama, Qwen, DSv*, \u2026",
+       "detail": "dim=1,024",
+       "tensor_in": "[0,1,1024]",
+       "tensor_out": "[0,1,1024]",
+       "flops": 0,
+       "params": 1024,
+       "storage_bytes": 65536,
+       "flops_symbolic": "2*B*d_vis_model*n_img*floor(img_h/s_patch)*floor(img_w/s_patch)",
+       "flops_law": "2*B*d_vis_model*n_img*floor(img_h/s_patch)*floor(img_w/s_patch)",
+       "flops_values": "2*1024*1*0",
+       "params_symbolic": "d_vis_model",
+       "params_values": "1024",
+       "tensor_in_symbolic": "[B*n_img,floor(img_h/s_patch)*floor(img_w/s_patch),d_vis_model]",
+       "tensor_out_symbolic": "[B*n_img,floor(img_h/s_patch)*floor(img_w/s_patch),d_vis_model]",
+       "weight_dtype": "BF16",
+       "weight_dtype_bytes": 2.0,
+       "_matched_tensor": "vision.blocks.X.norm2.weight",
+       "act_dtype_bytes": 2.0,
+       "out_bytes": 0,
+       "weight_bytes": 2048,
+       "access_bytes": 2048,
+       "arithmetic_intensity": null
+      },
+      {
+       "id": "dsv41_vision_tower@vision|vision.blocks.mlp.w1",
+       "uid": 44,
+       "op": "linear",
+       "label": "mlp.w1",
+       "role": "aux_block",
+       "tensor_name": "mlp.w1",
+       "style": "op",
+       "inputs": [
+        "dsv41_vision_tower@vision|vision.blocks.norm2"
+       ],
+       "input_ports": [
+        ""
+       ],
+       "detail": "W:1,024\u21925,632",
+       "tensor_in": "[0,1,1024]",
+       "tensor_out": "[0,1,2\u00b72816]",
+       "flops": 0,
+       "params": 5767168,
+       "storage_bytes": 369098752,
+       "flops_symbolic": "2*B*bias*d_vis_ffn*n_img*floor(img_h/s_patch)*floor(img_w/s_patch) + 4*B*d_vis_ffn*d_vis_model*n_img*floor(img_h/s_patch)*floor(img_w/s_patch)",
+       "flops_law": "2*B*bias*d_vis_ffn*n_img*floor(img_h/s_patch)*floor(img_w/s_patch) + 4*B*d_vis_ffn*d_vis_model*n_img*floor(img_h/s_patch)*floor(img_w/s_patch)",
+       "flops_values": "0*1*0*5632 + 2*1024*1*0*5632",
+       "params_symbolic": "2*d_vis_ffn*d_vis_model",
+       "params_values": "2*2816*1024",
+       "tensor_in_symbolic": "[B*n_img,floor(img_h/s_patch)*floor(img_w/s_patch),d_vis_model]",
+       "tensor_out_symbolic": "[B*n_img,floor(img_h/s_patch)*floor(img_w/s_patch),2*d_vis_ffn]",
+       "weight_dtype": "BF16",
+       "weight_dtype_bytes": 2.0,
+       "_matched_tensor": "vision.blocks.X.mlp.w1.weight",
+       "act_dtype_bytes": 2.0,
+       "out_bytes": 0,
+       "weight_bytes": 11534336,
+       "access_bytes": 11534336,
+       "arithmetic_intensity": null
+      },
+      {
+       "id": "dsv41_vision_tower@vision|vision.blocks.mlp.gate__dsv41_vision_block",
+       "uid": 45,
+       "op": "slice",
+       "label": "mlp.gate",
+       "role": "aux_block",
+       "tensor_name": "mlp.gate",
+       "style": "view",
+       "inputs": [
+        "dsv41_vision_tower@vision|vision.blocks.mlp.w1"
+       ],
+       "input_ports": [
+        ""
+       ],
+       "op_description": "View-op: take a contiguous slice along a dim (zero FLOPs / zero HBM).",
+       "tensor_in": "[0,1,5632]",
+       "tensor_out": "[0,1,2816]",
+       "flops": 0,
+       "params": 0,
+       "storage_bytes": 0,
+       "flops_symbolic": "0",
+       "flops_law": "0",
+       "flops_values": "0",
+       "params_symbolic": "0",
+       "params_values": "0",
+       "tensor_in_symbolic": "[B*n_img,floor(img_h/s_patch)*floor(img_w/s_patch),2*d_vis_ffn]",
+       "tensor_out_symbolic": "[B*n_img,floor(img_h/s_patch)*floor(img_w/s_patch),d_vis_ffn]",
+       "act_dtype_bytes": 2.0,
+       "out_bytes": 0,
+       "weight_bytes": 0,
+       "access_bytes": 0,
+       "arithmetic_intensity": null
+      },
+      {
+       "id": "dsv41_vision_tower@vision|vision.blocks.mlp.up__dsv41_vision_block",
+       "uid": 46,
+       "op": "slice",
+       "label": "mlp.up",
+       "role": "aux_block",
+       "tensor_name": "mlp.up",
+       "style": "view",
+       "inputs": [
+        "dsv41_vision_tower@vision|vision.blocks.mlp.w1"
+       ],
+       "input_ports": [
+        ""
+       ],
+       "op_description": "View-op: take a contiguous slice along a dim (zero FLOPs / zero HBM).",
+       "tensor_in": "[0,1,5632]",
+       "tensor_out": "[0,1,2816]",
+       "flops": 0,
+       "params": 0,
+       "storage_bytes": 0,
+       "flops_symbolic": "0",
+       "flops_law": "0",
+       "flops_values": "0",
+       "params_symbolic": "0",
+       "params_values": "0",
+       "tensor_in_symbolic": "[B*n_img,floor(img_h/s_patch)*floor(img_w/s_patch),2*d_vis_ffn]",
+       "tensor_out_symbolic": "[B*n_img,floor(img_h/s_patch)*floor(img_w/s_patch),d_vis_ffn]",
+       "act_dtype_bytes": 2.0,
+       "out_bytes": 0,
+       "weight_bytes": 0,
+       "access_bytes": 0,
+       "arithmetic_intensity": null
+      },
+      {
+       "id": "dsv41_vision_tower@vision|vision.blocks.mlp.act__dsv41_vision_block",
+       "uid": 47,
+       "op": "silu",
+       "label": "mlp.act",
+       "role": "aux_block",
+       "tensor_name": "mlp.act",
+       "style": "op",
+       "inputs": [
+        "dsv41_vision_tower@vision|vision.blocks.mlp.gate__dsv41_vision_block"
+       ],
+       "input_ports": [
+        ""
+       ],
+       "op_formula": "y = x \u00b7 sigmoid(x)",
+       "op_description": "SiLU / Swish activation (Llama, Qwen).",
+       "detail": "dim=2,816",
+       "tensor_in": "[0,1,2816]",
+       "tensor_out": "[0,1,2816]",
+       "flops": 0,
+       "params": 0,
+       "storage_bytes": 0,
+       "flops_symbolic": "4*B*d_vis_ffn*n_img*floor(img_h/s_patch)*floor(img_w/s_patch)",
+       "flops_law": "4*B*d_vis_ffn*n_img*floor(img_h/s_patch)*floor(img_w/s_patch)",
+       "flops_values": "4*2816*1*0",
+       "params_symbolic": "0",
+       "params_values": "0",
+       "tensor_in_symbolic": "[B*n_img,floor(img_h/s_patch)*floor(img_w/s_patch),d_vis_ffn]",
+       "tensor_out_symbolic": "[B*n_img,floor(img_h/s_patch)*floor(img_w/s_patch),d_vis_ffn]",
+       "act_dtype_bytes": 2.0,
+       "out_bytes": 0,
+       "weight_bytes": 0,
+       "access_bytes": 0,
+       "arithmetic_intensity": null
+      },
+      {
+       "id": "dsv41_vision_tower@vision|vision.blocks.mlp.gated__dsv41_vision_block",
+       "uid": 48,
+       "op": "mul",
+       "label": "mlp.gated",
+       "role": "aux_block",
+       "tensor_name": "mlp.gated",
+       "style": "op",
+       "inputs": [
+        "dsv41_vision_tower@vision|vision.blocks.mlp.act__dsv41_vision_block",
+        "dsv41_vision_tower@vision|vision.blocks.mlp.up__dsv41_vision_block"
+       ],
+       "input_ports": [
+        "",
+        ""
+       ],
+       "detail": "dim=2,816",
+       "tensor_in": "[0,1,2816], [0,1,2816]",
+       "tensor_out": "[0,1,2816]",
+       "flops": 0,
+       "params": 0,
+       "storage_bytes": 0,
+       "flops_symbolic": "B*d_vis_ffn*n_img*floor(img_h/s_patch)*floor(img_w/s_patch)",
+       "flops_law": "B*d_vis_ffn*n_img*floor(img_h/s_patch)*floor(img_w/s_patch)",
+       "flops_values": "2816*1*0",
+       "params_symbolic": "0",
+       "params_values": "0",
+       "tensor_in_symbolic": "[B*n_img,floor(img_h/s_patch)*floor(img_w/s_patch),d_vis_ffn], [B*n_img,floor(img_h/s_patch)*floor(img_w/s_patch),d_vis_ffn]",
+       "tensor_out_symbolic": "[B*n_img,floor(img_h/s_patch)*floor(img_w/s_patch),d_vis_ffn]",
+       "act_dtype_bytes": 2.0,
+       "out_bytes": 0,
+       "weight_bytes": 0,
+       "access_bytes": 0,
+       "arithmetic_intensity": null
+      },
+      {
+       "id": "dsv41_vision_tower@vision|vision.blocks.mlp.w2",
+       "uid": 49,
+       "op": "linear",
+       "label": "mlp.w2",
+       "role": "aux_block",
+       "tensor_name": "mlp.w2",
+       "style": "op",
+       "inputs": [
+        "dsv41_vision_tower@vision|vision.blocks.mlp.gated__dsv41_vision_block"
+       ],
+       "input_ports": [
+        ""
+       ],
+       "detail": "W:2,816\u21921,024",
+       "tensor_in": "[0,1,2816]",
+       "tensor_out": "[0,1,1024]",
+       "flops": 0,
+       "params": 2883584,
+       "storage_bytes": 184549376,
+       "flops_symbolic": "B*bias*d_vis_model*n_img*floor(img_h/s_patch)*floor(img_w/s_patch) + 2*B*d_vis_ffn*d_vis_model*n_img*floor(img_h/s_patch)*floor(img_w/s_patch)",
+       "flops_law": "B*bias*d_vis_model*n_img*floor(img_h/s_patch)*floor(img_w/s_patch) + 2*B*d_vis_ffn*d_vis_model*n_img*floor(img_h/s_patch)*floor(img_w/s_patch)",
+       "flops_values": "0*1024*1*0 + 2*2816*1024*1*0",
+       "params_symbolic": "d_vis_ffn*d_vis_model",
+       "params_values": "2816*1024",
+       "tensor_in_symbolic": "[B*n_img,floor(img_h/s_patch)*floor(img_w/s_patch),d_vis_ffn]",
+       "tensor_out_symbolic": "[B*n_img,floor(img_h/s_patch)*floor(img_w/s_patch),d_vis_model]",
+       "weight_dtype": "BF16",
+       "weight_dtype_bytes": 2.0,
+       "_matched_tensor": "vision.blocks.X.mlp.w2.weight",
+       "act_dtype_bytes": 2.0,
+       "out_bytes": 0,
+       "weight_bytes": 5767168,
+       "access_bytes": 5767168,
+       "arithmetic_intensity": null
+      },
+      {
+       "id": "dsv41_vision_tower@vision|vision.blocks.out__dsv41_vision_block",
+       "uid": 50,
+       "op": "add",
+       "label": "out",
+       "role": "aux_block",
+       "tensor_name": "out",
+       "style": "res",
+       "inputs": [
+        "dsv41_vision_tower@vision|vision.blocks.attn_residual__dsv41_vision_block",
+        "dsv41_vision_tower@vision|vision.blocks.mlp.w2"
+       ],
+       "input_ports": [
+        "",
+        ""
+       ],
+       "detail": "dim=1,024",
+       "tensor_in": "[0,1,1024], [0,1,1024]",
+       "tensor_out": "[0,1,1024]",
+       "flops": 0,
+       "params": 0,
+       "storage_bytes": 0,
+       "flops_symbolic": "B*d_vis_model*n_img*floor(img_h/s_patch)*floor(img_w/s_patch)",
+       "flops_law": "B*d_vis_model*n_img*floor(img_h/s_patch)*floor(img_w/s_patch)",
+       "flops_values": "1024*1*0",
+       "params_symbolic": "0",
+       "params_values": "0",
+       "tensor_in_symbolic": "[B*n_img,floor(img_h/s_patch)*floor(img_w/s_patch),d_vis_model], [B*n_img,floor(img_h/s_patch)*floor(img_w/s_patch),d_vis_model]",
+       "tensor_out_symbolic": "[B*n_img,floor(img_h/s_patch)*floor(img_w/s_patch),d_vis_model]",
+       "act_dtype_bytes": 2.0,
+       "out_bytes": 0,
+       "weight_bytes": 0,
+       "access_bytes": 0,
+       "arithmetic_intensity": null
+      }
+     ],
+     "tensor_in": "[0,1,1024]",
+     "tensor_out": "[0,1,1024]",
+     "flops": 0,
+     "params": 411238400,
+     "storage_bytes": 822476800,
+     "flops_symbolic": "n_vis_layers*(2*B*bias*d_vis_ffn*n_img*floor(img_h/s_patch)*floor(img_w/s_patch) + 3*B*bias*d_vis_head*n_img*n_vis_heads*floor(img_h/s_patch)*floor(img_w/s_patch) + 2*B*bias*d_vis_model*n_img*floor(img_h/s_patch)*floor(img_w/s_patch) + 6*B*d_vis_ffn*d_vis_model*n_img*floor(img_h/s_patch)*floor(img_w/s_patch) + 5*B*d_vis_ffn*n_img*floor(img_h/s_patch)*floor(img_w/s_patch) + 8*B*d_vis_head*d_vis_model*n_img*n_vis_heads*floor(img_h/s_patch)*floor(img_w/s_patch) + 4*B*d_vis_head*n_img*n_vis_heads*floor(img_h/s_patch)**2*floor(img_w/s_patch)**2 + 6*B*d_vis_head*n_img*n_vis_heads*floor(img_h/s_patch)*floor(img_w/s_patch) + 6*B*d_vis_model*n_img*floor(img_h/s_patch)*floor(img_w/s_patch) + 5*B*n_img*n_vis_heads*floor(img_h/s_patch)**2*floor(img_w/s_patch)**2)",
+     "flops_law": "2*B*bias*d_vis_ffn*n_img*floor(img_h/s_patch)*floor(img_w/s_patch) + 3*B*bias*d_vis_head*n_img*n_vis_heads*floor(img_h/s_patch)*floor(img_w/s_patch) + 2*B*bias*d_vis_model*n_img*floor(img_h/s_patch)*floor(img_w/s_patch) + 6*B*d_vis_ffn*d_vis_model*n_img*floor(img_h/s_patch)*floor(img_w/s_patch) + 5*B*d_vis_ffn*n_img*floor(img_h/s_patch)*floor(img_w/s_patch) + 8*B*d_vis_head*d_vis_model*n_img*n_vis_heads*floor(img_h/s_patch)*floor(img_w/s_patch) + 4*B*d_vis_head*n_img*n_vis_heads*floor(img_h/s_patch)**2*floor(img_w/s_patch)**2 + 6*B*d_vis_head*n_img*n_vis_heads*floor(img_h/s_patch)*floor(img_w/s_patch) + 6*B*d_vis_model*n_img*floor(img_h/s_patch)*floor(img_w/s_patch) + 5*B*n_img*n_vis_heads*floor(img_h/s_patch)**2*floor(img_w/s_patch)**2",
+     "flops_values": "0",
+     "params_symbolic": "n_vis_layers*(3*d_vis_ffn*d_vis_model + 4*d_vis_head*d_vis_model*n_vis_heads + 3*d_vis_head*n_vis_heads + 3*d_vis_model)",
+     "params_values": "411238400",
+     "tensor_in_symbolic": "[B*n_img,floor(img_h/s_patch)*floor(img_w/s_patch),d_vis_model]",
+     "tensor_out_symbolic": "[B*n_img,floor(img_h/s_patch)*floor(img_w/s_patch),d_vis_model]",
+     "weight_dtype_bytes": 2.0,
+     "act_dtype_bytes": 2.0,
+     "out_bytes": 0,
+     "weight_bytes": 822476800,
+     "access_bytes": 25702400,
+     "arithmetic_intensity": null,
+     "child_edges": [
+      {
+       "id": "dsv41_vision_tower@vision|vision.blocks.norm1->dsv41_vision_tower@vision|vision.blocks.attn.wqkv:0",
+       "src": "dsv41_vision_tower@vision|vision.blocks.norm1",
+       "dst": "dsv41_vision_tower@vision|vision.blocks.attn.wqkv",
+       "tensor": "",
+       "shape": "[0,1,1024]",
+       "port_label": ""
+      },
+      {
+       "id": "dsv41_vision_tower@vision|vision.blocks.attn.wqkv->dsv41_vision_tower@vision|vision.blocks.attn.q_flat__dsv41_vision_block:0",
+       "src": "dsv41_vision_tower@vision|vision.blocks.attn.wqkv",
+       "dst": "dsv41_vision_tower@vision|vision.blocks.attn.q_flat__dsv41_vision_block",
+       "tensor": "",
+       "shape": "[0,1,3\u00b764\u00b716]",
+       "port_label": ""
+      },
+      {
+       "id": "dsv41_vision_tower@vision|vision.blocks.attn.wqkv->dsv41_vision_tower@vision|vision.blocks.attn.k_flat__dsv41_vision_block:0",
+       "src": "dsv41_vision_tower@vision|vision.blocks.attn.wqkv",
+       "dst": "dsv41_vision_tower@vision|vision.blocks.attn.k_flat__dsv41_vision_block",
+       "tensor": "",
+       "shape": "[0,1,3\u00b764\u00b716]",
+       "port_label": ""
+      },
+      {
+       "id": "dsv41_vision_tower@vision|vision.blocks.attn.wqkv->dsv41_vision_tower@vision|vision.blocks.attn.v_flat__dsv41_vision_block:0",
+       "src": "dsv41_vision_tower@vision|vision.blocks.attn.wqkv",
+       "dst": "dsv41_vision_tower@vision|vision.blocks.attn.v_flat__dsv41_vision_block",
+       "tensor": "",
+       "shape": "[0,1,3\u00b764\u00b716]",
+       "port_label": ""
+      },
+      {
+       "id": "dsv41_vision_tower@vision|vision.blocks.attn.q_flat__dsv41_vision_block->dsv41_vision_tower@vision|vision.blocks.attn.q_split:0",
+       "src": "dsv41_vision_tower@vision|vision.blocks.attn.q_flat__dsv41_vision_block",
+       "dst": "dsv41_vision_tower@vision|vision.blocks.attn.q_split",
+       "tensor": "",
+       "shape": "[0,1,64\u00b716]",
+       "port_label": ""
+      },
+      {
+       "id": "dsv41_vision_tower@vision|vision.blocks.attn.k_flat__dsv41_vision_block->dsv41_vision_tower@vision|vision.blocks.attn.k_split:0",
+       "src": "dsv41_vision_tower@vision|vision.blocks.attn.k_flat__dsv41_vision_block",
+       "dst": "dsv41_vision_tower@vision|vision.blocks.attn.k_split",
+       "tensor": "",
+       "shape": "[0,1,64\u00b716]",
+       "port_label": ""
+      },
+      {
+       "id": "dsv41_vision_tower@vision|vision.blocks.attn.v_flat__dsv41_vision_block->dsv41_vision_tower@vision|vision.blocks.attn.v_split:0",
+       "src": "dsv41_vision_tower@vision|vision.blocks.attn.v_flat__dsv41_vision_block",
+       "dst": "dsv41_vision_tower@vision|vision.blocks.attn.v_split",
+       "tensor": "",
+       "shape": "[0,1,64\u00b716]",
+       "port_label": ""
+      },
+      {
+       "id": "dsv41_vision_tower@vision|vision.blocks.attn.q_split->dsv41_vision_tower@vision|vision.blocks.attn.q_rope__dsv41_vision_block:0",
+       "src": "dsv41_vision_tower@vision|vision.blocks.attn.q_split",
+       "dst": "dsv41_vision_tower@vision|vision.blocks.attn.q_rope__dsv41_vision_block",
+       "tensor": "",
+       "shape": "[0,16,1,64]",
+       "port_label": ""
+      },
+      {
+       "id": "dsv41_vision_tower@vision|vision.blocks.attn.k_split->dsv41_vision_tower@vision|vision.blocks.attn.k_rope__dsv41_vision_block:0",
+       "src": "dsv41_vision_tower@vision|vision.blocks.attn.k_split",
+       "dst": "dsv41_vision_tower@vision|vision.blocks.attn.k_rope__dsv41_vision_block",
+       "tensor": "",
+       "shape": "[0,16,1,64]",
+       "port_label": ""
+      },
+      {
+       "id": "dsv41_vision_tower@vision|vision.blocks.attn.q_rope__dsv41_vision_block->dsv41_vision_tower@vision|vision.blocks.attn.score__dsv41_vision_block:0",
+       "src": "dsv41_vision_tower@vision|vision.blocks.attn.q_rope__dsv41_vision_block",
+       "dst": "dsv41_vision_tower@vision|vision.blocks.attn.score__dsv41_vision_block",
+       "tensor": "",
+       "shape": "[0,16,1,64]",
+       "port_label": "d_head"
+      },
+      {
+       "id": "dsv41_vision_tower@vision|vision.blocks.attn.k_rope__dsv41_vision_block->dsv41_vision_tower@vision|vision.blocks.attn.score__dsv41_vision_block:1",
+       "src": "dsv41_vision_tower@vision|vision.blocks.attn.k_rope__dsv41_vision_block",
+       "dst": "dsv41_vision_tower@vision|vision.blocks.attn.score__dsv41_vision_block",
+       "tensor": "",
+       "shape": "[0,16,1,64]",
+       "port_label": "d_head"
+      },
+      {
+       "id": "dsv41_vision_tower@vision|vision.blocks.attn.score__dsv41_vision_block->dsv41_vision_tower@vision|vision.blocks.attn.softmax__dsv41_vision_block:0",
+       "src": "dsv41_vision_tower@vision|vision.blocks.attn.score__dsv41_vision_block",
+       "dst": "dsv41_vision_tower@vision|vision.blocks.attn.softmax__dsv41_vision_block",
+       "tensor": "",
+       "shape": "[0,16,1,1]",
+       "port_label": ""
+      },
+      {
+       "id": "dsv41_vision_tower@vision|vision.blocks.attn.softmax__dsv41_vision_block->dsv41_vision_tower@vision|vision.blocks.attn.apply__dsv41_vision_block:0",
+       "src": "dsv41_vision_tower@vision|vision.blocks.attn.softmax__dsv41_vision_block",
+       "dst": "dsv41_vision_tower@vision|vision.blocks.attn.apply__dsv41_vision_block",
+       "tensor": "",
+       "shape": "[0,16,1,1]",
+       "port_label": "s_kv"
+      },
+      {
+       "id": "dsv41_vision_tower@vision|vision.blocks.attn.v_split->dsv41_vision_tower@vision|vision.blocks.attn.apply__dsv41_vision_block:1",
+       "src": "dsv41_vision_tower@vision|vision.blocks.attn.v_split",
+       "dst": "dsv41_vision_tower@vision|vision.blocks.attn.apply__dsv41_vision_block",
+       "tensor": "",
+       "shape": "[0,16,1,64]",
+       "port_label": "d_head"
+      },
+      {
+       "id": "dsv41_vision_tower@vision|vision.blocks.attn.apply__dsv41_vision_block->dsv41_vision_tower@vision|vision.blocks.attn.o_merge:0",
+       "src": "dsv41_vision_tower@vision|vision.blocks.attn.apply__dsv41_vision_block",
+       "dst": "dsv41_vision_tower@vision|vision.blocks.attn.o_merge",
+       "tensor": "",
+       "shape": "[0,16,1,64]",
+       "port_label": ""
+      },
+      {
+       "id": "dsv41_vision_tower@vision|vision.blocks.attn.o_merge->dsv41_vision_tower@vision|vision.blocks.attn.wo:0",
+       "src": "dsv41_vision_tower@vision|vision.blocks.attn.o_merge",
+       "dst": "dsv41_vision_tower@vision|vision.blocks.attn.wo",
+       "tensor": "",
+       "shape": "[0,1,64\u00b716]",
+       "port_label": ""
+      },
+      {
+       "id": "dsv41_vision_tower@vision|vision.blocks.attn.wo->dsv41_vision_tower@vision|vision.blocks.attn_residual__dsv41_vision_block:1",
+       "src": "dsv41_vision_tower@vision|vision.blocks.attn.wo",
+       "dst": "dsv41_vision_tower@vision|vision.blocks.attn_residual__dsv41_vision_block",
+       "tensor": "",
+       "shape": "[0,1,1024]",
+       "port_label": "dim"
+      },
+      {
+       "id": "dsv41_vision_tower@vision|vision.blocks.attn_residual__dsv41_vision_block->dsv41_vision_tower@vision|vision.blocks.norm2:0",
+       "src": "dsv41_vision_tower@vision|vision.blocks.attn_residual__dsv41_vision_block",
+       "dst": "dsv41_vision_tower@vision|vision.blocks.norm2",
+       "tensor": "",
+       "shape": "[0,1,1024]",
+       "port_label": ""
+      },
+      {
+       "id": "dsv41_vision_tower@vision|vision.blocks.norm2->dsv41_vision_tower@vision|vision.blocks.mlp.w1:0",
+       "src": "dsv41_vision_tower@vision|vision.blocks.norm2",
+       "dst": "dsv41_vision_tower@vision|vision.blocks.mlp.w1",
+       "tensor": "",
+       "shape": "[0,1,1024]",
+       "port_label": ""
+      },
+      {
+       "id": "dsv41_vision_tower@vision|vision.blocks.mlp.w1->dsv41_vision_tower@vision|vision.blocks.mlp.gate__dsv41_vision_block:0",
+       "src": "dsv41_vision_tower@vision|vision.blocks.mlp.w1",
+       "dst": "dsv41_vision_tower@vision|vision.blocks.mlp.gate__dsv41_vision_block",
+       "tensor": "",
+       "shape": "[0,1,2\u00b72816]",
+       "port_label": ""
+      },
+      {
+       "id": "dsv41_vision_tower@vision|vision.blocks.mlp.w1->dsv41_vision_tower@vision|vision.blocks.mlp.up__dsv41_vision_block:0",
+       "src": "dsv41_vision_tower@vision|vision.blocks.mlp.w1",
+       "dst": "dsv41_vision_tower@vision|vision.blocks.mlp.up__dsv41_vision_block",
+       "tensor": "",
+       "shape": "[0,1,2\u00b72816]",
+       "port_label": ""
+      },
+      {
+       "id": "dsv41_vision_tower@vision|vision.blocks.mlp.gate__dsv41_vision_block->dsv41_vision_tower@vision|vision.blocks.mlp.act__dsv41_vision_block:0",
+       "src": "dsv41_vision_tower@vision|vision.blocks.mlp.gate__dsv41_vision_block",
+       "dst": "dsv41_vision_tower@vision|vision.blocks.mlp.act__dsv41_vision_block",
+       "tensor": "",
+       "shape": "[0,1,2816]",
+       "port_label": ""
+      },
+      {
+       "id": "dsv41_vision_tower@vision|vision.blocks.mlp.act__dsv41_vision_block->dsv41_vision_tower@vision|vision.blocks.mlp.gated__dsv41_vision_block:0",
+       "src": "dsv41_vision_tower@vision|vision.blocks.mlp.act__dsv41_vision_block",
+       "dst": "dsv41_vision_tower@vision|vision.blocks.mlp.gated__dsv41_vision_block",
+       "tensor": "",
+       "shape": "[0,1,2816]",
+       "port_label": "dim"
+      },
+      {
+       "id": "dsv41_vision_tower@vision|vision.blocks.mlp.up__dsv41_vision_block->dsv41_vision_tower@vision|vision.blocks.mlp.gated__dsv41_vision_block:1",
+       "src": "dsv41_vision_tower@vision|vision.blocks.mlp.up__dsv41_vision_block",
+       "dst": "dsv41_vision_tower@vision|vision.blocks.mlp.gated__dsv41_vision_block",
+       "tensor": "",
+       "shape": "[0,1,2816]",
+       "port_label": "dim"
+      },
+      {
+       "id": "dsv41_vision_tower@vision|vision.blocks.mlp.gated__dsv41_vision_block->dsv41_vision_tower@vision|vision.blocks.mlp.w2:0",
+       "src": "dsv41_vision_tower@vision|vision.blocks.mlp.gated__dsv41_vision_block",
+       "dst": "dsv41_vision_tower@vision|vision.blocks.mlp.w2",
+       "tensor": "",
+       "shape": "[0,1,2816]",
+       "port_label": ""
+      },
+      {
+       "id": "dsv41_vision_tower@vision|vision.blocks.attn_residual__dsv41_vision_block->dsv41_vision_tower@vision|vision.blocks.out__dsv41_vision_block:0",
+       "src": "dsv41_vision_tower@vision|vision.blocks.attn_residual__dsv41_vision_block",
+       "dst": "dsv41_vision_tower@vision|vision.blocks.out__dsv41_vision_block",
+       "tensor": "",
+       "shape": "[0,1,1024]",
+       "port_label": "dim"
+      },
+      {
+       "id": "dsv41_vision_tower@vision|vision.blocks.mlp.w2->dsv41_vision_tower@vision|vision.blocks.out__dsv41_vision_block:1",
+       "src": "dsv41_vision_tower@vision|vision.blocks.mlp.w2",
+       "dst": "dsv41_vision_tower@vision|vision.blocks.out__dsv41_vision_block",
+       "tensor": "",
+       "shape": "[0,1,1024]",
+       "port_label": "dim"
+      }
+     ],
+     "l1": {
+      "available": true,
+      "reason": null,
+      "boxes": [
+       {
+        "id": "q+k+v",
+        "members": [
+         "dsv41_vision_tower@vision|vision.blocks.attn.wqkv",
+         "dsv41_vision_tower@vision|vision.blocks.norm1"
+        ],
+        "flops": 0,
+        "params": 3149824,
+        "weight_bytes": 6299648,
+        "ops": {
+         "linear": 1,
+         "rmsnorm": 1
+        },
+        "flops_symbolic": "B*n_img*(3*bias*d_vis_head*n_vis_heads + 6*d_vis_head*d_vis_model*n_vis_heads + 2*d_vis_model)*floor(img_h/s_patch)*floor(img_w/s_patch)",
+        "flops_is_law": true,
+        "label": "Shared by Q, K, V",
+        "rank": 7,
+        "kv": null
+       },
+       {
+        "id": "q",
+        "members": [
+         "dsv41_vision_tower@vision|vision.blocks.attn.q_flat__dsv41_vision_block",
+         "dsv41_vision_tower@vision|vision.blocks.attn.q_rope__dsv41_vision_block",
+         "dsv41_vision_tower@vision|vision.blocks.attn.q_split"
+        ],
+        "flops": 0,
+        "params": 0,
+        "weight_bytes": 0,
+        "ops": {
+         "head_split": 1,
+         "rope_2d": 1,
+         "slice": 1
+        },
+        "flops_symbolic": "3*B*d_vis_head*n_img*n_vis_heads*floor(img_h/s_patch)*floor(img_w/s_patch)",
+        "flops_is_law": true,
+        "label": "Q path",
+        "rank": 9,
+        "kv": null
+       },
+       {
+        "id": "k",
+        "members": [
+         "dsv41_vision_tower@vision|vision.blocks.attn.k_flat__dsv41_vision_block",
+         "dsv41_vision_tower@vision|vision.blocks.attn.k_rope__dsv41_vision_block",
+         "dsv41_vision_tower@vision|vision.blocks.attn.k_split"
+        ],
+        "flops": 0,
+        "params": 0,
+        "weight_bytes": 0,
+        "ops": {
+         "head_split": 1,
+         "rope_2d": 1,
+         "slice": 1
+        },
+        "flops_symbolic": "3*B*d_vis_head*n_img*n_vis_heads*floor(img_h/s_patch)*floor(img_w/s_patch)",
+        "flops_is_law": true,
+        "label": "K path",
+        "rank": 19,
+        "kv": null
+       },
+       {
+        "id": "v",
+        "members": [
+         "dsv41_vision_tower@vision|vision.blocks.attn.v_flat__dsv41_vision_block",
+         "dsv41_vision_tower@vision|vision.blocks.attn.v_split"
+        ],
+        "flops": 0,
+        "params": 0,
+        "weight_bytes": 0,
+        "ops": {
+         "head_split": 1,
+         "slice": 1
+        },
+        "flops_symbolic": "0",
+        "flops_is_law": false,
+        "label": "V path",
+        "rank": 29,
+        "kv": null
+       },
+       {
+        "id": "core",
+        "members": [
+         "dsv41_vision_tower@vision|vision.blocks.attn.apply__dsv41_vision_block",
+         "dsv41_vision_tower@vision|vision.blocks.attn.score__dsv41_vision_block",
+         "dsv41_vision_tower@vision|vision.blocks.attn.softmax__dsv41_vision_block"
+        ],
+        "flops": 0,
+        "params": 0,
+        "weight_bytes": 0,
+        "ops": {
+         "attention_apply": 1,
+         "attention_score": 1,
+         "softmax": 1
+        },
+        "flops_symbolic": "B*n_img*n_vis_heads*(4*d_vis_head + 5)*floor(img_h/s_patch)**2*floor(img_w/s_patch)**2",
+        "flops_is_law": true,
+        "label": "Attention core",
+        "rank": 101,
+        "kv": null
+       },
+       {
+        "id": "output",
+        "members": [
+         "dsv41_vision_tower@vision|vision.blocks.attn.o_merge",
+         "dsv41_vision_tower@vision|vision.blocks.attn.wo",
+         "dsv41_vision_tower@vision|vision.blocks.attn_residual__dsv41_vision_block",
+         "dsv41_vision_tower@vision|vision.blocks.mlp.act__dsv41_vision_block",
+         "dsv41_vision_tower@vision|vision.blocks.mlp.gate__dsv41_vision_block",
+         "dsv41_vision_tower@vision|vision.blocks.mlp.gated__dsv41_vision_block",
+         "dsv41_vision_tower@vision|vision.blocks.mlp.up__dsv41_vision_block",
+         "dsv41_vision_tower@vision|vision.blocks.mlp.w1",
+         "dsv41_vision_tower@vision|vision.blocks.mlp.w2",
+         "dsv41_vision_tower@vision|vision.blocks.norm2",
+         "dsv41_vision_tower@vision|vision.blocks.out__dsv41_vision_block"
+        ],
+        "flops": 0,
+        "params": 9701376,
+        "weight_bytes": 19402752,
+        "ops": {
+         "add": 2,
+         "head_merge": 1,
+         "linear": 3,
+         "mul": 1,
+         "rmsnorm": 1,
+         "silu": 1,
+         "slice": 2
+        },
+        "flops_symbolic": "B*n_img*(2*bias*d_vis_ffn + 2*bias*d_vis_model + 6*d_vis_ffn*d_vis_model + 5*d_vis_ffn + 2*d_vis_head*d_vis_model*n_vis_heads + 4*d_vis_model)*floor(img_h/s_patch)*floor(img_w/s_patch)",
+        "flops_is_law": true,
+        "label": "Output",
+        "rank": 102,
+        "kv": null
+       }
+      ],
+      "node_box": {
+       "dsv41_vision_tower@vision|vision.blocks.norm1": "q+k+v",
+       "dsv41_vision_tower@vision|vision.blocks.attn.wqkv": "q+k+v",
+       "dsv41_vision_tower@vision|vision.blocks.attn.q_flat__dsv41_vision_block": "q",
+       "dsv41_vision_tower@vision|vision.blocks.attn.k_flat__dsv41_vision_block": "k",
+       "dsv41_vision_tower@vision|vision.blocks.attn.v_flat__dsv41_vision_block": "v",
+       "dsv41_vision_tower@vision|vision.blocks.attn.q_split": "q",
+       "dsv41_vision_tower@vision|vision.blocks.attn.k_split": "k",
+       "dsv41_vision_tower@vision|vision.blocks.attn.v_split": "v",
+       "dsv41_vision_tower@vision|vision.blocks.attn.q_rope__dsv41_vision_block": "q",
+       "dsv41_vision_tower@vision|vision.blocks.attn.k_rope__dsv41_vision_block": "k",
+       "dsv41_vision_tower@vision|vision.blocks.attn.score__dsv41_vision_block": "core",
+       "dsv41_vision_tower@vision|vision.blocks.attn.softmax__dsv41_vision_block": "core",
+       "dsv41_vision_tower@vision|vision.blocks.attn.apply__dsv41_vision_block": "core",
+       "dsv41_vision_tower@vision|vision.blocks.attn.o_merge": "output",
+       "dsv41_vision_tower@vision|vision.blocks.attn.wo": "output",
+       "dsv41_vision_tower@vision|vision.blocks.attn_residual__dsv41_vision_block": "output",
+       "dsv41_vision_tower@vision|vision.blocks.norm2": "output",
+       "dsv41_vision_tower@vision|vision.blocks.mlp.w1": "output",
+       "dsv41_vision_tower@vision|vision.blocks.mlp.gate__dsv41_vision_block": "output",
+       "dsv41_vision_tower@vision|vision.blocks.mlp.up__dsv41_vision_block": "output",
+       "dsv41_vision_tower@vision|vision.blocks.mlp.act__dsv41_vision_block": "output",
+       "dsv41_vision_tower@vision|vision.blocks.mlp.gated__dsv41_vision_block": "output",
+       "dsv41_vision_tower@vision|vision.blocks.mlp.w2": "output",
+       "dsv41_vision_tower@vision|vision.blocks.out__dsv41_vision_block": "output"
+      },
+      "totals": {
+       "flops": 0,
+       "params": 12851200,
+       "weight_bytes": null
+      },
+      "core": "attention",
+      "other_merges": false
+     }
+    },
+    {
+     "id": "dsv41_vision_tower@vision|vision.norm",
+     "uid": 51,
+     "op": "rmsnorm",
+     "label": "vision.norm",
+     "role": null,
+     "tensor_name": "vision.norm",
+     "style": "norm",
+     "inputs": [
+      "dsv41_vision_tower@vision|vision.blocks"
+     ],
+     "input_ports": [
+      ""
+     ],
+     "op_formula": "y = x \u00b7 \u03b3 / sqrt(mean(x\u00b2) + \u03b5)",
+     "op_description": "Root-mean-square layer norm (elementwise, last-dim reduce). Llama, Qwen, DSv*, \u2026",
+     "detail": "dim=1,024",
+     "tensor_in": "[0,1,1024]",
+     "tensor_out": "[0,1,1024]",
+     "flops": 0,
+     "params": 1024,
+     "storage_bytes": 2048,
+     "flops_symbolic": "2*B*d_vis_model*n_img*floor(img_h/s_patch)*floor(img_w/s_patch)",
+     "flops_law": "2*B*d_vis_model*n_img*floor(img_h/s_patch)*floor(img_w/s_patch)",
+     "flops_values": "2*1024*1*0",
+     "params_symbolic": "d_vis_model",
+     "params_values": "1024",
+     "tensor_in_symbolic": "[B*n_img,floor(img_h/s_patch)*floor(img_w/s_patch),d_vis_model]",
+     "tensor_out_symbolic": "[B*n_img,floor(img_h/s_patch)*floor(img_w/s_patch),d_vis_model]",
+     "weight_dtype": "BF16",
+     "weight_dtype_bytes": 2.0,
+     "_matched_tensor": "vision.norm.weight",
+     "act_dtype_bytes": 2.0,
+     "out_bytes": 0,
+     "weight_bytes": 2048,
+     "access_bytes": 2048,
+     "arithmetic_intensity": null
+    },
+    {
+     "id": "dsv41_vision_tower@vision|aligner.unfold__dsv41_vision_tower",
+     "uid": 52,
+     "op": "spatial_merge",
+     "label": "aligner.unfold",
+     "role": null,
+     "tensor_name": "aligner.unfold",
+     "style": "op",
+     "inputs": [
+      "dsv41_vision_tower@vision|vision.norm"
+     ],
+     "input_ports": [
+      ""
+     ],
+     "op_description": "View-op: m x m spatial patch merge on a flattened sequence \u2014 [.., S, C] -> [.., S/m^2, C*m^2] (zero FLOPs / zero HBM).",
+     "detail": "n_spatial_merge=3",
+     "tensor_in": "[0,1,1024]",
+     "tensor_out": "[0,0,9216]",
+     "flops": 0,
+     "params": 0,
+     "storage_bytes": 0,
+     "flops_symbolic": "0",
+     "flops_law": "0",
+     "flops_values": "0",
+     "params_symbolic": "0",
+     "params_values": "0",
+     "tensor_in_symbolic": "[B*n_img,floor(img_h/s_patch)*floor(img_w/s_patch),d_vis_model]",
+     "tensor_out_symbolic": "[B*n_img,floor(floor(img_h/s_patch)*floor(img_w/s_patch)/n_spatial_merge**2),d_vis_model*n_spatial_merge**2]",
+     "act_dtype_bytes": 2.0,
+     "out_bytes": 0,
+     "weight_bytes": 0,
+     "access_bytes": 0,
+     "arithmetic_intensity": null
+    },
+    {
+     "id": "dsv41_vision_tower@vision|aligner.w1",
+     "uid": 53,
+     "op": "linear",
+     "label": "aligner.w1",
+     "role": null,
+     "tensor_name": "aligner.w1",
+     "style": "op",
+     "inputs": [
+      "dsv41_vision_tower@vision|aligner.unfold__dsv41_vision_tower"
+     ],
+     "input_ports": [
+      ""
+     ],
+     "detail": "W:9,216\u21925,120",
+     "has_bias": true,
+     "tensor_in": "[0,0,9216]",
+     "tensor_out": "[0,0,5120]",
+     "flops": 0,
+     "params": 47191040,
+     "storage_bytes": 94382080,
+     "flops_symbolic": "B*bias*d_model*n_img*floor(floor(img_h/s_patch)*floor(img_w/s_patch)/n_spatial_merge**2) + 2*B*d_model*d_vis_model*n_img*n_spatial_merge**2*floor(floor(img_h/s_patch)*floor(img_w/s_patch)/n_spatial_merge**2)",
+     "flops_law": "B*bias*d_model*n_img*floor(floor(img_h/s_patch)*floor(img_w/s_patch)/n_spatial_merge**2) + 2*B*d_model*d_vis_model*n_img*n_spatial_merge**2*floor(floor(img_h/s_patch)*floor(img_w/s_patch)/n_spatial_merge**2)",
+     "flops_values": "0",
+     "params_symbolic": "d_model*d_proj_in + d_model",
+     "params_values": "5120*9216 + 5120",
+     "tensor_in_symbolic": "[B*n_img,floor(floor(img_h/s_patch)*floor(img_w/s_patch)/n_spatial_merge**2),d_vis_model*n_spatial_merge**2]",
+     "tensor_out_symbolic": "[B*n_img,floor(floor(img_h/s_patch)*floor(img_w/s_patch)/n_spatial_merge**2),d_model]",
+     "weight_dtype": "BF16",
+     "weight_dtype_bytes": 2.0,
+     "_matched_tensor": "aligner.w1.weight",
+     "act_dtype_bytes": 2.0,
+     "out_bytes": 0,
+     "weight_bytes": 94382080,
+     "access_bytes": 94382080,
+     "arithmetic_intensity": null
+    },
+    {
+     "id": "dsv41_vision_tower@vision|aligner.gelu__dsv41_vision_tower",
+     "uid": 54,
+     "op": "gelu",
+     "label": "aligner.gelu",
+     "role": null,
+     "tensor_name": "aligner.gelu",
+     "style": "op",
+     "inputs": [
+      "dsv41_vision_tower@vision|aligner.w1"
+     ],
+     "input_ports": [
+      ""
+     ],
+     "op_formula": "y = 0.5\u00b7x\u00b7(1 + erf(x / sqrt(2)))",
+     "op_description": "Gaussian Error Linear Unit, exact (erf) form.",
+     "detail": "dim=5,120",
+     "tensor_in": "[0,0,5120]",
+     "tensor_out": "[0,0,5120]",
+     "flops": 0,
+     "params": 0,
+     "storage_bytes": 0,
+     "flops_symbolic": "8*B*d_model*n_img*floor(floor(img_h/s_patch)*floor(img_w/s_patch)/n_spatial_merge**2)",
+     "flops_law": "8*B*d_model*n_img*floor(floor(img_h/s_patch)*floor(img_w/s_patch)/n_spatial_merge**2)",
+     "flops_values": "8*5120*0*0",
+     "params_symbolic": "0",
+     "params_values": "0",
+     "tensor_in_symbolic": "[B*n_img,floor(floor(img_h/s_patch)*floor(img_w/s_patch)/n_spatial_merge**2),d_model]",
+     "tensor_out_symbolic": "[B*n_img,floor(floor(img_h/s_patch)*floor(img_w/s_patch)/n_spatial_merge**2),d_model]",
+     "act_dtype_bytes": 2.0,
+     "out_bytes": 0,
+     "weight_bytes": 0,
+     "access_bytes": 0,
+     "arithmetic_intensity": null
+    },
+    {
+     "id": "dsv41_vision_tower@vision|aligner.w2",
+     "uid": 55,
+     "op": "linear",
+     "label": "aligner.w2",
+     "role": null,
+     "tensor_name": "aligner.w2",
+     "style": "op",
+     "inputs": [
+      "dsv41_vision_tower@vision|aligner.gelu__dsv41_vision_tower"
+     ],
+     "input_ports": [
+      ""
+     ],
+     "detail": "W:5,120\u21925,120",
+     "has_bias": true,
+     "tensor_in": "[0,0,5120]",
+     "tensor_out": "[0,0,5120]",
+     "flops": 0,
+     "params": 26219520,
+     "storage_bytes": 52439040,
+     "flops_symbolic": "B*bias*d_model*n_img*floor(floor(img_h/s_patch)*floor(img_w/s_patch)/n_spatial_merge**2) + 2*B*d_model**2*n_img*floor(floor(img_h/s_patch)*floor(img_w/s_patch)/n_spatial_merge**2)",
+     "flops_law": "B*bias*d_model*n_img*floor(floor(img_h/s_patch)*floor(img_w/s_patch)/n_spatial_merge**2) + 2*B*d_model**2*n_img*floor(floor(img_h/s_patch)*floor(img_w/s_patch)/n_spatial_merge**2)",
+     "flops_values": "1*5120*0*0 + 2*5120**2*0*0",
+     "params_symbolic": "d_model**2 + d_model",
+     "params_values": "5120**2 + 5120",
+     "tensor_in_symbolic": "[B*n_img,floor(floor(img_h/s_patch)*floor(img_w/s_patch)/n_spatial_merge**2),d_model]",
+     "tensor_out_symbolic": "[B*n_img,floor(floor(img_h/s_patch)*floor(img_w/s_patch)/n_spatial_merge**2),d_model]",
+     "weight_dtype": "BF16",
+     "weight_dtype_bytes": 2.0,
+     "_matched_tensor": "aligner.w2.weight",
+     "act_dtype_bytes": 2.0,
+     "out_bytes": 0,
+     "weight_bytes": 52439040,
+     "access_bytes": 52439040,
+     "arithmetic_intensity": null
+    },
+    {
+     "id": "dsv41_vision_tower@vision|newline_row__dsv41_vision_tower",
+     "uid": 59,
+     "op": "broadcast",
+     "label": "newline_row",
+     "role": null,
+     "tensor_name": "newline_row",
+     "style": "view",
+     "inputs": [],
+     "input_ports": [
+      ""
+     ],
+     "op_formula": "nl[R, d_model] = image_newline.expand(R, d_model)   (R = merged-grid rows)",
+     "op_description": "View-op: insert a new axis of size `width` at `axis` (np.expand_dims semantics). Zero FLOPs / zero HBM (PyTorch `.expand()` is stride=0).",
+     "tensor_in": "[5120]",
+     "tensor_out": "[1,5120]",
+     "flops": 0,
+     "params": 0,
+     "storage_bytes": 0,
+     "flops_symbolic": "0",
+     "flops_law": "0",
+     "flops_values": "0",
+     "params_symbolic": "0",
+     "params_values": "0",
+     "tensor_in_symbolic": "[d_model]",
+     "tensor_out_symbolic": "[floor((n_spatial_merge+floor(img_h/s_patch)-1)/n_spatial_merge),d_model]",
+     "act_dtype_bytes": 2.0,
+     "out_bytes": 10240,
+     "weight_bytes": 0,
+     "access_bytes": 10240,
+     "arithmetic_intensity": null,
+     "absorbed_params": [
+      {
+       "id": "dsv41_vision_tower@vision|image_newline",
+       "label": "image_newline",
+       "tensor_name": "image_newline",
+       "op": "parameter_vector",
+       "detail": "dim=5,120",
+       "tensor_out": "[5120]",
+       "weight_dtype": "BF16",
+       "weight_dtype_bytes": 2.0,
+       "weight_bytes": 10240,
+       "_matched_tensor": "image_newline",
+       "params": 5120,
+       "input_positions": [
+        0
+       ]
+      }
+     ]
+    },
+    {
+     "id": "dsv41_vision_tower@vision|newline_expand__dsv41_vision_tower",
+     "uid": 60,
+     "op": "broadcast",
+     "label": "newline_expand",
+     "role": null,
+     "tensor_name": "newline_expand",
+     "style": "view",
+     "inputs": [
+      "dsv41_vision_tower@vision|newline_row__dsv41_vision_tower"
+     ],
+     "input_ports": [
+      ""
+     ],
+     "op_description": "View-op: insert a new axis of size `width` at `axis` (np.expand_dims semantics). Zero FLOPs / zero HBM (PyTorch `.expand()` is stride=0).",
+     "tensor_in": "[1,5120]",
+     "tensor_out": "[0,1,5120]",
+     "flops": 0,
+     "params": 0,
+     "storage_bytes": 0,
+     "flops_symbolic": "0",
+     "flops_law": "0",
+     "flops_values": "0",
+     "params_symbolic": "0",
+     "params_values": "0",
+     "tensor_in_symbolic": "[floor((n_spatial_merge+floor(img_h/s_patch)-1)/n_spatial_merge),d_model]",
+     "tensor_out_symbolic": "[B*n_img,floor((n_spatial_merge+floor(img_h/s_patch)-1)/n_spatial_merge),d_model]",
+     "act_dtype_bytes": 2.0,
+     "out_bytes": 0,
+     "weight_bytes": 0,
+     "access_bytes": 0,
+     "arithmetic_intensity": null
+    },
+    {
+     "id": "dsv41_vision_tower@vision|newline_concat__dsv41_vision_tower",
+     "uid": 61,
+     "op": "concat",
+     "label": "newline_concat",
+     "role": null,
+     "tensor_name": "newline_concat",
+     "style": "view",
+     "inputs": [
+      "dsv41_vision_tower@vision|aligner.w2",
+      "dsv41_vision_tower@vision|newline_expand__dsv41_vision_tower"
+     ],
+     "input_ports": [
+      "",
+      ""
+     ],
+     "op_formula": "span[types == IMAGE] = embeds; span[types == IMAGE_NEW_LINE] = image_newline   (one newline row per grid row, source/model.py:1239 + :1238)",
+     "op_description": "Concat along a dim \u2014 zero FLOPs but DOES copy HBM bytes (vLLM's `concat_and_cache_mla` is a real kernel, `torch.cat` always allocates). is_view_op=False.",
+     "tensor_in": "[0,0,5120], [0,1,5120]",
+     "tensor_out": "[0,1,5120]",
+     "flops": 0,
+     "params": 0,
+     "storage_bytes": 0,
+     "flops_symbolic": "0",
+     "flops_law": "0",
+     "flops_values": "0",
+     "params_symbolic": "0",
+     "params_values": "0",
+     "tensor_in_symbolic": "[B*n_img,floor(floor(img_h/s_patch)*floor(img_w/s_patch)/n_spatial_merge**2),d_model], [B*n_img,floor((n_spatial_merge+floor(img_h/s_patch)-1)/n_spatial_merge),d_model]",
+     "tensor_out_symbolic": "[B*n_img,floor((n_spatial_merge+floor(img_h/s_patch)-1)/n_spatial_merge)+floor(floor(img_h/s_patch)*floor(img_w/s_patch)/n_spatial_merge**2),d_model]",
+     "act_dtype_bytes": 2.0,
+     "out_bytes": 0,
+     "weight_bytes": 0,
+     "access_bytes": 0,
+     "arithmetic_intensity": null
+    },
+    {
+     "id": "dsv41_vision_tower@vision|start_row__dsv41_vision_tower",
+     "uid": 62,
+     "op": "broadcast",
+     "label": "start_row",
+     "role": null,
+     "tensor_name": "start_row",
+     "style": "view",
+     "inputs": [],
+     "input_ports": [
+      ""
+     ],
+     "op_formula": "start[1, d_model] = image_start.reshape(1, d_model)",
+     "op_description": "View-op: insert a new axis of size `width` at `axis` (np.expand_dims semantics). Zero FLOPs / zero HBM (PyTorch `.expand()` is stride=0).",
+     "tensor_in": "[5120]",
+     "tensor_out": "[0,5120]",
+     "flops": 0,
+     "params": 0,
+     "storage_bytes": 0,
+     "flops_symbolic": "0",
+     "flops_law": "0",
+     "flops_values": "0",
+     "params_symbolic": "0",
+     "params_values": "0",
+     "tensor_in_symbolic": "[d_model]",
+     "tensor_out_symbolic": "[Min(1,n_img),d_model]",
+     "act_dtype_bytes": 2.0,
+     "out_bytes": 0,
+     "weight_bytes": 0,
+     "access_bytes": 10240,
+     "arithmetic_intensity": null,
+     "absorbed_params": [
+      {
+       "id": "dsv41_vision_tower@vision|image_start",
+       "label": "image_start",
+       "tensor_name": "image_start",
+       "op": "parameter_vector",
+       "detail": "dim=5,120",
+       "tensor_out": "[5120]",
+       "weight_dtype": "BF16",
+       "weight_dtype_bytes": 2.0,
+       "weight_bytes": 10240,
+       "_matched_tensor": "image_start",
+       "params": 5120,
+       "input_positions": [
+        0
+       ]
+      }
+     ]
+    },
+    {
+     "id": "dsv41_vision_tower@vision|start_expand__dsv41_vision_tower",
+     "uid": 63,
+     "op": "broadcast",
+     "label": "start_expand",
+     "role": null,
+     "tensor_name": "start_expand",
+     "style": "view",
+     "inputs": [
+      "dsv41_vision_tower@vision|start_row__dsv41_vision_tower"
+     ],
+     "input_ports": [
+      ""
+     ],
+     "op_description": "View-op: insert a new axis of size `width` at `axis` (np.expand_dims semantics). Zero FLOPs / zero HBM (PyTorch `.expand()` is stride=0).",
+     "tensor_in": "[0,5120]",
+     "tensor_out": "[0,0,5120]",
+     "flops": 0,
+     "params": 0,
+     "storage_bytes": 0,
+     "flops_symbolic": "0",
+     "flops_law": "0",
+     "flops_values": "0",
+     "params_symbolic": "0",
+     "params_values": "0",
+     "tensor_in_symbolic": "[Min(1,n_img),d_model]",
+     "tensor_out_symbolic": "[B*n_img,Min(1,n_img),d_model]",
+     "act_dtype_bytes": 2.0,
+     "out_bytes": 0,
+     "weight_bytes": 0,
+     "access_bytes": 0,
+     "arithmetic_intensity": null
+    },
+    {
+     "id": "dsv41_vision_tower@vision|end_row__dsv41_vision_tower",
+     "uid": 64,
+     "op": "broadcast",
+     "label": "end_row",
+     "role": null,
+     "tensor_name": "end_row",
+     "style": "view",
+     "inputs": [],
+     "input_ports": [
+      ""
+     ],
+     "op_formula": "end[1, d_model] = image_end.reshape(1, d_model)",
+     "op_description": "View-op: insert a new axis of size `width` at `axis` (np.expand_dims semantics). Zero FLOPs / zero HBM (PyTorch `.expand()` is stride=0).",
+     "tensor_in": "[5120]",
+     "tensor_out": "[0,5120]",
+     "flops": 0,
+     "params": 0,
+     "storage_bytes": 0,
+     "flops_symbolic": "0",
+     "flops_law": "0",
+     "flops_values": "0",
+     "params_symbolic": "0",
+     "params_values": "0",
+     "tensor_in_symbolic": "[d_model]",
+     "tensor_out_symbolic": "[Min(1,n_img),d_model]",
+     "act_dtype_bytes": 2.0,
+     "out_bytes": 0,
+     "weight_bytes": 0,
+     "access_bytes": 10240,
+     "arithmetic_intensity": null,
+     "absorbed_params": [
+      {
+       "id": "dsv41_vision_tower@vision|image_end",
+       "label": "image_end",
+       "tensor_name": "image_end",
+       "op": "parameter_vector",
+       "detail": "dim=5,120",
+       "tensor_out": "[5120]",
+       "weight_dtype": "BF16",
+       "weight_dtype_bytes": 2.0,
+       "weight_bytes": 10240,
+       "_matched_tensor": "image_end",
+       "params": 5120,
+       "input_positions": [
+        0
+       ]
+      }
+     ]
+    },
+    {
+     "id": "dsv41_vision_tower@vision|end_expand__dsv41_vision_tower",
+     "uid": 65,
+     "op": "broadcast",
+     "label": "end_expand",
+     "role": null,
+     "tensor_name": "end_expand",
+     "style": "view",
+     "inputs": [
+      "dsv41_vision_tower@vision|end_row__dsv41_vision_tower"
+     ],
+     "input_ports": [
+      ""
+     ],
+     "op_description": "View-op: insert a new axis of size `width` at `axis` (np.expand_dims semantics). Zero FLOPs / zero HBM (PyTorch `.expand()` is stride=0).",
+     "tensor_in": "[0,5120]",
+     "tensor_out": "[0,0,5120]",
+     "flops": 0,
+     "params": 0,
+     "storage_bytes": 0,
+     "flops_symbolic": "0",
+     "flops_law": "0",
+     "flops_values": "0",
+     "params_symbolic": "0",
+     "params_values": "0",
+     "tensor_in_symbolic": "[Min(1,n_img),d_model]",
+     "tensor_out_symbolic": "[B*n_img,Min(1,n_img),d_model]",
+     "act_dtype_bytes": 2.0,
+     "out_bytes": 0,
+     "weight_bytes": 0,
+     "access_bytes": 0,
+     "arithmetic_intensity": null
+    },
+    {
+     "id": "dsv41_vision_tower@vision|span_rows__dsv41_vision_tower",
+     "uid": 66,
+     "op": "concat",
+     "label": "span_rows",
+     "role": null,
+     "tensor_name": "span_rows",
+     "style": "view",
+     "inputs": [
+      "dsv41_vision_tower@vision|start_expand__dsv41_vision_tower",
+      "dsv41_vision_tower@vision|newline_concat__dsv41_vision_tower",
+      "dsv41_vision_tower@vision|end_expand__dsv41_vision_tower"
+     ],
+     "input_ports": [
+      "",
+      "",
+      ""
+     ],
+     "op_formula": "span = [image_start] + aligner_rows/newlines + [image_end]   (merge_image_embeddings, source/model.py:1231-1239)",
+     "op_description": "Concat along a dim \u2014 zero FLOPs but DOES copy HBM bytes (vLLM's `concat_and_cache_mla` is a real kernel, `torch.cat` always allocates). is_view_op=False.",
+     "tensor_in": "[0,0,5120], [0,1,5120], [0,0,5120]",
+     "tensor_out": "[0,1,5120]",
+     "flops": 0,
+     "params": 0,
+     "storage_bytes": 0,
+     "flops_symbolic": "0",
+     "flops_law": "0",
+     "flops_values": "0",
+     "params_symbolic": "0",
+     "params_values": "0",
+     "tensor_in_symbolic": "[B*n_img,Min(1,n_img),d_model], [B*n_img,floor((n_spatial_merge+floor(img_h/s_patch)-1)/n_spatial_merge)+floor(floor(img_h/s_patch)*floor(img_w/s_patch)/n_spatial_merge**2),d_model], [B*n_img,Min(1,n_img),d_model]",
+     "tensor_out_symbolic": "[B*n_img,floor((n_spatial_merge+floor(img_h/s_patch)-1)/n_spatial_merge)+floor(floor(img_h/s_patch)*floor(img_w/s_patch)/n_spatial_merge**2)+2*Min(1,n_img),d_model]",
+     "act_dtype_bytes": 2.0,
+     "out_bytes": 0,
+     "weight_bytes": 0,
+     "access_bytes": 0,
+     "arithmetic_intensity": null
+    }
+   ],
+   "edges": [
+    {
+     "id": "x->dsv41_vision_tower@vision|vision.patch_embed.proj:0",
+     "src": "x",
+     "dst": "dsv41_vision_tower@vision|vision.patch_embed.proj",
+     "tensor": "",
+     "shape": "[0,1,588]",
+     "port_label": ""
+    },
+    {
+     "id": "dsv41_vision_tower@vision|vision.patch_embed.proj->dsv41_vision_tower@vision|vision.blocks:0",
+     "src": "dsv41_vision_tower@vision|vision.patch_embed.proj",
+     "dst": "dsv41_vision_tower@vision|vision.blocks",
+     "tensor": "",
+     "shape": "[0,1,1024]",
+     "port_label": ""
+    },
+    {
+     "id": "dsv41_vision_tower@vision|vision.blocks->dsv41_vision_tower@vision|vision.norm:0",
+     "src": "dsv41_vision_tower@vision|vision.blocks",
+     "dst": "dsv41_vision_tower@vision|vision.norm",
+     "tensor": "",
+     "shape": "[0,1,1024]",
+     "port_label": ""
+    },
+    {
+     "id": "dsv41_vision_tower@vision|vision.norm->dsv41_vision_tower@vision|aligner.unfold__dsv41_vision_tower:0",
+     "src": "dsv41_vision_tower@vision|vision.norm",
+     "dst": "dsv41_vision_tower@vision|aligner.unfold__dsv41_vision_tower",
+     "tensor": "",
+     "shape": "[0,1,1024]",
+     "port_label": ""
+    },
+    {
+     "id": "dsv41_vision_tower@vision|aligner.unfold__dsv41_vision_tower->dsv41_vision_tower@vision|aligner.w1:0",
+     "src": "dsv41_vision_tower@vision|aligner.unfold__dsv41_vision_tower",
+     "dst": "dsv41_vision_tower@vision|aligner.w1",
+     "tensor": "",
+     "shape": "[0,0,9216]",
+     "port_label": ""
+    },
+    {
+     "id": "dsv41_vision_tower@vision|aligner.w1->dsv41_vision_tower@vision|aligner.gelu__dsv41_vision_tower:0",
+     "src": "dsv41_vision_tower@vision|aligner.w1",
+     "dst": "dsv41_vision_tower@vision|aligner.gelu__dsv41_vision_tower",
+     "tensor": "",
+     "shape": "[0,0,5120]",
+     "port_label": ""
+    },
+    {
+     "id": "dsv41_vision_tower@vision|aligner.gelu__dsv41_vision_tower->dsv41_vision_tower@vision|aligner.w2:0",
+     "src": "dsv41_vision_tower@vision|aligner.gelu__dsv41_vision_tower",
+     "dst": "dsv41_vision_tower@vision|aligner.w2",
+     "tensor": "",
+     "shape": "[0,0,5120]",
+     "port_label": ""
+    },
+    {
+     "id": "dsv41_vision_tower@vision|newline_row__dsv41_vision_tower->dsv41_vision_tower@vision|newline_expand__dsv41_vision_tower:0",
+     "src": "dsv41_vision_tower@vision|newline_row__dsv41_vision_tower",
+     "dst": "dsv41_vision_tower@vision|newline_expand__dsv41_vision_tower",
+     "tensor": "",
+     "shape": "[1,5120]",
+     "port_label": ""
+    },
+    {
+     "id": "dsv41_vision_tower@vision|aligner.w2->dsv41_vision_tower@vision|newline_concat__dsv41_vision_tower:0",
+     "src": "dsv41_vision_tower@vision|aligner.w2",
+     "dst": "dsv41_vision_tower@vision|newline_concat__dsv41_vision_tower",
+     "tensor": "",
+     "shape": "[0,0,5120]",
+     "port_label": "in_a"
+    },
+    {
+     "id": "dsv41_vision_tower@vision|newline_expand__dsv41_vision_tower->dsv41_vision_tower@vision|newline_concat__dsv41_vision_tower:1",
+     "src": "dsv41_vision_tower@vision|newline_expand__dsv41_vision_tower",
+     "dst": "dsv41_vision_tower@vision|newline_concat__dsv41_vision_tower",
+     "tensor": "",
+     "shape": "[0,1,5120]",
+     "port_label": "in_b"
+    },
+    {
+     "id": "dsv41_vision_tower@vision|start_row__dsv41_vision_tower->dsv41_vision_tower@vision|start_expand__dsv41_vision_tower:0",
+     "src": "dsv41_vision_tower@vision|start_row__dsv41_vision_tower",
+     "dst": "dsv41_vision_tower@vision|start_expand__dsv41_vision_tower",
+     "tensor": "",
+     "shape": "[0,5120]",
+     "port_label": ""
+    },
+    {
+     "id": "dsv41_vision_tower@vision|end_row__dsv41_vision_tower->dsv41_vision_tower@vision|end_expand__dsv41_vision_tower:0",
+     "src": "dsv41_vision_tower@vision|end_row__dsv41_vision_tower",
+     "dst": "dsv41_vision_tower@vision|end_expand__dsv41_vision_tower",
+     "tensor": "",
+     "shape": "[0,5120]",
+     "port_label": ""
+    },
+    {
+     "id": "dsv41_vision_tower@vision|start_expand__dsv41_vision_tower->dsv41_vision_tower@vision|span_rows__dsv41_vision_tower:0",
+     "src": "dsv41_vision_tower@vision|start_expand__dsv41_vision_tower",
+     "dst": "dsv41_vision_tower@vision|span_rows__dsv41_vision_tower",
+     "tensor": "",
+     "shape": "[0,0,5120]",
+     "port_label": "in_a"
+    },
+    {
+     "id": "dsv41_vision_tower@vision|newline_concat__dsv41_vision_tower->dsv41_vision_tower@vision|span_rows__dsv41_vision_tower:1",
+     "src": "dsv41_vision_tower@vision|newline_concat__dsv41_vision_tower",
+     "dst": "dsv41_vision_tower@vision|span_rows__dsv41_vision_tower",
+     "tensor": "",
+     "shape": "[0,1,5120]",
+     "port_label": "in_b"
+    },
+    {
+     "id": "dsv41_vision_tower@vision|end_expand__dsv41_vision_tower->dsv41_vision_tower@vision|span_rows__dsv41_vision_tower:2",
+     "src": "dsv41_vision_tower@vision|end_expand__dsv41_vision_tower",
+     "dst": "dsv41_vision_tower@vision|span_rows__dsv41_vision_tower",
+     "tensor": "",
+     "shape": "[0,0,5120]",
+     "port_label": ""
+    }
+   ],
+   "template": "dsv41_vision_tower",
+   "params": {}
+  }
+ },
+ "architecture_view": {
+  "model_name": "DEEPSEEK_V41",
+  "subtitle": "748.49B total \u00b7 16.79B active",
+  "badges": [
+   "MoE",
+   "Hybrid",
+   "CSA",
+   "SWA",
+   "Vision",
+   "MTP",
+   "MXFP4"
+  ],
+  "model_inputs": [
+   {
+    "id": "in:input_ids",
+    "name": "input_ids"
+   },
+   {
+    "id": "in:pixel_values",
+    "name": "pixel_values"
+   }
+  ],
+  "layers": [
+   {
+    "name": "embed",
+    "type": "embedding",
+    "detail": "embedding \u00b7 d = 5,120 \u00b7 vocab = 129,280",
+    "expandable": false,
+    "id": "L0"
+   },
+   {
+    "name": "embed_merge (scatter_rows_replace)",
+    "type": "op",
+    "detail": "",
+    "expandable": false,
+    "id": "L2"
+   },
+   {
+    "name": "hc_seed (one_hot)",
+    "type": "op",
+    "detail": "",
+    "expandable": false,
+    "id": "L5"
+   },
+   {
+    "name": "dsv41_hc_block(attn=SWA, ffn=MoE FFN)",
+    "type": "moe_block",
+    "detail": "layer 0 \u00b7 \u00d71 layers \u00b7 SWA \u00b7 Top-6/384",
+    "expandable": true,
+    "layers": [
+     0
+    ],
+    "template": "dsv41_hc_block__attn-dsv4_swa_only_attention_ffn-dsv41_moe_vl",
+    "id": "L6#0",
+    "stream_produces": [
+     "hc_pre_mix"
+    ],
+    "stream_reads": [
+     "hc_pre_mix"
+    ],
+    "stream_sources": {
+     "hc_pre_mix": {
+      "declared": "i - 1",
+      "reads": [
+       [
+        0,
+        "hc_seed"
+       ]
+      ]
+     }
+    },
+    "stream_windows": {
+     "hc_pre_mix": 1
+    }
+   },
+   {
+    "name": "dsv41_hc_block_engram(attn=SWA, ffn=MoE FFN)",
+    "type": "moe_block",
+    "detail": "layer 1 \u00b7 \u00d71 layers \u00b7 SWA \u00b7 Top-6/384",
+    "expandable": true,
+    "layers": [
+     1
+    ],
+    "template": "dsv41_hc_block_engram__attn-dsv4_swa_only_attention_ffn-dsv41_moe_vl",
+    "id": "L6#1",
+    "stream_produces": [
+     "hc_pre_mix"
+    ],
+    "stream_reads": [
+     "hc_pre_mix"
+    ],
+    "stream_sources": {
+     "hc_pre_mix": {
+      "declared": "i - 1",
+      "reads": [
+       [
+        1,
+        0
+       ]
+      ]
+     }
+    },
+    "stream_windows": {
+     "hc_pre_mix": 1
+    }
+   },
+   {
+    "name": "dsv41_hc_block(ffn=MoE FFN, attn=CSA)",
+    "type": "moe_block",
+    "detail": "layers 2\u201313 \u00b7 \u00d712 layers \u00b7 CSA \u00b7 Top-6/384",
+    "expandable": true,
+    "layers": [
+     2,
+     3,
+     4,
+     5,
+     6,
+     7,
+     8,
+     9,
+     10,
+     11,
+     12,
+     13
+    ],
+    "variants": [
+     {
+      "name": "dsv41_hc_block(ffn=MoE FFN, attn=CSA[compressor=csa2_compressor_gated, indexer=csa2_indexer, compressed=csa2_compress_store])",
+      "type": "moe_block",
+      "detail": "layers 2, 8 \u00b7 \u00d72",
+      "expandable": true,
+      "template": "dsv41_hc_block__attn-csa2_attention__compressed-csa2_compress_store_compressor-csa2_compressor_gated_indexer-csa2_indexer_ffn-dsv41_moe_vl",
+      "layers": [
+       2,
+       8
+      ],
+      "slots": [
+       {
+        "slot": "attn.compressed",
+        "component": "csa2_compress_store",
+        "description": "CSA2 compressed-KV store: rotate the compressor's pre-RoPE latent, keep it in this layer's compressed cache and read back the rows the attention's union joins. Publishes compress_kv."
+       },
+       {
+        "slot": "attn.compressor",
+        "component": "csa2_compressor_gated",
+        "description": "CSA2 KV compressor, ratio > 1: gated softmax pooling of compress_ratio consecutive tokens into one pre-RoPE latent (wkv / wgate / norm, no position table)."
+       },
+       {
+        "slot": "attn.indexer",
+        "component": "csa2_indexer",
+        "description": "CSA2 indexer, key-owning form: own index keys off the compressor's pre-RoPE latent, own key cache, scores and top-K. Publishes index_k and csa_topk."
+       }
+      ],
+      "stream_produces": [
+       "hc_pre_mix",
+       "index_k",
+       "csa_topk",
+       "compress_kv"
+      ],
+      "stream_reads": [
+       "hc_pre_mix"
+      ],
+      "stream_sources": {
+       "hc_pre_mix": {
+        "declared": "i - 1",
+        "reads": [
+         [
+          2,
+          1
+         ],
+         [
+          8,
+          7
+         ]
+        ]
+       }
+      },
+      "stream_windows": {
+       "hc_pre_mix": 1,
+       "index_k": 16,
+       "csa_topk": 5,
+       "compress_kv": 19
+      }
+     },
+     {
+      "name": "dsv41_hc_block(ffn=MoE FFN, attn=CSA[compressor=csa2_shared_latent, indexer=csa2_shared_selection, compressed=csa2_compress_borrowed])",
+      "type": "moe_block",
+      "detail": "layers 3\u20137, 9\u201313 \u00b7 \u00d710",
+      "expandable": true,
+      "template": "dsv41_hc_block__attn-csa2_attention__compressed-csa2_compress_borrowed_compressor-csa2_shared_latent_indexer-csa2_shared_selection_ffn-dsv41_moe_vl",
+      "layers": [
+       3,
+       4,
+       5,
+       6,
+       7,
+       9,
+       10,
+       11,
+       12,
+       13
+      ],
+      "slots": [
+       {
+        "slot": "attn.compressed",
+        "component": "csa2_compress_borrowed",
+        "description": "CSA2 compressed-KV read: the rows an earlier kv-source layer published, under the read law the score applies. Stores nothing."
+       },
+       {
+        "slot": "attn.compressor",
+        "component": "csa2_shared_latent",
+        "description": "CSA2 shared compressed latent: the rows the nearest kv-source layer published, read where a Compressor would stand. No weights, no cache."
+       },
+       {
+        "slot": "attn.indexer",
+        "component": "csa2_shared_selection",
+        "description": "CSA2 selection, consumer form: the top-K compressed positions the nearest index source published, read as the shared list it is. No weights, no cache."
+       }
+      ],
+      "stream_produces": [
+       "hc_pre_mix"
+      ],
+      "stream_reads": [
+       "hc_pre_mix",
+       "compress_kv",
+       "csa_topk"
+      ],
+      "stream_sources": {
+       "compress_kv": {
+        "declared": "nearest config.text_config.kv_source_layer_ids",
+        "reads": [
+         [
+          3,
+          2
+         ],
+         [
+          4,
+          2
+         ],
+         [
+          5,
+          2
+         ],
+         [
+          6,
+          2
+         ],
+         [
+          7,
+          2
+         ],
+         [
+          9,
+          8
+         ],
+         [
+          10,
+          8
+         ],
+         [
+          11,
+          8
+         ],
+         [
+          12,
+          8
+         ],
+         [
+          13,
+          8
+         ],
+         [
+          15,
+          14
+         ],
+         [
+          16,
+          14
+         ],
+         [
+          17,
+          14
+         ],
+         [
+          18,
+          14
+         ],
+         [
+          19,
+          14
+         ]
+        ]
+       },
+       "csa_topk": {
+        "declared": "nearest config.text_config.index_source_layer_ids",
+        "reads": [
+         [
+          3,
+          2
+         ],
+         [
+          4,
+          2
+         ],
+         [
+          5,
+          2
+         ],
+         [
+          6,
+          2
+         ],
+         [
+          7,
+          2
+         ],
+         [
+          9,
+          8
+         ],
+         [
+          10,
+          8
+         ],
+         [
+          11,
+          8
+         ],
+         [
+          12,
+          8
+         ],
+         [
+          13,
+          8
+         ],
+         [
+          15,
+          14
+         ],
+         [
+          16,
+          14
+         ],
+         [
+          17,
+          14
+         ],
+         [
+          18,
+          14
+         ],
+         [
+          19,
+          14
+         ]
+        ]
+       },
+       "hc_pre_mix": {
+        "declared": "i - 1",
+        "reads": [
+         [
+          3,
+          2
+         ],
+         [
+          4,
+          3
+         ],
+         [
+          5,
+          4
+         ],
+         [
+          6,
+          5
+         ],
+         [
+          7,
+          6
+         ],
+         [
+          9,
+          8
+         ],
+         [
+          10,
+          9
+         ],
+         [
+          11,
+          10
+         ],
+         [
+          12,
+          11
+         ],
+         [
+          13,
+          12
+         ],
+         [
+          15,
+          14
+         ],
+         [
+          16,
+          15
+         ],
+         [
+          17,
+          16
+         ],
+         [
+          18,
+          17
+         ],
+         [
+          19,
+          18
+         ]
+        ]
+       }
+      },
+      "stream_windows": {
+       "hc_pre_mix": 1,
+       "compress_kv": 19,
+       "csa_topk": 5
+      }
+     }
+    ],
+    "stream_map": [
+     {
+      "name": "hc_pre_mix",
+      "cells": [
+       {
+        "layer": 2,
+        "writes": true,
+        "from": 1
+       },
+       {
+        "layer": 3,
+        "writes": true,
+        "from": 2
+       },
+       {
+        "layer": 4,
+        "writes": true,
+        "from": 3
+       },
+       {
+        "layer": 5,
+        "writes": true,
+        "from": 4
+       },
+       {
+        "layer": 6,
+        "writes": true,
+        "from": 5
+       },
+       {
+        "layer": 7,
+        "writes": true,
+        "from": 6
+       },
+       {
+        "layer": 8,
+        "writes": true,
+        "from": 7
+       },
+       {
+        "layer": 9,
+        "writes": true,
+        "from": 8
+       },
+       {
+        "layer": 10,
+        "writes": true,
+        "from": 9
+       },
+       {
+        "layer": 11,
+        "writes": true,
+        "from": 10
+       },
+       {
+        "layer": 12,
+        "writes": true,
+        "from": 11
+       },
+       {
+        "layer": 13,
+        "writes": true,
+        "from": 12
+       }
+      ]
+     },
+     {
+      "name": "csa_topk",
+      "cells": [
+       {
+        "layer": 2,
+        "writes": true
+       },
+       {
+        "layer": 3,
+        "writes": false,
+        "from": 2
+       },
+       {
+        "layer": 4,
+        "writes": false,
+        "from": 2
+       },
+       {
+        "layer": 5,
+        "writes": false,
+        "from": 2
+       },
+       {
+        "layer": 6,
+        "writes": false,
+        "from": 2
+       },
+       {
+        "layer": 7,
+        "writes": false,
+        "from": 2
+       },
+       {
+        "layer": 8,
+        "writes": true
+       },
+       {
+        "layer": 9,
+        "writes": false,
+        "from": 8
+       },
+       {
+        "layer": 10,
+        "writes": false,
+        "from": 8
+       },
+       {
+        "layer": 11,
+        "writes": false,
+        "from": 8
+       },
+       {
+        "layer": 12,
+        "writes": false,
+        "from": 8
+       },
+       {
+        "layer": 13,
+        "writes": false,
+        "from": 8
+       }
+      ]
+     },
+     {
+      "name": "compress_kv",
+      "cells": [
+       {
+        "layer": 2,
+        "writes": true
+       },
+       {
+        "layer": 3,
+        "writes": false,
+        "from": 2
+       },
+       {
+        "layer": 4,
+        "writes": false,
+        "from": 2
+       },
+       {
+        "layer": 5,
+        "writes": false,
+        "from": 2
+       },
+       {
+        "layer": 6,
+        "writes": false,
+        "from": 2
+       },
+       {
+        "layer": 7,
+        "writes": false,
+        "from": 2
+       },
+       {
+        "layer": 8,
+        "writes": true
+       },
+       {
+        "layer": 9,
+        "writes": false,
+        "from": 8
+       },
+       {
+        "layer": 10,
+        "writes": false,
+        "from": 8
+       },
+       {
+        "layer": 11,
+        "writes": false,
+        "from": 8
+       },
+       {
+        "layer": 12,
+        "writes": false,
+        "from": 8
+       },
+       {
+        "layer": 13,
+        "writes": false,
+        "from": 8
+       }
+      ]
+     }
+    ],
+    "id": "L6#2"
+   },
+   {
+    "name": "dsv41_hc_block_engram(ffn=MoE FFN, attn=CSA[compressor=csa2_compressor_gated, indexer=csa2_indexer, compressed=csa2_compress_store])",
+    "type": "moe_block",
+    "detail": "layer 14 \u00b7 \u00d71 layers \u00b7 CSA \u00b7 Top-6/384",
+    "expandable": true,
+    "layers": [
+     14
+    ],
+    "template": "dsv41_hc_block_engram__attn-csa2_attention__compressed-csa2_compress_store_compressor-csa2_compressor_gated_indexer-csa2_indexer_ffn-dsv41_moe_vl",
+    "id": "L6#3",
+    "stream_produces": [
+     "hc_pre_mix",
+     "index_k",
+     "csa_topk",
+     "compress_kv"
+    ],
+    "stream_reads": [
+     "hc_pre_mix"
+    ],
+    "stream_sources": {
+     "hc_pre_mix": {
+      "declared": "i - 1",
+      "reads": [
+       [
+        14,
+        13
+       ]
+      ]
+     }
+    },
+    "stream_windows": {
+     "hc_pre_mix": 1,
+     "index_k": 16,
+     "csa_topk": 5,
+     "compress_kv": 19
+    }
+   },
+   {
+    "name": "dsv41_hc_block(ffn=MoE FFN, attn=CSA)",
+    "type": "moe_block",
+    "detail": "layers 15\u201339 \u00b7 \u00d725 layers \u00b7 CSA \u00b7 Top-6/384",
+    "expandable": true,
+    "layers": [
+     15,
+     16,
+     17,
+     18,
+     19,
+     20,
+     21,
+     22,
+     23,
+     24,
+     25,
+     26,
+     27,
+     28,
+     29,
+     30,
+     31,
+     32,
+     33,
+     34,
+     35,
+     36,
+     37,
+     38,
+     39
+    ],
+    "variants": [
+     {
+      "name": "dsv41_hc_block(ffn=MoE FFN, attn=CSA[compressor=csa2_shared_latent, indexer=csa2_shared_selection, compressed=csa2_compress_borrowed])",
+      "type": "moe_block",
+      "detail": "layers 15\u201319, 21\u201323, 25\u201327, \u2026, 37\u201339 (every 4) \u00b7 \u00d720",
+      "expandable": true,
+      "template": "dsv41_hc_block__attn-csa2_attention__compressed-csa2_compress_borrowed_compressor-csa2_shared_latent_indexer-csa2_shared_selection_ffn-dsv41_moe_vl",
+      "layers": [
+       15,
+       16,
+       17,
+       18,
+       19,
+       21,
+       22,
+       23,
+       25,
+       26,
+       27,
+       29,
+       30,
+       31,
+       33,
+       34,
+       35,
+       37,
+       38,
+       39
+      ],
+      "slots": [
+       {
+        "slot": "attn.compressed",
+        "component": "csa2_compress_borrowed",
+        "description": "CSA2 compressed-KV read: the rows an earlier kv-source layer published, under the read law the score applies. Stores nothing."
+       },
+       {
+        "slot": "attn.compressor",
+        "component": "csa2_shared_latent",
+        "description": "CSA2 shared compressed latent: the rows the nearest kv-source layer published, read where a Compressor would stand. No weights, no cache."
+       },
+       {
+        "slot": "attn.indexer",
+        "component": "csa2_shared_selection",
+        "description": "CSA2 selection, consumer form: the top-K compressed positions the nearest index source published, read as the shared list it is. No weights, no cache."
+       }
+      ],
+      "stream_produces": [
+       "hc_pre_mix"
+      ],
+      "stream_reads": [
+       "hc_pre_mix",
+       "compress_kv",
+       "csa_topk"
+      ],
+      "stream_sources": {
+       "compress_kv": {
+        "declared": "nearest config.text_config.kv_source_layer_ids",
+        "reads": [
+         [
+          3,
+          2
+         ],
+         [
+          4,
+          2
+         ],
+         [
+          5,
+          2
+         ],
+         [
+          6,
+          2
+         ],
+         [
+          7,
+          2
+         ],
+         [
+          9,
+          8
+         ],
+         [
+          10,
+          8
+         ],
+         [
+          11,
+          8
+         ],
+         [
+          12,
+          8
+         ],
+         [
+          13,
+          8
+         ],
+         [
+          15,
+          14
+         ],
+         [
+          16,
+          14
+         ],
+         [
+          17,
+          14
+         ],
+         [
+          18,
+          14
+         ],
+         [
+          19,
+          14
+         ]
+        ]
+       },
+       "csa_topk": {
+        "declared": "nearest config.text_config.index_source_layer_ids",
+        "reads": [
+         [
+          3,
+          2
+         ],
+         [
+          4,
+          2
+         ],
+         [
+          5,
+          2
+         ],
+         [
+          6,
+          2
+         ],
+         [
+          7,
+          2
+         ],
+         [
+          9,
+          8
+         ],
+         [
+          10,
+          8
+         ],
+         [
+          11,
+          8
+         ],
+         [
+          12,
+          8
+         ],
+         [
+          13,
+          8
+         ],
+         [
+          15,
+          14
+         ],
+         [
+          16,
+          14
+         ],
+         [
+          17,
+          14
+         ],
+         [
+          18,
+          14
+         ],
+         [
+          19,
+          14
+         ]
+        ]
+       },
+       "hc_pre_mix": {
+        "declared": "i - 1",
+        "reads": [
+         [
+          3,
+          2
+         ],
+         [
+          4,
+          3
+         ],
+         [
+          5,
+          4
+         ],
+         [
+          6,
+          5
+         ],
+         [
+          7,
+          6
+         ],
+         [
+          9,
+          8
+         ],
+         [
+          10,
+          9
+         ],
+         [
+          11,
+          10
+         ],
+         [
+          12,
+          11
+         ],
+         [
+          13,
+          12
+         ],
+         [
+          15,
+          14
+         ],
+         [
+          16,
+          15
+         ],
+         [
+          17,
+          16
+         ],
+         [
+          18,
+          17
+         ],
+         [
+          19,
+          18
+         ]
+        ]
+       }
+      },
+      "stream_windows": {
+       "hc_pre_mix": 1,
+       "compress_kv": 19,
+       "csa_topk": 5
+      }
+     },
+     {
+      "name": "dsv41_hc_block(ffn=MoE FFN, attn=CSA[compressor=csa2_compressor_plain, indexer=csa2_indexer_candidate_source, compressed=csa2_compress_store])",
+      "type": "moe_block",
+      "detail": "layer 20 \u00b7 \u00d71",
+      "expandable": true,
+      "template": "dsv41_hc_block__attn-csa2_attention__compressed-csa2_compress_store_compressor-csa2_compressor_plain_indexer-csa2_indexer_candidate_source_ffn-dsv41_moe_vl",
+      "layers": [
+       20
+      ],
+      "slots": [
+       {
+        "slot": "attn.compressed",
+        "component": "csa2_compress_store",
+        "description": "CSA2 compressed-KV store: rotate the compressor's pre-RoPE latent, keep it in this layer's compressed cache and read back the rows the attention's union joins. Publishes compress_kv."
+       },
+       {
+        "slot": "attn.compressor",
+        "component": "csa2_compressor_plain",
+        "description": "CSA2 KV compressor, ratio == 1: the plain projection branch (wkv + norm, no gate, no pooling) producing the pre-RoPE latent."
+       },
+       {
+        "slot": "attn.indexer",
+        "component": "csa2_indexer_candidate_source",
+        "description": "CSA2 indexer, key-owning + candidate-source form: as csa2_indexer plus level one of the two-level top-K (candidate blocks). Publishes index_k, candidates and csa_topk."
+       }
+      ],
+      "stream_produces": [
+       "hc_pre_mix",
+       "index_k",
+       "candidates",
+       "csa_topk",
+       "compress_kv"
+      ],
+      "stream_reads": [
+       "hc_pre_mix"
+      ],
+      "stream_sources": {
+       "hc_pre_mix": {
+        "declared": "i - 1",
+        "reads": [
+         [
+          20,
+          19
+         ]
+        ]
+       }
+      },
+      "stream_windows": {
+       "hc_pre_mix": 1,
+       "index_k": 16,
+       "candidates": 16,
+       "csa_topk": 5,
+       "compress_kv": 19
+      }
+     },
+     {
+      "name": "dsv41_hc_block(ffn=MoE FFN, attn=CSA[compressor=csa2_shared_latent, indexer=csa2_indexer_shared_keys, compressed=csa2_compress_borrowed])",
+      "type": "moe_block",
+      "detail": "layers 24, 28, 32, 36 \u00b7 \u00d74",
+      "expandable": true,
+      "template": "dsv41_hc_block__attn-csa2_attention__compressed-csa2_compress_borrowed_compressor-csa2_shared_latent_indexer-csa2_indexer_shared_keys_ffn-dsv41_moe_vl",
+      "layers": [
+       24,
+       28,
+       32,
+       36
+      ],
+      "slots": [
+       {
+        "slot": "attn.compressed",
+        "component": "csa2_compress_borrowed",
+        "description": "CSA2 compressed-KV read: the rows an earlier kv-source layer published, under the read law the score applies. Stores nothing."
+       },
+       {
+        "slot": "attn.compressor",
+        "component": "csa2_shared_latent",
+        "description": "CSA2 shared compressed latent: the rows the nearest kv-source layer published, read where a Compressor would stand. No weights, no cache."
+       },
+       {
+        "slot": "attn.indexer",
+        "component": "csa2_indexer_shared_keys",
+        "description": "CSA2 indexer, shared-keys form: re-scores the shared index keys with its own wq_b / weights_proj inside the candidate source's blocks and publishes csa_topk. No wk, no key cache."
+       }
+      ],
+      "stream_produces": [
+       "hc_pre_mix",
+       "csa_topk"
+      ],
+      "stream_reads": [
+       "hc_pre_mix",
+       "compress_kv",
+       "index_k",
+       "candidates"
+      ],
+      "stream_sources": {
+       "candidates": {
+        "declared": "nearest config.text_config.candidate_source_layer_id",
+        "reads": [
+         [
+          24,
+          20
+         ],
+         [
+          28,
+          20
+         ],
+         [
+          32,
+          20
+         ],
+         [
+          36,
+          20
+         ]
+        ]
+       },
+       "compress_kv": {
+        "declared": "nearest config.text_config.kv_source_layer_ids",
+        "reads": [
+         [
+          24,
+          20
+         ],
+         [
+          28,
+          20
+         ],
+         [
+          32,
+          20
+         ],
+         [
+          36,
+          20
+         ]
+        ]
+       },
+       "hc_pre_mix": {
+        "declared": "i - 1",
+        "reads": [
+         [
+          24,
+          23
+         ],
+         [
+          28,
+          27
+         ],
+         [
+          32,
+          31
+         ],
+         [
+          36,
+          35
+         ]
+        ]
+       },
+       "index_k": {
+        "declared": "nearest config.text_config.kv_source_layer_ids",
+        "reads": [
+         [
+          24,
+          20
+         ],
+         [
+          28,
+          20
+         ],
+         [
+          32,
+          20
+         ],
+         [
+          36,
+          20
+         ]
+        ]
+       }
+      },
+      "stream_windows": {
+       "hc_pre_mix": 1,
+       "csa_topk": 5,
+       "compress_kv": 19,
+       "index_k": 16,
+       "candidates": 16
+      }
+     }
+    ],
+    "stream_map": [
+     {
+      "name": "hc_pre_mix",
+      "cells": [
+       {
+        "layer": 15,
+        "writes": true,
+        "from": 14
+       },
+       {
+        "layer": 16,
+        "writes": true,
+        "from": 15
+       },
+       {
+        "layer": 17,
+        "writes": true,
+        "from": 16
+       },
+       {
+        "layer": 18,
+        "writes": true,
+        "from": 17
+       },
+       {
+        "layer": 19,
+        "writes": true,
+        "from": 18
+       },
+       {
+        "layer": 20,
+        "writes": true,
+        "from": 19
+       },
+       {
+        "layer": 21,
+        "writes": true,
+        "from": 20
+       },
+       {
+        "layer": 22,
+        "writes": true,
+        "from": 21
+       },
+       {
+        "layer": 23,
+        "writes": true,
+        "from": 22
+       },
+       {
+        "layer": 24,
+        "writes": true,
+        "from": 23
+       },
+       {
+        "layer": 25,
+        "writes": true,
+        "from": 24
+       },
+       {
+        "layer": 26,
+        "writes": true,
+        "from": 25
+       },
+       {
+        "layer": 27,
+        "writes": true,
+        "from": 26
+       },
+       {
+        "layer": 28,
+        "writes": true,
+        "from": 27
+       },
+       {
+        "layer": 29,
+        "writes": true,
+        "from": 28
+       },
+       {
+        "layer": 30,
+        "writes": true,
+        "from": 29
+       },
+       {
+        "layer": 31,
+        "writes": true,
+        "from": 30
+       },
+       {
+        "layer": 32,
+        "writes": true,
+        "from": 31
+       },
+       {
+        "layer": 33,
+        "writes": true,
+        "from": 32
+       },
+       {
+        "layer": 34,
+        "writes": true,
+        "from": 33
+       },
+       {
+        "layer": 35,
+        "writes": true,
+        "from": 34
+       },
+       {
+        "layer": 36,
+        "writes": true,
+        "from": 35
+       },
+       {
+        "layer": 37,
+        "writes": true,
+        "from": 36
+       },
+       {
+        "layer": 38,
+        "writes": true,
+        "from": 37
+       },
+       {
+        "layer": 39,
+        "writes": true,
+        "from": 38
+       }
+      ]
+     },
+     {
+      "name": "index_k",
+      "cells": [
+       {
+        "layer": 20,
+        "writes": true
+       },
+       {
+        "layer": 24,
+        "writes": false,
+        "from": 20
+       },
+       {
+        "layer": 28,
+        "writes": false,
+        "from": 20
+       },
+       {
+        "layer": 32,
+        "writes": false,
+        "from": 20
+       },
+       {
+        "layer": 36,
+        "writes": false,
+        "from": 20
+       }
+      ]
+     },
+     {
+      "name": "csa_topk",
+      "cells": [
+       {
+        "layer": 15,
+        "writes": false,
+        "from": 14
+       },
+       {
+        "layer": 16,
+        "writes": false,
+        "from": 14
+       },
+       {
+        "layer": 17,
+        "writes": false,
+        "from": 14
+       },
+       {
+        "layer": 18,
+        "writes": false,
+        "from": 14
+       },
+       {
+        "layer": 19,
+        "writes": false,
+        "from": 14
+       },
+       {
+        "layer": 20,
+        "writes": true
+       },
+       {
+        "layer": 21,
+        "writes": false,
+        "from": 20
+       },
+       {
+        "layer": 22,
+        "writes": false,
+        "from": 20
+       },
+       {
+        "layer": 23,
+        "writes": false,
+        "from": 20
+       },
+       {
+        "layer": 24,
+        "writes": true
+       },
+       {
+        "layer": 25,
+        "writes": false,
+        "from": 24
+       },
+       {
+        "layer": 26,
+        "writes": false,
+        "from": 24
+       },
+       {
+        "layer": 27,
+        "writes": false,
+        "from": 24
+       },
+       {
+        "layer": 28,
+        "writes": true
+       },
+       {
+        "layer": 29,
+        "writes": false,
+        "from": 28
+       },
+       {
+        "layer": 30,
+        "writes": false,
+        "from": 28
+       },
+       {
+        "layer": 31,
+        "writes": false,
+        "from": 28
+       },
+       {
+        "layer": 32,
+        "writes": true
+       },
+       {
+        "layer": 33,
+        "writes": false,
+        "from": 32
+       },
+       {
+        "layer": 34,
+        "writes": false,
+        "from": 32
+       },
+       {
+        "layer": 35,
+        "writes": false,
+        "from": 32
+       },
+       {
+        "layer": 36,
+        "writes": true
+       },
+       {
+        "layer": 37,
+        "writes": false,
+        "from": 36
+       },
+       {
+        "layer": 38,
+        "writes": false,
+        "from": 36
+       },
+       {
+        "layer": 39,
+        "writes": false,
+        "from": 36
+       }
+      ]
+     },
+     {
+      "name": "compress_kv",
+      "cells": [
+       {
+        "layer": 15,
+        "writes": false,
+        "from": 14
+       },
+       {
+        "layer": 16,
+        "writes": false,
+        "from": 14
+       },
+       {
+        "layer": 17,
+        "writes": false,
+        "from": 14
+       },
+       {
+        "layer": 18,
+        "writes": false,
+        "from": 14
+       },
+       {
+        "layer": 19,
+        "writes": false,
+        "from": 14
+       },
+       {
+        "layer": 20,
+        "writes": true
+       },
+       {
+        "layer": 21,
+        "writes": false,
+        "from": 20
+       },
+       {
+        "layer": 22,
+        "writes": false,
+        "from": 20
+       },
+       {
+        "layer": 23,
+        "writes": false,
+        "from": 20
+       },
+       {
+        "layer": 24,
+        "writes": false,
+        "from": 20
+       },
+       {
+        "layer": 25,
+        "writes": false,
+        "from": 20
+       },
+       {
+        "layer": 26,
+        "writes": false,
+        "from": 20
+       },
+       {
+        "layer": 27,
+        "writes": false,
+        "from": 20
+       },
+       {
+        "layer": 28,
+        "writes": false,
+        "from": 20
+       },
+       {
+        "layer": 29,
+        "writes": false,
+        "from": 20
+       },
+       {
+        "layer": 30,
+        "writes": false,
+        "from": 20
+       },
+       {
+        "layer": 31,
+        "writes": false,
+        "from": 20
+       },
+       {
+        "layer": 32,
+        "writes": false,
+        "from": 20
+       },
+       {
+        "layer": 33,
+        "writes": false,
+        "from": 20
+       },
+       {
+        "layer": 34,
+        "writes": false,
+        "from": 20
+       },
+       {
+        "layer": 35,
+        "writes": false,
+        "from": 20
+       },
+       {
+        "layer": 36,
+        "writes": false,
+        "from": 20
+       },
+       {
+        "layer": 37,
+        "writes": false,
+        "from": 20
+       },
+       {
+        "layer": 38,
+        "writes": false,
+        "from": 20
+       },
+       {
+        "layer": 39,
+        "writes": false,
+        "from": 20
+       }
+      ]
+     },
+     {
+      "name": "candidates",
+      "cells": [
+       {
+        "layer": 20,
+        "writes": true
+       },
+       {
+        "layer": 24,
+        "writes": false,
+        "from": 20
+       },
+       {
+        "layer": 28,
+        "writes": false,
+        "from": 20
+       },
+       {
+        "layer": 32,
+        "writes": false,
+        "from": 20
+       },
+       {
+        "layer": 36,
+        "writes": false,
+        "from": 20
+       }
+      ]
+     }
+    ],
+    "id": "L6#4"
+   },
+   {
+    "name": "hc_exit (hc_weighted_reduce)",
+    "type": "op",
+    "detail": "",
+    "expandable": false,
+    "id": "L8"
+   },
+   {
+    "name": "norm",
+    "type": "norm",
+    "detail": "RMSNorm",
+    "expandable": false,
+    "id": "L9"
+   },
+   {
+    "name": "head",
+    "type": "lm_head",
+    "detail": "vocab = 129,280",
+    "expandable": false,
+    "id": "L10"
+   },
+   {
+    "name": "mtp_hc_seed (one_hot)",
+    "type": "op",
+    "detail": "",
+    "expandable": false,
+    "id": "L13"
+   }
+  ],
+  "extra_sections": [
+   {
+    "name": "vision (encoder)",
+    "repeat": 1,
+    "type": "extra_module",
+    "sub_layers": [
+     {
+      "name": "dsv41_vision_tower",
+      "type": "dense_block",
+      "detail": "",
+      "expandable": true,
+      "template": "dsv41_vision_tower"
+     }
+    ],
+    "id": "L1"
+   },
+   {
+    "name": "mtp",
+    "repeat": 1,
+    "type": "extra_module",
+    "sub_layers": [
+     {
+      "name": "dspark_stage_first",
+      "type": "moe_block",
+      "detail": "layer 0 \u00b7 \u00d71 layers \u00b7 SWA \u00b7 Top-6/384",
+      "expandable": true,
+      "layers": [
+       0
+      ],
+      "template": "dspark_stage_first",
+      "stream_produces": [
+       "mtp_hc_pre_mix",
+       "main_x"
+      ],
+      "stream_reads": [
+       "main_hidden_37",
+       "main_hidden_38",
+       "main_hidden_39",
+       "mtp_hc_pre_mix"
+      ],
+      "stream_sources": {
+       "mtp_hc_pre_mix": {
+        "declared": "i - 1",
+        "reads": [
+         [
+          0,
+          "mtp_hc_seed"
+         ]
+        ]
+       }
+      },
+      "stream_windows": {
+       "mtp_hc_pre_mix": 1,
+       "main_x": 2
+      }
+     },
+     {
+      "name": "dspark_stage_mid",
+      "type": "moe_block",
+      "detail": "layer 1 \u00b7 \u00d71 layers \u00b7 SWA \u00b7 Top-6/384",
+      "expandable": true,
+      "layers": [
+       1
+      ],
+      "template": "dspark_stage_mid",
+      "stream_produces": [
+       "mtp_hc_pre_mix"
+      ],
+      "stream_reads": [
+       "mtp_hc_pre_mix",
+       "main_x"
+      ],
+      "stream_sources": {
+       "main_x": {
+        "declared": "0",
+        "reads": [
+         [
+          1,
+          0
+         ]
+        ]
+       },
+       "mtp_hc_pre_mix": {
+        "declared": "i - 1",
+        "reads": [
+         [
+          1,
+          0
+         ]
+        ]
+       }
+      },
+      "stream_windows": {
+       "mtp_hc_pre_mix": 1,
+       "main_x": 2
+      }
+     },
+     {
+      "name": "dspark_stage_last",
+      "type": "moe_block",
+      "detail": "layer 2 \u00b7 \u00d71 layers \u00b7 SWA \u00b7 Top-6/384",
+      "expandable": true,
+      "layers": [
+       2
+      ],
+      "template": "dspark_stage_last",
+      "stream_reads": [
+       "mtp_hc_pre_mix",
+       "main_x"
+      ],
+      "stream_sources": {
+       "main_x": {
+        "declared": "0",
+        "reads": [
+         [
+          2,
+          0
+         ]
+        ]
+       },
+       "mtp_hc_pre_mix": {
+        "declared": "i - 1",
+        "reads": [
+         [
+          2,
+          1
+         ]
+        ]
+       }
+      },
+      "stream_windows": {
+       "mtp_hc_pre_mix": 1,
+       "main_x": 2
+      }
+     },
+     {
+      "name": "mtp_logits (Linear)",
+      "type": "op",
+      "detail": "5,120 \u2192 129,280"
+     }
+    ],
+    "id": "L14"
+   }
+  ],
+  "edges": [
+   {
+    "from": "L6#0",
+    "to": "L6#1",
+    "kind": "data"
+   },
+   {
+    "from": "L6#1",
+    "to": "L6#2",
+    "kind": "data"
+   },
+   {
+    "from": "L6#2",
+    "to": "L6#3",
+    "kind": "data"
+   },
+   {
+    "from": "L6#3",
+    "to": "L6#4",
+    "kind": "data"
+   },
+   {
+    "from": "L6#0",
+    "to": "L6#1",
+    "kind": "stream",
+    "streams": [
+     "hc_pre_mix"
+    ]
+   },
+   {
+    "from": "L6#1",
+    "to": "L6#2",
+    "kind": "stream",
+    "streams": [
+     "hc_pre_mix"
+    ]
+   },
+   {
+    "from": "L6#2",
+    "to": "L6#3",
+    "kind": "stream",
+    "streams": [
+     "hc_pre_mix"
+    ]
+   },
+   {
+    "from": "L6#3",
+    "to": "L6#4",
+    "kind": "stream",
+    "streams": [
+     "hc_pre_mix",
+     "csa_topk",
+     "compress_kv"
+    ]
+   },
+   {
+    "from": "in:input_ids",
+    "to": "L0",
+    "kind": "data"
+   },
+   {
+    "from": "in:pixel_values",
+    "to": "L1",
+    "kind": "data"
+   },
+   {
+    "from": "L0",
+    "to": "L2",
+    "kind": "data"
+   },
+   {
+    "from": "L1",
+    "to": "L2",
+    "kind": "data"
+   },
+   {
+    "from": "L2",
+    "to": "L5",
+    "kind": "data"
+   },
+   {
+    "from": "L2",
+    "to": "L6#0",
+    "kind": "data"
+   },
+   {
+    "from": "in:input_ids",
+    "to": "L6#1",
+    "kind": "data"
+   },
+   {
+    "from": "in:input_ids",
+    "to": "L6#3",
+    "kind": "data"
+   },
+   {
+    "from": "L5",
+    "to": "L6#0",
+    "kind": "stream",
+    "streams": [
+     "hc_pre_mix"
+    ]
+   },
+   {
+    "from": "L6#4",
+    "to": "L8",
+    "kind": "data"
+   },
+   {
+    "from": "L6#4",
+    "to": "L8",
+    "kind": "stream",
+    "streams": [
+     "hc_pre_mix"
+    ]
+   },
+   {
+    "from": "L8",
+    "to": "L9",
+    "kind": "data"
+   },
+   {
+    "from": "L9",
+    "to": "L10",
+    "kind": "data"
+   },
+   {
+    "from": "L0",
+    "to": "L13",
+    "kind": "data"
+   },
+   {
+    "from": "L0",
+    "to": "L14",
+    "kind": "data"
+   },
+   {
+    "from": "in:input_ids",
+    "to": "L14",
+    "kind": "data"
+   },
+   {
+    "from": "L6#4",
+    "to": "L14",
+    "kind": "stream",
+    "streams": [
+     "main_hidden_37",
+     "main_hidden_38",
+     "main_hidden_39"
+    ]
+   },
+   {
+    "from": "L13",
+    "to": "L14",
+    "kind": "stream",
+    "streams": [
+     "mtp_hc_pre_mix"
+    ]
+   }
+  ],
+  "summary_table": {
+   "Type": "MoE",
+   "Layers": "40",
+   "Attention": "SWA + CSA",
+   "Experts": "6/384"
+  }
+ }
+}

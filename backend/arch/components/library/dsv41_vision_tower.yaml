@@ -1,0 +1,87 @@
+# DeepSeek-V4.1-Flash vision tower: DeepSeek-ViT + Aligner + the three learned
+# image-span delimiter embeddings.
+#
+# Singleton wrapper so the leaves land at the bare checkpoint paths the snapshot
+# actually shows (no per-layer index injected at this level):
+#   vision.patch_embed.proj.{weight,bias}     [1024, 588] + [1024]
+#   vision.blocks.X.*                         ×32
+#   vision.norm.weight                        [1024]                 (snapshot:359-375)
+#   aligner.w1.{weight,bias}                  [5120, 9216] + [5120]  (snapshot:376-411)
+#   aligner.w2.{weight,bias}                  [5120, 5120] + [5120]  (snapshot:412-448)
+#   image_start / image_end / image_newline   [5120] each            (snapshot:1410-1455)
+#
+# Note the path flattening at the patch embed: the source has
+# `PatchEmbed.proj = nn.Linear(3 * patch**2, vision_dim)` (source/vision.py:40)
+# and the checkpoint keeps the submodule — `vision.patch_embed.proj.weight`
+# and `.proj.bias` — so the node carries both segments.
+#
+# Forward (source/model.py:1226  `return self.aligner(self.vision(patches, n_vit_h, n_vit_w), n_vit_h, n_vit_w)`):
+#   x = patch_embed(patches.flatten(1))            # vision.py:43, biased linear over the flat 14x14x3 patch
+#   cos, sin = get_vision_cos_sin(n_h, n_w, ...)   # parameter-free, @lru_cache(8)
+#   for block in self.blocks: x = block(x, cos, sin)
+#   x = self.norm(x)                               # vision.py:103
+#   # Aligner (vision.py:114-119):
+#   x = x.view(n_h, n_w, -1).permute(2, 0, 1)
+#   x = F.pad(x, (0, -n_w % r, 0, -n_h % r))
+#   x = F.unfold(x.unsqueeze(0), r, stride=r).squeeze(0).transpose(0, 1)
+#   return self.w2(F.gelu(self.w1(x)))
+#
+# Why not `library/kimi_k3_vision_tower.yaml` (read in full, 38 lines): the shape
+# of the pipeline rhymes but every leaf differs — Kimi's patch embed is
+# bias-free and is followed by a learned 2-D `pos_emb` table
+# (`position_table_add`), where DeepSeek is biased and purely RoPE-positioned
+# (no pos table exists in the checkpoint); Kimi's projector is a bias-free
+# d_proj_in -> d_proj_in -> d_model pair with a trailing RMSNorm, where
+# DeepSeek's aligner is a BIASED d_proj_in -> d_model -> d_model pair with no
+# trailing norm; and the encoder layer it repeats is the bias-free GELU block
+# this model does not have (see dsv41_vision_block.yaml). The spatial fold is
+# also 3x3 here (`downsample_ratio: 3`, so d_proj_in = 1024*9 = 9216 — which the
+# snapshot's aligner.w1 [5120, 9216] confirms) against Kimi's 2x2.
+#
+# `F.unfold(..., r, stride=r)` after the zero-pad to a multiple of r is exactly
+# the element-conserving tokens/r² x channels·r² fold that `spatial_merge`
+# states, which is why the arriving width of `aligner.w1` IS d_proj_in.
+#
+# Required dims: n_vis_channels, s_patch, d_vis_model, n_vis_heads, d_vis_head,
+#                d_vis_ffn, n_vis_layers, n_spatial_merge, d_proj_in, d_model.
+
+role: aux_block
+description: "DSv4.1 DeepSeek-ViT vision tower (biased flat patch embed, 32 non-causal 2-D-RoPE SwiGLU blocks, final RMSNorm) + 3x3-unfold Aligner (biased, GELU) + the learned image-span delimiter embeddings. Singleton wrapper — bare checkpoint paths."
+graph:
+  # `self.proj(x.flatten(1))` over a flattened 3x14x14 = 588-wide patch.
+  vision.patch_embed.proj: { op: linear, in: x, dims: { in: "n_vis_channels * s_patch * s_patch", out: d_vis_model, bias: "1" }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  vision.blocks:      { op: dsv41_vision_block, in: vision.patch_embed.proj, chain: n_vis_layers, role: aux_block, checkpoint: { index: local } }
+  vision.norm:        { op: rmsnorm, in: vision.blocks, dim: d_vis_model, weight_axes: [{ replicated: true }] }
+
+  # Aligner: pad to a multiple of r, then unfold r x r with stride r — tokens /9,
+  # channels x9 (1024 -> 9216).
+  aligner.unfold:     { op: spatial_merge, in: vision.norm, dims: { n_spatial_merge: n_spatial_merge } }
+  aligner.w1:         { op: linear, in: aligner.unfold, dims: { in: d_proj_in, out: d_model, bias: "1" }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  aligner.gelu:       { op: gelu, in: aligner.w1, dim: d_model }
+  aligner.w2:         { op: linear, in: aligner.gelu, dims: { in: d_model, out: d_model, bias: "1" }, weight_axes: [{ replicated: true }, { replicated: true }] }
+
+  # The span delimiters are plain nn.Parameters at the model root
+  # (source/model.py:1220-1222) written into the token stream alongside the
+  # aligner rows by `merge_image_embeddings` (source/model.py:1231-1239).
+  # Each delimiter occupies its OWN row of the image span (the IMAGE slots take
+  # the aligner rows, `span[types == IMAGE] = embeds`), so they extend the
+  # scattered row block rather than mixing into it — the
+  # `library/hunyuan_vl_vision_tower.yaml:42-68` spelling: broadcast the vector
+  # to its row count, then concat on the sequence axis.
+  image_start:        { op: parameter_vector, dim: d_model, weight_axes: [{ replicated: true }] }
+  image_end:          { op: parameter_vector, dim: d_model, weight_axes: [{ replicated: true }] }
+  image_newline:      { op: parameter_vector, dim: d_model, weight_axes: [{ replicated: true }] }
+  # One IMAGE_NEW_LINE row per merged-grid row (the processor emits a newline
+  # after each row of aligner tokens); the merged grid is
+  # ceil((img_h // s_patch) / n_spatial_merge) rows tall.
+  newline_row:        { op: broadcast, in: image_newline, axis: 0, dims: { width: "(img_h // s_patch + n_spatial_merge - 1) // n_spatial_merge" }, formula: "nl[R, d_model] = image_newline.expand(R, d_model)   (R = merged-grid rows)" }
+  newline_expand:     { op: broadcast, in: newline_row, axis: 0, dims: { width: "B * n_img" } }
+  newline_concat:     { op: concat, in: [aligner.w2, newline_expand], axis: 1, formula: "span[types == IMAGE] = embeds; span[types == IMAGE_NEW_LINE] = image_newline   (one newline row per grid row, source/model.py:1239 + :1238)" }
+  # Exactly one IMAGE_START and one IMAGE_END row per image, present whenever the
+  # request carries an image at all.
+  start_row:          { op: broadcast, in: image_start, axis: 0, dims: { width: "Min(1, n_img)" }, formula: "start[1, d_model] = image_start.reshape(1, d_model)" }
+  start_expand:       { op: broadcast, in: start_row, axis: 0, dims: { width: "B * n_img" } }
+  end_row:            { op: broadcast, in: image_end, axis: 0, dims: { width: "Min(1, n_img)" }, formula: "end[1, d_model] = image_end.reshape(1, d_model)" }
+  end_expand:         { op: broadcast, in: end_row, axis: 0, dims: { width: "B * n_img" } }
+  span_rows:          { op: concat, in: [start_expand, newline_concat, end_expand], axis: 1, formula: "span = [image_start] + aligner_rows/newlines + [image_end]   (merge_image_embeddings, source/model.py:1231-1239)" }
+outputs: [span_rows]

@@ -1,0 +1,35 @@
+# LongcatFlashDecoderLayer.forward (transformers modeling_longcat_flash.py).
+#
+# Per-layer topology: a 2-iteration loop with an MLA attention + dense SwiGLU
+# FFN per iteration, plus a single MoE that runs as a SHORTCUT branch:
+#   - Iteration 0: input_ln.0 -> attn.0 -> add. post_attn_ln.0 -> mlps.0 -> add.
+#                  MoE takes the same post_attn_ln.0 output and is cached.
+#   - Iteration 1: input_ln.1 -> attn.1 -> add. post_attn_ln.1 -> mlps.1 -> add.
+#                  The cached MoE output is ADDED at the tail of iteration 1.
+# MoE is NOT serial after mlps.1 — it runs parallel to mlps.0 and its output
+# merges at the very end.
+role: block
+description: "LongCat-Flash decoder layer: 2-iteration loop with MLA + dense SwiGLU per iteration, plus a parallel MoE shortcut branch."
+
+graph:
+  # ---- Iteration 0 ----
+  input_layernorm.0:          { op: rmsnorm, in: x, dim: d_model, weight_axes: [{ replicated: true }] }
+  self_attn.0:                { op: mla_attention, in: input_layernorm.0 }
+  attn0_residual:             { op: add, in: [x, self_attn.0], dim: d_model }
+  post_attention_layernorm.0: { op: rmsnorm, in: attn0_residual, dim: d_model, weight_axes: [{ replicated: true }] }
+  # MoE shortcut: input = post_attention_layernorm.0 output (same tensor
+  # that feeds mlps.0). Output is cached for the final merge.
+  mlp:                        { op: moe_ffn_router_classifier_routing_bias, in: post_attention_layernorm.0,
+                                dims: { d_model: d_model, d_ffn_expert: d_ffn_expert, n_experts: n_experts, n_experts_active: n_experts_active, n_shared_experts: n_shared_experts, n_router_bias_params: n_router_bias_params } }
+  mlps.0:                     { op: swiglu_ffn, in: post_attention_layernorm.0, dims: { d_model: d_model, d_ffn: d_ffn } }
+  mlps0_residual:             { op: add, in: [attn0_residual, mlps.0], dim: d_model }
+  # ---- Iteration 1 ----
+  input_layernorm.1:          { op: rmsnorm, in: mlps0_residual, dim: d_model, weight_axes: [{ replicated: true }] }
+  self_attn.1:                { op: mla_attention, in: input_layernorm.1 }
+  attn1_residual:             { op: add, in: [mlps0_residual, self_attn.1], dim: d_model }
+  post_attention_layernorm.1: { op: rmsnorm, in: attn1_residual, dim: d_model, weight_axes: [{ replicated: true }] }
+  mlps.1:                     { op: swiglu_ffn, in: post_attention_layernorm.1, dims: { d_model: d_model, d_ffn: d_ffn } }
+  mlps1_residual:             { op: add, in: [attn1_residual, mlps.1], dim: d_model }
+  # Final merge: iteration-1 residual + cached MoE shortcut from iteration 0.
+  out:                        { op: add, in: [mlps1_residual, mlp], dim: d_model }
+outputs: [out]

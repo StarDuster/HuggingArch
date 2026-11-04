@@ -1,0 +1,33 @@
+# DeepInfer's MegaGate router: the gate GEMM, sqrt-softplus scoring,
+# correction bias, EPLB physical mapping, top-k, renormalisation and route
+# scaling in one DeepGEMM launch (`deep_gemm.bf16_mega_gate`, DeepGEMM
+# csrc/apis/mega_gate.hpp:62, from DeepInfer DeepseekMoE.gate_forward,
+# deepinfer/model_executor/models/v4_modules/mlp.py:398).
+#
+# This is larger than `moe_topk_sqrtsoftplus`, which starts at the router
+# logits. DeepInfer hands the hidden state and gate weight directly to
+# `bf16_mega_gate`.
+#
+# The spec's gate temperature (`gate_temp`, a scale on the logits) has no
+# operand on the launch and DeepInfer applies none anywhere (TopKGate,
+# v4_modules/moe.py:40-67); the plan absorbs that scale into the launch it
+# replaces. That is exact when the temperature is folded into the gate
+# weight DeepInfer loads or is 1; which of the two holds is not read here.
+
+fused_op: moe_mega_gate_sqrtsoftplus
+
+naive_pattern:
+  nodes:
+    logits:       { op: linear_param, inputs: [external.x] }
+    temperature:  { op: scale_const,  inputs: [logits.out] }
+    softplus:     { op: softplus,     inputs: [temperature.out] }
+    score:        { op: sqrt,         inputs: [softplus.out] }
+    biased:       { op: add,          inputs: [score.out, external.bias] }
+    topk:         { op: topk,         inputs: [biased.out] }
+    gather:       { op: gather,       inputs: [score.out, topk.out] }
+    norm:         { op: normalize_sum_one, inputs: [gather.out] }
+    scale:        { op: scale_const,  inputs: [norm.out] }
+  io_mapping:
+    x:      external.x
+    bias:   external.bias
+    output: scale.out

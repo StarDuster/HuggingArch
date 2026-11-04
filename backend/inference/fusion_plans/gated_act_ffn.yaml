@@ -1,0 +1,30 @@
+# Gated-activation FFN fusion — generalizes the SwiGLU / GeGLU / SwiGELU
+# family. Structural pattern (algebraic, not activation-specific):
+#
+#   gate_proj, up_proj : two parallel linears reading the same x
+#   act                : activation (silu OR gelu OR gelu_tanh) on gate_proj
+#   gate_mul           : elementwise mul of act(gate_proj) and up_proj
+#   down_proj          : linear projecting gate_mul back to hidden size
+#
+# The activation slot uses `op_choices` so one scheme covers the whole
+# family. gate_proj / up_proj are matched as a DAG-sibling pair (not the
+# variable-arity `parallel` form, because the downstream silu/mul/down
+# chain anchors them as a 2-arity pair within a larger DAG).
+#
+# Effect: 4 fewer kernel launches per FFN, two B*s_ctx*d_ffn intermediate
+# round-trips eliminated.
+
+fused_op: gated_act_ffn
+
+naive_pattern:
+  nodes:
+    gate_proj: { op: linear, inputs: [external.x] }
+    up_proj:   { op: linear, inputs: [external.x] }
+    act:
+      op_choices: [silu, gelu, gelu_tanh]
+      inputs: [gate_proj.out]
+    gate_mul:  { op: mul,    inputs: [act.out, up_proj.out] }
+    down_proj: { op: linear, inputs: [gate_mul.out] }
+  io_mapping:
+    x:      external.x
+    output: down_proj.out

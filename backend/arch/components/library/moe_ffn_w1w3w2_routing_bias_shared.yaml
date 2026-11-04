@@ -1,0 +1,36 @@
+# MoE FFN: w1/w3/w2 routed experts + noaux_tc sigmoid routing with a
+# BLOCK-LEVEL correction bias + one shared expert.
+# Used by: MiniMax-M3 (block_sparse_moe).
+#
+# HF tensor naming this matches (invoked as block node `block_sparse_moe`):
+#   block_sparse_moe.gate.weight                     → gate (linear d_model->n_experts)
+#   block_sparse_moe.e_score_correction_bias         → e_score_correction_bias
+#   block_sparse_moe.experts.X.w1/w3/w2.weight       → expert bank (×n_experts)
+#   block_sparse_moe.shared_experts.{gate,up,down}_proj.weight → shared_experts
+#
+# Routing (scoring_func=sigmoid, use_routing_bias=true, routed_scaling_factor):
+#   scores = sigmoid(gate(x)); biased = scores + e_score_correction_bias
+#   topk = topk(biased, n_experts_active); w = gather(scores, topk) / sum; w *= scale
+# The correction bias is a top-level parameter SIBLING of gate (not nested
+# under gate as in router_noaux_tc / moe_ffn_gate_routing_bias), so the router
+# pipeline is inlined here rather than delegated to router_noaux_tc.
+#
+# Required dims: d_model, d_ffn_expert (routed expert intermediate), d_ffn_shared (shared expert
+#                intermediate), n_experts, n_route_targets (derived), n_experts_active
+role: ffn_moe
+description: "MoE: w1/w3/w2 experts + sigmoid noaux_tc routing (block-level e_score_correction_bias) + 1 wide shared expert. MiniMax-M3."
+graph:
+  gate:                    { op: linear, in: x, dims: { in: d_model, out: n_route_targets, bias: "0" }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  e_score_correction_bias: { op: parameter_vector, dim: n_route_targets, weight_axes: [{ replicated: true }] }
+  sigmoid:                 { op: sigmoid, in: gate, dim: n_route_targets }
+  scores_biased:           { op: add, in: [sigmoid, e_score_correction_bias], dim: n_route_targets }
+  topk_indices:            { op: topk, in: scores_biased, dims: { in: n_route_targets, k: n_experts_active } }
+  topk_gather:             { op: gather, in: [sigmoid, topk_indices], dims: { in: n_route_targets, k: n_experts_active } }
+  topk_norm:               { op: normalize_sum_one, in: topk_gather, dims: { in: n_experts_active } }
+  topk_scale:              { op: scale_const, in: topk_norm, dims: { in: n_experts_active } }
+  permute:                 { op: permute, in: [x, topk_scale] }
+  experts:                  { op: gated_experts, role: ffn_moe, in: permute, dims: { d_model: d_model, d_ffn: d_ffn_expert }, expert_weight: unrolled, inner_modules: { gate_proj: w1, up_proj: w3, down_proj: w2 } }
+  combine:                 { op: combine, in: [experts, topk_scale] }
+  shared_experts:          { op: swiglu_ffn, role: ffn_moe, in: x, dims: { d_model: d_model, d_ffn: d_ffn_shared } }
+  moe_out:                 { op: add, in: [combine, shared_experts], dim: d_model }
+outputs: [moe_out]

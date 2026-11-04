@@ -1,0 +1,44 @@
+# V4-Pro Hyper-Connection post-block combine.
+#
+# Forward (from `Block.hc_post`):
+#   y = post.unsqueeze(-1) * x.unsqueeze(-2)
+#       + sum(comb.unsqueeze(-1) * residual.unsqueeze(-2), dim=2)
+#
+# Shapes:
+#   x:        [B, s_ctx, d_model]            — fresh attn / ffn output (single hidden copy)
+#   residual: [B, s_ctx, n_hidden_copies, d_model]        — block input (n_hidden_copies parallel hidden copies)
+#   post:     [B, s_ctx, n_hidden_copies]           — per-token additive coefficient (sinkhorn output)
+#   comb:     [B, s_ctx, n_hidden_copies, n_hidden_copies]       — per-token mixing matrix (sinkhorn output)
+#   y:        [B, s_ctx, n_hidden_copies, d_model]        — n_hidden_copies parallel hidden copies for the next block
+#
+# Two parallel branches:
+#   1. post * x — broadcast scalar: each n_hidden_copies copy gets x scaled by post[n_hidden_copies].
+#   2. comb · residual — mix the n_hidden_copies residual copies via comb's n_hidden_copies×n_hidden_copies matrix.
+# The two branches add elementwise → the new n_hidden_copies parallel hidden copies.
+#
+# Branch 2 is the fused einsum `...ij,...jh->...ih` — a per-token [n_hidden_copies,n_hidden_copies]·[n_hidden_copies,d_model]
+# matmul (the `hc_mix` op), exactly as the real kernel runs it (vLLM
+# `mhc/torch.py::mhc_post_torch` uses `torch.einsum`). It must NOT be written as
+# the eager `sum(comb.unsqueeze(-1)·residual.unsqueeze(-2), dim=2)` outer product:
+# broadcast→mul→sum_reduce materialises the [B,s_ctx,n_hidden_copies,n_hidden_copies,d_model] intermediate (n_hidden_copies²×d_model per
+# token) that no impl actually allocates — at long ctx a 1000+ GB activation
+# peak. `hc_mix` carries
+# the same O(B·s_ctx·n_hidden_copies²·d_model) FLOPs but only a [B,s_ctx,n_hidden_copies,d_model] activation.
+#
+# Required dims: d_model, n_hidden_copies.
+
+role: hyper_connection
+description: "HC post-block combine: y = post*x + hc_mix(comb, residual). Outputs [B,s_ctx,n_hidden_copies,d_model]."
+inputs: [x, residual, post, comb]
+graph:
+  # --- Branch 1: post * x → [B,s_ctx,n_hidden_copies,d_model] ---
+  post_exp:  { op: broadcast, in: post, axis: -1, dims: { width: d_model } }      # [B,s_ctx,n_hidden_copies] → [B,s_ctx,n_hidden_copies,d_model]
+  x_exp:     { op: broadcast, in: x, axis: -2, dims: { width: n_hidden_copies } }        # [B,s_ctx,d_model]  → [B,s_ctx,n_hidden_copies,d_model]
+  post_term: { op: mul, in: [post_exp, x_exp], dim: d_model }                  # [B,s_ctx,n_hidden_copies,d_model]
+
+  # --- Branch 2: einsum(comb, residual) over the inner n_hidden_copies → [B,s_ctx,n_hidden_copies,d_model] ---
+  comb_red:  { op: hc_mix, in: [comb, residual], dims: { n_hidden_copies: n_hidden_copies, d_model: d_model } }   # [B,s_ctx,n_hidden_copies,d_model]
+
+  # --- Combine ---
+  y:         { op: add, in: [post_term, comb_red], dim: d_model }              # [B,s_ctx,n_hidden_copies,d_model]
+outputs: [y]

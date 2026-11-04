@@ -1,0 +1,123 @@
+# DeepSeek-V4.1-Flash decoder block — SINGLE-PASS Hyper-Connections.
+#
+# This is the one place where V4.1 diverges from V4-Pro at the block level, and
+# it is a wiring divergence, not a weight one. From the class docstring
+# (source/model.py:914): "The coefficients a sublayer computes are used by the
+# *next* one -- see `forward`", and from `forward` (source/model.py:976-994):
+#
+#     residual = x
+#     attn_pre, attn_post, attn_comb = self.hc_mixes(x, self.hc_attn_fn, ...)
+#     x = self.hc_pre(x, pre_mix)          # <-- the PREVIOUS layer's ffn_pre
+#     x = self.attn_norm(x)
+#     x = self.attn(x, start_pos, *attn_args)
+#     x = self.hc_post(x, residual, attn_post, attn_comb)
+#
+#     residual = x
+#     ffn_pre, ffn_post, ffn_comb = self.hc_mixes(x, self.hc_ffn_fn, ...)
+#     x = self.hc_pre(x, attn_pre)         # <-- THIS layer's attn_pre
+#     x = self.ffn_norm(x)
+#     x = self.ffn(x, image_mask)
+#     x = self.hc_post(x, residual, ffn_post, ffn_comb)
+#     return x, ffn_pre                    # <-- published to the next layer
+#
+# So each `hc_mixes` call produces three coefficient sets of which `post` and
+# `comb` are consumed by its OWN sub-block while `pre` is consumed one
+# sub-block later. The attention reduce therefore reads a value computed in the
+# previous LAYER — a genuine cross-layer stream (`hc_pre_mix` below) — and the
+# FFN reduce reads this layer's attention mixes.
+#
+# Why `library/dsv4_block.yaml` cannot be reused (read in full, 73 lines): its
+# `hc_attn_pre: { op: hc_pre, in: [x, hc_attn_fn, hc_attn_scale, hc_attn_base] }`
+# (:59) is the fused library `hc_pre` component, which produces the mixes and
+# immediately reduces with its own `pre` (library/hc_pre.yaml:41 `reduced:
+# hc_weighted_reduce(in: [x, split])`). V4-Pro is that model; V4.1 is not. The
+# six HC parameters and their shapes are identical — `hc_attn_fn` [d_hc_mix,
+# n_hidden_copies·d_model] F32 etc., `pattern_counts` ×40 each
+# (snapshot:2304-2309) — so this draft keeps dsv4_block's parameter nodes
+# verbatim and only re-points the two reduces.
+#
+# The hc copies cross the block boundary FLATTENED, as
+# [B, s_ctx, n_hidden_copies * d_model] (see `hc_expand` / `hc_flat` in the model
+# spec): a block boundary is [B, s_ctx, <width>], so the copy axis cannot live
+# there. It is that flattening `hc_mixes` consumes anyway (`x.flatten(2)`,
+# source/model.py:949), and it is re-exposed inside the block for the two HC ops
+# that reduce or mix ACROSS copies — `hc_weighted_reduce` (sums over axis 2) and
+# `hc_post` (`hc_mix`'s per-token n_hidden_copies×n_hidden_copies matmul) —
+# then folded back at the exit. All three are zero-FLOP, zero-param views.
+# `hc_pre_mix` arrives as [B, s_ctx, n_hidden_copies].
+#
+# Required dims: d_model, n_hidden_copies (hc_mult), d_hc_mix (= (2 + hc_mult) * hc_mult).
+
+role: block
+description: "DSv4.1 decoder block with single-pass Hyper-Connections: each sub-block's sinkhorn `pre` is consumed by the NEXT sub-block, so attention reduces with the previous layer's ffn_pre (cross-layer stream) and the FFN reduces with this layer's attn_pre."
+# The previous sub-block's sinkhorn `pre` arrives as a stack stream, not as a
+# block-boundary input: at layer 0 it is the stream's `seed`, the
+# parameter-free `make_identity_pre_mix` seed (source/model.py:1159-1163,
+# called at :1260) the model declares, exactly the inner-stream shape of
+# library/mla_dsa_attention_shared.yaml's `dsa_topk`.
+reads: [hc_pre_mix]
+inputs: [x, input_ids]
+
+params:
+  attn: { kind: component }
+  ffn:  { kind: component }
+
+# `return x, ffn_pre` (source/model.py:994) — the FFN sinkhorn's `pre` is the
+# next layer's attention reduce weight.
+stream_out:
+  hc_pre_mix: hc_ffn_split
+
+graph:
+  # The six F32 nn.Parameters of `Block.__init__` (source/model.py:940-946).
+  # Checkpoint paths land flat: layers.X.hc_attn_fn, layers.X.hc_attn_base, ...
+  hc_attn_fn:    { op: parameter_tensor, role: hyper_connection, shape: [d_hc_mix, "n_hidden_copies * d_model"], weight_axes: [{ replicated: true }, { replicated: true }] }
+  hc_attn_base:  { op: parameter_vector, role: hyper_connection, dim: d_hc_mix, weight_axes: [{ replicated: true }] }
+  hc_attn_scale: { op: parameter_vector, role: hyper_connection, dim: "3", weight_axes: [{ replicated: true }] }
+  hc_ffn_fn:     { op: parameter_tensor, role: hyper_connection, shape: [d_hc_mix, "n_hidden_copies * d_model"], weight_axes: [{ replicated: true }, { replicated: true }] }
+  hc_ffn_base:   { op: parameter_vector, role: hyper_connection, dim: d_hc_mix, weight_axes: [{ replicated: true }] }
+  hc_ffn_scale:  { op: parameter_vector, role: hyper_connection, dim: "3", weight_axes: [{ replicated: true }] }
+
+  # ---- attention sub-block ---------------------------------------------------
+  # `attn_pre, attn_post, attn_comb = self.hc_mixes(x, self.hc_attn_fn,
+  #  self.hc_attn_scale, self.hc_attn_base)` (source/model.py:979) — the method
+  # is `library/dsv41_hc_mixes.yaml`, i.e. library/hc_pre minus its reduce, with
+  # the same caller-owned weights.
+  hc_attn_split: { op: dsv41_hc_mixes, in: [x, hc_attn_fn, hc_attn_scale, hc_attn_base] }
+
+  # The copy axis, re-exposed for the two cross-copy ops below: the view reads
+  # the flattened block input directly.
+  x_hc:          { op: view_split, in: x, axis: -1, dims: { n_heads: n_hidden_copies, d_head: d_model } }
+
+  # `x = self.hc_pre(x, pre_mix)` — the weights come from the STREAM, i.e. the
+  # previous layer's `ffn_pre`, NOT from hc_attn_split above.
+  attn_reduce:   { op: hc_weighted_reduce, in: [x_hc, hc_pre_mix], dims: { n_hidden_copies: n_hidden_copies, d_model: d_model } }
+  attn_norm:     { op: rmsnorm, in: attn_reduce, dim: d_model, weight_axes: [{ replicated: true }] }
+  attn:          { op: <attn>, in: attn_norm }
+  # `x = self.hc_post(x, residual, attn_post, attn_comb)` — post/comb ARE this
+  # sub-block's own, only `pre` travels. Output is widened.
+  attn_out:      { op: hc_post, in: [attn, x_hc, hc_attn_split.post, hc_attn_split.comb] }
+  attn_out_flat: { op: view_merge, in: attn_out }
+
+  # ---- FFN sub-block ---------------------------------------------------------
+  # `ffn_pre, ffn_post, ffn_comb = self.hc_mixes(x, self.hc_ffn_fn, ...)`
+  # (source/model.py:988) on the post-attention stream.
+  hc_ffn_split:  { op: dsv41_hc_mixes, in: [attn_out_flat, hc_ffn_fn, hc_ffn_scale, hc_ffn_base] }
+
+  # `x = self.hc_pre(x, attn_pre)` — this layer's ATTENTION mixes (the main
+  # output of hc_split_sinkhorn is `pre`).
+  ffn_reduce:    { op: hc_weighted_reduce, in: [attn_out, hc_attn_split], dims: { n_hidden_copies: n_hidden_copies, d_model: d_model } }
+  ffn_norm:      { op: rmsnorm, in: ffn_reduce, dim: d_model, weight_axes: [{ replicated: true }] }
+  ffn:           { op: <ffn>, in: ffn_norm }
+  out:           { op: hc_post, in: [ffn, attn_out, hc_ffn_split.post, hc_ffn_split.comb] }
+  # Back to the flattened layout the stream crosses block boundaries in.
+  out_flat:      { op: view_merge, in: out }
+
+outputs: [out_flat]
+
+# No `axioms:` block. The block registers no buffer of its own
+# (source/model.py:919-946 declares parameters only) and every per-request
+# buffer belongs to the attention it hosts, which states its own kv_growth
+# axiom. Stating `storage: none` here would instead ask the checker to evaluate
+# this block standalone, where the block boundary is [B, s_ctx, d_model] and the
+# widened HC input's copy axis collides with s_ctx — the same reason
+# `library/dsv4_block.yaml` states no axiom.

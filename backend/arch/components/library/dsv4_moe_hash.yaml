@@ -1,0 +1,63 @@
+# DeepSeek-V4 MoE FFN with hash-based routing.
+# Used by the first num_hash_layers layers.
+#
+# Routing math (forward, model.py::Gate.forward when self.hash=True):
+#   scores       = sqrt(softplus(linear(x)))    # still computed for the
+#                                               # weight gather, but not used
+#                                               # to *select* experts
+#   indices      = self.tid2eid[input_ids]      # n_experts_active experts looked up by token id
+#   weights      = scores.gather(1, indices)
+#   weights     /= weights.sum(-1)              # score_func != "softmax"
+#   weights     *= route_scale                  # config.routed_scaling_factor
+# The last three lines are shared with the score-routed layers
+# (`dsv4_moe_sigmoid`); only the index source differs (inference/model.py
+# Gate.forward; vLLM deepseek_v4 passes the same renormalize and
+# routed_scaling_factor to hash and score-routed FusedMoE alike).
+#
+# Tensor naming:
+#   <ffn>.gate.weight               → gate Linear (d_model → n_experts)
+#   <ffn>.gate.tid2eid              → hash table parameter [n_vocab, n_experts_active]
+#   <ffn>.experts.<i>.w[123].weight → routed expert clamped SwiGLU (FP4 packed; swiglu_ffn_clamped)
+#   <ffn>.shared_experts.w[123]     → single wide shared expert, clamped SwiGLU (FP8)
+#
+# `gate` is an nn.Module submodule — both the Linear weight and the
+# hash lookup table nest under `<ffn>.gate.`. Hash layers have NO
+# `<ffn>.gate.bias` — the correction bias only applies to the
+# score-based variants. `hash_route` (input_ids + tid2eid → expert indices)
+# stands where `topk` stands in the score-routed layers; the gather /
+# normalize / scale chain after it is the score-routed one.
+#
+# Required dims: d_model, d_ffn_expert, d_ffn_shared, n_experts,
+# n_experts_active, n_vocab, n_shared_experts.
+# Optional dims: n_route_targets (the gate's width, derived).
+
+role: ffn_moe
+# model.py MoE.forward(x, input_ids) -> Gate.forward: `self.tid2eid[input_ids]`.
+inputs: [x, input_ids]
+description: "DeepSeek-V4 MoE: hash-based routing via gate.tid2eid lookup table + 1 wide shared expert."
+graph:
+  # `gate` is DSv4's custom `Gate` nn.Module — `gate.weight` is a bare
+  # nn.Parameter on it (NOT an nn.Linear's `.weight`), so `linear_param`
+  # (suffix "") gives the checkpoint name `<ffn>.gate.weight` directly.
+  gate.weight:             { op: linear_param, role: router, in: x, dims: { in: d_model, out: n_route_targets }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  # Held whole on every rank and indexed locally (model.py Gate: a full
+  # `nn.Parameter(vocab_size, n_activated_experts)`, one row per token id;
+  # vLLM deepseek_v4 nvidia/model.py `self.gate.tid2eid[safe_hash_input_ids]`).
+  gate.tid2eid:            { op: parameter_tensor, role: router_hash_table, shape: [n_vocab, n_experts_active], weight_axes: [{ replicated: true }, { replicated: true }] }
+  # model.py::Gate.forward (score_func "sqrtsoftplus"): F.softplus(scores).sqrt()
+  softplus:                { op: softplus, in: gate.weight, dim: n_route_targets }
+  scores:                  { op: sqrt, in: softplus, dim: n_route_targets }
+  # `hash_route` produces the per-token expert assignment (the indices
+  # `topk_indices` produces in `dsv4_moe_sigmoid`): `tid2eid[input_ids]`.
+  # The weights are gathered, normalized and scaled exactly as there, under
+  # the same node names.
+  hash_route:              { op: hash_route, in: [input_ids, gate.tid2eid], dims: { n_experts_active: n_experts_active, n_vocab: n_vocab } }
+  topk_gather:             { op: gather, in: [scores, hash_route], dims: { in: n_route_targets, k: n_experts_active } }
+  topk_norm:               { op: normalize_sum_one, in: topk_gather, dims: { in: n_experts_active } }
+  topk_scale:              { op: scale_const, in: topk_norm, dims: { in: n_experts_active } }
+  permute:                 { op: permute, in: [x, topk_scale] }
+  experts:                 { op: clamped_gated_experts, role: ffn_moe, in: permute, dims: { d_model: d_model, d_ffn: d_ffn_expert }, expert_weight: unrolled, inner_modules: { gate_proj: w1, up_proj: w3, down_proj: w2 } }
+  combine:                 { op: combine, in: [experts, topk_scale] }
+  shared_experts:          { op: swiglu_ffn_clamped, in: x, dims: { d_model: d_model, d_ffn: d_ffn_shared }, inner_modules: { gate_proj: w1, up_proj: w3, down_proj: w2 } }
+  out:                     { op: add, in: [combine, shared_experts], dim: d_model }
+outputs: [out]

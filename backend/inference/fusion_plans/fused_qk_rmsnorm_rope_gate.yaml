@@ -1,0 +1,57 @@
+# Query/gate split + per-head QK RMSNorm + partial RoPE + gate copy in one
+# launch — the Qwen3-Next / Qwen3.5 / Qwen3.8 output-gated attention prologue.
+#
+# Naive subgraph (gqa_qknorm_partial_rope_sigmoid_gated_attention, from the
+# head-split fused Q|gate projection and the head-split K):
+#
+#   q_slice, gate_slice = slice(q_gate), slice(q_gate)  # per head: [q | gate]
+#   q_n, k_n      = rmsnorm(q_slice), rmsnorm(k)        # per head, over d_head
+#   q_rope_slice, q_norope_slice = slice(q_n), slice(q_n)  # first d_rope dims rotate
+#   k_rope_slice, k_norope_slice = slice(k_n), slice(k_n)
+#   q_out = concat(rope(q_rope_slice), q_norope_slice)  # rope_emb, or mrope when
+#   k_out = concat(rope(k_rope_slice), k_norope_slice)  #   the rope parameters
+#                                                       #   carry mrope_section
+#
+# Both frameworks run it as ONE Triton launch that reads q|gate and k once and
+# writes q, k and the raw (pre-sigmoid) gate once; the normalised
+# activations, the rope halves and the re-join never reach HBM:
+#   - vLLM v0.32.0 `fused_qk_rmsnorm_rope_gate`
+#     (model_executor/layers/fused_qk_norm_rope.py:138), called from
+#     `Qwen3NextAttention._project_qkv_gate` (models/qwen3_next.py:415).
+#   - sglang v0.5.22 `fused_qk_gemma_rmsnorm_rope_gate`
+#     (python/sglang/kernels/ops/attention/fused_qk_rmsnorm_rope_gate.py:149),
+#     called from `Qwen3_5AttentionDecoderLayer.forward_prepare_cuda_fused`
+#     (python/sglang/srt/models/qwen3_5.py:1437).
+# The kernel takes 1-D positions or 3-axis mrope positions, so one plan covers
+# both rotations (`op_choices`). The gate leaves through its own port: its
+# reader (the sigmoid output gate) is outside the kernel.
+#
+# The same kernel serves the Qwen3.8-Flash-Next QSA layers, whose spec spells
+# the per-head norm as `rmsnorm_unscaled` times `(1 + w)`; that spelling is
+# `fused_qk_rmsnorm_rope_gate_split_gain.yaml`.
+#
+# The rotations are told apart by the operand they become (`feeds`), the
+# norms and slices by the edges between them.
+
+fused_op: fused_qk_rmsnorm_rope_gate
+
+naive_pattern:
+  nodes:
+    q_slice:        { op: slice,   inputs: [external.q_gate] }
+    gate_slice:     { op: slice,   inputs: [external.q_gate] }
+    q_norm:         { op: rmsnorm, inputs: [q_slice.out] }
+    k_norm:         { op: rmsnorm, inputs: [external.k] }
+    q_rope_slice:   { op: slice,   inputs: [q_norm.out] }
+    q_norope_slice: { op: slice,   inputs: [q_norm.out] }
+    k_rope_slice:   { op: slice,   inputs: [k_norm.out] }
+    k_norope_slice: { op: slice,   inputs: [k_norm.out] }
+    q_rope:         { op_choices: [rope_emb, mrope], inputs: [q_rope_slice.out], feeds: q }
+    k_rope:         { op_choices: [rope_emb, mrope], inputs: [k_rope_slice.out], feeds: k }
+    q_concat:       { op: concat,  inputs: [q_rope.out, q_norope_slice.out] }
+    k_concat:       { op: concat,  inputs: [k_rope.out, k_norope_slice.out] }
+  io_mapping:
+    q_gate:   external.q_gate
+    k:        external.k
+    output:   q_concat.out
+    k_out:    k_concat.out
+    gate_out: gate_slice.out

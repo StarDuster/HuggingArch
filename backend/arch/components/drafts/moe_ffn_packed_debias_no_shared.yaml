@@ -1,0 +1,78 @@
+# MoE FFN with 3D-packed experts and a SELECTION-ONLY router bias — Step-5's
+# `Step5MoE` (inference/model.py:1971-2077). No shared expert: the checkpoint
+# stores it as a SIBLING of this block (`layers.N.share_expert.*`,
+# model.py:1974-1976), so the decoder block owns it and adds its output.
+#
+# Routing (`Step5MoE.route`, model.py:2020-2030), line for line:
+#
+#   logits      = linear(x.float(), gate.weight.float())    # no bias
+#   gate_prob   = sigmoid(logits)
+#   scores      = gate_prob + router_bias                   # [n_route_targets] F32 parameter
+#   top, ids    = topk(scores, top_k)
+#   weights     = top - router_bias[ids]                    # == gate_prob[ids]
+#   if norm_expert_weight: weights = weights / (Σ weights + 1e-20)
+#   return weights * moe_router_scaling_factor, ids
+#
+# The bias shifts SELECTION only and is subtracted back out of the weights,
+# which is `router_noaux_tc`'s `topk_gather` from the pre-bias sigmoid — the
+# same aux-loss-free law as DSv3 with no group stage (Step-5 has no n_group /
+# topk_group: `route` reads none). The pipeline is written out here rather than
+# bound as `router_noaux_tc` because the bias tensor is `moe.router_bias`, a
+# sibling of `moe.gate` at the block root, while that component stores it as
+# `gate.e_score_correction_bias` one level deeper.
+#
+# The expert bank is one 3D tensor per projection at the block root
+# (`moe.gate_proj.weight` [n_experts, d_ffn_expert, d_model], …) — no
+# `experts.X.` indexing — which is `expert_weight: leading_axis` plus
+# `module: null` (model.py:1902-1920, :2016-2018).
+#
+# `python -m backend.arch.component_reuse` on this file ranks
+# `moe_ffn_router_expert_bias_shared` and `moe_ffn_w1w3w2_routing_bias_shared`
+# at 0.86 each, same role, and no bind of either is available: both end in a shared expert INSIDE the wrapper (`shared_mlp` +
+# `moe_out`), which Step-5 stores as a sibling of the block, and both
+# hardcode an unclamped bank (`op: gated_experts`, `expert_weight: unrolled`)
+# where Step-5's is clamped after the activation and packed on its leading
+# axis. Dropping a weight-bearing node and swapping the bank is bending the
+# library component to the model, not binding it, and `library/` is
+# review-gated. The library's packed, shared-expert-free MoE
+# (`moe_ffn_fused_packed`) inlines its own bank and routes by
+# `router_softmax_topk`, so it cannot carry this sigmoid + selection-only
+# bias + renorm + scale router either. What a maintainer could factor out of
+# these graphs is the router prefix, which is the same in all of them.
+#
+# Required dims: d_model, d_ffn_expert, n_experts, n_experts_active,
+#   clamp_limit, n_topk_renorm (config.norm_expert_weight),
+#   n_routed_scale (always 1: `route` always multiplies by
+#   moe_router_scaling_factor, model.py:2030).
+# Optional: n_route_targets (the gate's width, derived).
+
+role: ffn_moe
+description: "MoE FFN: sigmoid router + selection-only router_bias (subtracted back out of the weights) + renorm + routed scale, over packed [n_experts, out, in] experts clamped after the activation. No shared expert (sibling in the block). Step-5."
+graph:
+  gate:          { role: router, op: linear, in: x, dims: { in: d_model, out: n_route_targets, bias: "0" }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  gate_score:    { op: sigmoid, in: gate, dim: n_route_targets }
+  # `self.router_bias`, a bare F32 nn.Parameter on the MoE block
+  # (model.py:2010-2013) — replicated: every rank scores every expert and
+  # selects the same top-k (model.py:2003-2006).
+  router_bias:   { role: router, op: parameter_vector, dim: n_route_targets, weight_axes: [{ replicated: true }] }
+  scores_biased: { op: add, in: [gate_score, router_bias], dim: n_route_targets }
+  topk_indices:  { op: topk, in: scores_biased, dims: { in: n_route_targets, k: n_experts_active } }
+  # `weights = top_scores - router_bias[expert_ids]` (model.py:2027): the bias
+  # cancels, leaving the pre-bias sigmoid score at the selected experts.
+  topk_gather:
+    op: gather
+    in: [gate_score, topk_indices]
+    dims: { in: n_route_targets, k: n_experts_active }
+    formula: "w[b, s, j] = sigmoid(logits)[b, s, ids[b, s, j]]   (= top_scores − router_bias[ids], model.py:2027)"
+  # `if self.renormalize` — config.norm_expert_weight, true on this checkpoint
+  # (model.py:2028-2029). The kernel's 1e-20 guard is `normalize_sum_one`'s ε.
+  topk_norm:     { op: normalize_sum_one, in: topk_gather, dims: { in: n_experts_active }, when: n_topk_renorm }
+  # `return weights * self.scaling_factor` (model.py:2030), moe_router_scaling_factor = 3.0.
+  topk_scale:    { op: scale_const, in: topk_norm, dims: { in: n_experts_active }, when: n_routed_scale, formula: "y = w · moe_router_scaling_factor" }
+  permute:       { op: permute, in: [x, topk_scale] }
+  # Clamped AFTER the activation (`clamped_swiglu`, model.py:2056-2060). The
+  # BF16 banks of layers 88-90 are the same graph at the same tensor names;
+  # their precision is the model's `quant_context.overrides`, not a component.
+  experts:       { op: gated_experts_silu_clamped, role: ffn_moe, in: permute, module: null, dims: { d_model: d_model, d_ffn: d_ffn_expert }, expert_weight: leading_axis }
+  combine:       { op: combine, in: [experts, topk_scale] }
+outputs: [combine]

@@ -1,0 +1,32 @@
+# Qwen3.8 Hyper-Connection read: the mean over the residual copies of the
+# normed stream gated by sigmoid(gate), in one launch.
+#
+#   y = (1 / hc) * sum_c sigmoid(gate[c]) * normed_x[c]
+#
+# Naive subgraph (qwen_hc_*_block, hyper_connection_mixer): *_read_gate
+# (sigmoid), *_gated (mul with hc_norm), *_gated_view (view_split),
+# *_lane_sum (sum_reduce over copies), *_lane (scale_const, / hc).
+#
+# vLLM (v0.32.0): `hc_gate_mix` (models/qwen4_exp/nvidia/ops/hc.py:465,
+#   kernel `_hc_gate_mix_kernel` :126; sigmoid * x accumulated over streams
+#   :152-155, `/= HC` :156), from hyperconnection.py:173 / :201, both
+#   phases; Qwen4Exp only.
+# sglang (v0.5.22): NOT bound — the gated mean is fused into the read's
+#   mix launches there (`fused_hc_mix`, kernels/ops/gemm/hc_mix.py:182;
+#   the SM100 split-K `hc_mix`, kernels/ops/elementwise/hc_mix.py:72;
+#   else torch.compile), so no launch exists at this boundary (the audit
+#   in providers/hc.py).
+
+fused_op: hc_gate_mix
+
+naive_pattern:
+  nodes:
+    gate_sigmoid: { op: sigmoid,     inputs: [external.gate] }
+    gated:        { op: mul,         inputs: [external.normed_x, gate_sigmoid.out] }
+    gated_split:  { op: view_split,  inputs: [gated.out] }
+    gated_sum:    { op: sum_reduce,  inputs: [gated_split.out] }
+    mean:         { op: scale_const, inputs: [gated_sum.out] }
+  io_mapping:
+    normed_x: external.normed_x
+    gate:     external.gate
+    output:   mean.out

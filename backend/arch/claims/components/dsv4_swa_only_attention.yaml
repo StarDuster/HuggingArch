@@ -1,0 +1,11 @@
+schema: huggingarch.claims/v1
+subject: dsv4_swa_only_attention
+axioms:
+  checks:
+  - kind: kv_growth
+    storage: windowed
+    bound: s_window
+    expect: d_head
+    src: model.py::Attention.forward (compress_ratio==0) — sliding_attention over
+      the most recent s_window tokens; cached positions = min(s_ctx, s_window), evicted
+      past the window. Per position = d_head (MQA, k_eq_v).

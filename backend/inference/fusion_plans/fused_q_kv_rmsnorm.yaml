@@ -1,0 +1,68 @@
+# Two RMSNorms with their own weights on two unrelated tensors, in one launch
+# — vLLM's `fused_q_kv_rmsnorm` and sglang's in-place per-head
+# `fused_inplace_qknorm`, one pattern for both.
+#
+# Naive subgraph: the query side's norm and the key side's norm of one
+# attention, siblings with no edge between them:
+#
+#   q_n  = rmsnorm(q)      # the q-LoRA a-norm, or a per-head Q norm
+#   kv_n = rmsnorm(kv)     # the latent KV a-norm, or a per-head K norm
+#
+#   * dsv4_{csa,hca,swa_only}_attention, csa2_attention, dsv41_dspark_attention:
+#     `q_norm` (over d_q_lora) and `kv_norm` (over d_head).
+#   * GLM-5.3-Flash's MLA layers (mla_dsa_kpool_nope_attention{,_absorbed}):
+#     `q_a_layernorm` and `kv_a_layernorm`; its vision blocks
+#     (vit_qknorm_clamped_swiglu_block): the per-head `q_norm` and `k_norm`.
+#   * Kimi-K3's MLA: `q_a_layernorm` and `kv_a_layernorm`.
+#   * the per-head `q_norm` and `k_norm` (over d_head) of Qwen3 / Qwen3-MoE /
+#     Qwen3-VL-MoE / GLM-4.5 attention, between the QKV projection and the
+#     rotation.
+#
+# vLLM (audited at v0.32.0) runs both as one Triton launch that reads each
+# input once and writes each output once
+# (vllm/models/common/ops/fused_qk_rmsnorm.py:195, `FusedQKVRMSNormKernel`),
+# on every token in prefill and decode alike, from these call sites:
+#   - DeepSeek-V4 `DeepseekV4Attention._split_qkv_and_norm`
+#     (models/deepseek_v4/attention.py:519, call :529), from forward :486;
+#   - DeepSeek-V4.1 the same (models/deepseek_v41/attention.py:773, :795),
+#     except where vLLM picks the q-quantising form of the same launch
+#     (`fused_q_kv_rmsnorm_quant.yaml`, branch :782); the two plans share this
+#     pattern and the loader tries the quantising one first;
+#   - GLM-5.3-Flash `MultiHeadLatentAttentionWrapper(fuse_qkv_rmsnorm=True)`
+#     (models/glm5next/common/attention.py:568 → model_executor/layers/mla.py:204-212),
+#     and its vision attention (models/glm5next/common/multimodal.py:204);
+#   - Kimi-K3 `_apply_q_lora_attention` (models/kimi_k3/nvidia/mla.py:521).
+# The generic MLA wrapper fuses only where its caller passes
+# `fuse_qkv_rmsnorm=True` (mla.py:80, default False) — GLM-5.3-Flash alone —
+# so DeepSeek-V3 / Kimi-K2 / GLM-5 run two `RMSNorm` launches. The pattern
+# cannot tell a q/k norm pair that vLLM fuses from one it does not (the
+# shapes are the same); the binding asks the model class, vLLM's own
+# dispatch key.
+#
+# sglang (audited at v0.5.22) runs the per-head pair as one in-place JIT
+# launch, `fused_inplace_qknorm` (kernels/ops/layernorm/norm.py:114), from the
+# shared `apply_qk_norm` (srt/models/utils.py:514-530) that the Qwen3,
+# Qwen3-MoE (and so Qwen3-VL-MoE) and GLM-4-MoE attentions call, prefill and
+# decode alike. In place or not, it reads q and k once and writes them once,
+# which is the boundary this plan states; the classes are listed in
+# sglang.yaml. Its MLA runs the two a-norms as separate launches, at most
+# overlapped on two streams
+# (srt/models/deepseek_common/attention_forward_methods/forward_mla.py:359-365);
+# its DeepSeek-V4 norms q-LoRA on its own (srt/models/deepseek_v4.py:1368)
+# and folds the latent norm into the KV rope + store launch
+# (`fused_norm_rope.yaml`).
+#
+# `feeds` fixes which norm is the query's: the two have the same op and no
+# edge between them; only the attention operands they become tell them apart.
+
+fused_op: fused_q_kv_rmsnorm
+
+naive_pattern:
+  nodes:
+    q_norm:  { op: rmsnorm, inputs: [external.q],  feeds: q }
+    kv_norm: { op: rmsnorm, inputs: [external.kv], feeds: k }
+  io_mapping:
+    q:         external.q
+    kv:        external.kv
+    output: q_norm.out
+    kv_out: kv_norm.out

@@ -1,0 +1,11 @@
+# Box override for fa2 on dual-rtx4090-cu130 — registered in
+# rtx4090-dual.toml [env_requirements]. This box has NO CUDA toolkit
+# (no nvcc / CUDA_HOME), so flash-attn cannot source-build here; the
+# prebuilt wheel is the only path, and it pins the torch it was built
+# against. Wheel URLs are box facts, which is why this lives in the box
+# profile and not in the generated env. (torch 2.9.0+cu130 resolves via
+# the profile's UV_EXTRA_INDEX_URL → download.pytorch.org/whl/cu130.)
+torch==2.9.0+cu130
+flash-attn @ https://github.com/Dao-AILab/flash-attention/releases/download/v2.8.3/flash_attn-2.8.3+cu13torch2.9cxx11abiTRUE-cp312-cp312-linux_x86_64.whl
+pydantic
+pyyaml

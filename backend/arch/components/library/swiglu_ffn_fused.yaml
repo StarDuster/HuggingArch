@@ -1,0 +1,30 @@
+# SwiGLU FFN with FUSED gate+up projection
+# Used by: ChatGLM (GLM-4) FFN, via the `chatglm_ffn` adapter.
+#
+# Structurally equivalent to `swiglu_ffn` — same parameter total and same
+# compute — but tensor layout differs: one fused `gate_up_proj: d_model → 2*d_ffn`
+# followed by two zero-FLOP slices, instead of separate `gate_proj` +
+# `up_proj`. Use this component whenever the checkpoint stores the
+# combined `[2*d_ffn, d_model]` tensor.
+#
+# Required dims: d_model, d_ffn
+# Optional dims: Fb (bias flag on the two linear layers, default 0)
+
+role: ffn_dense
+description: "SwiGLU with fused gate_up_proj (single linear → 2I). Some inference-fused checkpoints."
+graph:
+  gate_up_proj:
+    op: linear
+    in: x
+    dims: { in: d_model, out: "2 * d_ffn", bias: Fb }
+    weight_axes:
+      - segments:
+          - { segment: gate, extent: d_ffn, placement_by_symbol: { d_ffn: { world: dense_ffn, parts: d_ffn, fit: exact }, d_ffn_expert: { world: moe_expert, parts: d_ffn, fit: exact }, d_ffn_shared: { world: dense_ffn, parts: d_ffn, fit: exact }, d_vis_ffn: { world: dense_ffn, parts: d_ffn, fit: exact }, d_audio_ffn: { replicated: true } } }
+          - { segment: up, extent: d_ffn, placement_by_symbol: { d_ffn: { world: dense_ffn, parts: d_ffn, fit: exact }, d_ffn_expert: { world: moe_expert, parts: d_ffn, fit: exact }, d_ffn_shared: { world: dense_ffn, parts: d_ffn, fit: exact }, d_vis_ffn: { world: dense_ffn, parts: d_ffn, fit: exact }, d_audio_ffn: { replicated: true } } }
+      - { replicated: true }
+  gate_slice:    { op: slice, in: gate_up_proj, dims: { in: "2 * d_ffn", out: d_ffn } }
+  up_slice:      { op: slice, in: gate_up_proj, dims: { in: "2 * d_ffn", out: d_ffn } }
+  silu:          { op: silu, in: gate_slice, dim: d_ffn }
+  gate_mul:      { op: mul, in: [silu, up_slice], dim: d_ffn }
+  down_proj:     { op: linear, in: gate_mul, dims: { in: d_ffn, out: d_model, bias: Fb }, weight_axes: [{ replicated: true }, { placement_by_symbol: { d_ffn: { world: dense_ffn, parts: d_ffn, fit: exact }, d_ffn_expert: { world: moe_expert, parts: d_ffn, fit: exact }, d_ffn_shared: { world: dense_ffn, parts: d_ffn, fit: exact }, d_vis_ffn: { world: dense_ffn, parts: d_ffn, fit: exact }, d_audio_ffn: { replicated: true } } }] }
+outputs: [down_proj]

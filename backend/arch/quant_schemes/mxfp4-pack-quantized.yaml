@@ -1,0 +1,83 @@
+# compressed-tensors "mxfp4-pack-quantized" format (quant_method:
+# "compressed-tensors", format: "mxfp4-pack-quantized").
+#
+# This is MXFP4 (FP4 E2M1 + per-32-element UE8M0 block scales) but emitted
+# through the compressed-tensors library, so the on-disk tensor NAMING is the
+# compressed-tensors convention (`.weight_packed` / `.weight_scale`), while the
+# PACKING is the MXFP4 spec: 2 FP4 values per uint8 byte (packing_factor 2),
+# NOT the compressed-tensors I32/factor-8 pack-quantized layout.
+#
+# Getting the packing factor right matters: the compressed-tensors default
+# pack-quantized reader (I32, factor 8) would over-count each expert weight by
+# 4x — that is exactly the ~10.9T "safetensors total" fallback figure for
+# Kimi-K3 vs. the true ~2.8T logical count.
+#
+# On-disk layout per quantized linear:
+#   <name>.weight_packed  (FP4 pairs packed in U8 — 2 logical params per byte)
+#   <name>.weight_scale   (per-32-element UE8M0 block scales, stored U8)
+#
+# Known clients: Kimi-K3 (routed MoE experts only).
+#
+# Variant `plain`: the same packing and the same `.weight_scale` sibling, with
+# the packed bytes stored under the plain `.weight` name. vLLM's
+# Fp8Config(store_dtype="mxfp4") routes routed experts to Mxfp4MoEMethod
+# (quantization/fp8.py get_quant_method), whose parameters are `w13_weight` /
+# `w13_weight_scale` (quantization/mxfp4.py), so the checkpoint names them
+# `experts.X.<proj>.weight` and `.weight_scale`. Known client: MiMo-V2.6-Pro-RL
+# (U8 [out, in/2] weights, U8 [out, in/32] scales).
+description: "compressed-tensors MXFP4 pack-quantized: U8-packed FP4 (2/byte, E2M1) + per-32-element UE8M0 (U8) scales."
+
+num_bits:
+  fixed: 4
+badge: MXFP4
+
+format_variants:
+  default:
+    packing_factor: 2
+    storage_dtype: U8
+    weight_storage_suffix: ".weight_packed"
+  plain:
+    packing_factor: 2
+    storage_dtype: U8
+    weight_storage_suffix: ".weight"
+
+numeric_format: [mx_e2m1]
+numeric_format_resolver:
+  - { when: "true", format: mx_e2m1 }
+
+scale_strategy: [group]
+
+metadata_siblings:
+  - suffix: ".weight_scale"
+    kind: scale
+    shape_per_strategy:
+      # One scale per contiguous input group for every stored output row.
+      group: ["out", "(in + group_size - 1) // group_size"]
+    dtype: U8                                     # UE8M0 stored in U8
+    logical_dtype: F8_E8M0FNU
+
+required_fields: [group_size, input_activations]
+optional_fields: [format]
+valid_status: [compressed, frozen]
+
+# Whether the matmul quantises its activation operand depends on WHICH
+# quantiser wrote this layout, so the model states it (`input_activations`, the
+# field compressed-tensors names it by) and the scheme has no default:
+#
+#   - `none` — a compressed-tensors checkpoint whose `config_groups[*]
+#     .input_activations` is null is weight-only (W4A16): the kernel
+#     dequantises the packed weight and runs at the activation's own dtype.
+#   - `fp8_dynamic_group32` — a FineGrainedFP8 config that merely STORES its
+#     experts MXFP4 (`store_dtype: mxfp4`) reaches transformers' FP8
+#     dispatcher, and an FP4-packed weight there takes an FP8 activation
+#     quantised over 32 channels with UE8M0 scales: `fp8_linear` routes a
+#     packed weight to DeepGEMM (integrations/finegrained_fp8.py:255,
+#     :264-270), `_select_fp8_cast_kwargs` answers `{use_ue8m0: True,
+#     gran_k: 32}` for it (integrations/deepgemm.py:432-433), and
+#     `per_token_cast_to_fp8` applies it (:603).
+activation:
+  from_config: input_activations
+  none:
+    - { when: "true", format: none }
+  fp8_dynamic_group32:
+    - { when: "true", format: fp8_token_group32_ue8m0 }

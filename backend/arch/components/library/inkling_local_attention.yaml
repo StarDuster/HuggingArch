@@ -1,0 +1,46 @@
+# Inkling local (sliding-window) attention.
+#
+# Novel attention (no RoPE): GQA + per-head QK-RMSNorm + depthwise
+# short-convs on the projected K/V path + a learned relative-position
+# branch (wr_du → rel_logits_proj.proj), masked to a s_window-token window.
+#
+# Tensor layout (model.llm.layers.X.attn.* / mtp ...transformer_block.attn.*):
+#   wq_du  [n_heads*d_head,  d_model]   query proj      (n_heads=64 heads, d_head=128 → 8192)
+#   wk_dv  [n_kv_heads_swa*d_head, d_model]  key proj        (local: n_kv_heads_swa=16 kv heads → 2048)
+#   wv_dv  [n_kv_heads_swa*d_head, d_model]  value proj
+#   k_sconv/v_sconv [n_kv_heads_swa*d_head,1,s_conv_kernel]  depthwise causal short-conv on K / V
+#   q_norm/k_norm   [d_head]            per-head RMSNorm
+#   wr_du  [d_rel_proj, d_model]   relative-position projection
+#   rel_logits_proj.proj  [d_rel_logits, s_window]  relative-logits param bank (naked nn.Parameter)
+#   wo_ud  [d_model, n_heads*d_head]    output proj
+#
+# Local layers use swa_num_key_value_heads (n_kv_heads_swa) and sliding_window_size (s_window).
+# The rel branch's param bank is d_rel_logits*s_window here (rel_logits_proj.proj is [16,512]).
+role: attention
+description: "Inkling local attention: SWA + QK-norm + KV short-conv + learned relative-position branch."
+cache:
+  family: SWA
+  entries:
+    - { node: k_norm, kind: kv }
+    - { node: v_split_heads, kind: kv }
+graph:
+  wq_du:           { op: linear, in: x, dims: { in: d_model, out: "n_heads * d_head" }, weight_axes: [{ world: attention, parts: n_heads, fit: replica_cells }, { replicated: true }] }
+  wk_dv:           { op: linear, in: x, dims: { in: d_model, out: "n_kv_heads_swa * d_head" }, weight_axes: [{ world: attention, parts: n_kv_heads_swa, fit: replica_cells }, { replicated: true }] }
+  wv_dv:           { op: linear, in: x, dims: { in: d_model, out: "n_kv_heads_swa * d_head" }, weight_axes: [{ world: attention, parts: n_kv_heads_swa, fit: replica_cells }, { replicated: true }] }
+  k_sconv:         { op: inkling_short_conv, in: wk_dv, dims: { C: "n_kv_heads_swa * d_head", kernel_size: s_conv_kernel } }
+  v_sconv:         { op: inkling_short_conv, in: wv_dv, dims: { C: "n_kv_heads_swa * d_head", kernel_size: s_conv_kernel } }
+  q_split_heads:   { op: head_split, in: wq_du,   dims: { n_heads: n_heads,   d_head: d_head } }
+  k_split_heads:   { op: head_split, in: k_sconv, dims: { n_heads: n_kv_heads_swa, d_head: d_head } }
+  v_split_heads:   { op: head_split, in: v_sconv, dims: { n_heads: n_kv_heads_swa, d_head: d_head } }
+  q_norm:          { op: rmsnorm, in: q_split_heads, dim: d_head, weight_axes: [{ replicated: true }] }
+  k_norm:          { op: rmsnorm, in: k_split_heads, dim: d_head, weight_axes: [{ replicated: true }] }
+  # Learned relative-position branch (adds a positional bias to the scores
+  # in the real kernel). Represented as its two weight banks so params bind.
+  wr_du:                 { op: linear, in: x, dims: { in: d_model, out: d_rel_proj }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  rel_logits_proj.proj:  { op: parameter_vector, dim: "d_rel_logits * s_window", weight_axes: [{ replicated: true }] }
+  qk_score:        { op: swa_attention_score, in: [q_norm, k_norm], dims: { n_heads: n_heads, d_head: d_head, s_window: s_window } }
+  softmax:         { op: swa_softmax, in: qk_score, dims: { n_heads: n_heads, s_window: s_window } }
+  attn_apply:      { op: swa_attention_apply, in: [softmax, v_split_heads], dims: { n_heads: n_heads, d_head: d_head, s_window: s_window } }
+  o_merge_heads:   { op: head_merge, in: attn_apply, dims: { n_heads: n_heads, d_head: d_head } }
+  wo_ud:           { op: linear, in: o_merge_heads, dims: { in: "n_heads * d_head", out: d_model }, weight_axes: [{ replicated: true }, { world: attention, parts: n_heads, fit: replica_cells }] }
+outputs: [wo_ud]

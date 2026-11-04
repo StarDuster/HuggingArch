@@ -1,0 +1,4 @@
+description: "FP8 (E4M3) activations, one dynamic UE8M0 scale per token per 32 channels."
+source: "DeepSeek-V4.1 inference/model.py:27-30, :186-197 — `fp8_block_size = 32` and `act_quant(x, fp8_block_size, 'ue8m0', torch.float8_e8m0fnu)` before both fp8_gemm and fp4_gemm"
+dtype: F8_E4M3
+scale: { granularity: per-group, group: 32, dtype: F8_E8M0 }

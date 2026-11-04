@@ -1,0 +1,37 @@
+# Mamba-2 gated, grouped RMSNorm on the SSM output (sub-component).
+#
+# Source mirror: `Zamba2RMSNormGated` (transformers
+# `models/zamba2/modeling_zamba2.py`), which NemotronH's Mamba-2 mixer builds as
+# `Zamba2RMSNormGated(intermediate, group_size=intermediate // n_groups)` and
+# calls as `self.norm(y, gate)`; vLLM `Mixer2RMSNormGated`
+# (`layers/mamba/mamba_mixer2.py`, `norm_before_gate=False`). Forward:
+#
+#   y  = y · silu(gate)                                  # gate first
+#   y  = y.view(..., n_groups, group_size)               # group_size = intermediate / n_groups
+#   y  = y · rsqrt(mean(y², -1) + ε)                     # RMS per group
+#   y  = γ · y.view(..., intermediate)                   # one γ of length intermediate
+#
+# The statistic is taken per group, not over the whole intermediate, so a
+# rank holding whole groups needs no collective (vLLM case "tp_size divides
+# n_groups"). γ stays one `[n_ssm_heads·d_ssm_head]` vector, matching the
+# checkpoint's `mixer.norm.weight`.
+#
+# Inputs:
+#   x    — SSM scan output, merged back to `[B, s_ctx, n_ssm_heads·d_ssm_head]`
+#   gate — the gate slice of in_proj, same shape
+#
+# Required dims at call site: n_ssm_heads, d_ssm_head, n_ssm_groups.
+
+description: "Mamba-2 RMSNormGated: y·silu(gate), RMS-normalized per n_ssm_groups group, times a learnable γ of length n_ssm_heads·d_ssm_head. Mirror of Zamba2RMSNormGated / vLLM Mixer2RMSNormGated."
+inputs: [x, gate]
+
+graph:
+  gate_silu:  { op: silu, in: gate, dim: "n_ssm_heads * d_ssm_head" }
+  gated:      { op: mul, in: [x, gate_silu], dim: "n_ssm_heads * d_ssm_head" }
+  groups:     { op: view_split, in: gated, axis: -1, dims: { in: "n_ssm_heads * d_ssm_head", n_heads: n_ssm_groups, d_head: "n_ssm_heads * d_ssm_head / n_ssm_groups" } }
+  group_rms:  { op: rmsnorm_unscaled, in: groups, dim: "n_ssm_heads * d_ssm_head / n_ssm_groups" }
+  merged:     { op: view_merge, in: group_rms }
+  weight:     { op: parameter_vector, dim: "n_ssm_heads * d_ssm_head", weight_axes: [{ world: attention, parts: n_ssm_heads, fit: replica_cells }] }
+  scaled:     { op: mul, in: [merged, weight], dim: "n_ssm_heads * d_ssm_head" }
+
+outputs: [scaled]

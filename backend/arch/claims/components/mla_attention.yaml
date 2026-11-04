@@ -1,0 +1,11 @@
+schema: huggingarch.claims/v1
+subject: mla_attention
+axioms:
+  checks:
+  - kind: kv_growth
+    storage: per_token
+    expect: d_kv_lora + d_qk_rope
+    src: 'model.py::MLA.__init__  `self.kv_cache = zeros(B, max_seq_len, kv_lora_rank)`
+      + `self.pe_cache = zeros(B, max_seq_len, qk_rope_head_dim)` — full attention:
+      cache grows per token; per position is the MQA latent d_kv_lora + decoupled
+      RoPE key d_qk_rope (shared across heads, NOT num_heads*(d_kv_lora+d_qk_rope))'

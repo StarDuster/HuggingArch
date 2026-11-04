@@ -1,0 +1,18 @@
+# ChatGLM-style attention adapter: gqa_fused_qkv_attention with the
+# ChatGLM checkpoint's nn.Module names — `query_key_value` for the
+# fused QKV linear, `dense` for the output projection. The wrapper's
+# `attn` node is primary so the matcher resolves the wrapper's id
+# (e.g. `transformer.encoder.layers.X.self_attention`) onto the
+# checkpoint's actual nn.Module path.
+role: attention
+description: "ChatGLM attention shim: gqa_fused_qkv_attention stored as query_key_value/dense."
+
+graph:
+  attn:
+    module: null
+    op: gqa_fused_qkv_attention
+    in: x
+    inner_modules:
+      qkv:    query_key_value
+      o_proj: dense
+outputs: [attn]

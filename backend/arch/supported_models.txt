@@ -1,0 +1,188 @@
+# Manually curated list of HF model IDs that have been verified against
+# their built-in spec (backend/arch/models/*.yaml).
+#
+# Semantics:
+#   - IDs listed here render as `built-in` in the UI (architecture is
+#     covered AND the specific checkpoint has been reviewed).
+#   - Any other ID whose config resolves via SpecLoader.match() still
+#     works — it just renders as `cached` until you promote it here.
+#
+# Rules for adding an entry:
+#   1. Run `python -m backend.inference.validate <model_id>` and confirm
+#      `valid: true` with the three byte columns at diff 0
+#      (model_storage_bytes / quantization_metadata_bytes /
+#      checkpoint_storage_bytes — the last is anchored against the hub's
+#      measured index total when the snapshot carries one). The
+#      `total_params` block is a display-only diagnostic: for packed
+#      checkpoints (FP4/MXFP4 stored two-per-byte) its "actual" side is a
+#      container-element count, not a logical param count, so a gap there
+#      is expected and needs NO note.
+#   2. Sanity-check the per-layer breakdown / weight bytes in the dashboard.
+#   3. Add the ID below under the relevant spec_name header.
+#
+# Format: one ID per line; lines starting with `#` and blank lines ignored.
+# The `## <spec_name>` headers are purely organizational — the loader only
+# cares about the IDs themselves.
+
+## deepseek_v4
+deepseek-ai/DeepSeek-V4-Pro
+
+## deepseek-ai__DeepSeek-V4-Flash
+# Same block family as deepseek_v4. Its own spec because layers 0-1 have
+# compress_ratio 0 (sliding-window-only attention), a layer type the
+# deepseek_v4 layer table has no entry for.
+deepseek-ai/DeepSeek-V4-Flash
+
+## deepseek-ai__DeepSeek-V4.1-Flash
+# CSA2 (csa2_attention, per-layer slots), Engram n-gram memory, DSpark MTP,
+# vision tower. Validate: valid, model / metadata / checkpoint bytes at
+# diff 0 (486,723,007,816 / 23,563,015,184 / 510,286,023,000).
+deepseek-ai/DeepSeek-V4.1-Flash
+
+## deepseek_v3_2
+deepseek-ai/DeepSeek-V3.2
+deepseek-ai/DeepSeek-V3.2-Exp
+
+## deepseek_v3
+deepseek-ai/DeepSeek-V3
+deepseek-ai/DeepSeek-V3.1
+deepseek-ai/DeepSeek-R1
+
+## deepseek_v2
+deepseek-ai/DeepSeek-V2-Lite
+
+## deepseek_v2_qcomp
+# Full DeepSeek-V2 (236B) uses Q-LoRA compression (q_lora_rank=1536) —
+# routes to the q-comp variant of MLA, not the no-qcomp DSv2-Lite spec.
+deepseek-ai/DeepSeek-V2
+
+## kimi_k3
+moonshotai/Kimi-K3
+
+## kimi_k25
+moonshotai/Kimi-K2.5
+
+## kimi_k2
+moonshotai/Kimi-K2-Base
+moonshotai/Kimi-K2-Instruct
+moonshotai/Kimi-K2-Thinking
+
+## glm4
+THUDM/glm-4-9b
+THUDM/glm-4-9b-chat
+
+## qwen3_moe
+Qwen/Qwen3-30B-A3B
+Qwen/Qwen3-235B-A22B
+
+## qwen2
+Qwen/Qwen2.5-7B
+Qwen/Qwen2.5-72B
+mistralai/Mistral-7B-v0.1
+mistralai/Mistral-Nemo-Base-2407
+ByteDance-Seed/Seed-OSS-36B-Instruct
+
+## qwen3
+# Qwen3 dense (model_type=qwen3) uses per-head q_norm / k_norm —
+# qwen2 spec would miss those ~16 KB / layer of norm gain tensors.
+Qwen/Qwen3-8B
+Qwen/Qwen3-32B
+
+## gemma2
+google/gemma-2-9b
+google/gemma-2-27b
+
+## gemma4_unified
+google/gemma-4-12B-it
+
+## llama
+# Llama-3.1-8B / 70B are gated; to add them here, run
+# `python -m backend.hf.snapshot meta-llama/Llama-3.1-8B`
+# on a machine with license-accepted HF credentials, commit the snapshot,
+# then list the ID here.
+meta-llama/Llama-3.2-1B
+meta-llama/Llama-3.2-3B
+IQuestLab/IQuest-Coder-V1-40B-Instruct
+
+## llama2
+meta-llama/Llama-2-7b-hf
+
+## qwen3_next
+Qwen/Qwen3-Coder-Next
+
+## qwen3_5_moe
+Qwen/Qwen3.5-35B-A3B
+
+## Qwen__Qwen3-VL-235B-A22B-Instruct
+Qwen/Qwen3-VL-235B-A22B-Instruct
+
+## gpt_oss
+openai/gpt-oss-20b
+
+## longcat_flash
+meituan-longcat/LongCat-Flash-Thinking-2601
+
+## meituan-longcat__LongCat-Flash-Omni
+# Text backbone of the omni release (the shard set carries no perception /
+# speech modules); the text-only total matches the safetensors exactly.
+meituan-longcat/LongCat-Flash-Omni
+
+## XiaomiMiMo__MiMo-7B-RL
+XiaomiMiMo/MiMo-7B-RL
+
+## mimo_v2_flash
+XiaomiMiMo/MiMo-V2-Flash
+
+## mimo_v2_5_pro
+XiaomiMiMo/MiMo-V2.5-Pro
+
+## ling_2_6_1t
+inclusionAI/Ling-2.6-1T
+
+## step3p7
+stepfun-ai/Step-3.7-Flash
+
+## nemotron_h_3_ultra
+nvidia/NVIDIA-Nemotron-3-Ultra-550B-A55B-BF16
+
+## nvidia__NVIDIA-Nemotron-3-Nano-30B-A3B-BF16
+# Same nemotron_h block family as Ultra. Its own spec because the checkpoint
+# has no moe_latent_size (routed experts run in d_model, no latent fc1/fc2)
+# and no MTP head.
+nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-BF16
+
+## minimax_m2
+MiniMaxAI/MiniMax-M2.7
+
+## mimo_v2_5
+XiaomiMiMo/MiMo-V2.5
+
+## zai-org__GLM-4.5
+zai-org/GLM-4.5
+
+## zai-org__GLM-4.5-Air
+zai-org/GLM-4.5-Air
+
+## glm_moe_dsa
+zai-org/GLM-5
+zai-org/GLM-5.1
+zai-org/GLM-5.2
+
+## XiaomiMiMo__MiMo-V2.6-Pro-RL
+XiaomiMiMo/MiMo-V2.6-Pro-RL
+
+## Qwen__Qwen3.8-27B
+Qwen/Qwen3.8-27B
+
+## Qwen__Qwen3.8-2.4T-A95B
+Qwen/Qwen3.8-2.4T-A95B
+
+## Qwen__Qwen3.8-Flash-Next
+Qwen/Qwen3.8-Flash-Next
+
+## tencent__HunyuanOCR
+# The config ties lm_head to embed_tokens, and the checkpoint still ships
+# lm_head.weight, which vLLM skips at load (hunyuan_vision.py
+# `skip_prefixes=["lm_head."]` when tied); the spec declares it with
+# `tied_weight.checkpoint_copy` (123,717,632 params).
+tencent/HunyuanOCR

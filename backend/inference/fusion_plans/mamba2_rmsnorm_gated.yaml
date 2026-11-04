@@ -1,0 +1,39 @@
+# Mamba-2 gated RMSNorm — gate BEFORE norm, normalised per group:
+#
+#   y = weight * group_rmsnorm(x * silu(gate))     (norm_before_gate=False)
+#
+# Naive subgraph: the `mamba2_gated_rmsnorm` component (nemotron_h_mamba_mixer
+# `norm`): gate_silu, gated, groups (view_split to n_ssm_groups), group_norm
+# (rmsnorm_unscaled), merged (view_merge), scaled (* weight).
+#
+# sglang (audited at v0.5.22): `Mixer2RMSNormGated.forward_cuda`
+#   (srt/layers/attention/mamba/mixer2_rms_norm_gated.py:120) runs one FLA
+#   Triton launch, `rms_norm_gated(..., group_size, norm_before_gate=False)`
+#   (kernels/ops/attention/fla/layernorm_gated.py:355, `_layer_norm_fwd` :390),
+#   when the TP degree divides n_groups (:130-131; else `forward_native`, an
+#   all-gather and separate torch ops; the binding asks it as
+#   `world_local: {world: tp_attention, dim: n_ssm_groups, divides: true}`). Called from
+#   srt/layers/attention/mamba/mamba.py:775, the MambaMixer2 Nemotron-H builds
+#   (srt/models/nemotron_h.py:484).
+# vLLM (audited at v0.32.0) runs the same kernel only when n_groups == 1
+#   (model_executor/layers/mamba/mamba_mixer2.py:181-182); a grouped norm goes
+#   to `forward_native`, separate torch ops that only Inductor's generic
+#   pointwise fusion may merge. vLLM does not bind this plan.
+#
+# Not `rmsnorm_gated`: that plan normalises first and gates after.
+
+fused_op: mamba2_rmsnorm_gated
+
+naive_pattern:
+  nodes:
+    gate_silu:  { op: silu,             inputs: [external.gate] }
+    gated:      { op: mul,              inputs: [external.x, gate_silu.out] }
+    groups:     { op: view_split,       inputs: [gated.out] }
+    group_norm: { op: rmsnorm_unscaled, inputs: [groups.out] }
+    merged:     { op: view_merge,       inputs: [group_norm.out] }
+    scaled:     { op: mul,              inputs: [merged.out, external.weight] }
+  io_mapping:
+    x:      external.x
+    gate:   external.gate
+    weight: external.weight
+    output: scaled.out

@@ -1,0 +1,327 @@
+# What each schema change left behind for a stored spec to be rewritten by.
+#
+# `backend/arch/spec_migrate.py` reads this file. A rename is DATA: one table
+# per rename kind, each naming the commit that renamed it and each read by
+# exactly one rule, so adding a rename to the language means adding a row
+# here rather than a branch in the rewrite.
+
+# --- dim symbol vocabulary (59db3827, 08-04; a hard error since 0f0516bd,
+# 08-16) ------------------------------------------------------------------
+#
+# Single letters were ambiguous at the point of use, so every symbol became
+# `d_*` (a channel dim), `n_*` (a count) or `s_*` (a sequence length). `B`
+# and the op-parameter names (`in`, `out`, `bias`) kept their spelling and are
+# absent here. `tools/symbol_rename.py` renamed the corpus from this same
+# table; a stored spec written before it still speaks the old vocabulary.
+symbol_vocabulary:
+  rename:
+    # Backbone
+    H: d_model
+    N: n_heads
+    Nk: n_kv_heads
+    Nks: n_kv_heads_swa
+    Nkg: n_kv_heads_full
+    Dg: d_head_full
+    Dv: d_v_head
+    V: n_vocab
+    L: n_layers
+    I: d_ffn
+    Im: d_ffn_expert
+    Is: d_ffn_shared
+    Rmoe: d_moe_latent
+    W: s_window
+    # MoE routing
+    E: n_experts
+    Er: n_route_targets
+    Ec: n_expert_copies
+    Es: n_shared_experts
+    K: n_experts_active
+    Ng: n_expert_groups
+    Tg: n_groups_active
+    Ld: n_dense_layers
+    Rb: n_router_bias_params
+    longcat_zero_experts: n_zero_experts
+    # MLA
+    R: d_kv_lora
+    Rq: d_q_lora
+    P: d_qk_rope
+    mla_qk_nope_dim: d_qk_nope
+    output_lora_rank: d_out_lora
+    output_lora_groups: n_out_lora_groups
+    # DSA / sparse
+    In: n_indexer_heads
+    Ih: d_indexer_head
+    Kd: n_topk_keys
+    Ktb: n_topk_blocks
+    Ksb: s_sparse_block
+    # Partial-RoPE / relative position
+    Dp: d_rope
+    Dn: d_nope
+    Dr: d_rope_partial
+    Rext: d_rel_proj
+    Drel: d_rel_logits
+    # MTP / hyper-connections
+    Lmtp: n_mtp_layers
+    Hc: n_hidden_copies
+    hc_mix_size: d_hc_mix
+    # Vision
+    Hv: d_vis_model
+    Nv: n_vis_heads
+    Nkv: n_vis_kv_heads
+    Dvh: d_vis_head
+    QKVv: d_vis_qkv
+    Iv: d_vis_ffn
+    Lv: n_vis_layers
+    Cv: n_vis_channels
+    Pv: s_patch
+    Tv: s_patch_temporal
+    Sm: n_spatial_merge
+    Vp: n_vis_pos_vocab
+    PosSize: n_vis_pos_slots
+    Mh: d_proj_hidden
+    Mp: d_proj_in
+    Hvm: d_proj_out
+    DSk: s_vis_ds_kernel
+    DSo1: d_vis_ds_out1
+    DSo2: d_vis_ds_out2
+    # Audio
+    Ha: d_audio_model
+    Na: n_audio_heads
+    Dah: d_audio_head
+    Ia: d_audio_ffn
+    La: n_audio_layers
+    Vs: n_speech_vocab
+    Cs: n_speech_banks
+    Amel: n_mel_vocab
+    # Linear attention / SSM
+    Nlk: n_lin_k_heads
+    Dlk: d_lin_k_head
+    Nlv: n_lin_v_heads
+    Dlv: d_lin_v_head
+    Kc: s_conv_kernel
+    Rfg: d_gate_lowrank
+    Nmh: n_ssm_heads
+    Dmh: d_ssm_head
+    Dss: d_ssm_state
+    Nmg: n_ssm_groups
+    Kmc: s_ssm_conv_kernel
+    # Engine-supplied / phase binding
+    S: s_ctx
+    Sq: s_query
+    Lq: s_kv
+
+  # `D` named three different quantities, so it is dispatched rather than
+  # renamed. A model's own binding of `D` says which: the config key it
+  # reads is the quantity (`qk_nope_head_dim` → the MLA nope width;
+  # `head_dim` / `kv_channels` → the dense head width). A binding that reads
+  # none of them, or several, is a blocker. Inside a node's `dims: {…}` the
+  # key is the callee's FORMAL parameter (`head_split`'s per-head width),
+  # which is family-neutral.
+  #
+  # A component body binds no dims of its own, so it names no family: a bare
+  # `D` in one of its expressions is a blocker rather than a guess between
+  # two different quantities.
+  dispatched:
+    D:
+      by_config_key:
+        qk_nope_head_dim: d_qk_nope
+        head_dim: d_head
+        kv_channels: d_head
+      as_parameter_key: d_head
+
+# --- measured-row identity vocabulary (59db3827 + bb1db576, 08-04) ---------
+#
+# A measured row's `shape_json` is its op identity's dims. Rows measured
+# before the rename still carry the retired letters; they are read through
+# `symbol_vocabulary.rename` above — the table the corpus CSVs were re-keyed
+# from — except where the identity's letter meant something the spec's did
+# not: the identity's `D` is always the head width (never dispatched), and
+# the GEMM family's `K` / `N` were the contraction and output widths, not the
+# MoE top-k and the head count (bb1db576 split them).
+#
+# `derived`: an axis an identity gained later, for an old row the product
+# of axes it does carry. A grouped expert GEMM measured before schema v6
+# ran `n_experts × s_query` routed rows, so that is its `n_tokens`
+# (backend/inference/BENCHMARKS_CSV.md, v6).
+#
+# The per-expert mean rows moved off `s_query` onto `s_expert_rows` when the
+# dispatch boundaries started stating their token side too (10-24): in a
+# routed cell `s_query` WAS the mean, so the grouped GEMM re-keys it (its
+# measurement is the same padded-buffer launch under a clearer name). The two
+# boundary signatures have NO entry: their current cells ALSO carry `s_query`
+# as the token side, so a rename cannot tell an old row from a new one —
+# and moe_permute's old rows measured an equal-length permutation besides,
+# which no rename turns into the dispatch the new key states.
+#
+# The boundaries gained the routed total `n_tokens` later the same day, so a
+# Kernel Bench curve of either runs along the routed rows like the grouped
+# GEMM's. A boundary row measured between the two changes carries both
+# factors of it at the padded geometry, so its total is their product.
+measured_row_vocabulary:
+  rename:
+    D: d_head
+  by_signature:
+    gemm: { K: d_reduce, N: d_out }
+    grouped_gemm: { K: d_reduce, N: d_out, s_query: s_expert_rows }
+  derived:
+    grouped_gemm:
+      n_tokens: [n_experts, s_expert_rows]
+    moe_permute:
+      n_tokens: [n_experts, s_expert_rows]
+    moe_combine:
+      n_tokens: [n_experts, s_expert_rows]
+
+# --- the package rename (14aac2b0, 08-28) ---------------------------------
+#
+# `backend/arch_spec/` became `backend/arch/`. A record saved before it keeps
+# its model and draft files under the old root, where nothing recognizes them:
+# a draft is dropped (hard-failing when no library component has its name, and
+# SILENTLY validating the library's namesake instead when one does) and an
+# agent base is not flattened.
+retired_path_roots:
+  backend/arch_spec: backend/arch
+
+# --- axes an op used to default (be09cb7b, 09-28) -------------------------
+#
+# `view_split` split the LAST axis into its two factor sub-axes. Folding a
+# sequence into windows needs any other axis, so `axis:` became required
+# (`OpSpec.axis_required`, refused by `schema/graph.py`) and the 16 library
+# uses were migrated to the default they had been relying on. A stored spec
+# still omits it; what it meant is the default.
+retired_axis_defaults:
+  view_split: -1
+
+# --- component renames (1299577b, 09-27) ----------------------------------
+#
+# Qwen3.5 / Qwen3-Next full attention multiplies its output by sigmoid(gate),
+# not silu(gate) (`Qwen3_5MoeAttention.forward`), and the component carried
+# the error in its name. Every caller in the corpus was renamed with it; a
+# stored spec still names the component that no longer exists.
+components:
+  gqa_qknorm_partial_rope_silu_gated_attention: gqa_qknorm_partial_rope_sigmoid_gated_attention
+
+# --- dims a component renamed (7f7f0267, 09-25) ---------------------------
+#
+# `dims.yaml` registers `d_v_head` as the MLA value-head width, so the Qwen3.5
+# vision block's per-head dim became `d_vis_head`. The component reads the dim
+# its including model binds, and the corpus model was renamed in the same
+# commit; a stored spec binds the old name, which leaves the component's dim
+# unbound.
+component_dims:
+  qwen35_vision_block:
+    d_v_head: d_vis_head
+
+# --- steps that became config switches (603f85f0 / d3ae42d6, 09-27) -------
+#
+# A router renormalizes its gathered top-k weights where the model's config
+# says so (`Qwen3MoeTopKRouter.forward`, `LongcatFlashTopkRouter.forward`), so
+# `router_softmax_topk` and `router_noaux_tc_classifier` gained a
+# `normalize_sum_one` step under `when: n_topk_renorm` and every corpus model
+# bound the switch. A spec stored before has no binding, and the switch
+# resolves to its own name instead of a 0 / 1.
+#
+# WHAT to bind is not one global fact: the config field's own default differs
+# per config class (`Qwen3NextConfig` / `Qwen3_5MoeConfig` default it to True,
+# and Qwen3.5 publishes it under `text_config`; `LongcatFlashConfig`,
+# `Qwen3MoeConfig` and the DeepSeek-V2 configs default it to False). Each of
+# those facts is already declared by the corpus model of that family, so the
+# rule copies the binding from the spec's own family and refuses when no
+# family declares one. This list is therefore only WHICH switches to look
+# for, never what to write.
+retired_switches:
+  - n_topk_renorm
+
+# --- dims that lost their registry default (10-06) ------------------------
+#
+# `dims.yaml` filled `n_routed_scale` = 0, `n_expert_groups` = 1 and
+# `n_groups_active` = `n_expert_groups` for a spec that bound none of them,
+# which drops a router's routed-scale step and its group limit wherever the
+# source runs them. They are required now, and what to bind is a fact of the
+# model's own forward source: a stored spec whose components read one it does
+# not bind comes back to its author with a refusal naming the dim and the
+# binding dims.yaml documents (`_require_retired_defaults`).
+retired_defaults:
+  - n_routed_scale
+  - n_expert_groups
+  - n_groups_active
+
+# --- keys a schema change removed (f0c58501, 08-23) -----------------------
+#
+# Each said something the schema now reads elsewhere, so dropping the key
+# loses nothing:
+#   * `ignored_config_fields:` listed the config fields a spec deliberately
+#     did not model — prose for the reviewer that no consumer ever read, and
+#     the one reader it did have (a `sliding_window` exemption) became
+#     `validation_exemptions`, which is where such an entry is carried rather
+#     than dropped (see `_keep_exemptions`).
+#   * a custom op's `formula_symbols:` had to equal its signature's operands,
+#     so it said nothing the signature does not.
+#   * a stream's `close:` settled a carried stream's layout at every
+#     iteration exit. Every carried stream settles there now, so the key
+#     says nothing the `carries: true` beside it does not.
+# --- cache state `elements:` → `shape:` (c223827a) ------------------------
+#
+# A state's size used to be one product. Axis order is now declared, because
+# quant grouping and rank split follow those axes. Only products whose stored
+# order is the same everywhere in the library are rewritten; an expression
+# two components stored differently (`n_lin_v_heads * d_lin_k_head *
+# d_lin_v_head` is GDN vs Kimi-K3) is a blocker naming `shape:`.
+#
+# These rows translate a stored record's product into the axes it meant when
+# it was written (the conv window as kernel_size - 1 rows), keeping its
+# element count. They are a compatibility translation of old records, not the
+# current rule: the library writes states as the HF forward allocates them
+# (a conv window `[C, kernel_size]`).
+cache_state_elements:
+  "compress_ratio * Cdim_io": [compress_ratio, Cdim_io]
+  "2 * compress_ratio * Cdim_io": ["2 * compress_ratio", Cdim_io]
+  "C * (kernel_size - 1)": ["kernel_size - 1", C]
+  "n_ssm_heads * d_ssm_head * d_ssm_state": [n_ssm_heads, d_ssm_head, d_ssm_state]
+  "n_kv_heads * d_head * d_head": [n_kv_heads, d_head, d_head]
+  "n_hidden_copies * d_model * (4 - 1) * 3": ["n_hidden_copies * d_model", "(4 - 1) * 3"]
+  "3 - 1": ["3 - 1"]
+
+retired_keys:
+  document: [ignored_config_fields]
+  custom_op: [formula_symbols]
+  stream: [close]
+
+# --- a key a rule removes, and the key it writes in its place -------------
+#
+# One to one, in the same mapping. A rewrite keeps the author's comments
+# (`AuthoredYaml`): those on a key named here move to the key it became when
+# the same rewrite adds that key there. A key a rule only drops keeps its
+# comments where it was written. The dim renames above (`symbol_vocabulary`,
+# `component_dims`) are replacements of the same kind and join this table in
+# `replaced_keys()`.
+replaced_keys:
+  tie_weights: tied_weight                     # _rewrite_tie_weights
+  ignored_config_fields: validation_exemptions # _keep_exemptions
+  keep: streams                                # _keep_to_appended
+  in: inputs                                   # _thread_omitted_inputs
+  elements: shape                              # _rewrite_cache_state_elements
+
+# --- where a dim expression sits in a stored document ---------------------
+#
+# Every other string in a document is a name — a layer, a node, a component,
+# a checkpoint path, prose — and a rewrite of the dim vocabulary must not
+# touch it. A key absent from these lists keeps the old spelling, and an old
+# symbol is a hard load error, so a gap refuses the document rather than
+# changing what it means.
+dim_expression_keys:
+  # One expression each.
+  scalar:
+    - dim        # a node's single dim argument
+    - repeat     # how many times a stack, or a node's weights, repeat
+    - active     # how many of those copies run per token
+    - when       # a 0 / 1 switch
+    - extent     # a weight axis's (or one segment's) extent
+    - parts      # how many pieces a world splits that axis into
+    - elements   # retired cache-state product; rewritten to `shape:`
+  # A list of them. `layers:` is both a group's child list (mappings, which
+  # recurse) and a per-layer assignment's explicit index list (expressions),
+  # so the item's type decides.
+  list:
+    - shape      # an explicit shape, label by label
+    - range      # a per-layer assignment's index range
+    - layers

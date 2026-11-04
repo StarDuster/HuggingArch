@@ -1,0 +1,25 @@
+# Box override for sglang on the H100 SXM box (kernel driver 575.57.08, CUDA 12.9).
+#
+# Same shape as the vllm one beside it: the generated env unchanged (the
+# release comes from the binding's `audited_at`), and the box-wide
+# `torch==2.8.0+cu128` pin deliberately not taken, because sglang pins its own
+# torch exactly and that pin only exists as a CUDA-13 build. The env therefore
+# runs against the forward-compatibility user-mode driver from
+# `[library_env.sglang]`.
+#
+# The pin used to read `sglang==0.5.5.post3` because "sglang >= 0.5.21 needs
+# torch 2.13 (CUDA 13 wheels, not loadable on this driver)". Both halves are
+# wrong. The version floor is 0.5.11, not 0.5.21 — that is where sglang began
+# requiring `cuda-python>=13.0`, which no CUDA-12 torch build can satisfy:
+#
+#   torch==2.13.0+cu129 depends on cuda-bindings>=12.9.4,<13 and sglang==0.5.21
+#   depends on cuda-python>=13.0, we can conclude that sglang==0.5.21 and
+#   torch==2.13.0+cu129 are incompatible
+#
+# And CUDA-13 wheels DO load here, through forward compatibility. There is also
+# no older release to retreat to: sglang 0.5.10 is the last one on cuda-python
+# 12.9 and it ships zero `sglang/kernels/*` files, so the ten providers that
+# import `sglang.kernels.ops.*` have no version that is both cu12-installable
+# and carries the module they need. Measured on this box at 0.5.22: all ten
+# import, `sgl_kernel` still imports at 0.4.9, and `fused_gdn_gating` runs.
+-r ../sglang.txt

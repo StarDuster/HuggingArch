@@ -1,0 +1,40 @@
+# Gemma-4's per-head Q, K and V RMSNorms in one launch.
+#
+# Naive subgraph (swa_qknorm_attention, gqa_qknorm_keqv_attention — the
+# gemma-4 sliding and full attention layers), three sibling norms over the
+# head-split q, k and v with no edge between them:
+#
+#   q = rmsnorm(q) * w_q;  k = rmsnorm(k) * w_k;  v = rmsnorm(v)   # v: no weight
+#
+# In the k_eq_v full-attention layers V is K's projection, so k_norm and
+# v_norm read the same tensor; the kernel reads it as two slices.
+#
+#   sglang (audited at v0.5.22): `Gemma4Attention.forward`
+#     (srt/models/gemma4_causal.py:450-496) calls `gemma_qkv_rmsnorm`
+#     (kernels/ops/layernorm/gemma4_fused_ops.py:246, Triton kernel :161), in
+#     place on the qkv slices, when `can_fuse_qkv_norm` holds (:458-463):
+#     CUDA or XPU, q/k norms without a scale shift, and a weightless v norm —
+#     "the canonical Gemma4 attention configuration". The weightless v norm
+#     is the graph's `rmsnorm_unscaled`; the class is the binding's
+#     `architectures` (Gemma4TextModel's users: Gemma4ForCausalLM,
+#     gemma4_mm's Gemma4ForConditionalGeneration, gemma4_unified's
+#     Gemma4UnifiedForConditionalGeneration). The same in prefill and decode.
+#   vLLM (audited at v0.32.0): three RMSNorm launches (gemma4.py:542, :546,
+#     :551) — not bound.
+#
+# The norms are told apart by the operand they become (`feeds`).
+
+fused_op: gemma_qkv_rmsnorm
+
+naive_pattern:
+  nodes:
+    q_norm: { op: rmsnorm,          inputs: [external.q], feeds: q }
+    k_norm: { op: rmsnorm,          inputs: [external.k], feeds: k }
+    v_norm: { op: rmsnorm_unscaled, inputs: [external.v], feeds: v }
+  io_mapping:
+    q:        external.q
+    k:        external.k
+    v:        external.v
+    output: q_norm.out
+    k_out:  k_norm.out
+    v_out:  v_norm.out

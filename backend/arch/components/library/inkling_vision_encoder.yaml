@@ -1,0 +1,22 @@
+# Inkling hierarchical-MLP (hmlp) vision encoder — self-contained tower,
+# invoked ONCE as a singleton wrapper. Four linear+norm stages progressively
+# fold neighbouring patches (channel concat, zero-param) into the decoder
+# hidden size d_model. Node ids are the full HF sub-paths under `model.`.
+#
+#   visual.layers.linear_0 [128, 75]      patch linear      → norm_0 [128]
+#   visual.layers.linear_1 [320, 512]     (4-patch fold)    → norm_1 [320]
+#   visual.layers.linear_2 [4800, 5120]   (16-patch fold)   → norm_2 [4800]
+#   visual.layers.linear_3 [6144, 9600]   (final fold → d_model)
+#   visual.final_norm [6144]
+role: aux_block
+description: "Inkling hmlp vision encoder: 4 linear+norm hierarchical patch-fold stages → d_model."
+graph:
+  visual.layers.linear_0: { op: linear, in: x, dims: { in: "75", out: "128" }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  visual.layers.norm_0:   { op: rmsnorm, in: visual.layers.linear_0, dim: "128", weight_axes: [{ replicated: true }] }
+  visual.layers.linear_1: { op: linear, in: visual.layers.norm_0, dims: { in: "512", out: "320" }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  visual.layers.norm_1:   { op: rmsnorm, in: visual.layers.linear_1, dim: "320", weight_axes: [{ replicated: true }] }
+  visual.layers.linear_2: { op: linear, in: visual.layers.norm_1, dims: { in: "5120", out: "4800" }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  visual.layers.norm_2:   { op: rmsnorm, in: visual.layers.linear_2, dim: "4800", weight_axes: [{ replicated: true }] }
+  visual.layers.linear_3: { op: linear, in: visual.layers.norm_2, dims: { in: "9600", out: d_model }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  visual.final_norm:      { op: rmsnorm, in: visual.layers.linear_3, dim: d_model, weight_axes: [{ replicated: true }] }
+outputs: [visual.final_norm]

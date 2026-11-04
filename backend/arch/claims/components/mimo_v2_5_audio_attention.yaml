@@ -1,0 +1,8 @@
+schema: huggingarch.claims/v1
+subject: mimo_v2_5_audio_attention
+axioms:
+  checks:
+  - kind: kv_growth
+    storage: none
+    src: modeling_mimo_v2.py::MiMoAudioEncoder._apply_input_local_transformer `self.input_local_transformer(inputs_embeds=speech_embeddings,
+      return_dict=True, use_cache=False, is_causal=not self.input_full_attention)`

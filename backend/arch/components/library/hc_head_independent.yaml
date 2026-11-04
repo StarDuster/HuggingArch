@@ -1,0 +1,34 @@
+# Independent-HC head reduce — the exit-side stream collapse before the final
+# RMSNorm (modeling_hy_v4.py HYV4HyperHead.forward:681-690, called at :882).
+#
+#   flat  = flatten(x)                                    # [B,s_ctx,n·d_model]
+#   mixes = Linear(flat, hc_fn) * rsqrt(mean(flat²)+eps)  # the source's
+#           unweighted-RMSNorm returns the rsqrt SCALAR (modeling_hy_v4.py:
+#           67-75), so by linearity this is Linear(rmsnorm_unscaled(flat))
+#   pre   = sigmoid(mixes * hc_scale + hc_base) + hc_eps  # [B,s_ctx,n]
+#   y     = sum(pre ⊗ x, copies axis)                     # [B,s_ctx,d_model]
+#
+# Same pure-function idiom as library `hc_head` (weights passed in by the
+# caller), but WITHOUT sinkhorn and WITH the additive hc_eps — the library
+# `hc_head` omits the eps, so it is not reused. The gate decomposes into
+# registered mul/add/sigmoid (hc_scale is [1] and broadcast-multiplies the
+# [B,s_ctx,n] mixes; hc_base is [n] and adds, exactly the router_noaux_tc
+# add-broadcast idiom). The trailing `+ hc_eps` (config.hc_eps = 1e-6,
+# modeling_hy_v4.py:688) is the registered `add_const` primitive.
+#
+# Required dims: d_model, n_hidden_copies.
+
+description: "iHC head reduce: flatten n_hidden_copies copies, project to n_hidden_copies-dim mix vector, sigmoid(scale·mixes+base) gate + hc_eps, weighted reduce → [B,s_ctx,d_model]. Hy4 HYV4HyperHead."
+inputs: [x, fn, scale, base]   # x: [B,s_ctx,n_hidden_copies,d_model], fn: [n_hidden_copies, n_hidden_copies·d_model], scale: [1], base: [n_hidden_copies]
+
+graph:
+  flat:        { op: view_merge, in: x }
+  flat_norm:   { op: rmsnorm_unscaled, in: flat, dim: "n_hidden_copies * d_model" }
+  mixes:       { op: linear_external_weight, in: [flat_norm, fn], dims: { in: "n_hidden_copies * d_model", out: n_hidden_copies } }
+  pre_scaled:  { op: mul, in: [mixes, scale], dims: { dim: n_hidden_copies, out: "1" } }
+  pre_shifted: { op: add, in: [pre_scaled, base], dim: n_hidden_copies }
+  pre_sig:     { op: sigmoid, in: pre_shifted, dim: n_hidden_copies }
+  pre:         { op: add_const, in: pre_sig, dim: n_hidden_copies }
+  reduced:     { op: hc_weighted_reduce, in: [x, pre], dims: { n_hidden_copies: n_hidden_copies, d_model: d_model } }
+
+outputs: [reduced]

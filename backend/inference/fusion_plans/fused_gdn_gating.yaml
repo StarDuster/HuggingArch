@@ -1,0 +1,42 @@
+# Gated DeltaNet gates in one launch: g = -exp(a_log) * softplus(dt_raw +
+# dt_bias) and beta = sigmoid(beta_raw), per value head.
+#
+# Naive subgraph (gated_delta_net_attention, gated_delta_net_fused_attention):
+#
+#   g    = neg_exp(a_log) * softplus(dt_raw + dt_bias)
+#   beta = sigmoid(beta_raw)
+#
+# PREFILL, sglang (audited at v0.5.22), CUDA: `fused_gdn_gating`
+#   (kernels/ops/attention/fla/fused_gdn_gating.py:44, kernel :10; gate
+#   :35-39, beta :40-41), called at srt/layers/attention/linear/gdn_backend.py
+#   :1349 before `kernel_dispatcher.extend`; the q/k l2norms stay two
+#   `l2norm_fwd` launches inside `chunk_gated_delta_rule`
+#   (kernels/ops/attention/fla/chunk.py:110-112). Both outputs are allocated
+#   fp32 (fused_gdn_gating.py:57-58), declared per port below. The CPU AOT
+#   kernel allocates beta at b's dtype (sgl_kernel fla.cpp:1703-1729), so the
+#   binding is CUDA only.
+#
+# vLLM's prefill runs a larger launch, `fused_post_conv_prep` (l2norms and a
+# contiguous copy of v included; `fused_gdn_post_conv_prep.yaml`); its own
+# `fused_gdn_gating` (qwen_gdn_linear_attn.py:2029) is not on the default
+# path, so vLLM does not bind this plan. Decode in both frameworks is
+# `fused_recurrent_gated_delta_rule`.
+
+fused_op: fused_gdn_gating
+
+output_dtype: { g_out: float32, beta_out: float32 }
+
+naive_pattern:
+  nodes:
+    dt:       { op: add,      inputs: [external.dt_raw, external.dt_bias] }
+    softplus: { op: softplus, inputs: [dt.out] }
+    rate:     { op: neg_exp,  inputs: [external.a_log] }
+    decay:    { op: mul,      inputs: [rate.out, softplus.out], feeds: decay }
+    beta:     { op: sigmoid,  inputs: [external.beta_raw], feeds: write }
+  io_mapping:
+    dt_raw:   external.dt_raw
+    beta_raw: external.beta_raw
+    a_log:    external.a_log
+    dt_bias:  external.dt_bias
+    g_out:    decay.out
+    beta_out: beta.out

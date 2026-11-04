@@ -1,0 +1,25 @@
+# MoE FFN with noaux_tc sigmoid routing, for checkpoints that name the router
+# `router.classifier.weight` + `router.e_score_correction_bias` (the projection
+# is a `classifier` submodule of `router`, the bias sits directly on `router`).
+# LongCat-Flash. Identical to `moe_ffn_gate_routing_bias` except the router is
+# `router_noaux_tc_classifier` invoked as `router` (not `router_noaux_tc` as
+# `gate`), so the faithful names fall out with no call-site rename.
+#
+# HF tensor naming this matches:
+#   <moe>.router.classifier.weight              → router.classifier (linear)
+#   <moe>.router.e_score_correction_bias        → router.e_score_correction_bias
+#   <moe>.experts.X.{gate,up,down}_proj.weight  → expert.* (×n_experts)
+#   <moe>.shared_experts.{gate,up,down}_proj.weight (n_shared_experts copies)
+#
+# Required dims: d_model, d_ffn_expert, n_experts, n_experts_active.  Optional: n_shared_experts, n_route_targets (the gate's width, derived).
+
+role: ffn_moe
+description: "MoE + noaux_tc routing with a `router.classifier` projection submodule + router-level correction bias. LongCat-Flash."
+graph:
+  router:        { op: router_noaux_tc_classifier, in: x }
+  permute:       { op: permute, in: [x, router] }
+  experts:        { op: gated_experts, role: ffn_moe, in: permute, dims: { d_model: d_model, d_ffn: d_ffn_expert }, expert_weight: unrolled }
+  combine:       { op: combine, in: [experts, router] }
+  shared_experts: { op: swiglu_ffn, role: ffn_moe, in: x, dims: { d_model: d_model, d_ffn: d_ffn_expert }, repeat: n_shared_experts }
+  moe_out:       { op: add, in: [combine, shared_experts], dim: d_model }
+outputs: [moe_out]

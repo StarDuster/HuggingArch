@@ -1,0 +1,445 @@
+{
+  "schema_version": 4,
+  "config": {
+    "auto_map": {
+      "AutoModel": "modeling_mimo.MiMoModel",
+      "AutoConfig": "configuration_mimo.MiMoConfig",
+      "AutoModelForCausalLM": "modeling_mimo.MiMoForCausalLM"
+    },
+    "head_dim": 128,
+    "use_cache": true,
+    "use_mrope": false,
+    "hidden_act": "silu",
+    "model_type": "mimo",
+    "rope_theta": 640000,
+    "vocab_size": 151680,
+    "hidden_size": 4096,
+    "torch_dtype": "bfloat16",
+    "bos_token_id": 151643,
+    "eos_token_id": 151645,
+    "rms_norm_eps": 1e-05,
+    "architectures": [
+      "MiMoForCausalLM"
+    ],
+    "attention_bias": true,
+    "sliding_window": 32768,
+    "tokenizer_class": [
+      "Qwen2Tokenizer"
+    ],
+    "attention_dropout": 0.0,
+    "initializer_range": 0.02,
+    "intermediate_size": 11008,
+    "max_window_layers": 36,
+    "num_hidden_layers": 36,
+    "use_sliding_window": false,
+    "num_attention_heads": 32,
+    "num_key_value_heads": 8,
+    "tie_word_embeddings": false,
+    "transformers_version": "4.40.1",
+    "max_position_embeddings": 32768,
+    "num_nextn_predict_layers": 1
+  },
+  "metadata": {
+    "header": {
+      "revision": "6299b5a2c45daf0c429285c92b8e61a5bd011c0d",
+      "total_size": 15666819072,
+      "tensors": [
+        {
+          "name": "lm_head.weight",
+          "dtype": "BF16",
+          "shape": [
+            151680,
+            4096
+          ]
+        },
+        {
+          "name": "model.embed_tokens.weight",
+          "dtype": "BF16",
+          "shape": [
+            151680,
+            4096
+          ]
+        },
+        {
+          "name": "model.layers.{}.input_layernorm.weight",
+          "dtype": "BF16",
+          "shape": [
+            4096
+          ],
+          "index": [
+            [
+              "0-35"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.mlp.down_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            4096,
+            11008
+          ],
+          "index": [
+            [
+              "0-35"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.mlp.gate_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            11008,
+            4096
+          ],
+          "index": [
+            [
+              "0-35"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.mlp.up_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            11008,
+            4096
+          ],
+          "index": [
+            [
+              "0-35"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.post_attention_layernorm.weight",
+          "dtype": "BF16",
+          "shape": [
+            4096
+          ],
+          "index": [
+            [
+              "0-35"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.self_attn.k_proj.bias",
+          "dtype": "BF16",
+          "shape": [
+            1024
+          ],
+          "index": [
+            [
+              "0-35"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.self_attn.k_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            1024,
+            4096
+          ],
+          "index": [
+            [
+              "0-35"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.self_attn.o_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            4096,
+            4096
+          ],
+          "index": [
+            [
+              "0-35"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.self_attn.q_proj.bias",
+          "dtype": "BF16",
+          "shape": [
+            4096
+          ],
+          "index": [
+            [
+              "0-35"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.self_attn.q_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            4096,
+            4096
+          ],
+          "index": [
+            [
+              "0-35"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.self_attn.v_proj.bias",
+          "dtype": "BF16",
+          "shape": [
+            1024
+          ],
+          "index": [
+            [
+              "0-35"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.self_attn.v_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            1024,
+            4096
+          ],
+          "index": [
+            [
+              "0-35"
+            ]
+          ]
+        },
+        {
+          "name": "model.mtp_layers.{}.final_layernorm.weight",
+          "dtype": "BF16",
+          "shape": [
+            4096
+          ],
+          "index": [
+            [
+              "0"
+            ]
+          ]
+        },
+        {
+          "name": "model.mtp_layers.{}.hidden_layernorm.weight",
+          "dtype": "BF16",
+          "shape": [
+            4096
+          ],
+          "index": [
+            [
+              "0"
+            ]
+          ]
+        },
+        {
+          "name": "model.mtp_layers.{}.input_layernorm.weight",
+          "dtype": "BF16",
+          "shape": [
+            4096
+          ],
+          "index": [
+            [
+              "0"
+            ]
+          ]
+        },
+        {
+          "name": "model.mtp_layers.{}.input_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            4096,
+            8192
+          ],
+          "index": [
+            [
+              "0"
+            ]
+          ]
+        },
+        {
+          "name": "model.mtp_layers.{}.mlp.down_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            4096,
+            11008
+          ],
+          "index": [
+            [
+              "0"
+            ]
+          ]
+        },
+        {
+          "name": "model.mtp_layers.{}.mlp.gate_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            11008,
+            4096
+          ],
+          "index": [
+            [
+              "0"
+            ]
+          ]
+        },
+        {
+          "name": "model.mtp_layers.{}.mlp.up_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            11008,
+            4096
+          ],
+          "index": [
+            [
+              "0"
+            ]
+          ]
+        },
+        {
+          "name": "model.mtp_layers.{}.post_attention_layernorm.weight",
+          "dtype": "BF16",
+          "shape": [
+            4096
+          ],
+          "index": [
+            [
+              "0"
+            ]
+          ]
+        },
+        {
+          "name": "model.mtp_layers.{}.self_attn.k_proj.bias",
+          "dtype": "BF16",
+          "shape": [
+            1024
+          ],
+          "index": [
+            [
+              "0"
+            ]
+          ]
+        },
+        {
+          "name": "model.mtp_layers.{}.self_attn.k_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            1024,
+            4096
+          ],
+          "index": [
+            [
+              "0"
+            ]
+          ]
+        },
+        {
+          "name": "model.mtp_layers.{}.self_attn.o_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            4096,
+            4096
+          ],
+          "index": [
+            [
+              "0"
+            ]
+          ]
+        },
+        {
+          "name": "model.mtp_layers.{}.self_attn.q_proj.bias",
+          "dtype": "BF16",
+          "shape": [
+            4096
+          ],
+          "index": [
+            [
+              "0"
+            ]
+          ]
+        },
+        {
+          "name": "model.mtp_layers.{}.self_attn.q_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            4096,
+            4096
+          ],
+          "index": [
+            [
+              "0"
+            ]
+          ]
+        },
+        {
+          "name": "model.mtp_layers.{}.self_attn.v_proj.bias",
+          "dtype": "BF16",
+          "shape": [
+            1024
+          ],
+          "index": [
+            [
+              "0"
+            ]
+          ]
+        },
+        {
+          "name": "model.mtp_layers.{}.self_attn.v_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            1024,
+            4096
+          ],
+          "index": [
+            [
+              "0"
+            ]
+          ]
+        },
+        {
+          "name": "model.mtp_layers.{}.token_layernorm.weight",
+          "dtype": "BF16",
+          "shape": [
+            4096
+          ],
+          "index": [
+            [
+              "0"
+            ]
+          ]
+        },
+        {
+          "name": "model.norm.weight",
+          "dtype": "BF16",
+          "shape": [
+            4096
+          ]
+        }
+      ]
+    },
+    "quant_scheme": "none",
+    "num_bits": 0
+  },
+  "model_id": "XiaomiMiMo/MiMo-7B-RL",
+  "forward_source": {
+    "files": [
+      {
+        "path": "hf-cache/XiaomiMiMo/MiMo-7B-RL/configuration_mimo.py",
+        "text": "from transformers.models.qwen2.configuration_qwen2 import Qwen2Config\n\nclass MiMoConfig(Qwen2Config):\n    model_type = \"mimo\"\n\n    def __init__(\n        self,\n        *args,\n        num_nextn_predict_layers=0,\n        **kwargs\n    ):\n        self.num_nextn_predict_layers = num_nextn_predict_layers\n        super().__init__(\n            *args,\n            **kwargs,\n        )\n"
+      },
+      {
+        "path": "hf-cache/XiaomiMiMo/MiMo-7B-RL/modeling_mimo.py",
+        "text": "from typing import Optional, Tuple\n\nimport torch\nfrom torch import nn\nfrom transformers.cache_utils import Cache\nfrom transformers.models.qwen2.modeling_qwen2 import (Qwen2Attention,\n                                                      Qwen2ForCausalLM,\n                                                      Qwen2MLP, Qwen2Model,\n                                                      Qwen2RMSNorm)\n\nfrom .configuration_mimo import MiMoConfig\n\n\nclass MiMoMTPLayers(nn.Module):\n    def __init__(self, config):\n        super().__init__()\n        self.input_layernorm = Qwen2RMSNorm(config.hidden_size, eps=config.rms_norm_eps)\n        self.post_attention_layernorm = Qwen2RMSNorm(config.hidden_size, eps=config.rms_norm_eps)\n        self.token_layernorm = Qwen2RMSNorm(config.hidden_size, eps=config.rms_norm_eps)\n        self.hidden_layernorm = Qwen2RMSNorm(config.hidden_size, eps=config.rms_norm_eps)\n        self.input_proj = nn.Linear(config.hidden_size * 2, config.hidden_size, bias=False)\n        self.final_layernorm = Qwen2RMSNorm(config.hidden_size, eps=config.rms_norm_eps)\n        self.self_attn = Qwen2Attention(config, layer_idx=0)\n        self.mlp = Qwen2MLP(config)\n\n    def forward(self, input_embeds,\n                    hidden_states,\n                    attention_mask,\n                    position_ids,\n                    past_key_values: Optional[Cache]=None,\n                    output_attentions: Optional[bool]=False,\n                    use_cache: Optional[bool]=False,\n                    position_embedding: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,\n                    cache_position=None,\n                    **kwargs):\n        input_embeds = self.token_layernorm(input_embeds)\n        previous_hidden_states = self.hidden_layernorm(hidden_states)\n        hidden_states = self.input_proj(torch.cat([previous_hidden_states, input_embeds], dim=-1))\n        residual = hidden_states\n        hidden_states = self.input_layernorm(hidden_states)\n        hidden_states, _ = self.self_attn(hidden_states,\n                                       attention_mask=attention_mask,\n                                       position_ids=position_ids,\n                                       past_key_values=past_key_values,\n                                       output_attentions=output_attentions,\n                                       use_cache=use_cache,\n                                       cache_position=cache_position,\n                                       position_embedding=position_embedding,\n                                       **kwargs)\n        hidden_states = residual + hidden_states\n        residual = hidden_states\n        hidden_states = self.post_attention_layernorm(hidden_states)\n        hidden_states = self.mlp(hidden_states)\n        hidden_states = residual + hidden_states\n        hidden_states = self.final_layernorm(hidden_states)\n        return hidden_states\n\n\nclass MiMoModel(Qwen2Model):\n    config_class = MiMoConfig\n\n    def __init__(self, config: MiMoConfig):\n        super().__init__(config)\n        self.mtp_layers = nn.ModuleList([MiMoMTPLayers(config) for _ in range(config.num_nextn_predict_layers)])\n\n\nclass MiMoForCausalLM(Qwen2ForCausalLM):\n    config_class = MiMoConfig\n    def __init__(self, config: MiMoConfig):\n        super(Qwen2ForCausalLM, self).__init__(config)\n        self.model = MiMoModel(config)\n        self.vocab_size = config.vocab_size\n        self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)\n\n        self.post_init()\n"
+      }
+    ],
+    "paths": [
+      "hf-cache/XiaomiMiMo/MiMo-7B-RL/configuration_mimo.py",
+      "hf-cache/XiaomiMiMo/MiMo-7B-RL/modeling_mimo.py"
+    ],
+    "source": "hf_modeling_files"
+  },
+  "release_date": "2025-04-29"
+}

@@ -1,0 +1,99 @@
+"""The process-wide registry of walks shared by estimate and plan.
+
+A `StepCells` value is the in-process owner of one model/deployment/precision
+family's symbolic walks. Capacity uses one for every point of an estimate; the
+Kernel Bench planner needs the same family when it turns those walks into
+physical measurement jobs. Before this module each entry point constructed its
+own `StepCells`, so a plan and an estimate in the same process could hold two
+walks for the same facts even though both were careful to walk only once
+*within* their own call.
+
+This is deliberately not the durable `WalkKey` tier (`measure.scope.of_walk`):
+it is a bounded, in-process derivation registry. It names the model's result
+version, the checkpoint config a binding may read, the deployment and the
+precision profile — the facts `StepCells` is a function of — and never a
+point, card price, framework view or measurement.
+Framework bindings, pipeline stages and timed-stack projections are readers
+attached to a cell (`Cell.serving`, keyed there by exactly those facts), so a
+plan's measurable-launch projection and an estimate's served view share the
+symbolic walk without being forced to expose the same row subset.
+"""
+from __future__ import annotations
+
+import json
+from dataclasses import dataclass, field
+import threading
+from typing import Any, Callable, Optional
+
+from backend.fingerprint import result_version
+from backend.measure.cache import KeyedCache, MemoryBackend
+from backend.measure.scope import make_key
+
+from .step_eval import StepCells
+
+
+@dataclass(frozen=True)
+class WalkCellKey:
+    """What a family of shared walks is a function of."""
+    model_id: Optional[str]
+    version: str
+    config: str
+    parallel: str
+    precision: str
+
+    def key(self) -> str:
+        return make_key("walk-cells", self.model_id, self.version, self.config,
+                        self.parallel, self.precision)
+
+
+@dataclass
+class SharedWalkCells:
+    """One registry entry: the resolved spec, its cells, and derived readers.
+
+    `readers` holds the expensive whole-family projections that sit above the
+    symbolic walks but below a consumer (capacity's placement/budget basis).
+    A reader is named by its owner and built only by the function that owns the
+    concept; the registry provides identity and memoisation, not a second
+    derivation.
+    """
+    resolved: Any
+    cells: StepCells
+    key: WalkCellKey
+    _readers: dict[str, Any] = field(default_factory=dict, repr=False)
+    _lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
+
+    def reader(self, name: str, build: Callable[[], Any]) -> Any:
+        """A named projection of this one walk family, built once."""
+        with self._lock:
+            if name not in self._readers:
+                self._readers[name] = build()
+            return self._readers[name]
+
+
+# A process-local memo, not an estimate-result cache: sixteen model/deployment
+# families mirror the capacity preparation budget. `StepCells` and the readers
+# attached to each cell provide the finer-grained bounds below this entry.
+WALK_CELLS = KeyedCache("walk_cells", MemoryBackend(max_entries=16),
+                        single_flight=True)
+
+
+def shared_walk_cells(resolved: Any, parallel: Any, precision: Any, *,
+                      model_id: Optional[str] = None) -> SharedWalkCells:
+    """The `StepCells` for one model, deployment and precision.
+
+    `parallel` and `precision` are their canonical domain objects
+    (`ParallelConfig`, `PrecisionProfile`), not request dictionaries: this is
+    below the HTTP boundary, where spelling has already been resolved once.
+    The raw config is named beside the engine version because a framework
+    binding may read checkpoint fields (the Mamba scan chunk, for example)
+    that the model footprint digest does not change.
+    """
+    key = WalkCellKey(model_id=model_id, version=result_version(resolved),
+                      config=json.dumps(resolved.config, sort_keys=True,
+                                        default=str, separators=(",", ":")),
+                      parallel=repr(parallel), precision=precision.key)
+
+    def build() -> SharedWalkCells:
+        return SharedWalkCells(resolved, StepCells(), key)
+
+    return WALK_CELLS.get_or_compute(key.key(), build)

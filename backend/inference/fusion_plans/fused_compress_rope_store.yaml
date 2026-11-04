@@ -1,0 +1,37 @@
+# DeepSeek-V4.1 CSA2 compressed-KV store — vLLM's `rope_quant_insert`:
+# rotate the compressor's pre-RoPE latent, quantise it and insert it into
+# the compressed cache, one launch.
+#
+# Naive subgraph (csa2_compress_store):
+#
+#   concat   = concat(slice(latent), rope_emb(slice(latent)))
+#   compress = token_pool_compressor(concat)             # the cached entry
+#
+# The `fused_compress_norm_rope_store` tail without its norm: in V4.1 the
+# norm is the compressor's (`fused_save_compress_norm`), a different
+# component and a different launch.
+#
+# vLLM (audited at v0.32.0): `rope_quant_insert`
+# (vllm/models/deepseek_v41/common/ops/fused_compress_quant_cache.py:224), one
+# launch of `_rope_quant_insert{,_mxfp8,_nvfp4}_kernel` (:263) for the paged
+# fp8_ds_mla caches or `_rope_plain_insert_kernel` (:285) for the plain rows,
+# from `DeepseekCompressor.insert_cache` (models/deepseek_v41/compressor.py:297,
+# call :319), reached from attention.py:896 on every compressing layer,
+# prefill and decode alike.
+#
+# The token_pool_compressor marker is the sink, so the plan binds only a
+# compressed-cache store: the same slice → rope → concat is also a partial
+# RoPE on q or k. sglang is not bound (see `fused_save_compress_norm.yaml`).
+
+fused_op: fused_compress_rope_store
+
+naive_pattern:
+  nodes:
+    rope_slice:   { op: slice,                 inputs: [external.latent] }
+    norope_slice: { op: slice,                 inputs: [external.latent] }
+    rope:         { op: rope_emb,              inputs: [rope_slice.out] }
+    concat:       { op: concat,                inputs: [norope_slice.out, rope.out] }
+    compress:     { op: token_pool_compressor, inputs: [concat.out] }
+  io_mapping:
+    latent: external.latent
+    output: compress.out

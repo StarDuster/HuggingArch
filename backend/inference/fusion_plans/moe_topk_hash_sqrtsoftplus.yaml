@@ -1,0 +1,40 @@
+# DeepSeek-V4's hash-routed MoE layers: the experts come from a token-id table
+# (`tid2eid`), the weights from the sqrt-softplus scores — one launch.
+#
+# Naive subgraph (dsv4_moe_hash — the first V4 layers):
+#
+#   s   = sqrt(softplus(gating))
+#   idx = hash_route(input_ids, tid2eid)
+#   w   = gather(s, idx)
+#   w   = w / sum(w) * routed_scaling_factor
+#
+#   vLLM (audited at v0.32.0): `FusedTopKBiasRouter` with `hash_indices_table`
+#     (models/deepseek_v4/nvidia/model.py:879-888, :927-941; opt-in deep_gemm_mega_moe may route through bf16_mega_gate instead, :942-975) → `fused_topk_bias`
+#     (fused_topk_bias_router.py:287-307; `dsv4_topk` is skipped when a table is
+#     present, :179-181) → `ops.topk_hash_softplus_sqrt` (:92) →
+#     `dsv4HashTopkSoftplusSqrt` for top-6 + renormalise
+#     (csrc/moe/topk_softplus_sqrt_kernels.cu:78, dispatch
+#     :753: table lookup, sqrt-softplus, warp sum-renorm and scale in one
+#     kernel), else the general kernel with `use_hash` (:245) — one launch.
+#   sglang (audited at v0.5.22): `HashTopK.forward` (srt/layers/moe/
+#     hash_topk.py:234-241) → `hash_topk` (kernels/ops/moe/dsv4.py:114, the JIT
+#     module :144-152) under `SGLANG_OPT_USE_FUSED_HASH_TOPK` (default True,
+#     srt/environ.py:1336) — one launch; the eager fallback is the env off.
+#
+# Same boundary in prefill and decode.
+
+fused_op: moe_topk_hash_sqrtsoftplus
+
+naive_pattern:
+  nodes:
+    softplus: { op: softplus,          inputs: [external.gating] }
+    score:    { op: sqrt,              inputs: [softplus.out] }
+    route:    { op: hash_route,        inputs: [external.input_ids, external.table] }
+    gather:   { op: gather,            inputs: [score.out, route.out] }
+    norm:     { op: normalize_sum_one, inputs: [gather.out] }
+    scale:    { op: scale_const,       inputs: [norm.out] }
+  io_mapping:
+    gating:    external.gating
+    input_ids: external.input_ids
+    table:     external.table
+    output:    scale.out

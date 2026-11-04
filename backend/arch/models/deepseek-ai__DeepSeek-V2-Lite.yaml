@@ -1,0 +1,4 @@
+# Identity file for deepseek-ai/DeepSeek-V2-Lite
+base: deepseek_v2
+match:
+  model_id: [deepseek-ai/DeepSeek-V2-Lite]

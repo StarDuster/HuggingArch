@@ -1,0 +1,95 @@
+# GLM k-pool indexer compressor — the pooled index-key cache, as the serving
+# stacks keep it (GLM-5.3-Flash DSA layers, `index_kpool_compress: true`).
+#
+# Pooling law (HF modeling_glm5_next.py Glm5NextTextIndexer.get_pooled_states,
+# :902-975): each complete pool of compress_ratio (index_kpool) keys is a
+# learned softmax average — per channel, softmax over the pool of
+# (gate_scores + index_kpool_compress_ape[position in pool]) weighting the
+# keys (:965-970). The trailing incomplete pool is not a candidate (:961); its
+# tokens are appended to the selection as the visible tail.
+#
+# CACHE LAYOUT (reference disagreement). HF caches the RAW per-token
+# [k, gate_scores, valid] state (:806, `update_indexer` at :813) and re-pools
+# the whole cache every step (`get_pooled_states` at :827). vLLM and sglang
+# compress each completed pool on write into ONE pooled key and keep only the
+# incomplete pool's raw K and gate in a per-request ring:
+#   vLLM v0.30.0 models/glm5next/nvidia/attention.py:78-156
+#     (`Glm5NextIndexerCache`, `tokens_per_state = index_kpool`: one state per
+#     pool), :159-205 (`Glm5NextTailCache`: the in-progress pool's raw bf16 K +
+#     gate score, index_kpool slots per request), written by
+#     model_executor/layers/sparse_attn_indexer_kpool.py:53-97 (prefill,
+#     complete pools), :385 (prefill tail seeds the ring), :704 (decode:
+#     update the ring, write the pool when it completes);
+#   sglang v0.5.21 srt/mem_cache/memory_pool.py:4972-5022 (per-request bf16
+#     tail K / score buffers, index_kpool rows), srt/layers/attention/dsa/
+#     dsa_indexer_kpool.py:833-841 (the score reads ⌊seq_len / index_kpool⌋
+#     pooled rows).
+# This component models that pooled cache. The two layouts give bit-identical
+# pooled keys: a pool depends only on its own members, so once a pool is
+# complete the key HF recomputes each step equals the cached one. The
+# difference is where the work and the bytes are — the same resolution the
+# attention beside it takes for the MLA latent (serving caches the latent, HF
+# the expanded per-head K/V).
+#
+# The serving stacks also store the pooled key as FP8 with a power-of-two
+# scale per 128 channels after a Hadamard-128 rotation; that is the cache's
+# FORMAT (`cache_formats/fp8_pow2_hadamard128.yaml`), declared by the model
+# (`quant_context.cache_formats.index_key`, GLM-5.3-Flash follows serving) or
+# chosen by a precision profile, not by this layout. The rotation is no node
+# here: the format's `transform` grafts one on the edge into `pooled_out`
+# (`inference/materialize_cast.py`). HF's forward stores BF16, unrotated.
+#
+# Required dims: d_indexer_head, compress_ratio.
+
+description: "GLM k-pool indexer compressor: softmax(gate + ape)-weighted pooling of compress_ratio keys, one pooled index key cached per pool (the serving layout)."
+# Decode pools once per compress_ratio steps, on the ring's rows.
+decode_variant: glm_kpool_compressor_decode
+inputs: [keys, gates]
+cache:
+  entries:
+    # One pooled key per complete pool: ⌈s_kv/m⌉ rows stored (the pending
+    # pool owns a slot), ⌊s_kv/m⌋ readable — `token_pool_compressor`'s laws.
+    - { node: pooled_out, kind: index_key }
+    # The pending pool's raw K and gate score (vLLM `Glm5NextTailCache`, sglang
+    # `_compress_tail_k` / `_compress_tail_score`): compress_ratio bf16 rows
+    # each. Billed as read every step, as the DSv4 compressor's ring.
+    - { state: key_state,  kind: compressor_state, carrier: pool_weighted, shape: [compress_ratio, d_indexer_head], dtype: bf16 }
+    - { state: gate_state, kind: compressor_state, carrier: pool_probs,    shape: [compress_ratio, d_indexer_head], dtype: bf16 }
+graph:
+  # The step's own complete pools: tail dropped, then folded into
+  # (pool, position-in-pool) — [B,S,D] → [B, S//m, m, D].
+  keys_usable: { op: slice, in: keys,  axis: 1, dims: { out: "floor(s_ctx / compress_ratio) * compress_ratio" } }
+  gate_usable: { op: slice, in: gates, axis: 1, dims: { out: "floor(s_ctx / compress_ratio) * compress_ratio" } }
+  keys_win:    { op: view_split, in: keys_usable, axis: 1, dims: { s_slots: "floor(s_ctx / compress_ratio)", window: compress_ratio } }
+  gate_win:    { op: view_split, in: gate_usable, axis: 1, dims: { s_slots: "floor(s_ctx / compress_ratio)", window: compress_ratio } }
+  # Learned absolute position-in-pool table, [index_kpool, index_head_dim] (:773).
+  indexer.index_kpool_compress_ape: { op: parameter_tensor, role: attention_indexer, shape: [compress_ratio, d_indexer_head], weight_axes: [{ replicated: true }, { replicated: true }] }
+  pool_logits:
+    op: position_table_add
+    in: [gate_win, indexer.index_kpool_compress_ape]
+    dim: d_indexer_head
+    formula: "y[b, slot, p, d] = gate_win[b, slot, p, d] + index_kpool_compress_ape[p, d]   (:965; p indexes the position inside the pool)"
+  pool_probs:
+    op: softmax_act
+    in: pool_logits
+    dim: compress_ratio
+    axis: 2
+    formula: "w[b, slot, p, d] = exp(y[b, slot, p, d]) / Σ_{p'<index_kpool} exp(y[b, slot, p', d])   (:967, over the in-pool axis, per channel)"
+  pool_weighted:
+    op: mul
+    in: [keys_win, pool_probs]
+    dim: d_indexer_head
+    formula: "y[b, slot, p, d] = grouped_keys[b, slot, p, d] · probabilities[b, slot, p, d]"
+  pool_keys:
+    op: sum_reduce
+    in: pool_weighted
+    axis: 2
+    dims: { in: compress_ratio }
+    formula: "pool_keys[b, slot, d] = Σ_{p<index_kpool} (probabilities · grouped_keys)[b, slot, p, d]   (:970)"
+  pooled_out:
+    op: token_pool_compressor
+    in: pool_keys
+    dim: d_indexer_head
+    dims: { compress_ratio: compress_ratio }
+    formula: "cached pooled key = pool_keys   (vLLM Glm5NextIndexerCache, one state per index_kpool tokens; storage ⌈s_kv/m⌉, read ⌊s_kv/m⌋ complete pools)"
+outputs: [pooled_out]

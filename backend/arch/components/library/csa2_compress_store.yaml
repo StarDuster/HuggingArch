@@ -1,0 +1,55 @@
+# `Attention._compress_kv`'s own body on a KV SOURCE — what the method does
+# with the latent its `Compressor` returned (source/model.py:746-763):
+#
+#   shared_attn.compress_kv = self.compress_kv_cache
+#   ... the indexer runs first, on the UNROTATED latent ...
+#   apply_rotary_emb(latent[..., -rd:], freqs)    # a latent stands for the
+#   self.compress_kv_cache[…] = latent            # first token of its group
+#   return shared_attn.compress_kv[:bsz, :compress_len], idxs
+#
+# The buffer is this layer's (`compress_kv_cache` is allocated only `if
+# self.is_kv_source`, source/model.py:668-679), so the cache entry lives
+# here; a layer that reads another's binds `csa2_compress_borrowed` instead
+# and declares none. The indexer is not here: it reads the same pre-RoPE
+# latent and `csa2_attention` names both of them off it.
+#
+# Required dims: d_head, d_qk_rope, compress_ratio, n_topk_keys.
+
+description: "CSA2 compressed-KV store: rotate the compressor's pre-RoPE latent, keep it in this layer's compressed cache and read back the rows the attention's union joins. Publishes compress_kv."
+cache:
+  entries:
+    - { node: compress_pooled, kind: compressed_kv }
+inputs: [latent]
+# `shared_attn.compress_kv = self.compress_kv_cache` (source/model.py:748),
+# read back by every consumer at :763. Published from the node that reads the
+# buffer, not from the buffer itself: a cached node is bound to this layer's
+# storage, and a reader in a later layer reaching it has no producer of its
+# own to attribute the read to.
+stream_out:
+  compress_kv: compress_read
+graph:
+  # source/model.py:753-761 — after the indexer has read the latent. A
+  # latent stands for the first token of its group, which is a position
+  # mapping, not an extra cost.
+  compress_pe_slice:   { op: slice, in: latent, dims: { in: d_head, out: d_qk_rope, start: "d_head - d_qk_rope" } }
+  compress_nope_slice: { op: slice, in: latent, dims: { in: d_head, out: "d_head - d_qk_rope", start: "0" } }
+  compress_pe_rope:    { op: rope_emb, in: compress_pe_slice, dim: d_qk_rope }
+  compress_roped:      { op: concat, in: [compress_nope_slice, compress_pe_rope], dims: { in_a: "d_head - d_qk_rope", in_b: d_qk_rope, out: d_head } }
+  compress_pooled:
+    op: token_pool_compressor
+    in: compress_roped
+    dim: d_head
+    dims: { compress_ratio: compress_ratio, read_topk: n_topk_keys }
+    formula: "cached latent = compress_roped   (the pooling happened inside the compressor; storage ⌈s_kv/ratio⌉ slots — the pending group owns one — read Min(⌊s_kv/ratio⌋, n_topk_keys), the indexer's top-K caps it)"
+  # What `shared_attn.compress_kv` hands this layer and every later one.
+  # A node of its own because the stream has to name a producer, and it is
+  # the tensor every reader takes — this layer's union and every later
+  # layer's. The read law is the cached node's: `compress_pooled` states that
+  # `min(index_topk, end_pos // ratio)` of its rows are live per query
+  # (source/model.py:578), and this view hands that law on with the rows. The
+  # rows are already pooled; nothing pools them again.
+  compress_read:
+    op: identity
+    in: compress_pooled
+    formula: "shared_attn.compress_kv[:bsz, :compress_len],  compress_len = (start_pos + seqlen) // ratio   (source/model.py:748 publishes the buffer, :763 is the read every consumer makes; Min(n_topk_keys, ⌊s_kv/ratio⌋) of the rows are live per query)"
+outputs: [compress_read]

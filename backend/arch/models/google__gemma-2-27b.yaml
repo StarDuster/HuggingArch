@@ -1,0 +1,4 @@
+# Identity file for google/gemma-2-27b
+base: gemma2
+match:
+  model_id: [google/gemma-2-27b]

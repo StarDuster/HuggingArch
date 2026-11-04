@@ -1,0 +1,53 @@
+# DeepSeek-V4's hyper-connection head — the exit-side reduce of the
+# n_hidden_copies residual copies to one hidden state — in one launch.
+#
+# Naive subgraph (hc_head; the model's exit and the MTP block's `hh_reduced`):
+#
+#   x_flat = rmsnorm_unscaled(view_merge(x))          # [T, hc·d]
+#   pre    = sigmoid(linear(x_flat, mix_weight) · scale + base)
+#   y      = Σ_c pre_c · x_c                            # [T, d]
+#
+# Both frameworks run all of it, the small mix_weight GEMM included, as one launch
+# per token block that reads the residual and writes y, never materialising
+# the mixes or the gate:
+#   vLLM (audited at v0.32.0): `hc_head_fused_kernel_tilelang`
+#     (vllm/model_executor/kernels/mhc/tilelang.py:1041) → TileLang
+#     `hc_head_fuse_tilelang` (kernels/mhc/tilelang_kernels.py:1021, one
+#     `T.Kernel` :1053; the norm's rsqrt is applied to the dot products,
+#     the same function), from `DeepseekV4Model.forward`
+#     (models/deepseek_v4/nvidia/model.py:1516) and the MTP head
+#     (models/deepseek_v4/nvidia/mtp.py:290), with no branch.
+#   sglang (audited at v0.5.22) runs the same boundary as one Triton launch,
+#     `fused_hc_head` (kernels/ops/layernorm/mhc_head.py:90, launch :136),
+#     from `DeepseekV4Model.hc_head` (srt/models/deepseek_v4.py:4053, call
+#     :4072). Its MTP draft model's head is plain torch instead — norm,
+#     `F.linear`, sigmoid, weighted sum as separate kernels
+#     (srt/models/deepseek_v4_nextn.py:114-127, call :204) — and nothing a
+#     `when:` asks tells the two sites apart. The entry is bound anyway, for
+#     the backbone exit and because the exit's first three leaves have the
+#     shape of a hyper-connection pre-mix GEMM, which this 9-node pattern
+#     must claim first (`mhc_pre_gemm.yaml`). The draft head is then billed
+#     as one launch where sglang makes several: a launch-count error on a
+#     non-default path (speculative decoding), stated here and in the
+#     binding, which a per-stack condition would remove.
+# Prefill and decode take the same call in both.
+
+fused_op: fused_hc_head
+
+naive_pattern:
+  nodes:
+    x_flat:        { op: view_merge,             inputs: [external.x] }
+    x_flat_norm:   { op: rmsnorm_unscaled,       inputs: [x_flat.out] }
+    mixes:         { op: linear_external_weight, inputs: [x_flat_norm.out, external.mix_weight] }
+    scaled:        { op: mul,                    inputs: [mixes.out, external.scale] }
+    biased:        { op: add,                    inputs: [scaled.out, external.base] }
+    pre:           { op: sigmoid,                inputs: [biased.out] }
+    pre_broadcast: { op: broadcast,              inputs: [pre.out] }
+    x_weighted:    { op: mul,                    inputs: [external.x, pre_broadcast.out] }
+    reduced:       { op: sum_reduce,             inputs: [x_weighted.out] }
+  io_mapping:
+    x:          external.x
+    mix_weight: external.mix_weight
+    scale:      external.scale
+    base:       external.base
+    output:     reduced.out

@@ -1,0 +1,40 @@
+# Multi-Token Prediction (MTP) head that shares the main backbone's
+# token embedding + lm_head. Used by GLM-MoE-DSA.
+#
+# Differs from `mtp_block_with_head`:
+#   - No private `embed_tokens` — `enorm` reads the main backbone's token
+#     embedding (`inputs_embeds`, the call site binds the backbone's
+#     embedding node), so no per-layer n_vocab × d_model table. As in
+#     DeepSeek-style MTP (vLLM deepseek_mtp.py), `enorm` normalizes the
+#     next token's embedding and `hnorm` the previous hidden state.
+#   - No private `shared_head.head` projection — the main lm_head does
+#     the d_model → n_vocab projection downstream.
+#
+# Topology:
+#   inputs_embeds → enorm
+#   x             → hnorm                      (in parallel)
+#   concat(enorm, hnorm) → eh_proj → inner block → shared_head.norm
+#
+# Required dims: d_model.
+role: aux_block
+description: "MTP head sharing the main backbone's embed + lm_head (no private copies). GLM-MoE-DSA."
+
+inputs: [x, inputs_embeds]
+
+params:
+  inner: { kind: component }
+  norm:  { kind: component, default: rmsnorm }
+
+graph:
+  enorm:             { op: <norm>, in: inputs_embeds, dim: d_model, weight_axes: [{ replicated: true }] }
+  hnorm:             { op: <norm>, in: x, dim: d_model, weight_axes: [{ replicated: true }] }
+  concat:            { op: concat, in: [enorm, hnorm], dim: "2 * d_model" }
+  eh_proj:           { op: linear, in: concat, dims: { in: "2 * d_model", out: d_model }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  # `module: null` — the checkpoint has no module here. GLM-MoE-DSA stores
+  # an MTP layer as one more entry in the main `layers` index space
+  # (`model.layers.78.self_attn.q_a_proj.weight`), so the inner block's
+  # leaves hang directly off the MTP prefix. Consumers whose checkpoint
+  # DOES hold a module here say so at the call site.
+  transformer:       { op: <inner>, in: eh_proj, module: null }
+  shared_head.norm:  { op: <norm>, in: transformer, dim: d_model, weight_axes: [{ replicated: true }] }
+outputs: [shared_head.norm]

@@ -1,0 +1,128 @@
+# Qwen Sparse Attention (QSA) - Qwen3.8-Flash-Next full-attention layers.
+#
+# GQA core + per-head QK-norm + partial RoPE + a FUSED-QK lightning indexer
+# (indexer.index_qk_proj emits BOTH the n_indexer_heads query heads and the
+# single shared indexer key head in one tensor) that scores queries against
+# mean-pooled key BLOCKS (compress_ratio tokens each), keeps the top
+# n_topk_keys/compress_ratio blocks (expanded back to tokens, plus the unpooled
+# tail), then a channel-wise SIGMOID output gate (output_gate_type=sigmoid).
+#
+# Fused QZ: q_proj is d_model -> 2*n_heads*d_head (query + gate), head-split then
+# sliced per head into a query half and a sigmoid-gate half. This is the
+# gqa_qknorm_partial_rope_silu_gated_attention core (fused q_proj, QK-norm,
+# partial RoPE) with a sigmoid (not silu) gate + the fused-QK DSA indexer
+# (index_qk_proj instead of the separate index_q_proj/index_k_proj MiniMax layout).
+#
+# Required dims: d_model, n_heads, n_kv_heads, d_head, d_rope, d_nope,
+#                n_indexer_heads, d_indexer_head, n_topk_keys, compress_ratio
+#                (indexer_compress_ratio: key-block size the indexer pools over)
+role: attention
+description: "GQA + fused-QZ + QK-norm + partial RoPE + sigmoid gate + fused-QK DSA indexer (top-K KV). Qwen3.8-Flash-Next QSA."
+cache:
+  family: GQA
+  # The indexer's cache is the serving one: one pooled key per complete
+  # block plus the pending block's raw-key ring, both declared by the
+  # `index_k_pool` sub-component (HF caches raw per-token keys instead; see
+  # there).
+  entries:
+    - { node: key_concat, kind: kv }
+    - { node: v_split_heads, kind: kv }
+    - { node: index_k_pool, kind: index_key }
+attn_variant: DSA
+graph:
+  # --- main GQA projections: fused Q+gate, K, V ---
+  q_proj:          { op: linear, in: x, dims: { in: d_model, out: "2 * n_heads * d_head" }, weight_axes: [{ world: attention, parts: n_heads, fit: replica_cells }, { replicated: true }] }
+  q_gate_split_heads: { op: head_split, in: q_proj, dims: { n_heads: n_heads, d_head: "2 * d_head" } }
+  q_slice:         { op: slice, in: q_gate_split_heads, dims: { in: "2 * d_head", out: d_head } }
+  gate_slice:      { op: slice, in: q_gate_split_heads, dims: { in: "2 * d_head", out: d_head } }
+  k_proj:          { op: linear, in: x, dims: { in: d_model, out: "n_kv_heads * d_head" }, weight_axes: [{ world: attention, parts: n_kv_heads, fit: replica_cells }, { replicated: true }] }
+  v_proj:          { op: linear, in: x, dims: { in: d_model, out: "n_kv_heads * d_head" }, weight_axes: [{ world: attention, parts: n_kv_heads, fit: replica_cells }, { replicated: true }] }
+  k_split_heads:   { op: head_split, in: k_proj, dims: { n_heads: n_kv_heads, d_head: d_head } }
+  v_split_heads:   { op: head_split, in: v_proj, dims: { n_heads: n_kv_heads, d_head: d_head } }
+  # q_norm / k_norm are Qwen4ExpTextRMSNorm (modeling_qwen4_exp.py:843, class
+  # :152-173): weight initialised to zeros (:156), output = norm(x) · (1 + w) (:171).
+  q_norm.rms:      { op: rmsnorm_unscaled, in: q_slice, dim: d_head }
+  q_norm.weight:   { op: parameter_vector, dim: d_head, weight_axes: [{ replicated: true }] }
+  q_norm:          { op: mul, in: [q_norm.rms, q_norm.weight], dim: d_head, formula: "y = norm · (1 + w)" }
+  k_norm.rms:      { op: rmsnorm_unscaled, in: k_split_heads, dim: d_head }
+  k_norm.weight:   { op: parameter_vector, dim: d_head, weight_axes: [{ replicated: true }] }
+  k_norm:          { op: mul, in: [k_norm.rms, k_norm.weight], dim: d_head, formula: "y = norm · (1 + w)" }
+  q_pe_slice:      { op: slice, in: q_norm, dims: { in: d_head, out: d_rope } }
+  q_nope_slice:    { op: slice, in: q_norm, dims: { in: d_head, out: d_nope } }
+  k_pe_slice:      { op: slice, in: k_norm, dims: { in: d_head, out: d_rope } }
+  k_nope_slice:    { op: slice, in: k_norm, dims: { in: d_head, out: d_nope } }
+  # Every rotation here — the attention's q/k and the indexer's q and pooled
+  # k — takes the text model's one rotary output, which reads three position
+  # streams: Qwen4ExpTextRotaryEmbedding.forward expands positions to (3, ...)
+  # and `recomposition_frequencies` assigns each channel section
+  # (`mrope_section` [11, 11, 10]) to its stream (modeling_qwen4_exp.py:124-137,
+  # built once at :1392 and handed to every layer at :1479). `mrope`.
+  q_pe_rope:       { op: mrope, in: q_pe_slice, dims: { dim: d_rope } }
+  k_pe_rope:       { op: mrope, in: k_pe_slice, dims: { dim: d_rope } }
+  query_concat:    { op: concat, in: [q_pe_rope, q_nope_slice], dims: { in_a: d_rope, in_b: d_nope, out: d_head } }
+  key_concat:      { op: concat, in: [k_pe_rope, k_nope_slice], dims: { in_a: d_rope, in_b: d_nope, out: d_head } }
+  # --- fused-QK lightning indexer: index_qk_proj -> [ n_indexer_heads*d_indexer_head (q) | d_indexer_head (k) ] ---
+  indexer.index_qk_proj: { op: linear, in: x, dims: { in: d_model, out: "n_indexer_heads * d_indexer_head + d_indexer_head" }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  indexer.q_slice: { op: slice, in: indexer.index_qk_proj, dims: { in: "n_indexer_heads * d_indexer_head + d_indexer_head", out: "n_indexer_heads * d_indexer_head" } }
+  indexer.k_slice: { op: slice, in: indexer.index_qk_proj, dims: { in: "n_indexer_heads * d_indexer_head + d_indexer_head", out: d_indexer_head } }
+  # Source: modeling_qwen4_exp.py Qwen4ExpTextQSAIndexer.forward (:706-764).
+  indexer.q_split: { op: head_split, in: indexer.q_slice, dims: { n_heads: n_indexer_heads, d_head: d_indexer_head } }
+  # q_layernorm / k_layernorm: same Qwen4ExpTextRMSNorm, y = norm · (1 + w) (:171)
+  indexer.q_layernorm.rms:    { op: rmsnorm_unscaled, in: indexer.q_split, dim: d_indexer_head }
+  indexer.q_layernorm.weight: { op: parameter_vector, dim: d_indexer_head, weight_axes: [{ replicated: true }] }
+  indexer.q_layernorm:        { op: mul, in: [indexer.q_layernorm.rms, indexer.q_layernorm.weight], dim: d_indexer_head, formula: "y = norm · (1 + w)" }
+  # :714 — q = rope(q_layernorm(q)); partial rotary (cos width d_rope, rest passes through)
+  index_q_pe:      { op: slice, in: indexer.q_layernorm, dims: { in: d_indexer_head, out: d_rope } }
+  index_q_nope:    { op: slice, in: indexer.q_layernorm, dims: { in: d_indexer_head, out: "d_indexer_head - d_rope" } }
+  index_q_pe_rope: { op: mrope, in: index_q_pe, dims: { dim: d_rope } }
+  index_q_rope:    { op: concat, in: [index_q_pe_rope, index_q_nope], dims: { in_a: d_rope, in_b: "d_indexer_head - d_rope", out: d_indexer_head } }
+  # The index keys are cached POOLED: one normed, block-first-roped key per
+  # complete block of compress_ratio tokens, built by `qwen_qsa_key_pool` —
+  # the serving layout. HF caches the raw per-token keys and re-pools every
+  # complete block for every query (modeling_qwen4_exp.py:708, :734); vLLM and
+  # sglang pool each block once, when it completes, and cache that
+  # (qwen4_exp/common/qsa_cache.py:811-872, mem_cache/qsa_kv_pool.py:29-47).
+  # The scores are bit-identical once a block is complete; see the
+  # sub-component. `module: null`: its tensors (`indexer.k_layernorm.weight`)
+  # are this attention's own.
+  index_k_pool:    { op: qwen_qsa_key_pool, in: indexer.k_slice, module: null }
+  # The score reads the cached pooled keys: the ⌊s_kv / compress_ratio⌋
+  # complete blocks the pool states, the step's own at prefill and the whole
+  # history at decode.
+  index_k_read:    { op: kv_cache_view, in: index_k_pool }
+  index_k_bcast:   { op: head_broadcast, in: index_k_read, dims: { n_heads: n_indexer_heads } }
+  # Scores are over the ⌊s_kv / compress_ratio⌋ complete key BLOCKS, not
+  # tokens: the length the cached stream it reads carries.
+  index_score:     { op: attention_score, in: [index_q_rope, index_k_bcast], dims: { n_heads: n_indexer_heads, d_head: d_indexer_head } }
+  # :755 — relu(scores).sum(heads) / sqrt(index_head_dim)
+  index_relu:      { op: relu, in: index_score, dim: n_indexer_heads }
+  index_reduce_sum: { op: sum_reduce, in: index_relu, axis: 1, dims: { in: n_indexer_heads } }
+  index_reduce:    { op: scale_const, in: index_reduce_sum, dims: { in: "s_kv // compress_ratio" }, formula: "y = x / sqrt(d_indexer_head)" }
+  # :757-763 — top block_topk = n_topk_keys / compress_ratio BLOCKS, each expanded
+  # back to its compress_ratio tokens, plus the unpooled tail (< compress_ratio
+  # tokens): ≤ n_topk_keys + compress_ratio - 1 visible tokens per query.
+  # The top-k runs over the ⌊s_kv / compress_ratio⌋ block scores the score
+  # above produced: vLLM sizes its logits row cdiv(max_seq_len,
+  # compress_ratio) wide (qwen4_exp/nvidia/ops/qsa_indexer.py:611), sglang
+  # top-ks the pooled-key logits (layers/attention/qsa/qsa_indexer.py:458-470).
+  index_topk:      { op: dsa_topk_mask, in: index_reduce, dims: { k: "n_topk_keys // compress_ratio" } }
+  # --- sparse main attention over selected top-K positions ---
+  qk_score:        { op: dsa_attention_score, in: [query_concat, key_concat, index_topk], dims: { n_heads: n_heads, d_head: d_head, k: n_topk_keys } }
+  softmax:         { op: dsa_softmax, in: qk_score, dims: { n_heads: n_heads, k: n_topk_keys } }
+  attn_apply:      { op: dsa_attention_apply, in: [softmax, v_split_heads], dims: { n_heads: n_heads, d_head: d_head, k: n_topk_keys } }
+  # The two head merges are written out as the two views `head_merge` is
+  # (transpose [0, 2, 1, 3], then view_merge) rather than called as the
+  # sub-component, so the output gate sits in this component's scope with
+  # the attention it gates: vLLM applies the gate inside its sparse-attention
+  # kernel (vLLM v0.32.0 models/qwen4_exp/nvidia/ops/qsa.py:197-205, split-k merge :280-286), and a
+  # fused launch cannot reach across a sub-component. Same function, and the
+  # views cost nothing.
+  o_merge_heads_t: { op: transpose, in: attn_apply, axes: [0, 2, 1, 3] }
+  o_merge_heads:   { op: view_merge, in: o_merge_heads_t }
+  # --- sigmoid channel-wise output gate ---
+  gate_merge_heads_t: { op: transpose, in: gate_slice, axes: [0, 2, 1, 3] }
+  gate_merge_heads: { op: view_merge, in: gate_merge_heads_t }
+  gate_act:        { op: sigmoid, in: gate_merge_heads, dim: "n_heads * d_head" }
+  gated_attn:      { op: mul, in: [o_merge_heads, gate_act], dim: "n_heads * d_head" }
+  o_proj:          { op: linear, in: gated_attn, dims: { in: "n_heads * d_head", out: d_model }, weight_axes: [{ replicated: true }, { world: attention, parts: n_heads, fit: replica_cells }] }
+outputs: [o_proj]

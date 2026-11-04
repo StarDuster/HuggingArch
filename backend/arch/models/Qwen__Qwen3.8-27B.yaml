@@ -1,0 +1,151 @@
+# Qwen3.5 (dense) multimodal family — e.g. Qwen3.8-27B.
+# Hybrid text backbone: 3x linear-attention (GatedDeltaNet) blocks followed
+# by 1x full gated-attention block, repeated 16 times (full_attention every
+# 4th layer per config.text_config.layer_types). Unlike Qwen3.5-MoE, EVERY
+# layer's FFN is the dense Qwen3_5MLP (swiglu) — no experts. Includes the
+# visual encoder + merger and one auxiliary MTP block (shared embed/head).
+match:
+  model_type: [qwen3_5]
+  model_id: ["Qwen/Qwen3.8-27B"]
+
+# The merger's 2x2 patch fold (Qwen3_5VisionPatchMerger.forward `.view(-1,
+# self.hidden_size)`) is the registered `spatial_merge` primitive; the former
+# spec-scoped `qwen35_spatial_merge` custom op duplicated it and is removed.
+
+components:
+  norm: rmsnorm
+
+dims:
+  s_max: config.text_config.max_position_embeddings   # published context length
+  d_model:    config.text_config.hidden_size
+  n_heads:    config.text_config.num_attention_heads
+  n_kv_heads:   config.text_config.num_key_value_heads
+  d_head:    config.text_config.head_dim
+  d_rope:   "d_head // 4"
+  d_nope:   "d_head - d_rope"
+  d_ffn:    config.text_config.intermediate_size
+  n_vocab:    config.text_config.vocab_size
+  n_layers:    config.text_config.num_hidden_layers
+  # Linear-attention (GatedDeltaNet) dims
+  n_lin_k_heads:  config.text_config.linear_num_key_heads
+  d_lin_k_head:  config.text_config.linear_key_head_dim
+  n_lin_v_heads:  config.text_config.linear_num_value_heads
+  d_lin_v_head:  config.text_config.linear_value_head_dim
+  s_conv_kernel:   config.text_config.linear_conv_kernel_dim
+  n_mtp_layers: config.text_config.mtp_num_hidden_layers ?? "0"
+  # Vision tower dims
+  d_vis_model:   config.vision_config.hidden_size
+  n_vis_heads:   config.vision_config.num_heads
+  d_vis_head:   "d_vis_model // n_vis_heads"
+  d_vis_ffn:   config.vision_config.intermediate_size
+  n_vis_layers:   config.vision_config.depth
+  n_vis_pos_vocab:   config.vision_config.num_position_embeddings
+  n_vis_channels:   config.vision_config.in_channels
+  s_patch:   config.vision_config.patch_size
+  s_patch_temporal:   config.vision_config.temporal_patch_size
+  n_spatial_merge:   config.vision_config.spatial_merge_size
+  d_vis_merge:   "n_spatial_merge * n_spatial_merge * d_vis_model"
+  d_proj_out:  config.vision_config.out_hidden_size
+
+model_inputs:
+  input_ids: { kind: tokens }
+  # Images per request, then each image's size as the processor hands it to
+  # the tower (after its smart_resize to a multiple of 32).
+  pixel_values: { kind: image, axes: [n_img, img_h, img_w] }
+  # Videos per request, then each video's sampled frames and processed
+  # size; the forward reads `pixel_values_videos` through the image tower
+  # (transformers 5.17 qwen3_5/modeling_qwen3_5.py:1474-1481 get_video_features runs get_image_features, :1626-1630).
+  pixel_values_videos: { kind: video, axes: [n_vid, vid_frames, vid_h, vid_w] }
+
+model:
+  - { name: model.language_model.embed_tokens, inputs: [input_ids], op: embedding, boundary_role: input_embedding, dims: { n_vocab: n_vocab, d_model: d_model }, weight_axes: [{ world: attention, parts: n_vocab, fit: pad }, { replicated: true }] }
+  # --- Vision tower + merger (aux group; renders as auxiliary module) ---
+  # Qwen3_5VisionModel.forward (modeling_qwen3_5.py:1185-1202):
+  #   patch_embed -> + interpolated pos_embed -> blocks -> merger.
+  - name: vision
+    group: true
+    aux_kind: vision
+    checkpoint: { root: model.visual }
+    layers:
+      # The processor resizes each image to a multiple of patch_size *
+      # merge_size, repeats it into temporal_patch_size frames and cuts
+      # patch x patch x temporal patches of the image's channels, one row each,
+      # each merge window contiguous; one attention segment per temporal
+      # patch, which for an image is the whole image.
+      - name: model.visual.patchify
+        op: patchify
+        inputs: [pixel_values]
+        dims: { patch: s_patch, temporal: s_patch_temporal, channels: n_vis_channels, align: "s_patch * n_spatial_merge" }
+        segment: temporal_patch
+        source_anchor: "transformers 5.17 qwen2_vl/image_processing_qwen2_vl.py:62-88 smart_resize, factor = patch_size * merge_size (:226); :164-198 patchify, a still image expanded to temporal_patch_size (:189-191); vision_utils.py:42-65 cu_seqlens one segment per temporal patch (an image has one)"
+      # patch_embed -> + interpolated pos_embed -> blocks -> merger.
+      - { name: model.visual, inputs: [model.visual.patchify], template: qwen35_vision_tower }
+  # The videos, through the same tower with the same weights in a call of
+  # their own, one attention segment per temporal patch (the processor
+  # repeats the last frame to a whole temporal patch).
+  - { name: video, call: vision, inputs: [pixel_values_videos] }
+
+  # Image rows replace the placeholder-token rows of the text embeddings
+  # before the decoder runs (Qwen3_5Model.forward, modeling_qwen3_5.py:1624:
+  # `inputs_embeds = inputs_embeds.masked_scatter(image_mask, image_embeds)`).
+  - name: model.language_model.embed_merge
+    op: scatter_rows_replace
+    inputs: [model.language_model.embed_tokens, model.visual, model.video]
+    prompt_slots:
+      model.visual: { domain: pixel_values, defines: true, source_anchor: "vLLM models/utils.py:636-673 _merge_multimodal_embeddings inputs_embeds[is_multimodal] = mm_embeds_flat (qwen3_5.py:512-535); transformers qwen3_5/modeling_qwen3_5.py:1624 inputs_embeds.masked_scatter(image_mask, image_embeds)" }
+      model.video: { domain: pixel_values_videos, defines: true, source_anchor: "vLLM v0.30.0 models/qwen3_vl.py:2363-2365 grid_t*h*w/merge^2 rows per video, merged with the images by models/utils.py _merge_multimodal_embeddings (the video token positions); transformers qwen3_5/modeling_qwen3_5.py:1626-1640 masked_scatter(video_mask, video_embeds)" }
+  - name: model.language_model.layers
+    inputs: [model.language_model.embed_merge]
+    repeat: n_layers
+    streams:
+      hidden: { carries: true }
+    per_layer:
+      assign:
+        # full_attention every 4th layer (config.text_config.full_attention_interval=4),
+        # i.e. indices 3, 7, 11, ... — matching config.text_config.layer_types.
+        - { type: full,   stride: "4", offset: "3" }
+        - { type: linear, rest: true }
+      map:
+        full:   { template: qwen35_full_dense_block }
+        linear: { template: qwen35_linear_dense_block }
+  - { name: model.language_model.norm, op: rmsnorm, dim: d_model, weight_axes: [{ replicated: true }], inputs: [model.language_model.layers] }
+  - { name: lm_head, op: linear, boundary_role: output_head, dims: { in: d_model, out: n_vocab }, weight_axes: [{ world: attention, parts: n_vocab, fit: pad }, { replicated: true }], tied_weight: { to: model.language_model.embed_tokens, when: config.tie_word_embeddings }, inputs: [model.language_model.norm] }
+
+  # --- MTP head (aux group) ---
+  # fc front-end: pre_fc_norm_embedding(token embedding) || pre_fc_norm_hidden
+  # (backbone hidden) -> concat -> fc (2*d_model -> d_model), then the inner
+  # decoder mtp.layers.X (the backbone's every-4th layer,
+  # `qwen35_full_dense_block`: full gated-attn + swiglu) -> mtp.norm -> shared
+  # lm_head.
+  # Shared embed/head (mtp_use_dedicated_embeddings=false). Wrapper tensors
+  # are unindexed (`mtp.fc`, `mtp.norm`, ...); the inner decoder is indexed.
+  #
+  # Reference: transformers does NOT implement the MTP head — it drops the
+  # weights (modeling_qwen3_5.py:925 `_keys_to_ignore_on_load_unexpected =
+  # [r"^mtp.*"]`). The wiring below follows vLLM's Qwen3.5 MTP module
+  # (vllm/model_executor/models/qwen3_5_mtp.py, same structure as
+  # qwen3_next_mtp.py `Qwen3NextMultiTokenPredictor.forward`):
+  #   inputs_embeds = pre_fc_norm_embedding(embed_tokens(input_ids))
+  #   hidden_states = pre_fc_norm_hidden(hidden_states)   # target model's
+  #                   # POST-final-norm hidden (model.language_model.norm)
+  #   hidden_states = fc(torch.cat([inputs_embeds, hidden_states], dim=-1))
+  #                   # embedding FIRST in the concat, hidden second
+  #   hidden_states = layers[i](hidden_states); hidden_states = norm(...)
+  #   logits = lm_head(hidden_states)   # the target's SHARED lm_head (no
+  #                   # private head/embedding in the checkpoint)
+  - name: mtp
+    group: true
+    aux_kind: mtp
+    checkpoint: { prefix: mtp.layers, index: local }
+    inputs: [model.language_model.norm]
+    repeat: n_mtp_layers
+    streams:
+      hidden: { carries: true }
+    layers:
+      - { name: mtp.pre_fc_norm_embedding, op: rmsnorm, dim: d_model, weight_axes: [{ replicated: true }], inputs: [model.language_model.embed_tokens] }
+      - { name: mtp.pre_fc_norm_hidden, op: rmsnorm, dim: d_model, weight_axes: [{ replicated: true }], inputs: [model.language_model.norm] }
+      - { name: mtp.concat, op: concat, dims: { in_a: d_model, in_b: d_model, out: "2 * d_model" }, inputs: [mtp.pre_fc_norm_embedding, mtp.pre_fc_norm_hidden] }
+      - { name: mtp.fc, op: linear, dims: { in: "2 * d_model", out: d_model }, weight_axes: [{ replicated: true }, { replicated: true }], inputs: [mtp.concat] }
+      - { name: mtp.layers, template: qwen35_full_dense_block, inputs: [mtp.fc] }
+      - { name: mtp.norm, op: rmsnorm, dim: d_model, weight_axes: [{ replicated: true }], inputs: [mtp.layers] }
+      - { name: mtp_logits, op: linear, boundary_role: output_head, dims: { in: d_model, out: n_vocab }, weight_axes: [{ world: attention, parts: n_vocab, fit: pad }, { replicated: true }], tied_weight: { to: lm_head }, inputs: [mtp.norm] }

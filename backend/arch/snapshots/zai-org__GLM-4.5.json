@@ -1,0 +1,450 @@
+{
+  "schema_version": 4,
+  "config": {
+    "n_group": 1,
+    "head_dim": 128,
+    "use_cache": true,
+    "hidden_act": "silu",
+    "model_type": "glm4_moe",
+    "rope_theta": 1000000,
+    "topk_group": 1,
+    "vocab_size": 151552,
+    "hidden_size": 5120,
+    "torch_dtype": "bfloat16",
+    "use_qk_norm": true,
+    "eos_token_id": [
+      151329,
+      151336,
+      151338
+    ],
+    "pad_token_id": 151329,
+    "rms_norm_eps": 1e-05,
+    "rope_scaling": null,
+    "architectures": [
+      "Glm4MoeForCausalLM"
+    ],
+    "attention_bias": true,
+    "norm_topk_prob": true,
+    "n_routed_experts": 160,
+    "n_shared_experts": 1,
+    "attention_dropout": 0.0,
+    "initializer_range": 0.02,
+    "intermediate_size": 12288,
+    "num_hidden_layers": 92,
+    "num_attention_heads": 96,
+    "num_experts_per_tok": 8,
+    "num_key_value_heads": 8,
+    "tie_word_embeddings": false,
+    "transformers_version": "4.54.0",
+    "first_k_dense_replace": 3,
+    "moe_intermediate_size": 1536,
+    "partial_rotary_factor": 0.5,
+    "routed_scaling_factor": 2.5,
+    "max_position_embeddings": 131072,
+    "num_nextn_predict_layers": 1
+  },
+  "metadata": {
+    "header": {
+      "revision": "cbb2c7cfb52fa128a9660cb1a7a78e017899e115",
+      "total_size": 716675611392,
+      "tensors": [
+        {
+          "name": "lm_head.weight",
+          "dtype": "BF16",
+          "shape": [
+            151552,
+            5120
+          ]
+        },
+        {
+          "name": "model.embed_tokens.weight",
+          "dtype": "BF16",
+          "shape": [
+            151552,
+            5120
+          ]
+        },
+        {
+          "name": "model.layers.{}.eh_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            5120,
+            10240
+          ],
+          "index": [
+            [
+              "92"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.embed_tokens.weight",
+          "dtype": "BF16",
+          "shape": [
+            151552,
+            5120
+          ],
+          "index": [
+            [
+              "92"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.enorm.weight",
+          "dtype": "BF16",
+          "shape": [
+            5120
+          ],
+          "index": [
+            [
+              "92"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.hnorm.weight",
+          "dtype": "BF16",
+          "shape": [
+            5120
+          ],
+          "index": [
+            [
+              "92"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.input_layernorm.weight",
+          "dtype": "BF16",
+          "shape": [
+            5120
+          ],
+          "index": [
+            [
+              "0-92"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.mlp.down_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            5120,
+            12288
+          ],
+          "index": [
+            [
+              "0-2"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.mlp.experts.{}.down_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            5120,
+            1536
+          ],
+          "index": [
+            [
+              "3-92",
+              "0-159"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.mlp.experts.{}.gate_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            1536,
+            5120
+          ],
+          "index": [
+            [
+              "3-92",
+              "0-159"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.mlp.experts.{}.up_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            1536,
+            5120
+          ],
+          "index": [
+            [
+              "3-92",
+              "0-159"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.mlp.gate.e_score_correction_bias",
+          "dtype": "F32",
+          "shape": [
+            160
+          ],
+          "index": [
+            [
+              "3-92"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.mlp.gate.weight",
+          "dtype": "BF16",
+          "shape": [
+            160,
+            5120
+          ],
+          "index": [
+            [
+              "3-92"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.mlp.gate_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            12288,
+            5120
+          ],
+          "index": [
+            [
+              "0-2"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.mlp.shared_experts.down_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            5120,
+            1536
+          ],
+          "index": [
+            [
+              "3-92"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.mlp.shared_experts.gate_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            1536,
+            5120
+          ],
+          "index": [
+            [
+              "3-92"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.mlp.shared_experts.up_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            1536,
+            5120
+          ],
+          "index": [
+            [
+              "3-92"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.mlp.up_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            12288,
+            5120
+          ],
+          "index": [
+            [
+              "0-2"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.post_attention_layernorm.weight",
+          "dtype": "BF16",
+          "shape": [
+            5120
+          ],
+          "index": [
+            [
+              "0-92"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.self_attn.k_norm.weight",
+          "dtype": "BF16",
+          "shape": [
+            128
+          ],
+          "index": [
+            [
+              "0-92"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.self_attn.k_proj.bias",
+          "dtype": "BF16",
+          "shape": [
+            1024
+          ],
+          "index": [
+            [
+              "0-92"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.self_attn.k_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            1024,
+            5120
+          ],
+          "index": [
+            [
+              "0-92"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.self_attn.o_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            5120,
+            12288
+          ],
+          "index": [
+            [
+              "0-92"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.self_attn.q_norm.weight",
+          "dtype": "BF16",
+          "shape": [
+            128
+          ],
+          "index": [
+            [
+              "0-92"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.self_attn.q_proj.bias",
+          "dtype": "BF16",
+          "shape": [
+            12288
+          ],
+          "index": [
+            [
+              "0-92"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.self_attn.q_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            12288,
+            5120
+          ],
+          "index": [
+            [
+              "0-92"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.self_attn.v_proj.bias",
+          "dtype": "BF16",
+          "shape": [
+            1024
+          ],
+          "index": [
+            [
+              "0-92"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.self_attn.v_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            1024,
+            5120
+          ],
+          "index": [
+            [
+              "0-92"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.shared_head.head.weight",
+          "dtype": "BF16",
+          "shape": [
+            151552,
+            5120
+          ],
+          "index": [
+            [
+              "92"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.shared_head.norm.weight",
+          "dtype": "BF16",
+          "shape": [
+            5120
+          ],
+          "index": [
+            [
+              "92"
+            ]
+          ]
+        },
+        {
+          "name": "model.norm.weight",
+          "dtype": "BF16",
+          "shape": [
+            5120
+          ]
+        }
+      ]
+    },
+    "quant_scheme": "none",
+    "num_bits": 0
+  },
+  "model_id": "zai-org/GLM-4.5",
+  "model_str": "Glm4MoeForCausalLM(\n  (model): Glm4MoeModel(\n    (embed_tokens): Embedding(151552, 5120, padding_idx=151329)\n    (layers): ModuleList(\n      (0-2): 3 x Glm4MoeDecoderLayer(\n        (self_attn): Glm4MoeAttention(\n          (q_proj): Linear(in_features=5120, out_features=12288, bias=True)\n          (k_proj): Linear(in_features=5120, out_features=1024, bias=True)\n          (v_proj): Linear(in_features=5120, out_features=1024, bias=True)\n          (o_proj): Linear(in_features=12288, out_features=5120, bias=False)\n          (q_norm): Glm4MoeRMSNorm((128,), eps=1e-05)\n          (k_norm): Glm4MoeRMSNorm((128,), eps=1e-05)\n        )\n        (mlp): Glm4MoeMLP(\n          (gate_proj): Linear(in_features=5120, out_features=12288, bias=False)\n          (up_proj): Linear(in_features=5120, out_features=12288, bias=False)\n          (down_proj): Linear(in_features=12288, out_features=5120, bias=False)\n          (act_fn): SiLUActivation()\n        )\n        (input_layernorm): Glm4MoeRMSNorm((5120,), eps=1e-05)\n        (post_attention_layernorm): Glm4MoeRMSNorm((5120,), eps=1e-05)\n      )\n      (3-91): 89 x Glm4MoeDecoderLayer(\n        (self_attn): Glm4MoeAttention(\n          (q_proj): Linear(in_features=5120, out_features=12288, bias=True)\n          (k_proj): Linear(in_features=5120, out_features=1024, bias=True)\n          (v_proj): Linear(in_features=5120, out_features=1024, bias=True)\n          (o_proj): Linear(in_features=12288, out_features=5120, bias=False)\n          (q_norm): Glm4MoeRMSNorm((128,), eps=1e-05)\n          (k_norm): Glm4MoeRMSNorm((128,), eps=1e-05)\n        )\n        (mlp): Glm4MoeMoE(\n          (experts): Glm4MoeExperts(\n            (act_fn): SiLUActivation()\n          )\n          (gate): Glm4MoeTopkRouter()\n          (shared_experts): Glm4MoeMLP(\n            (gate_proj): Linear(in_features=5120, out_features=1536, bias=False)\n            (up_proj): Linear(in_features=5120, out_features=1536, bias=False)\n            (down_proj): Linear(in_features=1536, out_features=5120, bias=False)\n            (act_fn): SiLUActivation()\n          )\n        )\n        (input_layernorm): Glm4MoeRMSNorm((5120,), eps=1e-05)\n        (post_attention_layernorm): Glm4MoeRMSNorm((5120,), eps=1e-05)\n      )\n    )\n    (norm): Glm4MoeRMSNorm((5120,), eps=1e-05)\n    (rotary_emb): Glm4MoeRotaryEmbedding()\n  )\n  (lm_head): Linear(in_features=5120, out_features=151552, bias=False)\n)",
+  "forward_source": {
+    "files": [
+      {
+        "path": "site-packages/transformers/models/glm4_moe/modeling_glm4_moe.py",
+        "text": "#                🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨\n#           This file was automatically generated from src/transformers/models/glm4_moe/modular_glm4_moe.py.\n#               Do NOT edit this file manually as any edits will be overwritten by the generation of\n#             the file from the modular. If any change should be done, please apply the change to the\n#                          modular_glm4_moe.py file directly. One of our CI enforces this.\n#                🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨\n# Copyright 2025 The ZhipuAI Inc. team and HuggingFace Inc. team. All rights reserved.\n#\n# Licensed under the Apache License, Version 2.0 (the \"License\");\n# you may not use this file except in compliance with the License.\n# You may obtain a copy of the License at\n#\n#     http://www.apache.org/licenses/LICENSE-2.0\n#\n# Unless required by applicable law or agreed to in writing, software\n# distributed under the License is distributed on an \"AS IS\" BASIS,\n# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n# See the License for the specific language governing permissions and\n# limitations under the License.\n\nfrom collections.abc import Callable\nfrom typing import Optional\n\nimport torch\nimport torch.nn.functional as F\nfrom torch import nn\n\nfrom ... import initialization as init\nfrom ...activations import ACT2FN\nfrom ...cache_utils import Cache, DynamicCache\nfrom ...generation import GenerationMixin\nfrom ...integrations import use_experts_implementation, use_kernel_forward_from_hub\nfrom ...masking_utils import create_causal_mask\nfrom ...modeling_flash_attention_utils import FlashAttentionKwargs\nfrom ...modeling_layers import GradientCheckpointingLayer\nfrom ...modeling_outputs import BaseModelOutputWithPast, CausalLMOutputWithPast\nfrom ...modeling_rope_utils import ROPE_INIT_FUNCTIONS, dynamic_rope_update\nfrom ...modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel\nfrom ...processing_utils import Unpack\nfrom ...utils import TransformersKwargs, auto_docstring, can_return_tuple\nfrom ...utils.generic import maybe_autocast, merge_with_config_defaults\nfrom ...utils.output_capturing import capture_outputs\nfrom .configuration_glm4_moe import Glm4MoeConfig\n\n\nclass Glm4MoeRotaryEmbedding(nn.Module):\n    inv_freq: torch.Tensor  # fix linting for `register_buffer`\n\n    def __init__(self, config: Glm4MoeConfig, device=None):\n        super().__init__()\n        self.max_seq_len_cached = config.max_position_embeddings\n        self.original_max_seq_len = config.max_position_embeddings\n\n        self.config = config\n\n        self.rope_type = self.config.rope_parameters[\"rope_type\"]\n        rope_init_fn: Callable = self.compute_default_rope_parameters\n        if self.rope_type != \"default\":\n            rope_init_fn = ROPE_INIT_FUNCTIONS[self.rope_type]\n        inv_freq, self.attention_scaling = rope_init_fn(self.config, device)\n\n        self.register_buffer(\"inv_freq\", inv_freq, persistent=False)\n        self.register_buffer(\"original_inv_freq\", inv_freq.clone(), persistent=False)\n\n    @staticmethod\n    def compute_default_rope_parameters(\n        config: Glm4MoeConfig | None = None,\n        device: Optional[\"torch.device\"] = None,\n        seq_len: int | None = None,\n    ) -> tuple[\"torch.Tensor\", float]:\n        \"\"\"\n        Computes the inverse frequencies according to the original RoPE implementation\n        Args:\n            config ([`~transformers.PreTrainedConfig`]):\n                The model configuration.\n            device (`torch.device`):\n                The device to use for initialization of the inverse frequencies.\n            seq_len (`int`, *optional*):\n                The current sequence length. Unused for this type of RoPE.\n        Returns:\n            Tuple of (`torch.Tensor`, `float`), containing the inverse frequencies for the RoPE embeddings and the\n            post-processing scaling factor applied to the computed cos/sin (unused in this type of RoPE).\n        \"\"\"\n        base = config.rope_parameters[\"rope_theta\"]\n        partial_rotary_factor = config.rope_parameters.get(\"partial_rotary_factor\", 1.0)\n        head_dim = getattr(config, \"head_dim\", None) or config.hidden_size // config.num_attention_heads\n        dim = int(head_dim * partial_rotary_factor)\n\n        attention_factor = 1.0  # Unused in this type of RoPE\n\n        # Compute the inverse frequencies\n        inv_freq = 1.0 / (\n            base ** (torch.arange(0, dim, 2, dtype=torch.int64).to(device=device, dtype=torch.float) / dim)\n        )\n        return inv_freq, attention_factor\n\n    @torch.no_grad()\n    @dynamic_rope_update  # power user: used with advanced RoPE types (e.g. dynamic rope)\n    def forward(self, x, position_ids):\n        inv_freq_expanded = self.inv_freq[None, :, None].float().expand(position_ids.shape[0], -1, 1).to(x.device)\n        position_ids_expanded = position_ids[:, None, :].float()\n\n        device_type = x.device.type if isinstance(x.device.type, str) and x.device.type != \"mps\" else \"cpu\"\n        with maybe_autocast(device_type=device_type, enabled=False):  # Force float32\n            freqs = (inv_freq_expanded.float() @ position_ids_expanded.float()).transpose(1, 2)\n            emb = torch.cat((freqs, freqs), dim=-1)\n            cos = emb.cos() * self.attention_scaling\n            sin = emb.sin() * self.attention_scaling\n\n        return cos.to(dtype=x.dtype), sin.to(dtype=x.dtype)\n\n\ndef repeat_kv(hidden_states: torch.Tensor, n_rep: int) -> torch.Tensor:\n    \"\"\"\n    This is the equivalent of torch.repeat_interleave(x, dim=1, repeats=n_rep). The hidden states go from (batch,\n    num_key_value_heads, seqlen, head_dim) to (batch, num_attention_heads, seqlen, head_dim)\n    \"\"\"\n    batch, num_key_value_heads, slen, head_dim = hidden_states.shape\n    if n_rep == 1:\n        return hidden_states\n    hidden_states = hidden_states[:, :, None, :, :].expand(batch, num_key_value_heads, n_rep, slen, head_dim)\n    return hidden_states.reshape(batch, num_key_value_heads * n_rep, slen, head_dim)\n\n\ndef eager_attention_forward(\n    module: nn.Module,\n    query: torch.Tensor,\n    key: torch.Tensor,\n    value: torch.Tensor,\n    attention_mask: torch.Tensor | None,\n    scaling: float,\n    dropout: float = 0.0,\n    **kwargs: Unpack[TransformersKwargs],\n):\n    key_states = repeat_kv(key, module.num_key_value_groups)\n    value_states = repeat_kv(value, module.num_key_value_groups)\n\n    attn_weights = torch.matmul(query, key_states.transpose(2, 3)) * scaling\n    if attention_mask is not None:\n        attn_weights = attn_weights + attention_mask\n\n    attn_weights = nn.functional.softmax(attn_weights, dim=-1, dtype=torch.float32).to(query.dtype)\n    attn_weights = nn.functional.dropout(attn_weights, p=dropout, training=module.training)\n    attn_output = torch.matmul(attn_weights, value_states)\n    attn_output = attn_output.transpose(1, 2).contiguous()\n\n    return attn_output, attn_weights\n\n\ndef rotate_half(x):\n    \"\"\"Rotates half the hidden dims of the input.\"\"\"\n    x1 = x[..., : x.shape[-1] // 2]\n    x2 = x[..., x.shape[-1] // 2 :]\n    return torch.cat((-x2, x1), dim=-1)\n\n\ndef apply_rotary_pos_emb(q, k, cos, sin, unsqueeze_dim=1):\n    \"\"\"Applies Rotary Position Embedding to the query and key tensors.\n\n    Args:\n        q (`torch.Tensor`): The query tensor.\n        k (`torch.Tensor`): The key tensor.\n        cos (`torch.Tensor`): The cosine part of the rotary embedding.\n        sin (`torch.Tensor`): The sine part of the rotary embedding.\n        unsqueeze_dim (`int`, *optional*, defaults to 1):\n            The 'unsqueeze_dim' argument specifies the dimension along which to unsqueeze cos[position_ids] and\n            sin[position_ids] so that they can be properly broadcasted to the dimensions of q and k. For example, note\n            that cos[position_ids] and sin[position_ids] have the shape [batch_size, seq_len, head_dim]. Then, if q and\n            k have the shape [batch_size, heads, seq_len, head_dim], then setting unsqueeze_dim=1 makes\n            cos[position_ids] and sin[position_ids] broadcastable to the shapes of q and k. Similarly, if q and k have\n            the shape [batch_size, seq_len, heads, head_dim], then set unsqueeze_dim=2.\n    Returns:\n        `tuple(torch.Tensor)` comprising of the query and key tensors rotated using the Rotary Position Embedding.\n    \"\"\"\n    cos = cos.unsqueeze(unsqueeze_dim)\n    sin = sin.unsqueeze(unsqueeze_dim)\n\n    # Keep half or full tensor for later concatenation\n    rotary_dim = cos.shape[-1]\n    q_rot, q_pass = q[..., :rotary_dim], q[..., rotary_dim:]\n    k_rot, k_pass = k[..., :rotary_dim], k[..., rotary_dim:]\n\n    # Apply rotary embeddings on the first half or full tensor\n    q_embed = (q_rot * cos) + (rotate_half(q_rot) * sin)\n    k_embed = (k_rot * cos) + (rotate_half(k_rot) * sin)\n\n    # Concatenate back to full shape\n    q_embed = torch.cat([q_embed, q_pass], dim=-1)\n    k_embed = torch.cat([k_embed, k_pass], dim=-1)\n    return q_embed, k_embed\n\n\nclass Glm4MoeAttention(nn.Module):\n    \"\"\"Multi-headed attention from 'Attention Is All You Need' paper\"\"\"\n\n    def __init__(self, config: Glm4MoeConfig, layer_idx: int | None = None):\n        super().__init__()\n        self.config = config\n        self.layer_idx = layer_idx\n        self.head_dim = getattr(config, \"head_dim\", config.hidden_size // config.num_attention_heads)\n        self.num_key_value_groups = config.num_attention_heads // config.num_key_value_heads\n        self.scaling = self.head_dim**-0.5\n        self.rope_parameters = config.rope_parameters\n        self.attention_dropout = config.attention_dropout\n        self.is_causal = True\n\n        self.q_proj = nn.Linear(\n            config.hidden_size, config.num_attention_heads * self.head_dim, bias=config.attention_bias\n        )\n        self.k_proj = nn.Linear(\n            config.hidden_size, config.num_key_value_heads * self.head_dim, bias=config.attention_bias\n        )\n        self.v_proj = nn.Linear(\n            config.hidden_size, config.num_key_value_heads * self.head_dim, bias=config.attention_bias\n        )\n        self.o_proj = nn.Linear(config.num_attention_heads * self.head_dim, config.hidden_size, bias=False)\n        self.use_qk_norm = config.use_qk_norm\n        if self.use_qk_norm:\n            self.q_norm = Glm4MoeRMSNorm(self.head_dim, eps=config.rms_norm_eps)\n            self.k_norm = Glm4MoeRMSNorm(self.head_dim, eps=config.rms_norm_eps)\n\n    def forward(\n        self,\n        hidden_states: torch.Tensor,\n        position_embeddings: tuple[torch.Tensor, torch.Tensor],\n        attention_mask: torch.Tensor | None,\n        past_key_values: Cache | None = None,\n        **kwargs: Unpack[FlashAttentionKwargs],\n    ) -> tuple[torch.Tensor, torch.Tensor | None]:\n        input_shape = hidden_states.shape[:-1]\n        hidden_shape = (*input_shape, -1, self.head_dim)\n\n        query_states = self.q_proj(hidden_states).view(hidden_shape)\n        key_states = self.k_proj(hidden_states).view(hidden_shape)\n        value_states = self.v_proj(hidden_states).view(hidden_shape)\n\n        if self.use_qk_norm:  # main diff from Llama\n            query_states = self.q_norm(query_states)\n            key_states = self.k_norm(key_states)\n\n        query_states = query_states.transpose(1, 2)\n        key_states = key_states.transpose(1, 2)\n        value_states = value_states.transpose(1, 2)\n\n        cos, sin = position_embeddings\n        query_states, key_states = apply_rotary_pos_emb(query_states, key_states, cos, sin)\n\n        if past_key_values is not None:\n            key_states, value_states = past_key_values.update(key_states, value_states, self.layer_idx)\n\n        attention_interface: Callable = ALL_ATTENTION_FUNCTIONS.get_interface(\n            self.config._attn_implementation, eager_attention_forward\n        )\n\n        attn_output, attn_weights = attention_interface(\n            self,\n            query_states,\n            key_states,\n            value_states,\n            attention_mask,\n            dropout=0.0 if not self.training else self.attention_dropout,\n            scaling=self.scaling,\n            **kwargs,\n        )\n\n        attn_output = attn_output.reshape(*input_shape, -1).contiguous()\n        attn_output = self.o_proj(attn_output)\n        return attn_output, attn_weights\n\n\nclass Glm4MoeMLP(nn.Module):\n    def __init__(self, config, intermediate_size=None):\n        super().__init__()\n        self.config = config\n        self.hidden_size = config.hidden_size\n        self.intermediate_size = config.intermediate_size if intermediate_size is None else intermediate_size\n        self.gate_proj = nn.Linear(self.hidden_size, self.intermediate_size, bias=False)\n        self.up_proj = nn.Linear(self.hidden_size, self.intermediate_size, bias=False)\n        self.down_proj = nn.Linear(self.intermediate_size, self.hidden_size, bias=False)\n        self.act_fn = ACT2FN[config.hidden_act]\n\n    def forward(self, x):\n        down_proj = self.down_proj(self.act_fn(self.gate_proj(x)) * self.up_proj(x))\n        return down_proj\n\n\nclass Glm4MoeTopkRouter(nn.Module):\n    def __init__(self, config: Glm4MoeConfig):\n        super().__init__()\n        self.top_k = config.num_experts_per_tok\n        self.num_experts = config.num_local_experts\n        self.hidden_dim = config.hidden_size\n        self.weight = nn.Parameter(torch.zeros(self.num_experts, self.hidden_dim))\n        self.routed_scaling_factor = config.routed_scaling_factor\n        self.num_group = config.n_group\n        self.topk_group = config.topk_group\n        self.norm_topk_prob = config.norm_topk_prob\n        self.register_buffer(\"e_score_correction_bias\", torch.zeros((self.num_experts), dtype=torch.float32))\n\n    def forward(self, hidden_states):\n        hidden_states = hidden_states.view(-1, self.hidden_dim)\n        router_logits = F.linear(hidden_states.type(torch.float32), self.weight.type(torch.float32))\n        scores = router_logits.sigmoid()\n        scores_for_choice = scores + self.e_score_correction_bias\n        group_scores = (\n            scores_for_choice.view(-1, self.num_group, self.num_experts // self.num_group)\n            .topk(2, dim=-1)[0]\n            .sum(dim=-1)\n        )\n        group_idx = torch.topk(group_scores, k=self.topk_group, dim=-1, sorted=False)[1]\n        group_mask = torch.zeros_like(group_scores)\n        group_mask.scatter_(1, group_idx, 1)\n        score_mask = (\n            group_mask.unsqueeze(-1)\n            .expand(-1, self.num_group, self.num_experts // self.num_group)\n            .reshape(-1, self.num_experts)\n        )\n        scores_for_choice = scores_for_choice.masked_fill(~score_mask.bool(), float(\"-inf\"))\n        topk_indices = torch.topk(scores_for_choice, k=self.top_k, dim=-1, sorted=False)[1]\n        topk_weights = scores.gather(1, topk_indices)\n        if self.norm_topk_prob:\n            denominator = topk_weights.sum(dim=-1, keepdim=True) + 1e-20\n            topk_weights /= denominator\n        topk_weights = topk_weights * self.routed_scaling_factor\n        return router_logits, topk_weights, topk_indices\n\n\n@use_kernel_forward_from_hub(\"RMSNorm\")\nclass Glm4MoeRMSNorm(nn.Module):\n    def __init__(self, hidden_size, eps: float = 1e-6) -> None:\n        \"\"\"\n        Glm4MoeRMSNorm is equivalent to T5LayerNorm\n        \"\"\"\n        super().__init__()\n        self.weight = nn.Parameter(torch.ones(hidden_size))\n        self.variance_epsilon = eps\n\n    def forward(self, hidden_states: torch.Tensor) -> torch.Tensor:\n        input_dtype = hidden_states.dtype\n        hidden_states = hidden_states.to(torch.float32)\n        variance = hidden_states.pow(2).mean(-1, keepdim=True)\n        hidden_states = hidden_states * torch.rsqrt(variance + self.variance_epsilon)\n        return self.weight * hidden_states.to(input_dtype)\n\n    def extra_repr(self):\n        return f\"{tuple(self.weight.shape)}, eps={self.variance_epsilon}\"\n\n\n@use_experts_implementation\nclass Glm4MoeExperts(nn.Module):\n    \"\"\"Collection of expert weights stored as 3D tensors.\"\"\"\n\n    def __init__(self, config):\n        super().__init__()\n        self.num_experts = config.num_local_experts\n        self.hidden_dim = config.hidden_size\n        self.intermediate_dim = config.moe_intermediate_size\n        self.gate_up_proj = nn.Parameter(torch.empty(self.num_experts, 2 * self.intermediate_dim, self.hidden_dim))\n        self.down_proj = nn.Parameter(torch.empty(self.num_experts, self.hidden_dim, self.intermediate_dim))\n        self.act_fn = ACT2FN[config.hidden_act]\n\n    def forward(\n        self,\n        hidden_states: torch.Tensor,\n        top_k_index: torch.Tensor,\n        top_k_weights: torch.Tensor,\n    ) -> torch.Tensor:\n        final_hidden_states = torch.zeros_like(hidden_states)\n        with torch.no_grad():\n            expert_mask = torch.nn.functional.one_hot(top_k_index, num_classes=self.num_experts)\n            expert_mask = expert_mask.permute(2, 1, 0)\n            expert_hit = torch.greater(expert_mask.sum(dim=(-1, -2)), 0).nonzero()\n\n        for expert_idx in expert_hit:\n            expert_idx = expert_idx[0]\n            if expert_idx == self.num_experts:\n                continue\n            top_k_pos, token_idx = torch.where(expert_mask[expert_idx])\n            current_state = hidden_states[token_idx]\n            gate, up = nn.functional.linear(current_state, self.gate_up_proj[expert_idx]).chunk(2, dim=-1)\n            current_hidden_states = self.act_fn(gate) * up\n            current_hidden_states = nn.functional.linear(current_hidden_states, self.down_proj[expert_idx])\n            current_hidden_states = current_hidden_states * top_k_weights[token_idx, top_k_pos, None]\n            final_hidden_states.index_add_(0, token_idx, current_hidden_states.to(final_hidden_states.dtype))\n\n        return final_hidden_states\n\n\nclass Glm4MoeMoE(nn.Module):\n    \"\"\"\n    A mixed expert module containing shared experts.\n    \"\"\"\n\n    def __init__(self, config: Glm4MoeConfig):\n        super().__init__()\n        self.config = config\n        self.experts = Glm4MoeExperts(config)\n        self.gate = Glm4MoeTopkRouter(config)\n        self.shared_experts = Glm4MoeMLP(\n            config=config, intermediate_size=config.moe_intermediate_size * config.n_shared_experts\n        )\n\n    def forward(self, hidden_states: torch.Tensor) -> torch.Tensor:\n        residuals = hidden_states\n        orig_shape = hidden_states.shape\n        _, topk_weights, topk_indices = self.gate(hidden_states)\n        hidden_states = hidden_states.view(-1, hidden_states.shape[-1])\n        hidden_states = self.experts(hidden_states, topk_indices, topk_weights).view(*orig_shape)\n        hidden_states = hidden_states + self.shared_experts(residuals)\n        return hidden_states\n\n\nclass Glm4MoeDecoderLayer(GradientCheckpointingLayer):\n    def __init__(self, config: Glm4MoeConfig, layer_idx: int):\n        super().__init__()\n        self.hidden_size = config.hidden_size\n\n        self.self_attn = Glm4MoeAttention(config=config, layer_idx=layer_idx)\n\n        if layer_idx >= config.first_k_dense_replace:\n            self.mlp = Glm4MoeMoE(config)\n        else:\n            self.mlp = Glm4MoeMLP(config)\n\n        self.input_layernorm = Glm4MoeRMSNorm(config.hidden_size, eps=config.rms_norm_eps)\n        self.post_attention_layernorm = Glm4MoeRMSNorm(config.hidden_size, eps=config.rms_norm_eps)\n\n    def forward(\n        self,\n        hidden_states: torch.Tensor,\n        attention_mask: torch.Tensor | None = None,\n        position_ids: torch.LongTensor | None = None,\n        past_key_values: Cache | None = None,\n        use_cache: bool | None = False,\n        position_embeddings: tuple[torch.Tensor, torch.Tensor] | None = None,\n        **kwargs: Unpack[TransformersKwargs],\n    ) -> torch.Tensor:\n        residual = hidden_states\n        hidden_states = self.input_layernorm(hidden_states)\n        # Self Attention\n        hidden_states, _ = self.self_attn(\n            hidden_states=hidden_states,\n            attention_mask=attention_mask,\n            position_ids=position_ids,\n            past_key_values=past_key_values,\n            use_cache=use_cache,\n            position_embeddings=position_embeddings,\n            **kwargs,\n        )\n        hidden_states = residual + hidden_states\n\n        # Fully Connected\n        residual = hidden_states\n        hidden_states = self.post_attention_layernorm(hidden_states)\n        hidden_states = self.mlp(hidden_states)\n        hidden_states = residual + hidden_states\n        return hidden_states\n\n\n@auto_docstring\nclass Glm4MoePreTrainedModel(PreTrainedModel):\n    config: Glm4MoeConfig\n    base_model_prefix = \"model\"\n    supports_gradient_checkpointing = True\n    _no_split_modules = [\"Glm4MoeDecoderLayer\"]\n    _skip_keys_device_placement = [\"past_key_values\"]\n    _supports_flash_attn = True\n    _supports_sdpa = True\n    _supports_flex_attn = True\n\n    _can_compile_fullgraph = True\n    _supports_attention_backend = True\n    _can_record_outputs = {\n        \"hidden_states\": Glm4MoeDecoderLayer,\n        \"attentions\": Glm4MoeAttention,\n    }\n    _keep_in_fp32_modules_strict = [\"e_score_correction_bias\"]\n    _keys_to_ignore_on_load_unexpected = [r\"model\\.layers\\.92.*\", r\"model\\.layers\\.46.*\"]\n\n    @torch.no_grad()\n    def _init_weights(self, module):\n        super()._init_weights(module)\n        if isinstance(module, Glm4MoeTopkRouter):\n            init.normal_(module.weight, mean=0.0, std=self.config.initializer_range)\n            init.zeros_(module.e_score_correction_bias)\n        elif isinstance(module, Glm4MoeExperts):\n            init.normal_(module.gate_up_proj, mean=0.0, std=self.config.initializer_range)\n            init.normal_(module.down_proj, mean=0.0, std=self.config.initializer_range)\n\n\n@auto_docstring\nclass Glm4MoeModel(Glm4MoePreTrainedModel):\n    def __init__(self, config: Glm4MoeConfig):\n        super().__init__(config)\n        self.padding_idx = config.pad_token_id\n        self.vocab_size = config.vocab_size\n\n        self.embed_tokens = nn.Embedding(config.vocab_size, config.hidden_size, self.padding_idx)\n        self.layers = nn.ModuleList(\n            [Glm4MoeDecoderLayer(config, layer_idx) for layer_idx in range(config.num_hidden_layers)]\n        )\n        self.norm = Glm4MoeRMSNorm(config.hidden_size, eps=config.rms_norm_eps)\n        self.rotary_emb = Glm4MoeRotaryEmbedding(config=config)\n        self.gradient_checkpointing = False\n\n        # Initialize weights and apply final processing\n        self.post_init()\n\n    @merge_with_config_defaults\n    @capture_outputs\n    @auto_docstring\n    def forward(\n        self,\n        input_ids: torch.LongTensor | None = None,\n        attention_mask: torch.Tensor | None = None,\n        position_ids: torch.LongTensor | None = None,\n        past_key_values: Cache | None = None,\n        inputs_embeds: torch.FloatTensor | None = None,\n        use_cache: bool | None = None,\n        **kwargs: Unpack[TransformersKwargs],\n    ) -> BaseModelOutputWithPast:\n        if (input_ids is None) ^ (inputs_embeds is not None):\n            raise ValueError(\"You must specify exactly one of input_ids or inputs_embeds\")\n\n        if inputs_embeds is None:\n            inputs_embeds: torch.Tensor = self.embed_tokens(input_ids)\n\n        if use_cache and past_key_values is None:\n            past_key_values = DynamicCache(config=self.config)\n\n        if position_ids is None:\n            past_seen_tokens = past_key_values.get_seq_length() if past_key_values is not None else 0\n            position_ids = torch.arange(inputs_embeds.shape[1], device=inputs_embeds.device) + past_seen_tokens\n            position_ids = position_ids.unsqueeze(0)\n\n        causal_mask = create_causal_mask(\n            config=self.config,\n            inputs_embeds=inputs_embeds,\n            attention_mask=attention_mask,\n            past_key_values=past_key_values,\n            position_ids=position_ids,\n        )\n\n        hidden_states = inputs_embeds\n        position_embeddings = self.rotary_emb(hidden_states, position_ids=position_ids)\n\n        for decoder_layer in self.layers[: self.config.num_hidden_layers]:\n            hidden_states = decoder_layer(\n                hidden_states,\n                attention_mask=causal_mask,\n                position_embeddings=position_embeddings,\n                position_ids=position_ids,\n                past_key_values=past_key_values,\n                use_cache=use_cache,\n                **kwargs,\n            )\n\n        hidden_states = self.norm(hidden_states)\n        return BaseModelOutputWithPast(\n            last_hidden_state=hidden_states,\n            past_key_values=past_key_values,\n        )\n\n\n@auto_docstring\nclass Glm4MoeForCausalLM(Glm4MoePreTrainedModel, GenerationMixin):\n    _tied_weights_keys = {\"lm_head.weight\": \"model.embed_tokens.weight\"}\n    _tp_plan = {\"lm_head\": \"colwise_gather_output\"}\n    _pp_plan = {\"lm_head\": ([\"hidden_states\"], [\"logits\"])}\n\n    def __init__(self, config):\n        super().__init__(config)\n        self.model = Glm4MoeModel(config)\n        self.vocab_size = config.vocab_size\n        self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)\n\n        # Initialize weights and apply final processing\n        self.post_init()\n\n    @can_return_tuple\n    @auto_docstring\n    def forward(\n        self,\n        input_ids: torch.LongTensor | None = None,\n        attention_mask: torch.Tensor | None = None,\n        position_ids: torch.LongTensor | None = None,\n        past_key_values: Cache | None = None,\n        inputs_embeds: torch.FloatTensor | None = None,\n        labels: torch.LongTensor | None = None,\n        use_cache: bool | None = None,\n        logits_to_keep: int | torch.Tensor = 0,\n        **kwargs: Unpack[TransformersKwargs],\n    ) -> CausalLMOutputWithPast:\n        r\"\"\"\n        Example:\n\n        ```python\n        >>> from transformers import AutoTokenizer, Glm4MoeForCausalLM\n\n        >>> model = Glm4MoeForCausalLM.from_pretrained(\"meta-glm4_moe/Glm4Moe-2-7b-hf\")\n        >>> tokenizer = AutoTokenizer.from_pretrained(\"meta-glm4_moe/Glm4Moe-2-7b-hf\")\n\n        >>> prompt = \"Hey, are you conscious? Can you talk to me?\"\n        >>> inputs = tokenizer(prompt, return_tensors=\"pt\")\n\n        >>> # Generate\n        >>> generate_ids = model.generate(inputs.input_ids, max_length=30)\n        >>> tokenizer.batch_decode(generate_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0]\n        \"Hey, are you conscious? Can you talk to me?\\nI'm not conscious, but I can talk to you.\"\n        ```\"\"\"\n        outputs: BaseModelOutputWithPast = self.model(\n            input_ids=input_ids,\n            attention_mask=attention_mask,\n            position_ids=position_ids,\n            past_key_values=past_key_values,\n            inputs_embeds=inputs_embeds,\n            use_cache=use_cache,\n            **kwargs,\n        )\n\n        hidden_states = outputs.last_hidden_state\n        # Only compute necessary logits, and do not upcast them to float if we are not computing the loss\n        slice_indices = slice(-logits_to_keep, None) if isinstance(logits_to_keep, int) else logits_to_keep\n        logits = self.lm_head(hidden_states[:, slice_indices, :])\n\n        loss = None\n        if labels is not None:\n            loss = self.loss_function(logits=logits, labels=labels, vocab_size=self.config.vocab_size, **kwargs)\n\n        return CausalLMOutputWithPast(\n            loss=loss,\n            logits=logits,\n            past_key_values=outputs.past_key_values,\n            hidden_states=outputs.hidden_states,\n            attentions=outputs.attentions,\n        )\n\n\n__all__ = [\"Glm4MoePreTrainedModel\", \"Glm4MoeModel\", \"Glm4MoeForCausalLM\"]\n"
+      }
+    ],
+    "paths": [
+      "site-packages/transformers/models/glm4_moe/modeling_glm4_moe.py"
+    ],
+    "source": "local_transformers"
+  },
+  "release_date": "2025-07-20"
+}

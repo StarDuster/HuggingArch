@@ -1,0 +1,38 @@
+# Absorbed-MLA decode: the latent query's concat and the latent KV's concat
+# (the row the cache stores) in ONE launch.
+#
+# Naive subgraph (the decode form of an absorbed MLA, e.g.
+# `mla_output_gate_attention_absorbed`): two concats with no edge between
+# them, told apart by the operand each one becomes:
+#
+#   mqa_q  = concat(q_absorbed_nope, q_pe)          → the attention's query
+#   kv_row = concat(kv_latent_normed, k_pe)         → the cached key row
+#
+# vLLM's generic MLA runs these as two launches (the query concat, and
+# `concat_and_cache_mla` writing the cache), which is what a graph without
+# this plan bills.
+#
+# vLLM (audited at v0.32.0), Kimi-K3, decode: `_attention` absorbs q_nope
+# with one BMM, then `_decode_concat_cache` (models/kimi_k3/nvidia/mla.py
+# :696-707, :729-787) calls `fused_mla_decode_q_concat_kv_cache_insert`
+# (models/kimi_k3/nvidia/ops/fused_mla_key_concat_kv_cache.py:215), whose
+# docstring and body are one launch for every cache format: it allocates
+# `mqa_q` (:246), then one `torch.ops._C.fused_kimi_k3_mla_decode_q_concat_*`
+# call (:254, :273 or :288, by cache format) writes it and inserts `[kv_c_normed | k_pe]` into the
+# paged cache. Prefill takes the fused prefill path instead (mla.py:678-688).
+
+fused_op: mla_q_concat_kv_insert
+
+allocates_output: "models/kimi_k3/nvidia/ops/fused_mla_key_concat_kv_cache.py:246 allocates mqa_q (torch.empty) and the launch writes every lane of it and of the cache row"
+
+naive_pattern:
+  nodes:
+    q_concat:  { op: concat, inputs: [external.q_latent, external.q_pe], feeds: q }
+    kv_concat: { op: concat, inputs: [external.kv_latent, external.k_pe], feeds: k }
+  io_mapping:
+    q_latent:  external.q_latent
+    q_pe:      external.q_pe
+    kv_latent: external.kv_latent
+    k_pe:      external.k_pe
+    output:    q_concat.out
+    kv_out:    kv_concat.out

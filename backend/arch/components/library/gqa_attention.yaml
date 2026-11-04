@@ -1,0 +1,62 @@
+# GQA Attention (also covers MHA when n_kv_heads==n_heads, MQA when n_kv_heads==1)
+# Used by: LLaMA, Mistral, Qwen2, Yi, InternLM2, etc.
+#
+# Required dims: d_model, n_heads, n_kv_heads, d_head
+# Optional dims: Qb (QKV bias, 0=no bias, 1=has bias, default 0)
+
+role: attention
+description: "Plain Grouped-Query Attention with no QK-norm. Llama, Qwen2, Mistral."
+cache:
+  family: GQA
+  entries:
+    - { node: k_rope, kind: kv }
+    - { node: v_split_heads, kind: kv }
+graph:
+  q_proj:
+    op: linear
+    in: x
+    dims: { in: d_model, out: "n_heads * d_head", bias: Qb }
+    weight_axes:
+      - placement_by_symbol:
+          n_heads: { world: attention, parts: n_heads, fit: replica_cells }
+          n_audio_heads: { replicated: true }
+      - { replicated: true }
+  k_proj:
+    op: linear
+    in: x
+    dims: { in: d_model, out: "n_kv_heads * d_head", bias: Qb }
+    weight_axes:
+      - placement_by_symbol:
+          n_kv_heads: { world: attention, parts: n_kv_heads, fit: replica_cells }
+          n_heads: { world: attention, parts: n_kv_heads, fit: replica_cells }
+          n_audio_heads: { replicated: true }
+      - { replicated: true }
+  v_proj:
+    op: linear
+    in: x
+    dims: { in: d_model, out: "n_kv_heads * d_head", bias: Qb }
+    weight_axes:
+      - placement_by_symbol:
+          n_kv_heads: { world: attention, parts: n_kv_heads, fit: replica_cells }
+          n_heads: { world: attention, parts: n_kv_heads, fit: replica_cells }
+          n_audio_heads: { replicated: true }
+      - { replicated: true }
+  q_split_heads:      { op: head_split, in: q_proj, dims: { n_heads: n_heads, d_head: d_head } }
+  k_split_heads:      { op: head_split, in: k_proj, dims: { n_heads: n_kv_heads, d_head: d_head } }
+  v_split_heads:      { op: head_split, in: v_proj, dims: { n_heads: n_kv_heads, d_head: d_head } }
+  q_rope:          { op: rope, in: q_split_heads, dim: d_head }
+  k_rope:          { op: rope, in: k_split_heads, dim: d_head }
+  qk_score:        { op: attention_score, in: [q_rope, k_rope], dims: { n_heads: n_heads, d_head: d_head } }
+  softmax:         { op: softmax, in: qk_score, dims: { n_heads: n_heads } }
+  attn_apply:      { op: attention_apply, in: [softmax, v_split_heads], dims: { n_heads: n_heads, d_head: d_head } }
+  o_merge_heads:      { op: head_merge, in: attn_apply, dims: { n_heads: n_heads, d_head: d_head } }
+  o_proj:
+    op: linear
+    in: o_merge_heads
+    dims: { in: "n_heads * d_head", out: d_model }
+    weight_axes:
+      - { replicated: true }
+      - placement_by_symbol:
+          n_heads: { world: attention, parts: n_heads, fit: replica_cells }
+          n_audio_heads: { replicated: true }
+outputs: [o_proj]

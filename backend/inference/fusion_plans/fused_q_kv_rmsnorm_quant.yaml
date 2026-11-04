@@ -1,0 +1,49 @@
+# The `fused_q_kv_rmsnorm` launch in the form that also writes the
+# normalised q already quantised — vLLM's `fused_q_kv_rmsnorm_quant`
+# (DeepSeek-V4.1, Blackwell).
+#
+# Same naive subgraph and the same one launch as `fused_q_kv_rmsnorm.yaml`:
+# the q-LoRA a-norm and the latent-KV a-norm. What differs is the output
+# contract: `_q_kv_norm_quant_kernel` writes q as FP8 E4M3 with FlashInfer's
+# swizzled per-32 UE8M0 scales — the activation format of the MXFP8 q
+# projections that read it — and kv in its own dtype
+# (vllm/models/deepseek_v41/common/ops/query_quant.py:37, wrapper :90).
+#
+# vLLM (audited at v0.32.0) takes it in `_split_qkv_and_norm`
+# (models/deepseek_v41/attention.py:773, branch :782) — from `forward` (:675)
+# in prefill and decode alike — when `q_lora_rank % 32 == 0` AND
+# `_can_fuse_query_quant` (:763-771 → query_quant.py:135-151): CUDA, and every
+# local reader of q (`wq_b`, the indexer's `wq_b`) has the MXFP8 dynamic
+# activation key AND its selected linear kernel is FlashInfer's CuteDSL or
+# Cutlass MXFP8 kernel (the two that accept F8_128x4 swizzled scales).
+# Otherwise it runs the plain `fused_q_kv_rmsnorm` (:795) and each
+# projection quantises its own input. The whole predicate and how the
+# binding states each clause are in vllm.yaml.
+
+fused_op: fused_q_kv_rmsnorm_quant
+
+naive_pattern:
+  nodes:
+    q_norm:  { op: rmsnorm, inputs: [external.q],  feeds: q }
+    kv_norm: { op: rmsnorm, inputs: [external.kv], feeds: k }
+    quant: { op: quantise_activation, inputs: [q_norm.out] }
+  io_mapping:
+    q:         external.q
+    kv:        external.kv
+    output: quant.out
+    kv_out: kv_norm.out
+
+# The q-side output is written quantised: the `quantise_activation` cast is
+# a REQUIRED member (vLLM fused_q_kv_rmsnorm_quant, query_quant.py:90, taken
+# by DeepseekV4Attention._split_qkv_and_norm, deepseek_v41/attention.py:782,
+# when _can_fuse_query_quant, :763). Without a cast on q this launch does not
+# exist and the plain `fused_q_kv_rmsnorm` matches; with one, this pattern is
+# the larger, so specificity tries it first.
+
+# The scale sidecar of the MXFP8 q record is FlashInfer's F8_128x4 swizzle:
+# the wrapper allocates ceil(tokens/128)*128 rows x ceil(groups/4)*4 groups
+# and the kernel stores zeros into the padded positions
+# (`mxfp8_scale_bytes`, query_quant.py:31-33; the grid and the zero stores
+# :79-84, :110-131). At a 64-token cell that is twice the scale bytes the
+# generic per-32 law prices.
+output_scale_tile: { rows: 128, groups: 4 }

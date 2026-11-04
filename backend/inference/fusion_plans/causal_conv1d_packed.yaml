@@ -1,0 +1,58 @@
+# The three short convolutions in front of a linear-attention mixer — over
+# q, k and v, each with its SiLU — run as ONE causal-conv launch over the
+# packed q|k|v row.
+#
+# Naive subgraph (kimi_k3_kda_attention, GLM-5.3's KDA): three `causal_conv1d` chains with
+# no edge between them, told apart by the operand each one becomes:
+#
+#   q = silu(conv1d(q_proj))      → the recurrence's q
+#   k = silu(conv1d(k_proj))      → the recurrence's k
+#   v = silu(conv1d(v_proj))      → the recurrence's v
+#
+# The model stores three depthwise filters, but the framework keeps their
+# weights and conv states as one packed parameter and one packed state
+# (q|k|v along the channel axis) and hands the merged projection's q|k|v
+# slice to a single `causal_conv1d_update` — one launch reading three
+# channel ranges, the same bytes as three. This is a launch count, not a
+# byte change.
+#
+# vLLM (audited at v0.32.0), Kimi-K3, decode: `KimiK3DeltaAttention` packs
+# the three filters into one `conv1d` parameter of 3·projection_size rows
+# ("One packed parameter and cache let decode run a single conv update",
+# models/kimi_k3/nvidia/kda.py:668-675) and, on the plain decode path,
+# convolves the packed `mixed_qkv` in one `causal_conv1d_update` call
+# (:1325-1334), then runs the recurrence on it; the speculative path does
+# the same (:1084-1095). Prefill splits the packed row and convolves q, k
+# and v in three `causal_conv1d_fn` calls (:1166-1185) — three launches,
+# the per-chain `causal_conv1d` plan. Where `fused_kda_decode` (the whole
+# mixer) runs, it contains these convs and is matched first.
+#
+# vLLM's GLM-5.3 (Glm5Next) merges its three filters once
+# (models/glm5next/common/kda.py:563) and convolves the packed row in one
+# call in every phase (:607-649).
+#
+# sglang (audited at v0.5.22), both KDA models, both phases: the model keeps one
+# packed `qkv_conv1d` (srt/models/kimi_k3.py:1773; GLM-5.3's
+# srt/models/glm5_next.py:544-554) and the KDA backend
+# convolves the packed row in one call — `causal_conv1d_update` at decode
+# (srt/layers/attention/linear/kda_backend.py:935) and in the speculative
+# verify (:1380), `causal_conv1d_fn` in prefill (`_convolve_prefill`
+# :1001-1021: "one packed call over the full qkv width").
+
+fused_op: causal_conv1d_packed
+
+naive_pattern:
+  nodes:
+    q_conv: { op: conv1d, inputs: [external.q] }
+    q_silu: { op: silu,   inputs: [q_conv.out], feeds: q }
+    k_conv: { op: conv1d, inputs: [external.k] }
+    k_silu: { op: silu,   inputs: [k_conv.out], feeds: k }
+    v_conv: { op: conv1d, inputs: [external.v] }
+    v_silu: { op: silu,   inputs: [v_conv.out], feeds: v }
+  io_mapping:
+    q:      external.q
+    k:      external.k
+    v:      external.v
+    output: q_silu.out
+    k_out:  k_silu.out
+    v_out:  v_silu.out

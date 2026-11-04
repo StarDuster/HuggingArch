@@ -1,0 +1,10 @@
+schema: huggingarch.claims/v1
+subject: gated_delta_net_fused_attention
+axioms:
+  checks:
+  - kind: kv_growth
+    storage: constant_state
+    src: 'modeling_qwen3_next.py::Qwen3NextGatedDeltaNet — the recurrent (conv + delta)
+      state is fixed per request (it does not append a K/V per token). Declared as
+      two cache.entries states (recurrent_state on delta_rule, conv_state on conv1d)
+      with constant (s_kv-independent) storage; no per-token growing cache.'

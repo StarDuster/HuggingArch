@@ -1,0 +1,252 @@
+# Component roles — the one place a role is classified and explained.
+#
+# A component (or a model's `components:` slot) declares `role:`; this file
+# says what that role IS. The `kind` is the family of work the role does,
+# and it is what every consumer asking "is this attention?" reads:
+#
+#   attention  — the attention mechanism and its variants
+#   ffn        — the feed-forward path, including the MoE router that
+#                selects within it
+#   memory     — a lookup memory a block reads by token-derived ids, its
+#                rows gated into the residual stream
+#   norm       — normalization
+#   residual   — how the residual stream is carried and mixed between
+#                sublayers, where that has weights and work of its own
+#   wrapper    — a container that holds other roles and has no work of
+#                its own; classifiers recurse THROUGH it rather than
+#                attributing to it
+#
+# This replaced four name-keyed tables that had to agree by hand:
+# `_ATTN_ROLES` / `_FFN_ROLES` / `_WRAPPER_ROLES` in
+# eval/projection/result.py, and the `role.startswith("attention_")`
+# prefix test in inference/sharding.py. They had already drifted —
+# `attention_swa` matched the prefix test and not `_ATTN_ROLES`, so every
+# sliding-window layer in gpt-oss, MiMo-V2-Flash and DeepSeek-V4 reported
+# `attention_flops = 0` while its FLOPs sat in the block total.
+#
+# `SpecLoader` rejects a component or slot naming an unregistered role, so
+# the next attention variant is classified at birth rather than silently
+# attributed to nothing.
+#
+# Three attributes per role, each replacing a private table that restated
+# the vocabulary and had drifted from it (a third, loader `_SLOT_ROLES`, is
+# simply gone: it filtered `router` and `attention_swa` out of the roles a
+# component contributes, which is how `per_role.router` became dead config):
+#   weight_class — a weight class for TP sharding (was sharding
+#                  `_KNOWN_ROLES`; `router` is FFN work but replicated)
+#   ffn_gate     — the FFN whose gate nonlinearity `config.hidden_act`
+#                  governs (was validate `_FFN_GATE_ROLES`, which listed
+#                  three names the vocabulary never had)
+#   label        — optional: the name a block of this role shows when it
+#                  states no attention display (was block_label
+#                  `_ROLE_LABELS`)
+#
+# A role may name the broader role it is part of (`refines:`, same kind).
+# Precision is chosen by role, and the checkpoint is the judge of how fine a
+# role must be: inside one role and one stack every weight matrix is stored
+# at one precision (the validator's quant-role gate). Where the checkpoint
+# splits a role — a BF16 `o_proj` beside FP8 `q/k/v` — the split-off part
+# declares a finer role that refines the broader one. A
+# `quant_context.per_role` entry written for the broader role reaches every
+# role refining it unless that role has an entry of its own, so declaring a
+# finer role changes no model that does not write one.
+
+roles:
+  attention:
+    weight_class: true
+    ffn_gate: false
+    kind: attention
+    meaning: >-
+      Full-context attention — the model's main attention mechanism,
+      whatever its internal form (MHA / GQA / MLA / DSA / linear / SSM
+      mixers all declare this role; which one it is, is `kv_label` and
+      `attn_variant`, not the role).
+
+  attention_swa:
+    weight_class: true
+    ffn_gate: false
+    kind: attention
+    refines: attention
+    meaning: >-
+      Sliding-window attention, as a slot distinct from the full-context
+      one so a model with both (gpt-oss, MiMo-V2-Flash, DeepSeek-V4) can
+      bind a different component to each and quantize them separately.
+      Same family as `attention` in every accounting sense.
+
+  attention_indexer:
+    weight_class: true
+    ffn_gate: false
+    kind: attention
+    refines: attention
+    meaning: >-
+      The sparse-attention indexer's projections that the checkpoint stores
+      apart from the main attention: DSA's low-rank `weights_proj` (BF16 in
+      DeepSeek-V3.2 and V4 beside FP8 attention), and in GLM-5.3-Flash every
+      indexer projection and k-pool parameter. Indexer projections stored like
+      the main attention (DeepSeek-V3.2's FP8 wk / wq_b) stay under
+      `attention`.
+
+  attention_linear:
+    weight_class: true
+    ffn_gate: false
+    kind: attention
+    refines: attention
+    meaning: >-
+      Linear-attention layers (KDA / GDN-style recurrent mixers) as a slot
+      distinct from the full-context `attention` one, for a hybrid model whose
+      checkpoint stores the two at different precisions (GLM-5.3-Flash: BF16
+      KDA layers beside part-FP8 MLA layers). Same family as `attention` in
+      every accounting sense.
+
+  attention_output:
+    weight_class: true
+    ffn_gate: false
+    kind: attention
+    refines: attention
+    meaning: >-
+      The attention output projection (`o_proj`), where the checkpoint
+      stores it apart from the query / key / value projections (MiMo-V2:
+      BF16 `o_proj` beside FP8 `qkv_proj`).
+
+  attention_kv_up:
+    weight_class: true
+    ffn_gate: false
+    kind: attention
+    refines: attention
+    meaning: >-
+      MLA's key/value up-projection from the latent (`kv_b_proj`), where the
+      checkpoint stores it apart from the other MLA projections
+      (GLM-5.3-Flash: BF16 beside FP8 `q_a` / `q_b` / `kv_a`).
+
+  attention_compressor:
+    weight_class: true
+    ffn_gate: false
+    kind: attention
+    refines: attention
+    meaning: >-
+      The KV compressor's projections (`wkv`, `wgate`) that pool a window of
+      tokens into one compressed cache entry (DeepSeek-V4 CSA / HCA, and the
+      indexer's own compressor). BF16 in the checkpoint beside FP8 attention.
+
+  attention_position_embedding:
+    weight_class: true
+    ffn_gate: false
+    kind: attention
+    refines: attention
+    meaning: >-
+      A learned position embedding inside an attention mechanism, added
+      rather than contracted — DeepSeek-V4's compressor `ape` over the
+      positions of one compression window (F32 in the checkpoint).
+
+  attention_short_conv:
+    weight_class: true
+    ffn_gate: false
+    kind: attention
+    refines: attention
+    meaning: >-
+      The depthwise short-convolution kernels a linear-attention mixer runs
+      over q / k / v (`q_conv1d` / `k_conv1d` / `v_conv1d`), where the
+      checkpoint stores them apart from the projections (Kimi-K3: F32
+      beside BF16).
+
+  ffn_dense:
+    weight_class: true
+    ffn_gate: true
+    kind: ffn
+    label: Dense FFN
+    meaning: A dense feed-forward network — every token through every weight.
+
+  ffn_moe:
+    weight_class: true
+    ffn_gate: true
+    kind: ffn
+    label: MoE FFN
+    meaning: >-
+      A mixture-of-experts feed-forward network — the wrapper owning the
+      expert bank, the router, and any always-on shared expert.
+
+  ffn_moe_shared:
+    weight_class: true
+    ffn_gate: true
+    kind: ffn
+    refines: ffn_moe
+    meaning: >-
+      The always-on shared expert(s) of an MoE FFN — every token through
+      them, beside the routed bank. Kimi-K2-Thinking / K2.5 / K3 store them
+      BF16 beside INT4 / FP4 routed experts.
+
+  ffn_moe_latent:
+    weight_class: true
+    ffn_gate: false
+    kind: ffn
+    refines: ffn_moe
+    meaning: >-
+      A latent MoE's projections into and out of the latent width the
+      routed experts run at (Kimi-K3 `routed_expert_up_proj` /
+      `routed_expert_down_proj`), BF16 beside the FP4 expert bank.
+
+  router:
+    weight_class: false
+    ffn_gate: false
+    kind: ffn
+    meaning: >-
+      The MoE gate that scores experts and selects the top-k. Its FLOPs
+      belong to the feed-forward path it selects within, which is why its
+      kind is `ffn` and not a family of its own.
+
+  memory:
+    weight_class: false
+    ffn_gate: false
+    kind: memory
+    meaning: >-
+      A lookup memory a block reads beside its attention and FFN: a table
+      indexed by ids derived from the tokens (DeepSeek-V4.1's Engram n-gram
+      hashes, Qwen's per-layer embeddings), whose rows are projected and
+      gated into the residual stream. Its table dwarfs the block's other
+      weights and is read a few rows a token, so it is counted apart from
+      both attention and the feed-forward path.
+
+  hyper_connection:
+    weight_class: false
+    ffn_gate: false
+    kind: residual
+    meaning: >-
+      Hyper-Connections — the residual stream widened to n_hidden_copies
+      copies, collapsed into one before each sublayer (`hc_pre`) and spread
+      and cross-mixed back after it (`hc_post`), with the head's exit reduce
+      (`hc_head`). The mixing coefficients come from per-layer weights
+      (`hc_{attn,ffn,head}_{fn,base,scale}`), F32 in DeepSeek-V4.
+
+  router_hash_table:
+    weight_class: false
+    ffn_gate: false
+    kind: ffn
+    refines: router
+    meaning: >-
+      A hash router's token-to-expert table — the expert ids each token id
+      is sent to, looked up rather than scored (DeepSeek-V4's `gate.tid2eid`,
+      I64 in the checkpoint beside the BF16 gate weight).
+
+  norm:
+    weight_class: false
+    ffn_gate: false
+    kind: norm
+    meaning: A normalization layer (RMSNorm / LayerNorm and gated variants).
+
+  block:
+    weight_class: false
+    ffn_gate: false
+    kind: wrapper
+    meaning: >-
+      A transformer block — the container binding an attention slot, an
+      FFN slot and their norms into one repeatable layer. Holds no work of
+      its own, so cost classifiers recurse through it.
+
+  aux_block:
+    weight_class: false
+    ffn_gate: false
+    kind: wrapper
+    meaning: >-
+      An auxiliary block outside the main stack — MTP / speculative
+      decoding heads. A wrapper like `block`, counted apart from the
+      backbone because it does not run once per token per layer.

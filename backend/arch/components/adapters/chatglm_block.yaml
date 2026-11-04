@@ -1,0 +1,20 @@
+# ChatGLM (GLM-4) decoder block adapter.
+# Pre-norm structure (input_layernorm/post_attention_layernorm names
+# already match HF), with ChatGLM-style fused-QKV attention and fused
+# gate+up FFN. The checkpoint stores the pre_norm `self_attn` slot as
+# `self_attention` to match HF's `nn.Module` attribute name; `mlp`
+# already matches.
+role: block
+description: "ChatGLM/GLM-4 decoder block: pre_norm with chatglm_attention + chatglm_ffn, naming its attention `self_attention` as the checkpoint does."
+
+graph:
+  layer:
+    module: null
+    op: pre_norm
+    in: x
+    params:
+      attn: chatglm_attention
+      ffn:  chatglm_ffn
+    inner_modules:
+      self_attn: self_attention
+outputs: [layer]

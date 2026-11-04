@@ -1,0 +1,100 @@
+# DeepSeek-V4 KV Compressor (non-overlap variant, compress_ratio=128).
+#
+# Used by Attention layers whose compress_ratio is not 4 — the compressor
+# pools `compress_ratio` consecutive token KV positions into one compressed
+# slot via learned gated attention over a learned absolute-position
+# embedding (`ape`).
+#
+# Forward (model.py::Compressor when overlap=False):
+#   kv    = wkv(x.float())                          # [B, s_ctx, head_dim]
+#   gate  = wgate(x.float())                        # [B, s_ctx, head_dim]
+#   gate  = (gate.unflatten(1, (-1, ratio)) + ape).softmax(dim=2)
+#   kv    = (kv.unflatten(1, (-1, ratio)) * gate).sum(dim=2)
+#   kv    = norm(kv)
+#   apply_rotary_emb(kv[..., -rope_head_dim:])
+#
+# The graph states that unflatten as a real axis. The source drops the
+# ragged tail first (usable = (S // m) · m complete windows; the tail tokens
+# accumulate in the decode-time state instead), then `view_split axis: 1`
+# folds the complete windows into (slot, window) — an exact product, no
+# rounding. The softmax declares `axis: 2` (the window axis, NOT the feature
+# dim) and `sum_reduce` collapses it back. `token_pool_compressor` is the
+# shape-preserving marker carrying the KV laws of the cached latent: storage
+# ⌈s_kv/m⌉ (the pending window owns a slot — THAT ceil is a capacity law, not
+# a shape), read ⌊s_kv/m⌋ (only complete windows are readable).
+#
+# Required dims: d_model (input), Cdim_io (compressor head_dim), Cape (ratio),
+# d_qk_rope (rope width), compress_ratio (bound by the wrapping attention).
+#
+# Tensor names produced inside the wrapping Attention:
+#   <attn>.compressor.ape           → [Cape, Cdim_io]
+#   <attn>.compressor.norm.weight   → [Cdim_io]
+#   <attn>.compressor.wkv.weight    → [Cdim_io, d_model]
+#   <attn>.compressor.wgate.weight  → [Cdim_io, d_model]
+
+description: "DSv4 KV compressor (no-overlap variant) — pools ratio consecutive KV positions into one slot."
+# Decode runs the other branch of Compressor.forward (one token per step,
+# the window pooled once every compress_ratio steps) — its own subgraph.
+decode_variant: dsv4_compressor_no_overlap_decode
+# The two decode-time buffers of model.py::Compressor (L303-304), as in the
+# overlap variant but with coff = 1: [ratio, head_dim] each, fp32, per request.
+# Same known gap: billed as read in full every step, though the ring writes one
+# row per step and is read whole once every compress_ratio steps.
+cache:
+  entries:
+    - { node: pooled_out, kind: compressed_kv }
+    - { state: kv_state,    kind: compressor_state, carrier: weighted, shape: [compress_ratio, Cdim_io], dtype: fp32 }
+    - { state: score_state, kind: compressor_state, carrier: smax,   shape: [compress_ratio, Cdim_io], dtype: fp32 }
+graph:
+  # The checkpoint stores ape F32 and wkv / wgate BF16, beside FP8 attention.
+  ape:    { op: parameter_tensor, role: attention_position_embedding, shape: [Cape, Cdim_io], weight_axes: [{ replicated: true }, { replicated: true }] }
+  wkv:    { op: linear, role: attention_compressor, in: x, dims: { in: d_model, out: Cdim_io }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  wgate:  { op: linear, role: attention_compressor, in: x, dims: { in: d_model, out: Cdim_io }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  # The window is a real axis from here on. Tail first: complete windows
+  # only, then the fold — [B,S,D] → [B, (S//m)·m, D] → [B, S//m, m, D].
+  gate_usable: { op: slice, in: wgate, axis: 1, dims: { out: "floor(s_ctx / Cape) * Cape" } }
+  kv_usable:   { op: slice, in: wkv,   axis: 1, dims: { out: "floor(s_ctx / Cape) * Cape" } }
+  gate_win:    { op: view_split, in: gate_usable, axis: 1, dims: { s_slots: "floor(s_ctx / Cape)", window: Cape } }
+  kv_win:      { op: view_split, in: kv_usable,   axis: 1, dims: { s_slots: "floor(s_ctx / Cape)", window: Cape } }
+  scores:
+    op: position_table_add
+    in: [gate_win, ape]
+    dim: Cdim_io
+    formula: "y[b, slot, p, d] = gate_win[b, slot, p, d] + ape[p, d]   (ape broadcasts over batch and slot; p indexes the window axis)"
+  # Pooling weights: model.py `score.softmax(dim=2)` — over the m window
+  # positions, separately for each channel.
+  smax:
+    op: softmax_act
+    in: scores
+    dim: Cape   # the normalized (window) width
+    axis: 2
+    formula: "w[b, slot, p, d] = exp(y[b, slot, p, d]) / Σ_{p'<m} exp(y[b, slot, p', d])   (softmax over the window axis — axis: 2)"
+  weighted:
+    op: mul
+    in: [kv_win, smax]
+    dim: Cdim_io
+    formula: "y[b, slot, p, d] = kv_win[b, slot, p, d] · w[b, slot, p, d]"
+  pooled:
+    op: sum_reduce
+    in: weighted
+    axis: 2
+    # `in` is the reduced axis's width (the hc_weighted_reduce convention).
+    dims: { in: Cape }
+    formula: "y[b, slot, d] = Σ_{p<m} weighted[b, slot, p, d]   (window axis collapses: ⌊S/m⌋ slots remain)"
+  norm:   { op: rmsnorm, role: attention_compressor, in: pooled, dim: Cdim_io, weight_axes: [{ replicated: true }] }
+  # model.py::Compressor.forward: `apply_rotary_emb(kv[..., -rd:], freqs_cis)`
+  # on the normalized compressed entry, before it is written to the cache.
+  pe_slice:   { op: slice, in: norm, dims: { in: Cdim_io, out: d_qk_rope } }
+  nope_slice: { op: slice, in: norm, dims: { in: Cdim_io, out: "Cdim_io - d_qk_rope" } }
+  pe_rope:    { op: rope_emb, in: pe_slice, dim: d_qk_rope }
+  roped:      { op: concat, in: [nope_slice, pe_rope], dims: { in_a: "Cdim_io - d_qk_rope", in_b: d_qk_rope, out: Cdim_io } }
+  # Time-axis pooling marker: the cache reserves ⌈s_kv / compress_ratio⌉ slots
+  # (the pending window's too) and ⌊s_kv / compress_ratio⌉ of them are readable;
+  # positions, as in the overlap variant.
+  pooled_out:
+    op: token_pool_compressor
+    in: roped
+    dim: Cdim_io
+    dims: { compress_ratio: compress_ratio }
+    formula: "cached latent = roped   (the pooling happened at `pooled`; identity marker; storage ⌈s_kv/m⌉ — the pending window owns a slot — read ⌊s_kv/m⌋ complete windows)"
+outputs: [pooled_out]

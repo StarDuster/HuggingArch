@@ -1,0 +1,55 @@
+# The DSA indexer's query preparation where the indexer ropes the LEADING
+# d_qk_rope channels of each head (DeepSeek-V3.2 / GLM-5.x `Indexer`): rotate
+# the rope slice and put it back in front, one launch that also quantises
+# the query to FP8 and scales the head weights.
+#
+# Naive subgraph (mla_dsa_attention and its absorbed form):
+#
+#   q_rope_slice, q_norope_slice = slice(index_q)       # per indexer head
+#   q = concat(rope(q_rope_slice), q_norope_slice)      # rope first
+#
+# The quantisation is the cast the graft stands on the query: the index-key
+# cache's readers multiply its rows with a query quantised to their element
+# type (`cache_families.yaml` `index_key.paired_operand`, FP8 keys → FP8
+# with one F32 scale a head), so `quant` binds wherever the index key is
+# stored FP8 and the launch writes the FP8 record. The head-weight scale
+# sits inside `indexer_logits` in this spec, so the pattern is the rotation,
+# the re-join and the cast. The concat order (rope first) and the 4-D `rope`
+# keep it off the indexer key (`rope_emb`) and off the main query (nope
+# first).
+#
+# sglang (audited at v0.5.22): `fused_q_indexer_rope_first_quant`
+#   (kernels/ops/attention/dsv4/elementwise.py:249, "Indexer Q: RoPE on the
+#   leading dims + fp8 act-quant"), from `Indexer._fused_q_prepare_and_store`
+#   (srt/layers/attention/dsa/dsa_indexer.py:1047, launch :1084 / :1111),
+#   taken whenever `use_dsa_indexer_fusion` holds (:299-303: CUDA, the
+#   SGLANG_DISABLE_DSA_INDEXER_FUSION env unset, and NOT `is_neox_style`, which
+#   is `not config.indexer_rope_interleave`, srt/models/deepseek_v2.py:2086)
+#   outside a piecewise / breakable CUDA graph and without attention CP
+#   (:1994-2000); a prefill under that graph runs the same kernel in its eager
+#   split op (dsa_prefill_cuda_graph.py:85). So prefill and decode alike. The
+#   binding asks `n_indexer_rope_interleave` (GLM-5.x: 1; DeepSeek-V3.2: 0, so
+#   sglang runs the rotation and the quant apart there). Attention CP is not
+#   assumed.
+# vLLM (audited at v0.32.0): not bound — its DSA query preparation is a
+#   different boundary (`fused_q`, which also ropes the main q_pe).
+
+fused_op: fused_indexer_q_rope_first_quant
+
+naive_pattern:
+  nodes:
+    q_rope_slice:   { op: slice,  inputs: [external.q] }
+    q_norope_slice: { op: slice,  inputs: [external.q] }
+    q_rope:         { op: rope,   inputs: [q_rope_slice.out] }
+    q_concat:       { op: concat, inputs: [q_rope.out, q_norope_slice.out] }
+    quant: { op: quantise_activation, inputs: [q_concat.out], optional: true }
+  io_mapping:
+    q:      external.q
+    output: quant.out
+
+# Output contract: the rotated query is written as a new FP8 buffer, so the
+# whole of it crosses this launch on both sides — the kernel reads every
+# channel to quantise it. Absent the declaration the absorbed slice/concat
+# pair would be read as a re-partition nobody moved
+# (`fusion._passed_through`) and the launch billed the rope channels alone.
+allocates_output: "sglang.kernels.ops.attention.dsv4.elementwise.fused_q_indexer_rope_first_quant (elementwise.py:249), from Indexer._fused_q_prepare_and_store (srt/layers/attention/dsa/dsa_indexer.py:1047): 'Indexer Q: RoPE on the leading dims + fp8 act-quant'"

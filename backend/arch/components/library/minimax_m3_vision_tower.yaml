@@ -1,0 +1,33 @@
+# MiniMax-M3 CLIP vision tower + multimodal projector + patch-merge MLP.
+#
+# Wraps the entire vision pipeline as a single singleton aux_block so it
+# renders as ONE first-level VISION card. Singleton wrapper — leaves land at
+# bare HF tensor paths (no `vision.X.` index injection).
+#
+# Forward:
+#   x = patch_embedding(pixels)         # 3D conv (n_vis_channels,s_patch_temporal,s_patch,s_patch) -> d_vis_model, no bias
+#   x = pre_layrnorm(x)                 # (HF typo preserved) LayerNorm
+#   for blk in encoder.layers: x = blk(x)          # n_vis_layers CLIP ViT blocks
+#   x = multi_modal_projector(x)        # linear_1 (d_vis_model->d_model) + gelu + linear_2 (d_model->d_model)
+#   x = patch_merge_mlp(spatial_merge(x))   # n_spatial_merge^2 window -> one row; linear_1 (n_spatial_merge^2*d_model -> d_model) + gelu + linear_2 (d_model->d_model)
+#
+# Required dims: d_vis_model, n_vis_heads, d_vis_head, d_vis_ffn, n_vis_layers, n_vis_channels, s_patch_temporal, s_patch, n_spatial_merge, d_model, d_vis_proj.
+role: aux_block
+description: "MiniMax-M3 CLIP vision tower + multimodal projector + patch-merge MLP. Singleton wrapper — bare HF tensor paths."
+graph:
+  vision_tower.vision_model.embeddings.patch_embedding: { op: linear, in: x, dims: { in: "n_vis_channels * s_patch_temporal * s_patch * s_patch", out: d_vis_model, bias: "0" }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  vision_tower.vision_model.pre_layrnorm:               { op: layernorm, in: vision_tower.vision_model.embeddings.patch_embedding, dim: d_vis_model, weight_axes: [{ replicated: true }] }
+  vision_tower.vision_model.encoder.layers:             { op: clip_vision_block, in: vision_tower.vision_model.pre_layrnorm, chain: n_vis_layers, checkpoint: { index: local }, role: aux_block }
+  multi_modal_projector.linear_1:                       { op: linear, in: vision_tower.vision_model.encoder.layers, dims: { in: d_vis_model, out: d_vis_proj, bias: "1" }, weight_axes: [{ world: dense_ffn, parts: d_vis_proj, fit: exact }, { replicated: true }] }
+  multi_modal_projector.gelu:                           { op: gelu, in: multi_modal_projector.linear_1, dim: d_vis_proj }
+  multi_modal_projector.linear_2:                       { op: linear, in: multi_modal_projector.gelu, dims: { in: d_vis_proj, out: d_model, bias: "1" }, weight_axes: [{ replicated: true }, { world: dense_ffn, parts: d_vis_proj, fit: exact }] }
+  # MiniMaxVLPatchMerger.forward folds each n_spatial_merge x n_spatial_merge
+  # window of projected patches into one row before linear_1:
+  # `image_features.reshape(shape[0] // spatial_merge_size**2, -1)`
+  # (sglang models/minimax_vl_common.py:166-171, 0e178c3d22) — tokens / 4,
+  # channels x 4, so linear_1 reads n_spatial_merge^2 * d_model per merged row.
+  patch_merge_mlp.spatial_merge:                        { op: spatial_merge, in: multi_modal_projector.linear_2, dims: { n_spatial_merge: n_spatial_merge } }
+  patch_merge_mlp.linear_1:                             { op: linear, in: patch_merge_mlp.spatial_merge, dims: { in: "n_spatial_merge * n_spatial_merge * d_model", out: d_vis_proj, bias: "1" }, weight_axes: [{ world: dense_ffn, parts: d_vis_proj, fit: exact }, { replicated: true }] }
+  patch_merge_mlp.gelu:                                 { op: gelu, in: patch_merge_mlp.linear_1, dim: d_vis_proj }
+  patch_merge_mlp.linear_2:                             { op: linear, in: patch_merge_mlp.gelu, dims: { in: d_vis_proj, out: d_model, bias: "1" }, weight_axes: [{ replicated: true }, { world: dense_ffn, parts: d_vis_proj, fit: exact }] }
+outputs: [patch_merge_mlp.linear_2]

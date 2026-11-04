@@ -1,0 +1,31 @@
+# Pre-norm transformer block (HF "Llama-style" decoder layer).
+# Standard topology: norm → attention → +residual → norm → FFN → +residual.
+#
+# Parameterized compound op: caller supplies which attention component to
+# use, which FFN component to use, and which norm component to use. Inside
+# the graph, those slots are referenced as `op: <attn>`, `op: <ffn>`,
+# `op: <norm>`.
+#
+# Required dims (resolved from the spec's top-level `dims:` section):
+#   d_model — hidden size; threaded through all residual adds.
+#
+# Node names mirror the transformers forward submodule convention
+# (input_layernorm, post_attention_layernorm, self_attn, mlp) so the
+# per-node dtype matcher and `unmatched_nodes` reporting can find the
+# matching checkpoint tensor.
+role: block
+description: "Standard pre-norm transformer block: norm → attn → +x → norm → ffn → +x. Parameterized: attn/ffn/norm. Most modern LLMs."
+
+params:
+  attn: { kind: component }
+  ffn:  { kind: component }
+  norm: { kind: component, default: rmsnorm }
+
+graph:
+  input_layernorm:          { op: <norm>, in: x, dim: d_model, weight_axes: [{ replicated: true }] }
+  self_attn:                { op: <attn>, in: input_layernorm }
+  post_attn_add:            { op: add, in: [x, self_attn], dim: d_model }
+  post_attention_layernorm: { op: <norm>, in: post_attn_add, dim: d_model, weight_axes: [{ replicated: true }] }
+  mlp:                      { op: <ffn>, in: post_attention_layernorm }
+  out:                      { op: add, in: [post_attn_add, mlp], dim: d_model }
+outputs: [out]

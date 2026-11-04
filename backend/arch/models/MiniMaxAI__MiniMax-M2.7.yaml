@@ -1,0 +1,4 @@
+# Identity file for MiniMaxAI/MiniMax-M2.7
+base: minimax_m2
+match:
+  model_id: [MiniMaxAI/MiniMax-M2.7]

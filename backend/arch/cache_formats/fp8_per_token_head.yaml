@@ -1,0 +1,4 @@
+description: "FP8 (E4M3) with one dynamic F32 scale per token per head."
+source: "vLLM `fp8_per_token_head` (vllm/config/cache.py:34; inline F32 scale per K/V head, vllm/v1/attention/backends/triton_attn.py:277-289)"
+dtype: F8_E4M3
+scale: { granularity: per-token-head, dtype: F32 }

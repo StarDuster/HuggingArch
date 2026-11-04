@@ -1,0 +1,149 @@
+# MiMo-V2.5-Pro (Xiaomi). ~1T total / ~30B active MoE.
+# Hybrid attention with FUSED qkv_proj (attention_projection_layout=fused_qkv):
+#   - 1 dense layer + 9 MoE layers use full GQA (no sink) — at hybrid_layer_pattern==0
+#     positions: 0, 7, 15, 23, 31, 39, 47, 55, 62, 69
+#   - Remaining 60 layers use SWA (s_window=128) + per-head learnable attention_sink_bias.
+# All layers share n_kv_heads=8 (num_key_value_heads == swa_num_key_value_heads).
+# Partial RoPE: only the first d_rope=64 of each head_dim=192 is rotated.
+# Value head dim d_v_head=128 differs from QK head dim d_head=192. MoE routing is noaux_tc
+# (sigmoid + e_score_correction_bias).
+#
+# Auxiliary 3-layer MTP head: dense SwiGLU FFN + SWA-sink + parallel
+# enorm/hnorm → concat → eh_proj wrapper + trailing final_layernorm.
+match:
+  model_type: [mimo_v2]
+
+components:
+  attention: gqa_partial_rope_fused_qkv_vscale_attention
+  attention_swa: swa_partial_rope_sink_fused_qkv_vscale_attention
+  ffn_dense: swiglu_ffn
+  ffn_moe: moe_ffn_gate_routing_bias
+  norm: rmsnorm
+  block: pre_norm
+
+dims:
+  d_model:    config.hidden_size
+  n_heads:    config.num_attention_heads
+  n_kv_heads:   config.num_key_value_heads
+  d_head:    config.head_dim
+  d_v_head:   config.v_head_dim ?? d_head
+  d_rope:   "(d_head * 334) // 1000"          # int(d_head * partial_rotary_factor) = int(192 * 0.334) = 64
+  d_nope:   "d_head - d_rope"
+  s_window:    config.sliding_window ?? "128"
+  d_ffn:    config.intermediate_size
+  d_ffn_expert:   config.moe_intermediate_size
+  n_vocab:    config.vocab_size
+  n_layers:    config.num_hidden_layers
+  n_experts:    config.n_routed_experts
+  n_experts_active:    config.num_experts_per_tok
+  n_shared_experts:   config.n_shared_experts ?? "0"
+  # Read from config, no fallback: MiMoV2Config defaults both to None, and every shipped config sets both.
+  n_expert_groups:   config.n_group
+  n_groups_active:   config.topk_group
+  n_mtp_layers: config.num_nextn_predict_layers ?? "3"
+  s_max: config.max_position_embeddings
+
+view:
+  rope_theta: config.rope_theta
+  hidden_act: config.hidden_act
+  norm.eps: config.layernorm_epsilon
+  swa.num_heads: config.swa_num_attention_heads
+  swa.head_dim: config.swa_head_dim
+  swa.v_head_dim: config.swa_v_head_dim
+  swa.rope_theta: config.swa_rope_theta
+
+blocks:
+  # MTP layer (vLLM mimo_v2_mtp.py MiMoV2MultiTokenPredictorLayer.forward;
+  # sglang mimo_v2_nextn.py): eh_proj(cat[enorm(inputs_embeds),
+  # hnorm(previous_hidden_states)]) -> an SWA + sink pre-norm decoder layer ->
+  # final_layernorm. `inputs_embeds` is the main embed_tokens output, the
+  # hidden state the backbone's final norm. The library head holds that entry;
+  # the checkpoint names the trailing norm `final_layernorm` and the decoder's
+  # second norm `pre_mlp_layernorm`.
+  mimo_v2_5_pro_mtp_decoder:
+    graph:
+      layer: { op: pre_norm, in: x, module: null,
+               params: { attn: swa_partial_rope_sink_fused_qkv_vscale_attention, ffn: swiglu_ffn },
+               inner_modules: { post_attention_layernorm: pre_mlp_layernorm } }
+    outputs: [layer]
+  mimo_v2_5_pro_mtp_block:
+    inputs: [x, inputs_embeds]
+    graph:
+      layer: { op: mtp_block_shared_head, in: [x, inputs_embeds], module: null,
+               params: { inner: mimo_v2_5_pro_mtp_decoder },
+               inner_modules: { shared_head.norm: final_layernorm } }
+    outputs: [layer]
+
+model_inputs:
+  input_ids: { kind: tokens }
+
+# The transformers base model's tensors sit under `model.`; the LM head
+# beside it declares its own path.
+checkpoint: { root: model }
+
+model:
+  - { name: embed_tokens, inputs: [input_ids], op: embedding, boundary_role: input_embedding, dims: { n_vocab: n_vocab, d_model: d_model }, weight_axes: [{ world: attention, parts: n_vocab, fit: pad }, { replicated: true }] }
+  - name: layers
+    inputs: [embed_tokens]
+    repeat: n_layers
+    streams:
+      hidden: { carries: true }
+    per_layer:
+      assign:
+        # Layers with moe_layer_freq == 0 (layer 0): full GQA + dense SwiGLU FFN (no sink — add_full_attention_sink_bias=false)
+        - { type: gqa_dense, from: config.moe_layer_freq, is: '0' }
+        # Full GQA + MoE FFN at hybrid_layer_pattern==0 positions (no sink)
+        - { type: gqa_moe,   from: config.hybrid_layer_pattern, is: '0' }
+        # Remaining 60 layers: SWA + sink + MoE
+        - { type: swa_moe,   from: config.hybrid_layer_pattern, is: '1' }
+        - { type: swa_moe,   from: config.moe_layer_freq, is: '1' }
+      map:
+        gqa_dense: { attention: gqa_partial_rope_fused_qkv_vscale_attention,      ffn: swiglu_ffn }
+        gqa_moe:   { attention: gqa_partial_rope_fused_qkv_vscale_attention,      ffn: moe_ffn_gate_routing_bias }
+        swa_moe:   { attention: swa_partial_rope_sink_fused_qkv_vscale_attention, ffn: moe_ffn_gate_routing_bias }
+  - { name: norm, op: rmsnorm, dim: d_model, weight_axes: [{ replicated: true }] , inputs: [layers]}
+  - { name: lm_head, op: linear, checkpoint: { path: lm_head }, boundary_role: output_head, dims: { in: d_model, out: n_vocab }, weight_axes: [{ world: attention, parts: n_vocab, fit: pad }, { replicated: true }] , inputs: [norm]}
+  - name: mtp
+    group: true
+    aux_kind: mtp
+    checkpoint: { prefix: model.mtp.layers, index: local }
+    inputs: [norm]
+    layers:
+      - { name: layers, repeat: n_mtp_layers, template: mimo_v2_5_pro_mtp_block , inputs: [norm, embed_tokens], streams: { hidden: { carries: true } }}
+      # MTP logits use the main lm_head, once per MTP layer (vLLM mimo_v2_mtp.py compute_logits).
+      - { name: mtp_logits, op: linear, boundary_role: output_head, repeat: n_mtp_layers, dims: { in: d_model, out: n_vocab }, weight_axes: [{ world: attention, parts: n_vocab, fit: pad }, { replicated: true }], tied_weight: { to: lm_head } , inputs: [layers]}
+
+# FP8-E4M3 + per-128×128-tile F32 scale (same convention as DSv3 / MiMo-V2-Flash).
+# Apart from it:
+#   - o_proj.weight is BF16 across main + MTP (config.quantization_config.ignored_layers
+#     lists every `model.layers.X.self_attn.o_proj` plus the MTP `model.decoder.self_attn.o_proj`):
+#     the `attention_output` role.
+#   - Router gate weight is F32 (not BF16) and e_score_correction_bias is F32.
+quant_context:
+  per_role:
+    attention: { method: fp8, block_h: 128, block_w: 128 }
+    ffn_dense: { method: fp8, block_h: 128, block_w: 128 }
+    ffn_moe:   { method: fp8, block_h: 128, block_w: 128 }
+    attention_output: { method: none }
+    router:    { method: none, dtype: F32 }
+    default:   { method: none }
+  overrides:
+    # The fused QKV's scale grid is blocked per SEGMENT, each ceil-padded on
+    # its own, with the K segment blocked per head inside that:
+    # 192 + 8x2 + 8 = 216 rows where the flat rule gives ceil(27136/128) = 212,
+    # and the file says [216, 48]. Every layer of this model carries it — the
+    # windowed class shares the backbone's head counts here, and the MTP stack
+    # holds the identical shape — so it is not scoped to a stack.
+    - tensors_re: '\.qkv_proj\.weight$'
+      dtype: F8_E4M3
+      method: fp8
+      block_h: 128
+      block_w: 128
+      scale_shape:
+        - "((n_heads * d_head + block_h - 1) // block_h)
+           + n_kv_heads * ((d_head + block_h - 1) // block_h)
+           + ((n_kv_heads * d_v_head + block_h - 1) // block_h)"
+        - "(in + block_w - 1) // block_w"
+    - tensors_re: 'mlp\.gate\.e_score_correction_bias$'
+      dtype: F32
+  default_dtype: BF16

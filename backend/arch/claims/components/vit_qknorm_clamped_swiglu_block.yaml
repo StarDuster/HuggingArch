@@ -1,0 +1,8 @@
+schema: huggingarch.claims/v1
+subject: vit_qknorm_clamped_swiglu_block
+axioms:
+  checks:
+  - kind: kv_growth
+    storage: none
+    src: modeling_glm5_next.py::Glm5NextVisionBlock.forward `hidden_states = hidden_states + self.attn(self.norm1(hidden_states),
+      cu_seqlens=cu_seqlens, position_embeddings=position_embeddings, **kwargs)`

@@ -1,0 +1,43 @@
+# MoE FFN with FUSED+PACKED expert projections and a SCALAR-GATED shared expert.
+# Used by: Qwen3.5-MoE backbone (MTP head uses the unrolled sibling
+# `moe_ffn_scaled_shared_gate`).
+#
+# Structural differences vs `moe_ffn_scaled_shared_gate`:
+#   - Expert gate+up is one fused `gate_up_proj`, then split. Param total
+#     matches the two-linear form; only the tensor layout differs.
+#   - The expert bank is a packed 3-D nn.Parameter per projection, no
+#     `.weight` suffix and no per-expert index (`fused_gated_experts`,
+#     `expert_weight: leading_axis`):
+#       experts.gate_up_proj  [n_expert_copies, 2·d_ffn_expert, d_model]
+#       experts.down_proj     [n_expert_copies, d_model, d_ffn_expert]
+#   - Shared expert uses SEPARATE gate/up projections under `shared_expert`
+#     (singular — the checkpoint spelling).
+#   - A scalar gate sigmoid(shared_expert_gate(x)), `shared_expert_gate:
+#     d_model → 1`, modulates shared expert output before it's added to the
+#     routed output.
+#
+# Forward source: transformers Qwen3_5MoeSparseMoeBlock.forward /
+# Qwen3NextSparseMoeBlock.forward; vLLM qwen3_next.py Qwen3NextSparseMoeBlock
+# (FusedMoE with renormalize=config.norm_topk_prob, default True).
+#
+# Required dims: d_model, d_ffn_expert, d_ffn_shared, n_experts,
+#                n_experts_active, n_route_targets, n_topk_renorm
+# Optional dims: n_router_bias_params (router bias, default 0)
+
+role: ffn_moe
+description: "MoE with softmax top-k routing, packed fused expert projections + wide shared expert with a sigmoid scalar gate. Qwen3.5-MoE backbone."
+graph:
+  # Routing: Qwen3_5MoeTopKRouter / Qwen3NextTopKRouter — linear → softmax
+  # over the experts → top-k → renormalize the k weights (see
+  # router_softmax_topk; the switch is n_topk_renorm).
+  gate:                 { op: router_softmax_topk, in: x }
+  permute:              { op: permute, in: [x, gate] }
+  experts:              { op: fused_gated_experts, role: ffn_moe, in: permute, dims: { d_model: d_model, d_ffn: d_ffn_expert }, expert_weight: leading_axis }
+  combine:              { op: combine, in: [experts, gate] }
+  shared_expert:        { op: swiglu_ffn, in: x, dims: { d_model: d_model, d_ffn: d_ffn_shared } }
+  shared_expert_gate:   { op: linear, in: x, dims: { in: d_model, out: "1" }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  # `F.sigmoid(self.shared_expert_gate(x)) * shared_expert_output`
+  shared_expert_gate_act: { op: sigmoid, in: shared_expert_gate, dim: "1" }
+  shared_expert_scaled: { op: mul, in: [shared_expert, shared_expert_gate_act], dim: d_model }
+  moe_out:              { op: add, in: [combine, shared_expert_scaled], dim: d_model }
+outputs: [moe_out]

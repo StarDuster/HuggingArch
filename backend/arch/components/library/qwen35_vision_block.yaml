@@ -1,0 +1,37 @@
+# Qwen3.5-MoE vision encoder layer (also Qwen3-VL's).
+# Pre-norm ViT layer with biased fused QKV / output projection / MLP.
+#   Qwen3_5MoeVisionAttention.forward: q, k = apply_rotary_pos_emb_vision(q, k,
+#     cos, sin) — 2-D (h, w) rotary over the whole head dim — before SDPA.
+#   Qwen3_5MoeVisionMLP: act_fn = ACT2FN[vision_config.hidden_act], which both
+#     models set to `gelu_pytorch_tanh`.
+role: block
+description: "Qwen3.5-MoE / Qwen3-VL ViT encoder layer: pre-norm with biased fused QKV, 2-D vision RoPE on Q/K, output projection, tanh-GELU MLP."
+
+graph:
+  norm1:              { op: layernorm, in: x, dim: d_vis_model, weight_axes: [{ replicated: true }] }
+  attn.qkv:           { op: linear, in: norm1, dims: { in: d_vis_model, out: "3 * d_vis_model", bias: "1" }, weight_axes: [{ segments: [{ segment: q, extent: "n_vis_heads * d_vis_head", world: attention, parts: n_vis_heads, fit: replica_cells }, { segment: k, extent: "n_vis_heads * d_vis_head", world: attention, parts: n_vis_heads, fit: replica_cells }, { segment: v, extent: "n_vis_heads * d_vis_head", world: attention, parts: n_vis_heads, fit: replica_cells }] }, { replicated: true }] }
+  attn.q_slice:       { op: slice, in: attn.qkv, dims: { in: "3 * d_vis_model", out: d_vis_model, start: "0" } }
+  attn.k_slice:       { op: slice, in: attn.qkv, dims: { in: "3 * d_vis_model", out: d_vis_model, start: d_vis_model } }
+  attn.v_slice:       { op: slice, in: attn.qkv, dims: { in: "3 * d_vis_model", out: d_vis_model, start: "2 * d_vis_model" } }
+  attn.q_split_view:       { op: view_split, in: attn.q_slice, axis: -1, dims: { in: d_vis_model, n_heads: n_vis_heads, d_head: d_vis_head } }
+  attn.q_split:       { op: transpose, in: attn.q_split_view, axes: [0, 2, 1, 3] }
+  attn.k_split_view:       { op: view_split, in: attn.k_slice, axis: -1, dims: { in: d_vis_model, n_heads: n_vis_heads, d_head: d_vis_head } }
+  attn.k_split:       { op: transpose, in: attn.k_split_view, axes: [0, 2, 1, 3] }
+  attn.v_split_view:       { op: view_split, in: attn.v_slice, axis: -1, dims: { in: d_vis_model, n_heads: n_vis_heads, d_head: d_vis_head } }
+  attn.v_split:       { op: transpose, in: attn.v_split_view, axes: [0, 2, 1, 3] }
+  attn.q_rope:        { op: rope_2d, in: attn.q_split, dim: d_vis_head }
+  attn.k_rope:        { op: rope_2d, in: attn.k_split, dim: d_vis_head }
+  # Bidirectional: every query sees every key of its image (HF modeling_qwen3_vl.py:260,300,319 `is_causal=False`; vLLM MMEncoderAttention (qwen2_5_vl.py:391) runs non-causal per cu_seqlens chunk).
+  attn.qk_score:      { op: attention_score, in: [attn.q_rope, attn.k_rope], dims: { is_causal: "0", n_heads: n_vis_heads, d_head: d_vis_head } }
+  attn.softmax:       { op: softmax, in: attn.qk_score, dims: { is_causal: "0", n_heads: n_vis_heads } }
+  attn.apply:         { op: attention_apply, in: [attn.softmax, attn.v_split], dims: { is_causal: "0", n_heads: n_vis_heads, d_head: d_vis_head } }
+  attn.merge_t:         { op: transpose, in: attn.apply, axes: [0, 2, 1, 3] }
+  attn.merge:         { op: view_merge, in: attn.merge_t }
+  attn.proj:          { op: linear, in: attn.merge, dims: { in: "n_vis_heads * d_vis_head", out: d_vis_model, bias: "1" }, weight_axes: [{ replicated: true }, { world: attention, parts: n_vis_heads, fit: replica_cells }] }
+  attn_residual:      { op: add, in: [x, attn.proj], dim: d_vis_model }
+  norm2:              { op: layernorm, in: attn_residual, dim: d_vis_model, weight_axes: [{ replicated: true }] }
+  mlp.linear_fc1:     { op: linear, in: norm2, dims: { in: d_vis_model, out: d_vis_ffn, bias: "1" }, weight_axes: [{ world: dense_ffn, parts: d_vis_ffn, fit: exact }, { replicated: true }] }
+  mlp.act:            { op: gelu_tanh, in: mlp.linear_fc1, dim: d_vis_ffn }
+  mlp.linear_fc2:     { op: linear, in: mlp.act, dims: { in: d_vis_ffn, out: d_vis_model, bias: "1" }, weight_axes: [{ replicated: true }, { world: dense_ffn, parts: d_vis_ffn, fit: exact }] }
+  out:                { op: add, in: [attn_residual, mlp.linear_fc2], dim: d_vis_model }
+outputs: [out]

@@ -1,0 +1,284 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 972" width="1600" height="972" font-family="-apple-system, 'Segoe UI', Inter, Helvetica, Arial, sans-serif">
+<title>HuggingArch architecture</title>
+<defs>
+  <filter id="sh" x="-10%" y="-10%" width="120%" height="140%"><feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#0f172a" flood-opacity="0.08"/></filter>
+  <marker id="mA" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#e8891c"/></marker>
+  <marker id="mG" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#94a3b8"/></marker>
+  <marker id="mK" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#0f172a"/></marker>
+  <linearGradient id="railbg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f8fafc"/><stop offset="1" stop-color="#f1f5f9"/></linearGradient>
+  <pattern id="dots" width="14" height="14" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r="1" fill="#e2e8f0"/></pattern>
+</defs>
+<rect width="1600" height="972" fill="#fbfbfa"/>
+<text xml:space="preserve" x="40" y="52" font-size="28" font-weight="800" fill="#0f172a" text-anchor="start">HuggingArch</text>
+<rect x="40" y="90" width="1120" height="76" rx="14" fill="url(#railbg)" stroke="#e2e8f0" stroke-width="1.2"/>
+<rect x="58" y="82" width="235.0" height="16" fill="#fbfbfa"/>
+<text xml:space="preserve" x="68" y="94.5" font-size="11.5" font-weight="750" fill="#94a3b8" text-anchor="start" letter-spacing="2">MODEL TRUTH · HUGGINGFACE</text>
+<rect x="58" y="102" width="214" height="52" rx="11" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.1" filter="url(#sh)"/>
+<rect x="66" y="111.0" width="34" height="34" rx="9" fill="#ffffff" stroke="#e2e8f0" stroke-width="1"/>
+<path d="M75 121.0 H 86 L 92 128.0 L 86 135.0 H 75 Z" fill="none" stroke="#475569" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="80" cy="128.0" r="1.8" fill="#e8891c"/>
+<text xml:space="preserve" x="110" y="127.0" font-size="14.5" font-weight="680" fill="#0f172a" text-anchor="start">model id</text>
+<text xml:space="preserve" x="110" y="144.0" font-size="12" font-weight="400" fill="#475569" text-anchor="start">the only input</text>
+<rect x="284" y="102" width="262" height="52" rx="11" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.1" filter="url(#sh)"/>
+<rect x="292" y="111.0" width="34" height="34" rx="9" fill="#ffffff" stroke="#e2e8f0" stroke-width="1"/>
+<rect x="300.0" y="119.0" width="5" height="5" rx="1" fill="#cbd5e1"/>
+<rect x="300.0" y="125.5" width="5" height="5" rx="1" fill="#cbd5e1"/>
+<rect x="300.0" y="132.0" width="5" height="5" rx="1" fill="#cbd5e1"/>
+<rect x="306.5" y="119.0" width="5" height="5" rx="1" fill="#cbd5e1"/>
+<rect x="306.5" y="125.5" width="5" height="5" rx="1" fill="#cbd5e1"/>
+<rect x="306.5" y="132.0" width="5" height="5" rx="1" fill="#cbd5e1"/>
+<rect x="313.0" y="119.0" width="5" height="5" rx="1" fill="#e8891c"/>
+<rect x="313.0" y="125.5" width="5" height="5" rx="1" fill="#cbd5e1"/>
+<rect x="313.0" y="132.0" width="5" height="5" rx="1" fill="#cbd5e1"/>
+<text xml:space="preserve" x="336" y="127.0" font-size="14.5" font-weight="680" fill="#0f172a" text-anchor="start">safetensors headers</text>
+<text xml:space="preserve" x="336" y="144.0" font-size="12" font-weight="400" fill="#475569" text-anchor="start">bytes per tensor, no weights</text>
+<rect x="558" y="102" width="220" height="52" rx="11" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.1" filter="url(#sh)"/>
+<rect x="566" y="111.0" width="34" height="34" rx="9" fill="#ffffff" stroke="#e2e8f0" stroke-width="1"/>
+<text xml:space="preserve" x="583" y="133.0" font-size="13" font-weight="800" fill="#475569" text-anchor="middle" font-family="'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace">&lt;/&gt;</text>
+<text xml:space="preserve" x="610" y="127.0" font-size="14.5" font-weight="680" fill="#0f172a" text-anchor="start">modeling source</text>
+<text xml:space="preserve" x="610" y="144.0" font-size="12" font-weight="400" fill="#475569" text-anchor="start">forward()</text>
+<rect x="860" y="102" width="280" height="52" rx="11" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.1" filter="url(#sh)"/>
+<rect x="868" y="111.0" width="34" height="34" rx="9" fill="#ffffff" stroke="#e2e8f0" stroke-width="1"/>
+<text xml:space="preserve" x="885" y="133.0" font-size="14" font-weight="800" fill="#475569" text-anchor="middle" font-family="'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace">{ }</text>
+<text xml:space="preserve" x="912" y="127.0" font-size="14.5" font-weight="680" fill="#0f172a" text-anchor="start">config.json</text>
+<text xml:space="preserve" x="912" y="144.0" font-size="12" font-weight="400" fill="#475569" text-anchor="start">dimensions</text>
+<rect x="500" y="876" width="1060" height="76" rx="14" fill="url(#railbg)" stroke="#e2e8f0" stroke-width="1.2"/>
+<rect x="518" y="868" width="192.0" height="16" fill="#fbfbfa"/>
+<text xml:space="preserve" x="528" y="880.5" font-size="11.5" font-weight="750" fill="#94a3b8" text-anchor="start" letter-spacing="2">HARDWARE TRUTH · GPU</text>
+<rect x="520" y="888" width="560" height="52" rx="11" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.1" filter="url(#sh)"/>
+<rect x="528" y="897.0" width="34" height="34" rx="9" fill="#ffffff" stroke="#e2e8f0" stroke-width="1"/>
+<circle cx="545" cy="916.0" r="8" fill="none" stroke="#475569" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M545 916.0 L 549 912.0" stroke="#e8891c" stroke-width="1.8" stroke-linecap="round"/>
+<path d="M542 905.0 H 548" fill="none" stroke="#475569" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/>
+<text xml:space="preserve" x="572" y="913.0" font-size="14.5" font-weight="680" fill="#0f172a" text-anchor="start">Measured kernels</text>
+<text xml:space="preserve" x="572" y="930.0" font-size="12" font-weight="400" fill="#475569" text-anchor="start">FA3 · FlashInfer · FlashMLA · DeepGEMM, checked vs torch</text>
+<rect x="1210" y="888" width="330" height="52" rx="11" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.1" filter="url(#sh)"/>
+<rect x="1218" y="897.0" width="34" height="34" rx="9" fill="#ffffff" stroke="#e2e8f0" stroke-width="1"/>
+<rect x="1228" y="907.0" width="14" height="14" rx="2.5" fill="none" stroke="#475569" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/>
+<rect x="1232" y="911.0" width="6" height="6" rx="1" fill="#e8891c"/>
+<path d="M1231 907.0 V 904.0 M1231 921.0 V 924.0 M1228 910.0 H 1225 M1242 910.0 H 1245" fill="none" stroke="#475569" stroke-width="1.2" stroke-linecap="round"/>
+<path d="M1235 907.0 V 904.0 M1235 921.0 V 924.0 M1228 914.0 H 1225 M1242 914.0 H 1245" fill="none" stroke="#475569" stroke-width="1.2" stroke-linecap="round"/>
+<path d="M1239 907.0 V 904.0 M1239 921.0 V 924.0 M1228 918.0 H 1225 M1242 918.0 H 1245" fill="none" stroke="#475569" stroke-width="1.2" stroke-linecap="round"/>
+<text xml:space="preserve" x="1262" y="913.0" font-size="14.5" font-weight="680" fill="#0f172a" text-anchor="start">GPU specs</text>
+<text xml:space="preserve" x="1262" y="930.0" font-size="12" font-weight="400" fill="#475569" text-anchor="start">peak FLOPs · HBM bandwidth · capacity</text>
+<rect x="40" y="196" width="430" height="640" rx="16" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.2" filter="url(#sh)"/>
+<circle cx="72" cy="228" r="14" fill="#0f172a"/>
+<text xml:space="preserve" x="72" y="233" font-size="14" font-weight="700" fill="#fff" text-anchor="middle">1</text>
+<text xml:space="preserve" x="96" y="233" font-size="14" font-weight="750" fill="#0f172a" text-anchor="start" letter-spacing="1.6">AUTHOR</text>
+<text xml:space="preserve" x="450" y="233" font-size="13" font-weight="400" fill="#94a3b8" text-anchor="end">an agent writes, checks decide</text>
+<line x1="56" x2="454" y1="254" y2="254" stroke="#e2e8f0"/>
+<rect x="500" y="196" width="660" height="640" rx="16" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.2" filter="url(#sh)"/>
+<circle cx="532" cy="228" r="14" fill="#0f172a"/>
+<text xml:space="preserve" x="532" y="233" font-size="14" font-weight="700" fill="#fff" text-anchor="middle">2</text>
+<text xml:space="preserve" x="556" y="233" font-size="14" font-weight="750" fill="#0f172a" text-anchor="start" letter-spacing="1.6">EVALUATE ONCE</text>
+<text xml:space="preserve" x="1140" y="233" font-size="13" font-weight="400" fill="#94a3b8" text-anchor="end">one walk, every number</text>
+<line x1="516" x2="1144" y1="254" y2="254" stroke="#e2e8f0"/>
+<rect x="1190" y="196" width="370" height="640" rx="16" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.2" filter="url(#sh)"/>
+<circle cx="1222" cy="228" r="14" fill="#0f172a"/>
+<text xml:space="preserve" x="1222" y="233" font-size="14" font-weight="700" fill="#fff" text-anchor="middle">3</text>
+<text xml:space="preserve" x="1246" y="233" font-size="14" font-weight="750" fill="#0f172a" text-anchor="start" letter-spacing="1.6">CONSUME</text>
+<text xml:space="preserve" x="1540" y="233" font-size="13" font-weight="400" fill="#94a3b8" text-anchor="end">views read the walk</text>
+<line x1="1206" x2="1544" y1="254" y2="254" stroke="#e2e8f0"/>
+<rect x="64" y="276" width="236" height="58" rx="10" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.3"/>
+<text xml:space="preserve" x="80" y="301" font-size="15" font-weight="700" fill="#0f172a" text-anchor="start">Spec Writer</text>
+<text xml:space="preserve" x="80" y="320" font-size="12.5" font-weight="400" fill="#475569" text-anchor="start">LLM agent, composes YAML</text>
+<rect x="64" y="362" width="236" height="58" rx="10" fill="#f0fdf4" stroke="#86efac" stroke-width="1.3"/>
+<text xml:space="preserve" x="80" y="387" font-size="15" font-weight="700" fill="#14532d" text-anchor="start">Validator</text>
+<text xml:space="preserve" x="80" y="406" font-size="12.5" font-weight="400" fill="#475569" text-anchor="start">bytes vs safetensors</text>
+<rect x="64" y="448" width="236" height="58" rx="10" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.3"/>
+<text xml:space="preserve" x="80" y="473" font-size="15" font-weight="700" fill="#0f172a" text-anchor="start">Spec Reviewer</text>
+<text xml:space="preserve" x="80" y="492" font-size="12.5" font-weight="400" fill="#475569" text-anchor="start">spec vs forward() source</text>
+<path d="M182.0 334 V 359" fill="none" stroke="#e8891c" stroke-width="2.2" marker-end="url(#mA)" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M182.0 420 V 445" fill="none" stroke="#e8891c" stroke-width="2.2" marker-end="url(#mA)" stroke-linecap="round" stroke-linejoin="round"/>
+<rect x="330" y="405" width="116" height="58" rx="10" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.3"/>
+<text xml:space="preserve" x="344" y="430" font-size="15" font-weight="700" fill="#0f172a" text-anchor="start">Refiner</text>
+<text xml:space="preserve" x="344" y="449" font-size="12.5" font-weight="400" fill="#475569" text-anchor="start">fix verified</text>
+<path d="M300 486 H 388.0 V 466" fill="none" stroke="#94a3b8" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#mG)" stroke-linecap="round" stroke-linejoin="round"/>
+<text xml:space="preserve" x="310" y="502" font-size="11.5" font-weight="650" fill="#94a3b8" text-anchor="start">NO_PASS</text>
+<path d="M388.0 405 V 382 H 303" fill="none" stroke="#94a3b8" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#mG)" stroke-linecap="round" stroke-linejoin="round"/>
+<text xml:space="preserve" x="318" y="375" font-size="11.5" font-weight="650" fill="#94a3b8" text-anchor="start">re-check</text>
+<path d="M182.0 506 V 537" fill="none" stroke="#e8891c" stroke-width="2.2" marker-end="url(#mA)" stroke-linecap="round" stroke-linejoin="round"/>
+<text xml:space="preserve" x="192.0" y="528" font-size="11.5" font-weight="700" fill="#c2410c" text-anchor="start">PASS</text>
+<rect x="64" y="540" width="382" height="160" rx="12" fill="#0f172a" stroke="#0f172a" stroke-width="0" filter="url(#sh)"/>
+<text xml:space="preserve" x="82" y="568" font-size="12.5" font-weight="500" fill="#64748b" text-anchor="start" font-family="'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace"># deepseek_v3.yaml</text>
+<text xml:space="preserve" x="82" y="587" font-size="12.5" font-weight="500" fill="#f8c88a" text-anchor="start" font-family="'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace">components:</text>
+<text xml:space="preserve" x="82" y="606" font-size="12.5" font-weight="500" fill="#e2e8f0" text-anchor="start" font-family="'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace">  attention: mla_attention</text>
+<text xml:space="preserve" x="82" y="625" font-size="12.5" font-weight="500" fill="#e2e8f0" text-anchor="start" font-family="'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace">  ffn_moe:   moe_ffn_gate_routing_bias</text>
+<text xml:space="preserve" x="82" y="644" font-size="12.5" font-weight="500" fill="#f8c88a" text-anchor="start" font-family="'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace">dims:</text>
+<text xml:space="preserve" x="82" y="663" font-size="12.5" font-weight="500" fill="#e2e8f0" text-anchor="start" font-family="'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace">  n_layers:  config.num_hidden_layers</text>
+<text xml:space="preserve" x="82" y="682" font-size="12.5" font-weight="500" fill="#f8c88a" text-anchor="start" font-family="'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace">quant_context: { per_role: … }</text>
+<rect x="64" y="718" width="120" height="56" rx="10" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1.2"/>
+<text xml:space="preserve" x="76" y="742" font-size="13.5" font-weight="700" fill="#0f172a" text-anchor="start">primitives</text>
+<text xml:space="preserve" x="76" y="760" font-size="12" font-weight="400" fill="#475569" text-anchor="start">90+</text>
+<path d="M184 746 H 193" fill="none" stroke="#94a3b8" stroke-width="1.4" marker-end="url(#mG)" stroke-linecap="round" stroke-linejoin="round"/>
+<rect x="194" y="718" width="120" height="56" rx="10" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1.2"/>
+<text xml:space="preserve" x="206" y="742" font-size="13.5" font-weight="700" fill="#0f172a" text-anchor="start">components</text>
+<text xml:space="preserve" x="206" y="760" font-size="12" font-weight="400" fill="#475569" text-anchor="start">150+</text>
+<path d="M314 746 H 323" fill="none" stroke="#94a3b8" stroke-width="1.4" marker-end="url(#mG)" stroke-linecap="round" stroke-linejoin="round"/>
+<rect x="324" y="718" width="120" height="56" rx="10" fill="#fff4e6" stroke="#f5c08a" stroke-width="1.2"/>
+<text xml:space="preserve" x="336" y="742" font-size="13.5" font-weight="700" fill="#0f172a" text-anchor="start">model specs</text>
+<text xml:space="preserve" x="336" y="760" font-size="12" font-weight="400" fill="#475569" text-anchor="start">one per family</text>
+<text xml:space="preserve" x="520" y="292" font-size="12.5" font-weight="700" fill="#94a3b8" text-anchor="start" letter-spacing="1">deployment</text>
+<rect x="624" y="274" width="165.2" height="28" rx="14" fill="#eff6ff" stroke="#bfdbfe" stroke-width="1"/>
+<text xml:space="preserve" x="706.6" y="293" font-size="12.5" font-weight="600" fill="#1e3a8a" text-anchor="middle">TP · PP · EP · CP · DP</text>
+<rect x="797.2" y="274" width="79.4" height="28" rx="14" fill="#eff6ff" stroke="#bfdbfe" stroke-width="1"/>
+<text xml:space="preserve" x="836.9000000000001" y="293" font-size="12.5" font-weight="600" fill="#1e3a8a" text-anchor="middle">precision</text>
+<rect x="884.6" y="274" width="39.8" height="28" rx="14" fill="#eff6ff" stroke="#bfdbfe" stroke-width="1"/>
+<text xml:space="preserve" x="904.5" y="293" font-size="12.5" font-weight="600" fill="#1e3a8a" text-anchor="middle">GPU</text>
+<rect x="932.4" y="274" width="119.0" height="28" rx="14" fill="#eff6ff" stroke="#bfdbfe" stroke-width="1"/>
+<text xml:space="preserve" x="991.9" y="293" font-size="12.5" font-weight="600" fill="#1e3a8a" text-anchor="middle">batch × context</text>
+<rect x="1059.4" y="274" width="79.4" height="28" rx="14" fill="#eff6ff" stroke="#bfdbfe" stroke-width="1"/>
+<text xml:space="preserve" x="1099.1000000000001" y="293" font-size="12.5" font-weight="600" fill="#1e3a8a" text-anchor="middle">framework</text>
+<rect x="520" y="326" width="190" height="150" rx="12" fill="#ffffff" stroke="#f5c08a" stroke-width="1.4"/>
+<text xml:space="preserve" x="536" y="352" font-size="15.5" font-weight="750" fill="#0f172a" text-anchor="start">SpecIRTree</text>
+<text xml:space="preserve" x="536" y="371" font-size="12.5" font-weight="400" fill="#475569" text-anchor="start">YAML expanded once</text>
+<rect x="735" y="326" width="190" height="150" rx="12" fill="#ffffff" stroke="#f5c08a" stroke-width="1.4"/>
+<text xml:space="preserve" x="751" y="352" font-size="15.5" font-weight="750" fill="#0f172a" text-anchor="start">Program</text>
+<text xml:space="preserve" x="751" y="371" font-size="12.5" font-weight="400" fill="#475569" text-anchor="start">stages · block × N</text>
+<rect x="950" y="326" width="190" height="150" rx="12" fill="#ffffff" stroke="#f5c08a" stroke-width="1.4"/>
+<text xml:space="preserve" x="966" y="352" font-size="15.5" font-weight="750" fill="#0f172a" text-anchor="start">Evaluator</text>
+<text xml:space="preserve" x="966" y="371" font-size="12.5" font-weight="400" fill="#475569" text-anchor="start">one walk, two halves</text>
+<path d="M710 411.0 H 732" fill="none" stroke="#e8891c" stroke-width="2.2" marker-end="url(#mA)" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M925 411.0 H 947" fill="none" stroke="#e8891c" stroke-width="2.2" marker-end="url(#mA)" stroke-linecap="round" stroke-linejoin="round"/>
+<line x1="615" y1="396" x2="575" y2="426" stroke="#f5c08a" stroke-width="1.6"/>
+<line x1="615" y1="396" x2="655" y2="426" stroke="#f5c08a" stroke-width="1.6"/>
+<line x1="575" y1="426" x2="615" y2="456" stroke="#f5c08a" stroke-width="1.6"/>
+<line x1="655" y1="426" x2="615" y2="456" stroke="#f5c08a" stroke-width="1.6"/>
+<path d="M615 396 C 690 401, 690 451, 615 456" fill="none" stroke="#f5c08a" stroke-width="1.4" stroke-dasharray="3 3"/>
+<circle cx="615" cy="396" r="7" fill="#ffffff" stroke="#e8891c" stroke-width="1.8"/>
+<circle cx="575" cy="426" r="7" fill="#ffffff" stroke="#e8891c" stroke-width="1.8"/>
+<circle cx="655" cy="426" r="7" fill="#ffffff" stroke="#e8891c" stroke-width="1.8"/>
+<circle cx="615" cy="456" r="7" fill="#ffffff" stroke="#e8891c" stroke-width="1.8"/>
+<rect x="775" y="390" width="110" height="20" rx="5" fill="#ffffff" stroke="#f5c08a" stroke-width="1.1"/>
+<rect x="769" y="396" width="110" height="20" rx="5" fill="#ffffff" stroke="#f5c08a" stroke-width="1.1"/>
+<rect x="763" y="402" width="110" height="20" rx="5" fill="#fff4e6" stroke="#e8891c" stroke-width="1.3"/>
+<text xml:space="preserve" x="775" y="416" font-size="12" font-weight="650" fill="#c2410c" text-anchor="start">block</text>
+<text xml:space="preserve" x="887" y="417" font-size="15" font-weight="750" fill="#c2410c" text-anchor="start">× N</text>
+<rect x="763" y="434" width="110" height="20" rx="5" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.1"/>
+<text xml:space="preserve" x="775" y="448" font-size="12" font-weight="500" fill="#475569" text-anchor="start" font-family="'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace">lm_head</text>
+<rect x="964" y="396" width="52" height="24" rx="12" fill="#0f172a" stroke="#0f172a" stroke-width="1.2"/>
+<text xml:space="preserve" x="990" y="412.5" font-size="11.5" font-weight="700" fill="#fff" text-anchor="middle">int</text>
+<path d="M1020 408 H 1034" fill="none" stroke="#94a3b8" stroke-width="1.3" marker-end="url(#mG)" stroke-linecap="round" stroke-linejoin="round"/>
+<text xml:space="preserve" x="1040" y="413" font-size="14" font-weight="650" fill="#c2410c" text-anchor="start" font-family="'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace">1.83e12</text>
+<rect x="964" y="432" width="52" height="24" rx="12" fill="#ffffff" stroke="#0f172a" stroke-width="1.2"/>
+<text xml:space="preserve" x="990" y="448.5" font-size="11.5" font-weight="700" fill="#0f172a" text-anchor="middle">sympy</text>
+<path d="M1020 444 H 1034" fill="none" stroke="#94a3b8" stroke-width="1.3" marker-end="url(#mG)" stroke-linecap="round" stroke-linejoin="round"/>
+<text xml:space="preserve" x="1040" y="449" font-size="14" font-weight="650" fill="#c2410c" text-anchor="start" font-family="'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace">2·B·s·d²</text>
+<path d="M1045.0 302 V 323" fill="none" stroke="#3b82f6" stroke-width="1.6" stroke-dasharray="5 4" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M1041.0 317 L 1045.0 324 L 1049.0 317" fill="none" stroke="#3b82f6" stroke-width="1.6"/>
+<path d="M1045.0 476 V 507" fill="none" stroke="#e8891c" stroke-width="2.2" marker-end="url(#mA)" stroke-linecap="round" stroke-linejoin="round"/>
+<rect x="520" y="510" width="620" height="150" rx="12" fill="#fffaf3" stroke="#e8891c" stroke-width="1.8" filter="url(#sh)"/>
+<text xml:space="preserve" x="538" y="538" font-size="16" font-weight="800" fill="#0f172a" text-anchor="start">Analysis</text>
+<text xml:space="preserve" x="622" y="538" font-size="12.5" font-weight="400" fill="#475569" text-anchor="start">one table per fact, keyed by node</text>
+<text xml:space="preserve" x="546.0" y="566" font-size="12" font-weight="700" fill="#475569" text-anchor="start" font-family="'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace">node</text>
+<text xml:space="preserve" x="643.3333333333334" y="566" font-size="12" font-weight="700" fill="#c2410c" text-anchor="start">shape</text>
+<text xml:space="preserve" x="740.6666666666666" y="566" font-size="12" font-weight="700" fill="#c2410c" text-anchor="start">FLOPs</text>
+<text xml:space="preserve" x="838.0" y="566" font-size="12" font-weight="700" fill="#c2410c" text-anchor="start">bytes</text>
+<text xml:space="preserve" x="935.3333333333333" y="566" font-size="12" font-weight="700" fill="#c2410c" text-anchor="start">KV</text>
+<text xml:space="preserve" x="1032.6666666666665" y="566" font-size="12" font-weight="700" fill="#c2410c" text-anchor="start">per-GPU</text>
+<line x1="538" x2="1122" y1="574" y2="574" stroke="#f5c08a"/>
+<text xml:space="preserve" x="546" y="597" font-size="12" font-weight="500" fill="#475569" text-anchor="start" font-family="'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace">q_proj</text>
+<rect x="643.3333333333334" y="588" width="36.01747088958736" height="11" rx="5.5" fill="#f8c88a" stroke="none" stroke-width="0" opacity="0.85"/>
+<rect x="740.6666666666666" y="588" width="28.85018410627186" height="11" rx="5.5" fill="#e8891c" stroke="none" stroke-width="0" opacity="0.9"/>
+<rect x="838.0" y="588" width="49.57038499961794" height="11" rx="5.5" fill="#f8c88a" stroke="none" stroke-width="0" opacity="0.85"/>
+<rect x="935.3333333333333" y="588" width="25.60127681092519" height="11" rx="5.5" fill="#f8c88a" stroke="none" stroke-width="0" opacity="0.85"/>
+<rect x="1032.6666666666665" y="588" width="44.80337771177382" height="11" rx="5.5" fill="#f8c88a" stroke="none" stroke-width="0" opacity="0.85"/>
+<line x1="538" x2="1122" y1="604" y2="604" stroke="#fde7cc"/>
+<text xml:space="preserve" x="546" y="619" font-size="12" font-weight="500" fill="#475569" text-anchor="start" font-family="'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace">attn</text>
+<rect x="643.3333333333334" y="610" width="37.75171079074479" height="11" rx="5.5" fill="#f8c88a" stroke="none" stroke-width="0" opacity="0.85"/>
+<rect x="740.6666666666666" y="610" width="25.00308878316535" height="11" rx="5.5" fill="#e8891c" stroke="none" stroke-width="0" opacity="0.9"/>
+<rect x="838.0" y="610" width="43.62475387848164" height="11" rx="5.5" fill="#f8c88a" stroke="none" stroke-width="0" opacity="0.85"/>
+<rect x="935.3333333333333" y="610" width="24.153570114779573" height="11" rx="5.5" fill="#f8c88a" stroke="none" stroke-width="0" opacity="0.85"/>
+<rect x="1032.6666666666665" y="610" width="40.56738615974485" height="11" rx="5.5" fill="#f8c88a" stroke="none" stroke-width="0" opacity="0.85"/>
+<line x1="538" x2="1122" y1="626" y2="626" stroke="#fde7cc"/>
+<text xml:space="preserve" x="546" y="641" font-size="12" font-weight="500" fill="#475569" text-anchor="start" font-family="'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace">experts</text>
+<rect x="643.3333333333334" y="632" width="25.494343050108377" height="11" rx="5.5" fill="#f8c88a" stroke="none" stroke-width="0" opacity="0.85"/>
+<rect x="740.6666666666666" y="632" width="26.358542519547473" height="11" rx="5.5" fill="#e8891c" stroke="none" stroke-width="0" opacity="0.9"/>
+<rect x="838.0" y="632" width="40.18924507013816" height="11" rx="5.5" fill="#f8c88a" stroke="none" stroke-width="0" opacity="0.85"/>
+<rect x="935.3333333333333" y="632" width="56.85923969891144" height="11" rx="5.5" fill="#f8c88a" stroke="none" stroke-width="0" opacity="0.85"/>
+<rect x="1032.6666666666665" y="632" width="27.729527923633647" height="11" rx="5.5" fill="#f8c88a" stroke="none" stroke-width="0" opacity="0.85"/>
+<line x1="538" x2="1122" y1="648" y2="648" stroke="#fde7cc"/>
+<path d="M1045.0 660 V 691" fill="none" stroke="#e8891c" stroke-width="2.2" marker-end="url(#mA)" stroke-linecap="round" stroke-linejoin="round"/>
+<rect x="520" y="694" width="620" height="122" rx="12" fill="#ffffff" stroke="#f5c08a" stroke-width="1.4"/>
+<text xml:space="preserve" x="538" y="721" font-size="15.5" font-weight="750" fill="#0f172a" text-anchor="start">Graph rewrites</text>
+<text xml:space="preserve" x="1122" y="721" font-size="12.5" font-weight="400" fill="#475569" text-anchor="end">structure only — numbers stay in Analysis</text>
+<rect x="560" y="766" width="96" height="30" rx="6" fill="#ffffff" stroke="#94a3b8" stroke-width="1.2"/>
+<text xml:space="preserve" x="608.0" y="786" font-size="12.5" font-weight="600" fill="#0f172a" text-anchor="middle" font-family="'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace">linear</text>
+<rect x="690" y="766" width="110" height="30" rx="15" fill="#eff6ff" stroke="#3b82f6" stroke-width="1.4"/>
+<text xml:space="preserve" x="745.0" y="786" font-size="12.5" font-weight="700" fill="#1d4ed8" text-anchor="middle">all-reduce</text>
+<rect x="834" y="766" width="96" height="30" rx="6" fill="#ffffff" stroke="#94a3b8" stroke-width="1.2"/>
+<text xml:space="preserve" x="882.0" y="786" font-size="12.5" font-weight="600" fill="#0f172a" text-anchor="middle" font-family="'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace">rmsnorm</text>
+<rect x="964" y="766" width="96" height="30" rx="6" fill="#ffffff" stroke="#94a3b8" stroke-width="1.2"/>
+<text xml:space="preserve" x="1012.0" y="786" font-size="12.5" font-weight="600" fill="#0f172a" text-anchor="middle" font-family="'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace">linear</text>
+<path d="M656 781 H 687" fill="none" stroke="#94a3b8" stroke-width="1.4" marker-end="url(#mG)" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M800 781 H 831" fill="none" stroke="#94a3b8" stroke-width="1.4" marker-end="url(#mG)" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M930 781 H 961" fill="none" stroke="#94a3b8" stroke-width="1.4" marker-end="url(#mG)" stroke-linecap="round" stroke-linejoin="round"/>
+<rect x="680" y="754" width="260" height="54" rx="12" fill="none" stroke="#e8891c" stroke-width="1.8" stroke-dasharray="6 4"/>
+<text xml:space="preserve" x="810.0" y="748" font-size="12" font-weight="700" fill="#c2410c" text-anchor="middle">fused kernel</text>
+<path d="M1099.1000000000001 302 V 316 H 1152 V 734 H 1143" fill="none" stroke="#3b82f6" stroke-width="1.6" stroke-dasharray="5 4"/>
+<path d="M1149 730 L 1142 734 L 1149 738" fill="none" stroke="#3b82f6" stroke-width="1.6"/>
+<path d="M446 600 C 496 600, 470 401.0, 517 401.0" fill="none" stroke="#e8891c" stroke-width="2.6" marker-end="url(#mA)" stroke-linecap="round" stroke-linejoin="round"/>
+<rect x="1210" y="272" width="330" height="100" rx="12" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.2"/>
+<rect x="1226" y="290" width="84" height="64" rx="8" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1"/>
+<circle cx="1244" cy="336" r="4" fill="#e8891c" opacity="0.75"/>
+<circle cx="1256" cy="328" r="5" fill="#e8891c" opacity="0.75"/>
+<circle cx="1270" cy="320" r="4" fill="#e8891c" opacity="0.75"/>
+<circle cx="1282" cy="324" r="6" fill="#e8891c" opacity="0.75"/>
+<circle cx="1294" cy="308" r="5" fill="#e8891c" opacity="0.75"/>
+<circle cx="1266" cy="338" r="3" fill="#e8891c" opacity="0.75"/>
+<text xml:space="preserve" x="1328" y="316" font-size="15.5" font-weight="750" fill="#0f172a" text-anchor="start">Gallery</text>
+<text xml:space="preserve" x="1328" y="337" font-size="12.5" font-weight="400" fill="#475569" text-anchor="start">every model, one chart</text>
+<rect x="1210" y="383" width="330" height="100" rx="12" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.2"/>
+<rect x="1226" y="401" width="84" height="64" rx="8" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1"/>
+<line x1="1268" y1="415" x2="1250" y2="433" stroke="#94a3b8" stroke-width="1.4"/>
+<line x1="1268" y1="415" x2="1286" y2="433" stroke="#94a3b8" stroke-width="1.4"/>
+<line x1="1250" y1="433" x2="1268" y2="451" stroke="#94a3b8" stroke-width="1.4"/>
+<line x1="1286" y1="433" x2="1268" y2="451" stroke="#94a3b8" stroke-width="1.4"/>
+<circle cx="1268" cy="415" r="5" fill="#fff" stroke="#e8891c" stroke-width="1.6"/>
+<circle cx="1250" cy="433" r="5" fill="#fff" stroke="#e8891c" stroke-width="1.6"/>
+<circle cx="1286" cy="433" r="5" fill="#fff" stroke="#e8891c" stroke-width="1.6"/>
+<circle cx="1268" cy="451" r="5" fill="#fff" stroke="#e8891c" stroke-width="1.6"/>
+<text xml:space="preserve" x="1328" y="427" font-size="15.5" font-weight="750" fill="#0f172a" text-anchor="start">Inspector</text>
+<text xml:space="preserve" x="1328" y="448" font-size="12.5" font-weight="400" fill="#475569" text-anchor="start">a formula behind each number</text>
+<rect x="1210" y="494" width="330" height="100" rx="12" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.2"/>
+<rect x="1226" y="512" width="84" height="64" rx="8" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1"/>
+<rect x="1238" y="542" width="12" height="10" rx="2" fill="#bfdbfe" stroke="none" stroke-width="0"/>
+<rect x="1238" y="552" width="12" height="14" rx="2" fill="#e8891c" stroke="none" stroke-width="0"/>
+<rect x="1255" y="532" width="12" height="12" rx="2" fill="#bfdbfe" stroke="none" stroke-width="0"/>
+<rect x="1255" y="544" width="12" height="22" rx="2" fill="#e8891c" stroke="none" stroke-width="0"/>
+<rect x="1272" y="520" width="12" height="16" rx="2" fill="#bfdbfe" stroke="none" stroke-width="0"/>
+<rect x="1272" y="536" width="12" height="30" rx="2" fill="#e8891c" stroke="none" stroke-width="0"/>
+<rect x="1289" y="508" width="12" height="20" rx="2" fill="#bfdbfe" stroke="none" stroke-width="0"/>
+<rect x="1289" y="528" width="12" height="38" rx="2" fill="#e8891c" stroke="none" stroke-width="0"/>
+<line x1="1234" x2="1304" y1="532" y2="532" stroke="#0f172a" stroke-width="1.2" stroke-dasharray="3 2"/>
+<text xml:space="preserve" x="1328" y="538" font-size="15.5" font-weight="750" fill="#0f172a" text-anchor="start">Inference Planner</text>
+<text xml:space="preserve" x="1328" y="559" font-size="12.5" font-weight="400" fill="#475569" text-anchor="start">fits? how fast? per GPU</text>
+<rect x="1210" y="605" width="330" height="100" rx="12" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.2"/>
+<rect x="1226" y="623" width="84" height="64" rx="8" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1"/>
+<rect x="1240" y="637" width="24" height="18" rx="4" fill="#f8c88a" stroke="none" stroke-width="0"/>
+<rect x="1268" y="637" width="24" height="18" rx="4" fill="#bfdbfe" stroke="none" stroke-width="0"/>
+<rect x="1240" y="659" width="24" height="18" rx="4" fill="#bfdbfe" stroke="none" stroke-width="0"/>
+<rect x="1268" y="659" width="24" height="18" rx="4" fill="#e8891c" stroke="none" stroke-width="0"/>
+<text xml:space="preserve" x="1328" y="649" font-size="15.5" font-weight="750" fill="#0f172a" text-anchor="start">Playground</text>
+<text xml:space="preserve" x="1328" y="670" font-size="12.5" font-weight="400" fill="#475569" text-anchor="start">swap modules, see cost</text>
+<rect x="1210" y="716" width="330" height="100" rx="12" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.2"/>
+<rect x="1226" y="734" width="84" height="64" rx="8" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1"/>
+<rect x="1238" y="754" width="11" height="34" rx="2" fill="#94a3b8" stroke="none" stroke-width="0"/>
+<rect x="1254" y="762" width="11" height="26" rx="2" fill="#94a3b8" stroke="none" stroke-width="0"/>
+<rect x="1270" y="748" width="11" height="40" rx="2" fill="#94a3b8" stroke="none" stroke-width="0"/>
+<rect x="1286" y="768" width="11" height="20" rx="2" fill="#94a3b8" stroke="none" stroke-width="0"/>
+<line x1="1232" x2="1304" y1="746" y2="746" stroke="#e8891c" stroke-width="1.6"/>
+<text xml:space="preserve" x="1304" y="744" font-size="9.5" font-weight="700" fill="#c2410c" text-anchor="end">SOL</text>
+<text xml:space="preserve" x="1328" y="760" font-size="15.5" font-weight="750" fill="#0f172a" text-anchor="start">Kernel Bench</text>
+<text xml:space="preserve" x="1328" y="781" font-size="12.5" font-weight="400" fill="#475569" text-anchor="start">measured vs SOL</text>
+<path d="M1140 570 H 1207" fill="none" stroke="#e8891c" stroke-width="2.6" marker-end="url(#mA)" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M165 154 V 181 M415 154 V 181 M668 154 V 181 M165 181 H 668" fill="none" stroke="#94a3b8" stroke-width="1.6" stroke-dasharray="5 4"/>
+<path d="M255 181 V 193" fill="none" stroke="#94a3b8" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#mG)" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M1000 154 V 193" fill="none" stroke="#94a3b8" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#mG)" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M800 836 V 886" fill="none" stroke="#94a3b8" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#mG)" stroke-linecap="round" stroke-linejoin="round"/>
+<text xml:space="preserve" x="812" y="860" font-size="12" font-weight="600" fill="#94a3b8" text-anchor="start">per-GPU kernel shapes</text>
+<path d="M1080 914.0 H 1175 V 766 H 1207" fill="none" stroke="#e8891c" stroke-width="2.0" marker-end="url(#mA)" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="1168" y="861.0" font-size="12" font-weight="700" fill="#c2410c" transform="rotate(-90 1168 861.0)">calibrates</text>
+<path d="M1375 886 V 839" fill="none" stroke="#94a3b8" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#mG)" stroke-linecap="round" stroke-linejoin="round"/>
+<text xml:space="preserve" x="1386" y="860" font-size="12" font-weight="600" fill="#94a3b8" text-anchor="start">roofline</text>
+</svg>

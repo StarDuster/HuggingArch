@@ -1,0 +1,74 @@
+# MXFP4, stored with the dot-suffix layout: `<linear>.weight` packing two
+# E2M1 elements per byte and `<linear>.scale` carrying one UE8M0 exponent per
+# 32 of them. Same OCP MX recipe as `mxfp4.yaml`, a different on-disk
+# convention and a different activation:
+#
+#   mxfp4.yaml                 `_blocks` / `_scales` in U8, W4A16
+#                              (transformers Mxfp4Config, gpt-oss)
+#   mxfp4-pack-quantized.yaml  `.weight_packed` / `.weight_scale` in U8
+#                              (compressed-tensors, Kimi-K3 / MiMo-V2.6)
+#   this one                   `.weight` / `.scale` in I8, FP8 activation
+#                              (DeepSeek's own inference repo)
+#
+# WHY THIS IS MXFP4 AND NOT THE GENERIC FP4: the owner's ruling, and the
+# recipe agrees with it — E2M1 elements under one UE8M0 shared exponent per
+# 32 is the OCP Microscaling MXFP4 format. It is declared here, per model,
+# rather than inferred from "the scale happens to be UE8M0 at group 32":
+# `fp4.yaml` stays the generic FP4 scheme for a deployment that follows the
+# same dot-suffix convention WITHOUT making that claim, and a scheme cannot
+# tell on a model's behalf which format its kernel implements.
+#
+# It matters past the label. `quant.FORMATS` places an `mxfp4` weight on a
+# power-of-two scale grid and an `fp4_e2m1` weight on an exact one, and a
+# kernel written for one declines the other — so the token is which grid the
+# cross-check quantises to, not a name.
+#
+# Known clients: DeepSeek-V4-Flash, DeepSeek-V4-Pro, DeepSeek-V4.1-Flash
+# (`per_role.ffn_moe`). Reached only via `model.quant_context.per_role`,
+# like `fp4`: no HF config field names it.
+description: "MXFP4 (E2M1 + per-32 UE8M0) packed 2-per-byte with a `.scale` sibling."
+
+num_bits:
+  fixed: 4
+badge: MXFP4
+
+format_variants:
+  default:
+    # FP4 always packs 2 elements per byte.
+    packing_factor: 2
+    storage_dtype: I8
+    weight_storage_suffix: ".weight"
+
+numeric_format: [mx_e2m1]
+numeric_format_resolver:
+  - { when: "true", format: mx_e2m1 }
+
+scale_strategy: [group]
+
+metadata_siblings:
+  - suffix: ".scale"
+    kind: scale
+    shape_per_strategy:
+      # One scale per contiguous input group for every stored output row.
+      group: ["out", "(in + group_size - 1) // group_size"]
+    dtype: F8_E8M0FNU                              # UE8M0, the MX exponent
+
+required_fields: [group_size]
+valid_status: [compressed, frozen]
+
+# The activation operand of this weight's matmul is FP8, not FP4: DeepSeek's
+# `linear()` quantises it with the same `act_quant` the FP8 path uses and calls
+# `fp4_gemm`, which handles the mixed precision — V4
+# `inference/model.py:112-115`, V4.1 :185-195 ("both fp4 and fp8 weights take
+# an fp8 one -- for fp4 the kernel handles the mixed precision"). The K block
+# is the repo's own activation constant, which is not the FP4 weight's group:
+# V4 quantises over 128 (`block_size`, model.py:17), V4.1 over 32
+# (`fp8_block_size`, :27). A spec states it where it is not 128.
+activation:
+  reference:
+    - { when: "act_group == 32", format: fp8_token_group32_ue8m0 }
+    - { when: "true", format: fp8_token_group128_ue8m0 }
+
+optional_fields: [act_group]
+default_fields:
+  act_group: 128

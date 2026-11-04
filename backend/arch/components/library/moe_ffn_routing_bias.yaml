@@ -1,0 +1,21 @@
+# MoE FFN with aux-loss-free load-balancing bias on the router.
+#
+# Difference vs `moe_ffn`:
+#   - A learnable per-expert vector `e_score_correction_bias` of shape [n_experts]
+#     is added to router logits BEFORE top-k selection. Contributes n_experts
+#     params per layer; zero FLOPs downstream.
+#   - No shared experts.
+#
+# Required dims: d_model, d_ffn_expert, n_experts, n_experts_active
+# Optional dims: n_route_targets (the gate's width, derived), n_router_bias_params (router linear bias, default 0)
+
+role: ffn_moe
+description: "MoE + load-balance bias as a top-level parameter (not nested under gate). MiniMax-M2 style routing."
+graph:
+  gate:                     { op: linear, in: x, dims: { in: d_model, out: n_route_targets, bias: n_router_bias_params }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  e_score_correction_bias:  { op: parameter_vector, dim: n_route_targets, weight_axes: [{ replicated: true }] }
+  gate_biased:              { op: add, in: [gate, e_score_correction_bias], dim: n_route_targets }
+  permute:                  { op: permute, in: [x, gate_biased] }
+  experts:                   { op: gated_experts, role: ffn_moe, in: permute, dims: { d_model: d_model, d_ffn: d_ffn_expert }, expert_weight: unrolled }
+  combine:                  { op: combine, in: [experts, gate_biased] }
+outputs: [combine]

@@ -1,0 +1,64 @@
+.claude/*
+!.claude/skills/
+.humanize*
+__pycache__
+
+# Runtime artifacts — per-run spec agent traces, not reproducible across
+# machines/agent versions, grow unbounded. Keep out of git.
+logs/
+
+# Python / OS cruft
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.DS_Store
+
+# Local supabase CLI state and measured-kernel result dumps
+supabase/.temp/
+results/
+
+# Local secrets — Supabase keys etc. Use .env.example as template.
+.env
+.env.local
+
+# audit-curves gate snapshot (transient)
+.audit_baseline.json
+
+# cc-connect chat attachments — inbound images, not source.
+.cc-connect/
+
+# One-off investigation scripts. A probe answers one question once and its
+# answer belongs in a docstring, a test, or an invariant — never in the tree,
+# where a stale one reads as a supported entry point.
+.probe/
+
+# Local technical-report drafts and generated LaTeX artifacts.
+paper/
+node_modules/
+frontend/node_modules
+web/node_modules
+web/dist
+.migrate-heartbeat
+
+# Local GPU keepalive / provider-extension queue (hardcoded machine paths).
+tools/gpu_keepalive_*
+tools/make_provider_extension_jobs.py
+tools/run_provider_extension.py
+
+# Sweep plan logs dumped next to the repo.
+sweeps_*/
+*.plan.log
+
+# Review worktrees and leftover REVIEW files at the repo root.
+/REVIEW_*.md
+/ha-rev-*/
+
+# Review records from multi-agent review loops: process artifacts, kept locally, not published
+docs/reviews/
+
+# Bench box mirrors, env snapshots and measurement caches: machine-specific
+# artifacts (a box's results/, jobs/, queue logs, and the tarred provider
+# venvs a snapshot restores). Gigabytes, specific to one allocated machine,
+# and nothing here is a source fact — the rows that matter are published to
+# Kernel Bench, not committed.
+/.cache/

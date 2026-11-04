@@ -1,0 +1,38 @@
+# The query side of a Hadamard-rotated index-K cache: the query rotated into
+# the cached key's basis, and quantised for the FP8 score, in one launch.
+#
+# Naive subgraph (grafted, not authored): a cache format whose `transform`
+# is `hadamard` (`cache_formats/fp8_pow2_hadamard128.yaml`, GLM-5.3-Flash's
+# index keys) puts a `hadamard_transform` on the operand its reader
+# multiplies the cached key with (`inference/materialize_cast.py`) — the
+# indexer query:
+#
+#   q_rot = hadamard_transform(q)          # into the cached key's basis
+#   quant = quantise_activation(q_rot)     # FP8, one pow2 scale per 128
+#
+# vLLM (audited at v0.32.0) runs both as one Triton launch,
+# `fwht128_quant_fp8` (models/glm5next/nvidia/ops/kpool_compress.py:108,
+# `_fwht_quant_kernel` :62), called from the GLM-5.3 indexer's forward
+# (models/glm5next/common/attention.py:350) once per step for every token,
+# so prefill and decode alike: it rotates each 128-wide head in fp32 and
+# writes it FP8 with a pow2 scale (:97-104). sglang runs them as two
+# launches — `rotate_activation` (srt/layers/attention/dsa/
+# dsa_indexer_kpool.py:680 / :715), then `act_quant` (:1802 / :1807) — and
+# binds no plan.
+#
+# The cast is the one the graft stands on the query because the index-key
+# cache's readers multiply its rows with a query quantised to their element
+# type (`cache_families.yaml` `index_key.paired_operand`); it reads the
+# rotation, so the launch takes both in. `quant` stays optional: an index
+# key stored unquantised (a precision rule's BF16) grafts no cast, and the
+# launch is then the rotation alone, writing the query at the edge's dtype.
+
+fused_op: fused_fwht128_quant
+
+naive_pattern:
+  nodes:
+    rotate: { op: hadamard_transform,  inputs: [external.q] }
+    quant:  { op: quantise_activation, inputs: [rotate.out], optional: true }
+  io_mapping:
+    q:      external.q
+    output: quant.out

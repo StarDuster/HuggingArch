@@ -1,0 +1,89 @@
+# MiMo-7B (Xiaomi). Dense GQA + SwiGLU + pre-norm RMSNorm, Qwen2-style backbone
+# with a bias on Q/K/V (o_proj has no bias). 36 layers, 4096 hidden, 32 heads,
+# head_dim=128, num_key_value_heads=8. sliding_window=32768 is carried but
+# disabled via use_sliding_window=false, so attention is dense.
+#
+# Adds a single Multiple-Token-Prediction (MTP) head (num_nextn_predict_layers=1)
+# stored under model.mtp_layers.0.*. Per MiMoMTPLayers.forward:
+#   input_embeds       = token_layernorm(input_embeds)
+#   previous_hidden    = hidden_layernorm(hidden_states)
+#   hidden             = input_proj(cat([previous_hidden, input_embeds]))
+#   residual = hidden; hidden = input_layernorm(hidden); hidden = self_attn(hidden)
+#   hidden = residual + hidden
+#   residual = hidden; hidden = post_attention_layernorm(hidden); hidden = mlp(hidden)
+#   hidden = residual + hidden
+#   hidden = final_layernorm(hidden)
+match:
+  model_type: [mimo]
+  model_id: ["XiaomiMiMo/MiMo-7B-RL"]
+
+components:
+  attention: gqa_attention
+  ffn_dense: swiglu_ffn
+  norm: rmsnorm
+  block: pre_norm
+
+dims:
+  s_max: config.max_position_embeddings   # published context length
+  d_model:    config.hidden_size
+  n_heads:    config.num_attention_heads
+  n_kv_heads: config.num_key_value_heads ?? n_heads
+  d_head:     config.head_dim ?? "d_model // n_heads"
+  # Q/K/V carry a bias (attention_bias=true), o_proj does not (no o_proj.bias
+  # tensor in the checkpoint). gqa_attention's Qb applies bias to Q/K/V only.
+  Qb: "1"
+  d_ffn:      config.intermediate_size
+  n_vocab:    config.vocab_size
+  n_layers:   config.num_hidden_layers
+  n_mtp_layers: config.num_nextn_predict_layers ?? "0"
+
+blocks:
+  mimo_mtp_block:
+    inputs: [x, e]   # x: last backbone layer's hidden state (before the final norm), e: shared embed_tokens output
+    graph:
+      token_layernorm:          { op: rmsnorm, in: e, dim: d_model, weight_axes: [{ replicated: true }] }
+      hidden_layernorm:         { op: rmsnorm, in: x, dim: d_model, weight_axes: [{ replicated: true }] }
+      concat:                   { op: concat, in: [hidden_layernorm, token_layernorm], dim: "2 * d_model" }
+      input_proj:               { op: linear, in: concat, dims: { in: "2 * d_model", out: d_model }, weight_axes: [{ replicated: true }, { replicated: true }] }
+      input_layernorm:          { op: rmsnorm, in: input_proj, dim: d_model, weight_axes: [{ replicated: true }] }
+      self_attn:                { op: gqa_attention, in: input_layernorm }
+      attn_residual:            { op: add, in: [input_proj, self_attn], dim: d_model }
+      post_attention_layernorm: { op: rmsnorm, in: attn_residual, dim: d_model, weight_axes: [{ replicated: true }] }
+      mlp:                      { op: swiglu_ffn, in: post_attention_layernorm, dims: { d_model: d_model, d_ffn: d_ffn } }
+      mlp_residual:             { op: add, in: [attn_residual, mlp], dim: d_model }
+      final_layernorm:          { op: rmsnorm, in: mlp_residual, dim: d_model, weight_axes: [{ replicated: true }] }
+    outputs: [final_layernorm]
+
+model_inputs:
+  input_ids: { kind: tokens }
+
+# The transformers base model's tensors sit under `model.`; the LM head
+# beside it declares its own path.
+checkpoint: { root: model }
+
+model:
+  - { name: embed_tokens, inputs: [input_ids], op: embedding, boundary_role: input_embedding, dims: { n_vocab: n_vocab, d_model: d_model }, weight_axes: [{ world: attention, parts: n_vocab, fit: pad }, { replicated: true }] }
+  - { name: layers, repeat: n_layers, template: block, inputs: [embed_tokens], streams: { hidden: { carries: true } }}
+  - { name: norm, op: rmsnorm, dim: d_model, weight_axes: [{ replicated: true }] , inputs: [layers]}
+  - { name: lm_head, op: linear, checkpoint: { path: lm_head }, boundary_role: output_head, dims: { in: d_model, out: n_vocab }, weight_axes: [{ world: attention, parts: n_vocab, fit: pad }, { replicated: true }], tied_weight: { to: embed_tokens, when: config.tie_word_embeddings } , inputs: [norm]}
+  - name: mtp
+    inputs: [layers, embed_tokens]
+    group: true
+    aux_kind: mtp
+    checkpoint: { prefix: model.mtp_layers, index: local }
+    # The MTP layer has no embedding of its own: `input_embeds` is the main
+    # embed_tokens output (vLLM mimo_mtp.py loads it from `embed_tokens`).
+    # `previous_hidden_states` is the last backbone layer's output before the
+    # final norm. The checkpoint's modeling_mimo.py defines MiMoMTPLayers but
+    # never calls it, so the wiring follows vLLM: MiMoModel.forward returns
+    # `hidden_states + residual` un-normed (vllm/model_executor/models/mimo.py:85-86)
+    # and applies `self.model.norm` only in compute_logits (mimo.py:132).
+    inputs: [layers, embed_tokens]
+    repeat: n_mtp_layers
+    streams:
+      hidden: { carries: true }
+    layers:
+      - { name: mtp, template: mimo_mtp_block, inputs: [layers, embed_tokens] }
+      # MiMoMultiTokenPredictor.compute_logits (vllm mimo_mtp.py:142-150)
+      # projects final_layernorm's output with the main lm_head.
+      - { name: mtp_logits, op: linear, boundary_role: output_head, dims: { in: d_model, out: n_vocab }, weight_axes: [{ world: attention, parts: n_vocab, fit: pad }, { replicated: true }], tied_weight: { to: lm_head } , inputs: [mtp]}

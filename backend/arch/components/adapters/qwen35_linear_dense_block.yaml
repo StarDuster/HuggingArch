@@ -1,0 +1,22 @@
+# Qwen3.5 dense linear-attention layer (3 of every 4 backbone layers).
+# Pure pre_norm binding + checkpoint naming: HF stores the linear-attn
+# weights under `linear_attn.*` (not `self_attn.*`), so the adapter
+# rewrites the standard `self_attn` slot to `linear_attn`. FFN is the
+# dense Qwen3_5MLP (swiglu), unlike the MoE family's expert FFN.
+# vLLM: qwen3_5.py Qwen3_5DecoderLayer with layer_type "linear_attention"
+# builds `self.linear_attn = QwenGatedDeltaNetAttention(..., prefix=f"{prefix}.linear_attn")`
+# and, for model_type "qwen3_5_text", `self.mlp = Qwen3NextMLP(...)`.
+role: block
+description: "Qwen3.5 dense linear-attention layer: pre-norm + gated_delta_net_attention + swiglu FFN, naming its attention `linear_attn` as the checkpoint does."
+
+graph:
+  layer:
+    module: null
+    op: pre_norm
+    in: x
+    params:
+      attn: gated_delta_net_attention
+      ffn:  swiglu_ffn
+    inner_modules:
+      self_attn: linear_attn
+outputs: [layer]

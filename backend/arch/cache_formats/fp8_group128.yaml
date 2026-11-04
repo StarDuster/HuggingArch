@@ -1,0 +1,4 @@
+description: "FP8 (E4M3) with one dynamic F32 scale per 128 channels of every stored row."
+source: "DeepSeek-V3.2 reference indexer cache (inference/model.py:453-454: fp8 key + one fp32 scale per 128)"
+dtype: F8_E4M3
+scale: { granularity: per-group, group: 128, dtype: F32 }

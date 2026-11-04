@@ -1,0 +1,43 @@
+# The named precision profiles: the quick fills of a precision panel.
+# Each is an ordinary profile body (`arch/precision_profile.py`),
+# canonicalised at load like any request's. `as_shipped` (no rules) is
+# every model as it ships.
+presets:
+  as_shipped:
+    label: As shipped
+    description: Every weight, edge and cache slot as the model ships it.
+    profile: {}
+  kv_fp8:
+    label: KV FP8
+    description: Per-token cache slots in FP8 with a per-tensor scale; states keep their own dtype.
+    profile:
+      cache:
+        - select: { slots: [kv, latent, rope_key, index_key, compressed_kv] }
+          format: fp8_per_tensor
+  kv_nvfp4:
+    label: KV NVFP4
+    description: Per-token cache slots in NVFP4 (E2M1, an E4M3 scale per 16); states keep their own dtype.
+    profile:
+      cache:
+        - select: { slots: [kv, latent, rope_key, index_key, compressed_kv] }
+          format: nvfp4
+  w_fp8_kv_fp8:
+    label: Weights FP8 + KV FP8
+    description: Attention, dense and MoE matrices in block-128 FP8; KV FP8.
+    profile:
+      weights:
+        - select: { roles: weight_class }
+          format: { scheme: fp8 }
+      cache:
+        - select: { slots: [kv, latent, rope_key, index_key, compressed_kv] }
+          format: fp8_per_tensor
+  w_nvfp4_w4a4_kv_fp8:
+    label: Weights NVFP4 W4A4 + KV FP8
+    description: Attention, dense and MoE matrices in NVFP4 with NVFP4 activations (FP4 MMA; needs a GPU with an FP4 peak); KV FP8.
+    profile:
+      weights:
+        - select: { roles: weight_class }
+          format: { scheme: nvfp4, activation: w4a4 }
+      cache:
+        - select: { slots: [kv, latent, rope_key, index_key, compressed_kv] }
+          format: fp8_per_tensor

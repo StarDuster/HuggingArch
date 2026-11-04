@@ -1,0 +1,74 @@
+# MLA + DSA, SHARED-indexer layer in decode-time ABSORBED form (GLM-MoE-DSA).
+#
+# The absorbed analog of `mla_dsa_attention_shared`, standing to it exactly as
+# `mla_dsa_attention_absorbed` stands to `mla_dsa_attention`. Absorption is a
+# property of the MLA path, and the shared layers run the same MLA path as the
+# full ones — they only skip the lightning indexer — so they need their own
+# absorbed twin. Without it GLM-5.2's 57 shared layers (73% of the backbone)
+# would decode through the decompressed graph: K and V materialised per head at
+# [B, n_heads, Min(s_kv, n_topk_keys), d_*], which prices the top-K read at
+# n_heads times its true cost AND books it as activation traffic, leaving the
+# layer's KV-cache read at zero.
+#
+# Structure = `mla_dsa_attention_absorbed` minus the indexer subgraph:
+#   • kv_b_proj is GONE; W_uk folds into the Q side (q_absorbed_nope:
+#     d_qk_nope→d_kv_lora) and W_uv into the O side (v_absorbed:
+#     d_kv_lora→d_v_head) as per-head matmuls. Same weight, reorganised — so
+#     weight accounting is unchanged.
+#   • attention runs in latent space (contraction d_kv_lora+d_qk_rope); K is the
+#     broadcast latent + k_pe, V IS the latent (k_latent_broadcast), read once
+#     per position and shared across heads.
+#   • no `indexer.*` weights, no `indexer_logits`, no `dsa_topk_mask`, and no
+#     indexer key in the cache: the top-K comes from a full layer over the
+#     `dsa_topk` stream, which `qk_score` reads as its third operand.
+#
+# Required dims: d_model, n_heads, d_qk_nope, d_qk_rope, d_v_head, d_kv_lora, d_q_lora, n_topk_keys (index_topk).
+
+role: attention
+description: "MLA + DSA decode-time absorbed form, shared indexer (no own indexer weights; reuses a full layer's top-K). Latent KV read MQA; kv_b_proj folded into Q/O per-head matmuls."
+cache:
+  family: MLA
+  entries:
+    - { node: kv_a_layernorm, kind: latent }
+    - { node: k_pe_rope, kind: rope_key }
+
+attn_variant: DSA
+reads: [dsa_topk]
+graph:
+  # --- Q path: compress → split heads → absorb W_uk (d_qk_nope→d_kv_lora) ---
+  q_a_proj:           { op: linear, in: x, dims: { in: d_model, out: d_q_lora }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  q_a_layernorm:      { op: rmsnorm, in: q_a_proj, dim: d_q_lora, weight_axes: [{ replicated: true }] }
+  q_b_proj:           { op: linear, in: q_a_layernorm, dims: { in: d_q_lora, out: "n_heads * (d_qk_nope + d_qk_rope)" }, weight_axes: [{ world: attention, parts: n_heads, fit: replica_cells }, { replicated: true }] }
+  q_split_heads:      { op: head_split, in: q_b_proj, dims: { n_heads: n_heads, d_head: "d_qk_nope + d_qk_rope" } }
+  q_nope_slice:       { op: slice, in: q_split_heads, dims: { in: "d_qk_nope + d_qk_rope", out: d_qk_nope } }
+  q_pe_slice:         { op: slice, in: q_split_heads, dims: { in: "d_qk_nope + d_qk_rope", out: d_qk_rope } }
+  q_pe_rope:          { op: rope, in: q_pe_slice, dim: d_qk_rope }
+  kv_b_proj:          { op: parameter_tensor, shape: ["n_heads * (d_qk_nope + d_v_head)", d_kv_lora], tensor_suffix: { weight: .weight }, weight_axes: [{ world: attention, parts: n_heads, fit: replica_cells }, { replicated: true }] }   # the stored kv_b_proj; the per-head GEMMs at its address (`module: kv_b_proj`) run it
+  q_absorbed_nope:    { op: per_head_linear, module: kv_b_proj, in: q_nope_slice, dims: { n_heads: n_heads, in: d_qk_nope, out: d_kv_lora }, weight_axes: [{ world: attention, parts: n_heads, fit: replica_cells }, { replicated: true }, { replicated: true }] }
+  q_concat:           { op: concat, in: [q_absorbed_nope, q_pe_rope], dims: { in_a: d_kv_lora, in_b: d_qk_rope, out: "d_kv_lora + d_qk_rope" } }
+
+  # --- Latent KV (head-shared): the cached bytes ---
+  kv_a_proj_with_mqa: { op: linear, in: x, dims: { in: d_model, out: "d_kv_lora + d_qk_rope" }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  kv_latent_slice:    { op: slice, in: kv_a_proj_with_mqa, dims: { in: "d_kv_lora + d_qk_rope", out: d_kv_lora } }
+  k_pe_slice:         { op: slice, in: kv_a_proj_with_mqa, dims: { in: "d_kv_lora + d_qk_rope", out: d_qk_rope } }
+  kv_a_layernorm:     { op: rmsnorm, in: kv_latent_slice, dim: d_kv_lora, weight_axes: [{ replicated: true }] }   # K_latent = V_latent (shared)
+  k_pe_rope:          { op: rope_emb, in: k_pe_slice, dim: d_qk_rope }
+  # One KV head: the cached latent and RoPE key, joined once per position
+  # (the 576-wide entry the sparse/dense MLA kernel reads, `num_heads_k=1`),
+  # then shown to every query head as a zero-byte view. Joining before the
+  # broadcast keeps one copy of each cached position, not n_heads.
+  kv_concat:          { op: concat, in: [kv_a_layernorm, k_pe_rope], dims: { in_a: d_kv_lora, in_b: d_qk_rope, out: "d_kv_lora + d_qk_rope" } }   # (B, s_kv, d_kv_lora+d_qk_rope)
+  k_concat:           { op: head_broadcast, in: kv_concat, dims: { n_heads: n_heads } }   # (B, n_heads, s_kv, d_kv_lora+d_qk_rope), a view
+  k_latent_broadcast: { op: head_broadcast, in: kv_a_layernorm, dims: { n_heads: n_heads } }   # V == the latent, a view
+
+  # --- Sparse main attention IN LATENT SPACE (V == latent, MQA) ---
+  # The top-K selection is the full layer's, arriving over `dsa_topk`.
+  qk_score:           { op: dsa_attention_score, in: [q_concat, k_concat, dsa_topk], dims: { n_heads: n_heads, d_head: "d_kv_lora + d_qk_rope", k: n_topk_keys } }
+  softmax:            { op: dsa_softmax, in: qk_score, dims: { n_heads: n_heads, k: n_topk_keys } }
+  attn_apply_latent:  { op: dsa_attention_apply, in: [softmax, k_latent_broadcast], dims: { n_heads: n_heads, d_head: d_kv_lora, k: n_topk_keys } }
+
+  # --- O side: absorb W_uv (d_kv_lora→d_v_head) per-head, merge, project ---
+  v_absorbed:         { op: per_head_linear, module: kv_b_proj, in: attn_apply_latent, dims: { n_heads: n_heads, in: d_kv_lora, out: d_v_head }, weight_axes: [{ world: attention, parts: n_heads, fit: replica_cells }, { replicated: true }, { replicated: true }] }
+  o_merge_heads:      { op: head_merge, in: v_absorbed, dims: { n_heads: n_heads, d_head: d_v_head } }
+  o_proj:             { op: linear, in: o_merge_heads, dims: { in: "n_heads * d_v_head", out: d_model }, weight_axes: [{ replicated: true }, { world: attention, parts: n_heads, fit: replica_cells }] }
+outputs: [o_proj]

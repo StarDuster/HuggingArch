@@ -1,0 +1,20 @@
+# HunYuanVL ViT MLP (HunYuanVLVisionMLP): fc1 -> gelu -> fc2, both biased —
+# the library `clip_vision_mlp`, with the checkpoint naming its two linears
+# dense_h_to_4h / dense_4h_to_h. vLLM builds the same pair
+# (vllm/model_executor/models/hunyuan_vision.py HunYuanVisionMLP:
+# `self.dense_h_to_4h = ColumnParallelLinear(...)`,
+# `self.dense_4h_to_h = RowParallelLinear(...)`).
+#
+# Required dims: d_vis_model, d_vis_ffn
+role: ffn_dense
+description: "HunYuanVL ViT MLP shim: clip_vision_mlp stored as dense_h_to_4h / dense_4h_to_h."
+
+graph:
+  mlp:
+    module: null
+    op: clip_vision_mlp
+    in: x
+    inner_modules:
+      fc1: dense_h_to_4h
+      fc2: dense_4h_to_h
+outputs: [mlp]

@@ -1,0 +1,4 @@
+# Identity file for stepfun-ai/Step-3.7-Flash
+base: step3p7_flash
+match:
+  model_id: [stepfun-ai/Step-3.7-Flash]

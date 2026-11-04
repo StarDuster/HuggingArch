@@ -1,0 +1,51 @@
+# Gated RMSNorm — the output norm of a linear-attention mixer, gated by an
+# activated branch of the input (FLA `RMSNormGated`, norm before gate).
+#
+# Naive subgraph:
+#
+#   y = rmsnorm(o) * gate_act(gate)     gate_act ∈ {silu, sigmoid}
+#
+#   * gated_delta_net_attention (Qwen3.8): `norm` · `z_act` (silu, or sigmoid
+#     where `output_gate_type` says so), the gate already split into heads.
+#   * kimi_k3_kda_attention / GLM-5.3-Flash's KDA: `o_norm` · `g_act`
+#     (sigmoid), the gate likewise split into heads before it is activated.
+#   * Ling-2.6 GLA: `g_norm` · `g_sigmoid`, where `g_norm` is a GROUPED
+#     RMSNorm (BailingMoeV2_5GroupRMSNorm): the merged heads viewed as
+#     n_norm_groups groups, `rmsnorm_unscaled` per group, merged back, times
+#     one full-width γ. Same launch: both frameworks hand the kernel
+#     `group_size` (vLLM layers/layernorm.py:404-420 → `rmsnorm_fn(...,
+#     group_size=...)`; sglang kernels/ops/attention/fla/layernorm_gated.py:
+#     529-538 → `layernorm_fn(..., group_size=...)`), and the kernel grid is
+#     (rows, groups) in one launch. The group view is read before the
+#     pattern, so `x` arrives as [.., groups, group width] and the cell
+#     folds the groups into the rows, which is the per-rank launch.
+#
+# Both frameworks run it as one Triton launch (`layer_norm_fwd` with `z`,
+# `norm_before_gate`, `activation`): o and z in, y out.
+#   vLLM (audited at v0.32.0): model_executor/layers/layernorm.py:289 →
+#     third_party/flash_linear_attention/ops/layernorm_guard.py:562, kernel :75; built at qwen_gdn_linear_attn.py:572,
+#     kimi_k3/nvidia/kda.py:788 (`FusedRMSNormGated(activation="sigmoid")`),
+#     glm5next/common/kda.py:313, bailing_linear_attn.py:343
+#     (`BailingGroupRMSNormGate`).
+#   sglang (audited at v0.5.22): srt/models/qwen3_5.py:503 →
+#     kernels/ops/attention/fla/layernorm_gated.py:488, kernel :75; kimi_k3.py:1752, glm5_next.py:568,
+#     bailing_moe_linear.py:370.
+#
+# Mamba-2's gated norm gates BEFORE it normalises (norm(x · silu(gate))), a
+# different function and a different subgraph; this pattern does not match it.
+
+fused_op: rmsnorm_gated
+
+# `merged` / `scaled` are the grouped form's merge and gain: absent in the
+# plain form, where `rmsnorm` carries its own weight.
+naive_pattern:
+  nodes:
+    norm:     { op_choices: [rmsnorm, rmsnorm_unscaled], inputs: [external.x] }
+    merged:   { op: view_merge,              inputs: [norm.out], optional: true }
+    scaled:   { op: mul,                     inputs: [merged.out, external.weight], optional: true }
+    gate_act: { op_choices: [silu, sigmoid], inputs: [external.gate] }
+    gated:    { op: mul,                     inputs: [scaled.out, gate_act.out] }
+  io_mapping:
+    x:      external.x
+    gate:   external.gate
+    output: gated.out

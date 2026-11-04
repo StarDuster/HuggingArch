@@ -1,0 +1,83 @@
+match:
+  model_type: [qwen3_5_moe_text]
+  model_id: [Qwen/Qwen3.8-2.4T-A95B]
+# MoE FFN: library `moe_ffn_fused_scaled_shared` — Qwen3_5MoeTopKRouter
+# (softmax -> top-k -> unconditional renorm, modeling_qwen3_5_moe.py:894-897)
+# and sigmoid(shared_expert_gate(x)) * shared_expert (:918).
+components:
+  norm: rmsnorm
+dims:
+  s_max: config.max_position_embeddings   # published context length
+  d_model: config.hidden_size
+  n_heads: config.num_attention_heads
+  n_kv_heads: config.num_key_value_heads
+  d_head: config.head_dim
+  d_rope: d_head // 4
+  d_nope: d_head - d_rope
+  d_ffn_expert: config.moe_intermediate_size
+  d_ffn_shared: config.shared_expert_intermediate_size ?? "512"  # Qwen3_5MoeTextConfig's default when the field is absent (transformers 5.17.0 qwen3_5_moe/configuration_qwen3_5_moe.py:111)
+  n_vocab: config.vocab_size
+  n_layers: config.num_hidden_layers
+  n_experts: config.num_experts
+  n_experts_active: config.num_experts_per_tok
+  # Qwen3_5MoeTopKRouter always renormalizes the top-k weights (source :897);
+  # the config carries no norm_topk_prob switch.
+  n_topk_renorm: "1"
+  # The same router has no group limit and no routed_scaling_factor multiply
+  # (modeling_qwen3_5_moe.py:892-900); the config has neither field.
+  n_expert_groups: "1"
+  n_groups_active: "1"
+  n_routed_scale: "0"
+  n_lin_k_heads: config.linear_num_key_heads
+  d_lin_k_head: config.linear_key_head_dim
+  n_lin_v_heads: config.linear_num_value_heads
+  d_lin_v_head: config.linear_value_head_dim
+  s_conv_kernel: config.linear_conv_kernel_dim
+  n_mtp_layers: config.mtp_num_hidden_layers ?? "0"
+model_inputs:
+  input_ids: { kind: tokens }
+
+# MTP head: HF transformers drops `mtp.*` on load
+# (modeling_qwen3_5_moe.py:1847 _keys_to_ignore_on_load_unexpected), so the
+# forward reference is vLLM `qwen3_5_mtp.py` (Qwen3_5MultiTokenPredictor.forward,
+# same as qwen3_next_mtp.py):
+#   inputs_embeds = embed_tokens(input_ids)            # shared main embedding
+#   inputs_embeds = pre_fc_norm_embedding(inputs_embeds)
+#   hidden_states = pre_fc_norm_hidden(hidden_states)  # backbone hidden
+#   hidden_states = fc(cat([inputs_embeds, hidden_states], dim=-1))
+#   hidden_states = layers[i](hidden_states)           # full-attn MoE decoder layer
+#   hidden_states = norm(hidden_states)
+#   logits = compute_logits -> shared lm_head
+# Wrapper tensors are unindexed under `mtp.`; the inner layer is `mtp.layers.X.*`
+# and here stores the packed fused expert bank like the backbone. The layer
+# binds `qwen35_mtp_packed_inner_block`: vLLM rotates it by one position stream,
+# where the backbone's text model rotates by three (below).
+# Backbone layers bind the Qwen3.5-MoE adapters `qwen35_full_moe_block`
+# (pre_norm + sigmoid-gated GQA rotated by `mrope`) and `qwen35_linear_moe_block`
+# (GDN under `linear_attn`, no RoPE) — both with `moe_ffn_fused_scaled_shared`.
+# The text model rotates by three position streams although this config
+# carries no `mrope_section`: `Qwen3_5MoeTextRotaryEmbedding` defaults the
+# section to [11, 11, 10] (modeling_qwen3_5_moe.py:162), expands the inverse
+# frequencies over 3 streams (:193), and `Qwen3_5MoeTextModel` expands
+# 1-D position ids to the multi-stream form (:1371-1373). On text tokens the
+# three streams carry the same position.
+model: [{name: model.embed_tokens, inputs: [input_ids], op: embedding, boundary_role: input_embedding,
+    dims: {n_vocab: n_vocab, d_model: d_model}, weight_axes: [{world: attention, parts: n_vocab, fit: pad}, {replicated: true}]},{name: model.layers, repeat: n_layers,
+    per_layer: {assign: [{type: full, from: config.layer_types, is: full_attention},
+        {type: linear, from: config.layer_types, is: linear_attention}], map: {full: {
+          template: qwen35_full_moe_block}, linear: {template: qwen35_linear_moe_block}}},
+    inputs: [model.embed_tokens], streams: {hidden: {carries: true}}},
+  {name: model.norm, op: rmsnorm, dim: d_model, weight_axes: [{replicated: true}], inputs: [model.layers]}, {name: lm_head,
+    op: linear, boundary_role: output_head, dims: {in: d_model, out: n_vocab}, weight_axes: [{world: attention, parts: n_vocab, fit: pad}, {replicated: true}], tied_weight: {
+      to: model.embed_tokens, when: config.tie_word_embeddings}, inputs: [model.norm]},
+  {name: mtp, group: true, aux_kind: mtp, inputs: [model.norm], repeat: n_mtp_layers,
+    streams: {hidden: {carries: true}},
+    checkpoint: {prefix: mtp.layers, index: local},
+    layers: [
+      {name: mtp.pre_fc_norm_embedding, op: rmsnorm, dim: d_model, weight_axes: [{replicated: true}], inputs: [model.embed_tokens]},
+      {name: mtp.pre_fc_norm_hidden, op: rmsnorm, dim: d_model, weight_axes: [{replicated: true}], inputs: [model.norm]},
+      {name: mtp.concat, op: concat, dims: {in_a: d_model, in_b: d_model, out: "2 * d_model"}, inputs: [mtp.pre_fc_norm_embedding, mtp.pre_fc_norm_hidden]},
+      {name: mtp.fc, op: linear, dims: {in: "2 * d_model", out: d_model}, weight_axes: [{replicated: true}, {replicated: true}], inputs: [mtp.concat]},
+      {name: mtp.layers, template: qwen35_mtp_packed_inner_block, inputs: [mtp.fc]},
+      {name: mtp.norm, op: rmsnorm, dim: d_model, weight_axes: [{replicated: true}], inputs: [mtp.layers]},
+      {name: mtp_logits, op: linear, boundary_role: output_head, dims: {in: d_model, out: n_vocab}, weight_axes: [{world: attention, parts: n_vocab, fit: pad}, {replicated: true}], tied_weight: {to: lm_head}, inputs: [mtp.norm]}]}]

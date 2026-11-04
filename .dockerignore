@@ -1,0 +1,51 @@
+# Always keep image clean of dev-only artifacts.
+
+# Local virtualenvs / Python build crud
+.venv
+.venv*
+venv
+__pycache__
+*.pyc
+*.pyo
+*.egg-info
+.pytest_cache
+.ruff_cache
+.mypy_cache
+build
+dist
+
+# Local secrets — never bake into image
+.env
+.env.local
+.env.*.local
+
+# IDE / OS
+.vscode
+.idea
+.DS_Store
+*.swp
+
+# Source-of-truth dirs that aren't needed at runtime
+tests
+docs
+.github
+
+# Git internals & local history
+.git
+.gitattributes
+.gitignore
+
+# Per-run agent traces (huge, recreated at runtime)
+logs
+
+# Local caches (recreated inside the container)
+.cache
+
+# Frontend dev artifacts (we ship raw HTML/JS, no bundler)
+node_modules
+web/node_modules
+web/dist
+
+# Editor scratch
+*.log
+.tmp

@@ -1,0 +1,149 @@
+# NemotronH Mamba-2 selective SSM mixer (replaces self-attention in the
+# Mamba-typed layers of the hybrid backbone).
+#
+# Forward (NemotronHMamba2Mixer.torch_forward — kernel path takes the
+# same shape, just inside mamba_chunk_scan_combined):
+#
+#   projected = in_proj(x)              # (B, s_ctx, d_ffn_expert + Cd + n_ssm_heads)
+#   gate, hidden_states_B_C, dt = split(projected, [d_ffn_expert, Cd, n_ssm_heads], -1)
+#   hidden_states_B_C = silu(conv1d(hidden_states_B_C.transpose))  # depthwise
+#   hidden_states, B, C = split(hidden_states_B_C, [d_ffn_expert, n_ssm_groups·d_ssm_state, n_ssm_groups·d_ssm_state], -1)
+#   A = -exp(A_log)
+#   y = mamba2_scan(hidden_states.view(B,s_ctx,n_ssm_heads,d_ssm_head), dt, A,
+#                   B.view(B,s_ctx,n_ssm_groups,d_ssm_state), C.view(B,s_ctx,n_ssm_groups,d_ssm_state),
+#                   dt_bias, D)        # Σ_chunks SSM step
+#   y = RMSNormGated(y, gate)          # Zamba2RMSNormGated: γ·grouprms(y·silu(gate)),
+#                                      #   RMS per n_ssm_groups group (mamba2_gated_rmsnorm)
+#   y = out_proj(y)
+#
+# Where (NemotronH-3 specifics):
+#   d_ffn_expert (intermediate) = n_ssm_heads · d_ssm_head                       # = 256·64 = 16384
+#   Cd (conv_dim)     = d_ffn_expert + 2·n_ssm_groups·d_ssm_state                  # = 16384 + 2·8·128 = 18432
+#   in_proj output    = d_ffn_expert + Cd + n_ssm_heads                   # = 35072
+#
+# Tensors materialized:
+#   in_proj.weight       [d_ffn_expert+Cd+n_ssm_heads, d_model]
+#   conv1d.weight        [Cd, 1, s_ssm_conv_kernel]   (depthwise, groups = Cd)
+#   conv1d.bias          [Cd]            (use_conv_bias=true)
+#   A_log, D, dt_bias    [n_ssm_heads] each      (nn.Parameter, no .weight suffix)
+#   norm.weight          [d_ffn_expert]            (Zamba2RMSNormGated learnable γ)
+#   out_proj.weight      [d_model, d_ffn_expert]
+#
+# Required dims: d_model, n_ssm_heads, d_ssm_head, n_ssm_groups, d_ssm_state, s_ssm_conv_kernel.
+role: attention
+description: "Mamba-2 selective state-space mixer (NemotronHMamba2Mixer). NemotronH-3 backbone substitute-attention layers."
+cache:
+  family: Mamba2
+  entries:
+    # The SSM state [n_ssm_heads, d_ssm_head, d_ssm_state], carried by the scan.
+    # The repo forward views it [b, h, d, n] (modeling_nemotron_h.py:607).
+    # Stored in F32: the Nemotron-3 Nano and Ultra config.json both declare
+    # `mamba_ssm_cache_dtype: float32`. The repo forward caches the final state
+    # the SSM scan returns (modeling_nemotron_h.py:486-504
+    # `mamba_chunk_scan_combined(..., return_final_states=True)` ->
+    # `update_ssm_state`), and its eager path computes the scan in float32
+    # (:623-625). When the field is absent the binding falls back to F32, the
+    # default transformers declares for it (transformers
+    # models/nemotron_h/configuration_nemotron_h.py:121); the Nano repo's own
+    # configuration class does not declare the field.
+    - { state: recurrent_state, kind: recurrent_state, carrier: scan, shape: [n_ssm_heads, d_ssm_head, d_ssm_state], dtype: "config.mamba_ssm_cache_dtype ?? F32" }
+    # The causal conv's window over hidden|B|C, [C, kernel_size], resolved in
+    # the conv's own frame: the repo forward pads the conv input to
+    # `conv_kernel_size` columns and caches it (modeling_nemotron_h.py:458-464,
+    # cache :185 `torch.zeros(batch_size, ..., conv_kernel_size)`), and decode
+    # sums all of them against the conv weight (:535-536).
+    - { state: conv_state, kind: conv_state, carrier: conv1d, shape: [C, kernel_size] }
+# Two fixed-size states, each billed once per request with constant storage:
+#   recurrent_state [n_ssm_heads, d_ssm_head, d_ssm_state]                    = n_ssm_heads·d_ssm_head·d_ssm_state
+#   conv_state      [conv_dim, s_ssm_conv_kernel], conv_dim = n_ssm_heads·d_ssm_head + 2·n_ssm_groups·d_ssm_state
+# Nemotron-H: 256·64·128 + (16384 + 2·8·128)·4 = 2097152 + 73728 = 2,170,880.
+graph:
+  # d_model → (intermediate + conv_dim + nheads) fused projection.
+  in_proj:
+    op: linear
+    in: x
+    dims:
+      in: d_model
+      out: "n_ssm_heads * d_ssm_head + n_ssm_heads * d_ssm_head + 2 * n_ssm_groups * d_ssm_state + n_ssm_heads"
+      bias: "0"
+    weight_axes:
+      - segments:
+          - { segment: gate, extent: "n_ssm_heads * d_ssm_head", world: attention, parts: n_ssm_heads, fit: replica_cells }
+          - { segment: hidden, extent: "n_ssm_heads * d_ssm_head", world: attention, parts: n_ssm_heads, fit: replica_cells }
+          - { segment: B, extent: "n_ssm_groups * d_ssm_state", world: attention, parts: n_ssm_groups, fit: replica_cells }
+          - { segment: C, extent: "n_ssm_groups * d_ssm_state", world: attention, parts: n_ssm_groups, fit: replica_cells }
+          - { segment: dt, extent: n_ssm_heads, world: attention, parts: n_ssm_heads, fit: replica_cells }
+      - { replicated: true }
+
+  # Three sequential slices: gate (d_ffn_expert), hidden_states_B_C (Cd), dt (n_ssm_heads).
+  gate_slice: { op: slice, in: in_proj,
+                dims: { in: "n_ssm_heads * d_ssm_head + n_ssm_heads * d_ssm_head + 2 * n_ssm_groups * d_ssm_state + n_ssm_heads",
+                        out: "n_ssm_heads * d_ssm_head" } }
+  hbc_slice:  { op: slice, in: in_proj,
+                dims: { in: "n_ssm_heads * d_ssm_head + n_ssm_heads * d_ssm_head + 2 * n_ssm_groups * d_ssm_state + n_ssm_heads",
+                        out: "n_ssm_heads * d_ssm_head + 2 * n_ssm_groups * d_ssm_state" } }
+  dt_slice:   { op: slice, in: in_proj,
+                dims: { in: "n_ssm_heads * d_ssm_head + n_ssm_heads * d_ssm_head + 2 * n_ssm_groups * d_ssm_state + n_ssm_heads",
+                        out: n_ssm_heads } }
+
+  # Depthwise causal conv1d over hidden_states_B_C. `use_conv_bias=true`
+  # in the config materializes `conv1d.bias`, which the op itself declares
+  # (`TensorDecl(".bias", ("C_out",), when="bias", axis_refs=(0,))`) — and
+  # `axis_refs` copies the weight's axis 0, so the bias inherits the same
+  # three-segment hidden/B/C placement rather than restating it.
+  conv1d:
+    op: conv1d
+    in: hbc_slice
+    dims:
+      C: "n_ssm_heads * d_ssm_head + 2 * n_ssm_groups * d_ssm_state"
+      C_in: "n_ssm_heads * d_ssm_head + 2 * n_ssm_groups * d_ssm_state"
+      C_out: "n_ssm_heads * d_ssm_head + 2 * n_ssm_groups * d_ssm_state"
+      kernel_size: s_ssm_conv_kernel
+      dilation: "1"
+      groups: "n_ssm_heads * d_ssm_head + 2 * n_ssm_groups * d_ssm_state"
+      bias: "1"
+    weight_axes:
+      - segments:
+          - { segment: hidden, extent: "n_ssm_heads * d_ssm_head", world: attention, parts: n_ssm_heads, fit: replica_cells }
+          - { segment: B, extent: "n_ssm_groups * d_ssm_state", world: attention, parts: n_ssm_groups, fit: replica_cells }
+          - { segment: C, extent: "n_ssm_groups * d_ssm_state", world: attention, parts: n_ssm_groups, fit: replica_cells }
+      - { replicated: true }
+      - { replicated: true }
+  conv_silu: { op: silu, in: conv1d, dim: "n_ssm_heads * d_ssm_head + 2 * n_ssm_groups * d_ssm_state" }
+
+  # Three sequential slices off the silu-conv output: hidden_states (d_ffn_expert),
+  # B (n_ssm_groups·d_ssm_state), C (n_ssm_groups·d_ssm_state).
+  hs_slice: { op: slice, in: conv_silu,
+              dims: { in: "n_ssm_heads * d_ssm_head + 2 * n_ssm_groups * d_ssm_state", out: "n_ssm_heads * d_ssm_head" } }
+  B_slice:  { op: slice, in: conv_silu,
+              dims: { in: "n_ssm_heads * d_ssm_head + 2 * n_ssm_groups * d_ssm_state", out: "n_ssm_groups * d_ssm_state" } }
+  C_slice:  { op: slice, in: conv_silu,
+              dims: { in: "n_ssm_heads * d_ssm_head + 2 * n_ssm_groups * d_ssm_state", out: "n_ssm_groups * d_ssm_state" } }
+
+  # Reshape into per-head / per-group layout for the scan kernel.
+  hs_view: { op: view_split, in: hs_slice, axis: -1, dims: { in: "n_ssm_heads * d_ssm_head", n_heads: n_ssm_heads, d_head: d_ssm_head } }
+  B_view:  { op: view_split, in: B_slice, axis: -1,  dims: { in: "n_ssm_groups * d_ssm_state", n_heads: n_ssm_groups, d_head: d_ssm_state } }
+  C_view:  { op: view_split, in: C_slice, axis: -1,  dims: { in: "n_ssm_groups * d_ssm_state", n_heads: n_ssm_groups, d_head: d_ssm_state } }
+
+  # SSM-state nn.Parameter buffers (consumed by the scan kernel).
+  A_log:   { op: parameter_vector, dim: n_ssm_heads, weight_axes: [{ world: attention, parts: n_ssm_heads, fit: replica_cells }] }
+  D:       { op: parameter_vector, dim: n_ssm_heads, weight_axes: [{ world: attention, parts: n_ssm_heads, fit: replica_cells }] }
+  dt_bias: { op: parameter_vector, dim: n_ssm_heads, weight_axes: [{ world: attention, parts: n_ssm_heads, fit: replica_cells }] }
+
+  # Mamba-2 selective-state scan. Input order per ops.py: (hs, dt, A_log,
+  # B, C, dt_bias, D). All three of A_log / dt_bias / D are sibling
+  # learnables threaded into the scan kernel.
+  scan: { op: mamba2_scan,
+          in: [hs_view, dt_slice, A_log, B_view, C_view, dt_bias, D],
+          dims: { n_ssm_heads: n_ssm_heads, d_ssm_head: d_ssm_head, d_ssm_state: d_ssm_state, n_ssm_groups: n_ssm_groups } }
+
+  # Merge per-head dim back into the flat intermediate (B, s_ctx, d_ffn_expert).
+  scan_merge: { op: view_merge, in: scan }
+
+  # Zamba2RMSNormGated(y, gate): y·silu(gate) first, then RMS per
+  # n_ssm_groups group, then one learnable γ of shape [n_ssm_heads·d_ssm_head].
+  norm: { op: mamba2_gated_rmsnorm, in: [scan_merge, gate_slice] }
+
+  # Output projection back to hidden dim.
+  out_proj: { op: linear, in: norm, dims: { in: "n_ssm_heads * d_ssm_head", out: d_model, bias: "0" }, weight_axes: [{ replicated: true }, { world: attention, parts: n_ssm_heads, fit: replica_cells }] }
+outputs: [out_proj]

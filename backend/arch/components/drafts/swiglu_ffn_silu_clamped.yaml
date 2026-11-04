@@ -1,0 +1,28 @@
+# SwiGLU FFN whose clamps sit AFTER the activation — Step-5's `Step5MLP`
+# (inference/model.py:1834-1877) over `clamped_swiglu` (:1880-1899):
+#
+#   gate = gate_proj(x);  up = up_proj(x)
+#   y    = down_proj(silu(gate).clamp(max=limit) * up.clamp(-limit, limit))
+#
+# One component for both readers of that class: the dense layers' `mlp` and
+# every MoE layer's `share_expert` (model.py:2097-2109), which differ only in
+# `intermediate_size` vs `share_expert_dim` and in their clamp constant
+# (`swiglu_limits` vs `swiglu_limits_shared`, both 7.0 on every Step-5 layer).
+#
+# `swiglu_ffn_clamped` (DeepSeek-V4) clamps the PRE-activations instead
+# (`silu(min(gate, limit))`); see `gated_experts_silu_clamped` for why the two
+# orders are different functions.
+#
+# Required dims: d_model, d_ffn, clamp_limit.
+
+role: ffn_dense
+description: "SwiGLU FFN clamped after the activation: min(silu(gate_proj), limit) · clamp(up_proj, ±limit) → down_proj. Step-5 dense MLP and shared expert."
+graph:
+  gate_proj:  { op: linear, in: x, dims: { in: d_model, out: d_ffn }, weight_axes: [{ world: dense_ffn, parts: d_ffn, fit: exact }, { replicated: true }] }
+  up_proj:    { op: linear, in: x, dims: { in: d_model, out: d_ffn }, weight_axes: [{ world: dense_ffn, parts: d_ffn, fit: exact }, { replicated: true }] }
+  silu:       { op: silu, in: gate_proj, dim: d_ffn }
+  silu_clamp: { op: clamp, in: silu, dim: d_ffn, formula: "y = min(silu(gate_proj(x)), clamp_limit)   (one-sided: silu already bounds from below, model.py:1881-1886)" }
+  up_clamp:   { op: clamp, in: up_proj, dim: d_ffn, formula: "y = min(max(up_proj(x), −clamp_limit), clamp_limit)" }
+  gate_mul:   { op: mul, in: [silu_clamp, up_clamp], dim: d_ffn }
+  down_proj:  { op: linear, in: gate_mul, dims: { in: d_ffn, out: d_model }, weight_axes: [{ replicated: true }, { world: dense_ffn, parts: d_ffn, fit: exact }] }
+outputs: [down_proj]

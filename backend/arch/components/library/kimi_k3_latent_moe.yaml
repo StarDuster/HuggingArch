@@ -1,0 +1,43 @@
+# Kimi-K3 "Stable LatentMoE" FFN (block_sparse_moe).
+#
+# The routed experts work in a low-rank LATENT space (d_moe_latent =
+# routed_expert_hidden_size = 3584), bracketed by a shared down/up projection
+# pair with an RMSNorm on the combined routed latent (config.latent_moe_use_norm):
+#   x -> routed_expert_down_proj (d_model -> d_moe_latent)
+#     -> [route + w1/w3/w2 expert bank in latent space] -> combine
+#     -> routed_expert_norm (RMSNorm, d_moe_latent)
+#     -> routed_expert_up_proj (d_moe_latent -> d_model)
+# The norm reads the combined expert output, not the down projection
+# (KimiSparseMoeBlock.forward: down_proj -> moe_infer -> norm -> up_proj). Under
+# TP-sharded experts the combine is a pending sum, so the norm forces its
+# reduction in latent space before the up projection — what vLLM's
+# LatentMoERunner.allreduce_norm_latent_out and sglang's KimiK3MoE._reduce_latent
+# do. The down/up projections, the norm and the router gate are ReplicatedLinear
+# in both frameworks (every rank holds and reads the full weight).
+# A wide always-on shared expert (n_shared_experts fused SwiGLU experts, d_ffn = n_shared_experts·d_ffn_expert) runs in
+# hidden space d_model in parallel and is added at the tail.
+#
+# Routing is aux-loss-free noaux_tc: sigmoid(gate) + gate.e_score_correction_bias
+# + grouped top-n_groups_active-of-n_expert_groups (n_expert_groups=n_groups_active=1 -> no-op) + token top-K + gather + norm +
+# scale  (delegated to router_noaux_tc, whose primary gate lands at
+# `block_sparse_moe.gate.weight`).
+#
+# The routed experts (experts.X.w1/w3/w2) are the ONLY MXFP4-quantized tensors
+# in the checkpoint; the down/up/norm bottleneck and the shared expert stay
+# BF16 — roles `ffn_moe_latent` and `ffn_moe_shared`, each with its own
+# `quant_context.per_role` entry in the model spec.
+#
+# Required dims: d_model, d_moe_latent, d_ffn_expert, d_ffn_shared, n_experts, n_route_targets, n_experts_active. Optional: n_expert_groups, n_groups_active.
+role: ffn_moe
+description: "Kimi-K3 Stable LatentMoE: noaux_tc router -> down_proj(d_model->d_moe_latent) -> w1/w3/w2 expert bank in latent space -> latent RMSNorm -> up_proj(d_moe_latent->d_model), plus a wide fused shared expert."
+graph:
+  gate:                     { op: router_noaux_tc, in: x }
+  routed_expert_down_proj:  { op: linear, role: ffn_moe_latent, in: x, dims: { in: d_model, out: d_moe_latent, bias: "0" }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  permute:                  { op: permute, in: [routed_expert_down_proj, gate] }
+  experts:                  { op: gated_experts, params: { act: situ }, role: ffn_moe, in: permute, dims: { d_model: d_moe_latent, d_ffn: d_ffn_expert }, expert_weight: unrolled, inner_modules: { gate_proj: w1, up_proj: w3, down_proj: w2 } }
+  combine:                  { op: combine, in: [experts, gate], dims: { d_model: d_moe_latent } }
+  routed_expert_norm:       { op: rmsnorm, role: ffn_moe_latent, in: combine, dim: d_moe_latent, weight_axes: [{ replicated: true }] }
+  routed_expert_up_proj:    { op: linear, role: ffn_moe_latent, in: routed_expert_norm, dims: { in: d_moe_latent, out: d_model, bias: "0" }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  shared_experts:           { op: gated_ffn, params: { act: situ }, role: ffn_moe_shared, in: x, dims: { d_model: d_model, d_ffn: d_ffn_shared } }
+  moe_out:                  { op: add, in: [routed_expert_up_proj, shared_experts], dim: d_model }
+outputs: [moe_out]

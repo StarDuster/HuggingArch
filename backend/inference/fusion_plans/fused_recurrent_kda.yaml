@@ -1,0 +1,74 @@
+# Kimi Delta Attention decode step in one launch, per-head decay rate,
+# bounded gate: the forget gate formed in-kernel from the raw low-rank
+# projection, beta = sigmoid(beta_raw), q/k L2 norm and the delta-rule
+# recurrence.
+#
+# Naive subgraph (kda_perhead_decay_lowrank_gate_attention, GLM-5.3-Flash):
+#
+#   f    = f_b + dt_bias                         forget (add)
+#   f    = head-first view of f                  forget_split, forget_heads
+#   f    = head-last frame for the per-head rate forget_heads_last (transpose)
+#   g    = lower_bound * sigmoid(f * exp(a_log)) gate_rate, gate_sigmoid, gate_bound
+#   g    = back to head-first                    gate_heads_first (transpose)
+#   beta = sigmoid(beta_raw)
+#   o    = gated_delta_rule(l2norm(q), l2norm(k), v, g, beta)
+#
+# One exact form, no optional nodes: the kernels compute exactly two gate
+# formulas (bounded `lower_bound * sigmoid(exp(a_log) * (forget_raw +
+# dt_bias))`, unbounded `-exp(a_log) * softplus(forget_raw + dt_bias)`), and
+# the rate is per head here (GLM) or per channel (Kimi-K3's
+# `kimi_k3_kda_attention`, the sibling plan `fused_recurrent_kda_per_channel`).
+# No corpus model spells the unbounded form.
+#
+# DECODE ONLY, GLM-5.3-Flash's classes (Kimi-K3's per-channel spelling is
+# the sibling plan `fused_recurrent_kda_per_channel`, and its whole mixer
+# is `fused_kda_decode`):
+#   vLLM (v0.32.0): wrapper `fused_recurrent_kda`
+#     (models/glm5next/nvidia/ops/third_party/kda/kernels.py:148, through
+#     `fused_recurrent_kda_fwd` :36) over the kernel
+#     `fused_recurrent_gated_delta_rule_fwd_kernel` (fused_recurrent.py:44;
+#     l2norm :159-162, dt_bias add + bounded gate :167-177, beta sigmoid
+#     :188-189), called with compute_gate=True, sigmoid_beta=True,
+#     use_qk_l2norm_in_kernel=True from raw g1 / beta at
+#     models/glm5next/common/kda.py:760 (plain decode; :673 spec, same
+#     boundary). COMPUTE_GATE implements the bounded gate only.
+#   sglang (v0.5.22): `fused_sigmoid_gating_delta_rule_update(is_kda=True,
+#     lower_bound, use_qk_l2norm_in_kernel=True)`
+#     (kernels/ops/attention/fla/fused_sigmoid_gating_recurrent.py, gate
+#     :331-355 (bounded :332-334), beta :361) via srt/layers/attention/linear/kernels/
+#     kda_triton.py:141 from kda_backend.py:981.
+#
+# Prefill differs (FlashKDA in vLLM by default, internals not in tree; a
+# chunked Triton path otherwise) and is not bound.
+#
+# The recurrence carries the recurrent state (carrier `delta_rule`); its
+# read moves onto this launch.
+
+fused_op: fused_recurrent_kda
+
+naive_pattern:
+  nodes:
+    q_norm:   { op: l2norm,      inputs: [external.q] }
+    k_norm:   { op: l2norm,      inputs: [external.k] }
+    forget:            { op: add,         inputs: [external.forget_raw, external.dt_bias] }
+    forget_split:      { op: view_split,  inputs: [forget.out] }
+    forget_heads:      { op: transpose,   inputs: [forget_split.out] }
+    forget_heads_last: { op: transpose,   inputs: [forget_heads.out] }
+    rate:              { op: exp,         inputs: [external.a_log] }
+    gate_rate:         { op: mul,         inputs: [forget_heads_last.out, rate.out] }
+    gate_sigmoid:      { op: sigmoid,     inputs: [gate_rate.out] }
+    gate_bound:        { op: scale_const, inputs: [gate_sigmoid.out] }
+    gate_heads_first:  { op: transpose,   inputs: [gate_bound.out] }
+    beta:              { op: sigmoid,     inputs: [external.beta_raw] }
+    rule:
+      op: gated_delta_rule
+      inputs: [q_norm.out, k_norm.out, external.v, gate_heads_first.out, beta.out]
+  io_mapping:
+    q:          external.q
+    k:          external.k
+    v:          external.v
+    forget_raw: external.forget_raw
+    dt_bias:    external.dt_bias
+    a_log:      external.a_log
+    beta_raw:   external.beta_raw
+    output:     rule.out

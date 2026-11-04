@@ -1,0 +1,24 @@
+# Qwen3.5 dense full-attention layer (every 4th backbone layer). Thin pre_norm wrapper
+# binding the fused-QZ sigmoid-gated GQA attention and the dense swiglu FFN.
+# Output gate is `attn_output * torch.sigmoid(gate)` (modeling_qwen3_5.py
+# Qwen3_5Attention.forward), i.e. the library sigmoid-gated component.
+# vLLM: qwen3_5.py Qwen3_5DecoderLayer with layer_type "full_attention" builds
+# `self.self_attn = Qwen3NextAttention(...)` and, for model_type
+# "qwen3_5_text", `self.mlp = Qwen3NextMLP(...)`. The MTP head's decoder layer
+# is the same layer (vLLM qwen3_5_mtp.py `Qwen3_5DecoderLayer(...,
+# layer_type="full_attention")`) and binds this template.
+role: block
+description: "Qwen3.5 dense full-attention layer: pre-norm + fused-QZ sigmoid-gated GQA + swiglu FFN."
+
+graph:
+  layer:
+    module: null
+    op: pre_norm
+    in: x
+    params:
+      # Qwen3.5 / Qwen3.8 rotate by multimodal positions (`mrope_section` in
+      # the text rope parameters): vLLM qwen3_5.py -> Qwen3NextAttention ->
+      # get_rope -> MRotaryEmbedding (qwen3_next.py:282, :382).
+      attn: { template: gqa_qknorm_partial_rope_sigmoid_gated_attention, params: { rope: mrope } }
+      ffn:  swiglu_ffn
+outputs: [layer]

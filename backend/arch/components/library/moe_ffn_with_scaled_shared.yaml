@@ -1,0 +1,26 @@
+# MoE FFN variant where the shared expert is ONE wide SwiGLU (intermediate
+# = `d_ffn_shared`), not `n_shared_experts` narrow ones. Used by Moonlight, where the checkpoint stores
+# a single `mlp.shared_experts.{gate,up,down}_proj.weight` tensor with
+# intermediate = moe_intermediate_size × n_shared_experts.
+#
+# Distinct from `moe_ffn` (which uses `repeat: n_shared_experts` to model
+# n_shared_experts parallel
+# shared experts each with intermediate = d_ffn_expert): even when params totals
+# coincide algebraically, the topology — number of physical tensors,
+# parallelization model, DAG visualization — is genuinely different.
+# Pick this component when the checkpoint has 1 wide tensor; pick `moe_ffn`
+# when it has n_shared_experts narrow ones (e.g. DeepSeek-V3, Kimi-K2).
+#
+# Required dims: d_model, d_ffn_expert (routed expert intermediate), d_ffn_shared (shared expert
+# intermediate, typically `d_ffn_expert * n_shared_experts`), n_experts (total routed experts), n_experts_active (top-k).
+# Optional dims: n_router_bias_params (router bias, 0=no bias, 1=has bias).
+role: ffn_moe
+description: "MoE + a single wide shared expert (d_ffn=d_ffn_expert×n_shared_experts) instead of n_shared_experts narrow shared experts."
+graph:
+  gate:          { op: linear, in: x, dims: { in: d_model, out: n_route_targets, bias: n_router_bias_params }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  permute:       { op: permute, in: [x, gate] }
+  experts:        { op: gated_experts, role: ffn_moe, in: permute, dims: { d_model: d_model, d_ffn: d_ffn_expert }, expert_weight: unrolled }
+  combine:       { op: combine, in: [experts, gate] }
+  shared_experts: { op: swiglu_ffn, in: x, dims: { d_model: d_model, d_ffn: d_ffn_shared } }
+  moe_out:       { op: add, in: [combine, shared_experts], dim: d_model }
+outputs: [moe_out]

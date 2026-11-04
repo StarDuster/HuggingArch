@@ -1,0 +1,50 @@
+# MoE FFN (Mixture of Experts with optional shared experts)
+# Used by: DeepSeek-V2 / V2-Lite, Qwen3-MoE. Vanilla softmax-then-greedy-topk
+# routing (Mixtral-style) — older /
+# simpler than DSv3's noaux_tc (sigmoid + correction-bias + group
+# routing); for that path see moe_ffn_gate_routing_bias / router_noaux_tc.
+#
+# Required dims: d_model, d_ffn_expert (per-expert intermediate), n_experts (total experts), n_experts_active (top-k)
+# Optional dims: n_shared_experts (shared experts, always active), n_router_bias_params (router bias, 0/1, default 0)
+#               n_route_targets (the gate's width, derived: n_experts + n_zero_experts — LongCat-Flash's zero_expert_num reserve included)
+#
+# repeat: total copies stored → params multiplier
+# active: copies active per token → FLOPs multiplier
+#
+# Forward source (DSv2 / Mixtral / Qwen-MoE all match):
+#   logits  = gate(x)                          # linear, no bias
+#   scores  = softmax(logits, dim=-1)          # over n_route_targets
+#   topk    = scores.topk(n_experts_active, dim=-1)           # greedy
+#   weights = scores.gather(topk.indices)      # per-token expert scores
+#   y_routed = Σ_{k=1..n_experts_active} weights[k] · expert[topk[k]](x)
+#   y_shared = Σ_{e=1..n_shared_experts} shared_expert[e](x)
+#   out      = y_routed + y_shared
+#
+# FP8 `*_weight_scale_inv` tensors are tracked as `quantization_metadata_params`
+# at the analyzer level (see schema/guards.py::_is_quant_metadata_suffix), not
+# summed into this op.
+
+role: ffn_moe
+description: "Vanilla MoE FFN: gate → softmax → greedy top-K → gather → expert bank (swiglu_ffn × n_experts, top-K) + optional n_shared_experts shared experts. Mixtral / DSv2 / Qwen-MoE style."
+graph:
+  # Routing pipeline (linear → softmax → top-K → gather) lives in the
+  # shared `router_softmax_topk` component, identical to how
+  # `moe_ffn_gate_routing_bias` invokes `router_noaux_tc` for V3-style
+  # routing. One fix point for the vanilla routing math.
+  gate:          { op: router_softmax_topk, in: x }
+  # permute / combine bracket the routed bank: `permute` writes
+  # [n_expert_copies, M, d_model], M = B·s_ctx·n_experts_active/n_route_targets
+  # rows per expert — DESTINATIONS, of which the weighted experts are all but
+  # LongCat-Flash's zero-compute reserve. The bank's weights lead with the same
+  # axis, so its FLOPs are n_expert_copies·M rows, which is
+  # B·s_ctx·n_experts_active wherever the copies ARE the destinations, and the
+  # weighted fraction of it where they are not.
+  # The COPIES axis, not the routing denominator: `n_expert_copies` defaults to
+  # `n_experts` and is the only symbol expert parallelism divides, so a rank
+  # holding `n_expert_copies/ep` experts follows from the declaration.
+  permute:       { op: permute, in: [x, gate] }
+  experts:        { op: gated_experts, role: ffn_moe, in: permute, dims: { d_model: d_model, d_ffn: d_ffn_expert }, expert_weight: unrolled }
+  combine:       { op: combine, in: [experts, gate] }
+  shared_experts: { op: swiglu_ffn, role: ffn_moe, in: x, dims: { d_model: d_model, d_ffn: d_ffn_expert }, repeat: n_shared_experts }
+  moe_out:       { op: add, in: [combine, shared_experts], dim: d_model }
+outputs: [moe_out]

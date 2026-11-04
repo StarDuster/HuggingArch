@@ -1,0 +1,21 @@
+# Qwen3.5-MoE MTP head's inner transformer block.
+# Same attention as the main backbone (`qwen35_full_moe_block`) but the
+# expert FFN is non-fused — the MTP checkpoint stores per-expert
+# nn.Linear weights (`experts.X.gate_proj.weight`, …) rather than the
+# main backbone's stacked `[n_experts, 2*d_ffn_expert, d_model]` Parameter. See `qwen35_full_moe_block`
+# for the backbone variant; the only delta is the FFN binding.
+role: block
+description: "Qwen3.5-MoE MTP inner block: pre-norm + fused-QZ sigmoid-gated GQA + non-fused experts with scaled-shared gate."
+
+graph:
+  layer:
+    module: null
+    op: pre_norm
+    in: x
+    params:
+      # Qwen3.5 / Qwen3.8 rotate by multimodal positions (`mrope_section` in
+      # the text rope parameters): vLLM qwen3_5.py -> Qwen3NextAttention ->
+      # get_rope -> MRotaryEmbedding (qwen3_next.py:282, :382).
+      attn: { template: gqa_qknorm_partial_rope_sigmoid_gated_attention, params: { rope: mrope } }
+      ffn:  moe_ffn_scaled_shared_gate
+outputs: [layer]

@@ -1,0 +1,30 @@
+# DeepSeek-V4 query preparation on its own — sglang's `fused_q_norm_rope`.
+#
+# Naive subgraph (dsv4_{csa,hca,swa_only}_attention, the query track of
+# `fused_qnorm_rope_kv_insert`): every query head normalised without a gain,
+# its last d_qk_rope dims rotated and re-joined:
+#
+#   q_n          = rmsnorm_unscaled(q)                  # per head, over d_head
+#   q_rope_slice, q_norope_slice = slice(q_n), slice(q_n)
+#   q_out        = concat(q_norope_slice, rope_emb(q_rope_slice))
+#
+# sglang v0.5.22 runs the query track as one launch that reads q once and
+# writes q_out once, `fused_q_norm_rope`
+# (python/sglang/kernels/ops/attention/dsv4/elementwise.py:171), from
+# `DeepseekV4Attention._compute_q_b` (python/sglang/srt/models/deepseek_v4.py:1417)
+# whenever `q_head_norm` (srt/configs/deepseek_v4.py:136, default true). The
+# latent-KV track is a separate launch (`fused_norm_rope.yaml`), which is why
+# vLLM's one-launch `fused_qnorm_rope_kv_insert` boundary does not fit sglang.
+
+fused_op: fused_qnorm_rope
+
+naive_pattern:
+  nodes:
+    q_norm:         { op: rmsnorm_unscaled, inputs: [external.q] }
+    q_rope_slice:   { op: slice,            inputs: [q_norm.out] }
+    q_norope_slice: { op: slice,            inputs: [q_norm.out] }
+    q_rope:         { op: rope_emb,         inputs: [q_rope_slice.out], feeds: q }
+    q_concat:       { op: concat,           inputs: [q_norope_slice.out, q_rope.out] }
+  io_mapping:
+    q:      external.q
+    output: q_concat.out

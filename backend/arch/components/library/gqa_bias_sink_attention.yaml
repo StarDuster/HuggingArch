@@ -1,0 +1,36 @@
+# GQA + bias on every linear (q/k/v/o) + per-head learnable `sinks` scalar.
+# First observed in: GPT-OSS (OpenAI gpt-oss-20b/120b) "full_attention" layers.
+#
+# Differences vs `gqa_attention`:
+#   - Bias=1 on Q/K/V AND o_proj. `gqa_attention` only exposes Qb on Q/K/V
+#     (no o-bias). All four projections carry a bias here.
+#   - A learnable `sinks` parameter_vector of shape [n_heads] (one scalar per
+#     attention head). Original GPT-OSS / vLLM pass it into FA as `s_aux` on
+#     EVERY layer, full attention included — softmax reads it
+#     (`softmax_with_sink`).
+#
+# Required dims: d_model, n_heads, n_kv_heads, d_head
+
+role: attention
+description: "GQA + bias on Q/K/V/O + per-head learnable sinks. GPT-OSS full-attention layers."
+cache:
+  family: GQA
+  entries:
+    - { node: k_rope, kind: kv }
+    - { node: v_split_heads, kind: kv }
+graph:
+  q_proj:          { op: linear, in: x, dims: { in: d_model, out: "n_heads * d_head",  bias: "1" }, weight_axes: [{ world: attention, parts: n_heads, fit: replica_cells }, { replicated: true }] }
+  k_proj:          { op: linear, in: x, dims: { in: d_model, out: "n_kv_heads * d_head", bias: "1" }, weight_axes: [{ world: attention, parts: n_kv_heads, fit: replica_cells }, { replicated: true }] }
+  v_proj:          { op: linear, in: x, dims: { in: d_model, out: "n_kv_heads * d_head", bias: "1" }, weight_axes: [{ world: attention, parts: n_kv_heads, fit: replica_cells }, { replicated: true }] }
+  q_split_heads:      { op: head_split, in: q_proj, dims: { n_heads: n_heads, d_head: d_head } }
+  k_split_heads:      { op: head_split, in: k_proj, dims: { n_heads: n_kv_heads, d_head: d_head } }
+  v_split_heads:      { op: head_split, in: v_proj, dims: { n_heads: n_kv_heads, d_head: d_head } }
+  q_rope:          { op: rope, in: q_split_heads, dim: d_head }
+  k_rope:          { op: rope, in: k_split_heads, dim: d_head }
+  qk_score:        { op: attention_score, in: [q_rope, k_rope], dims: { n_heads: n_heads, d_head: d_head } }
+  sinks:           { op: parameter_vector, dim: n_heads, weight_axes: [{ world: attention, parts: n_heads, fit: replica_cells }] }
+  softmax:         { op: softmax_with_sink, in: [qk_score, sinks], dims: { n_heads: n_heads } }
+  attn_apply:      { op: attention_apply, in: [softmax, v_split_heads], dims: { n_heads: n_heads, d_head: d_head } }
+  o_merge_heads:      { op: head_merge, in: attn_apply, dims: { n_heads: n_heads, d_head: d_head } }
+  o_proj:          { op: linear, in: o_merge_heads, dims: { in: "n_heads * d_head", out: d_model, bias: "1" }, weight_axes: [{ replicated: true }, { world: attention, parts: n_heads, fit: replica_cells }] }
+outputs: [o_proj]

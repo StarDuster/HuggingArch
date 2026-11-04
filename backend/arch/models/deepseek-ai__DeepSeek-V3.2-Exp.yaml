@@ -1,0 +1,4 @@
+# Identity file for deepseek-ai/DeepSeek-V3.2-Exp
+base: deepseek_v3_2
+match:
+  model_id: [deepseek-ai/DeepSeek-V3.2-Exp]

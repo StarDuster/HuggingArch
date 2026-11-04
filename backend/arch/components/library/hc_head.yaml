@@ -1,0 +1,49 @@
+# Hyper-Connections "head" reduce — final exit-side mixing.
+#
+# Source mirror: V4-Pro `ParallelHead.hc_head` and the MTP block's
+# private head reduce. Like `hc_pre` (sinkhorn-mixed) but for the
+# network exit / MTP exit, where only a single forward output is
+# needed (no `post` / `comb` returned to a later post-block) — so
+# uses sigmoid + scale + bias mixing instead of sinkhorn split.
+#
+# Forward (matches V4-Pro source):
+#   x_flat = x.flatten(2).float()                                # [B,s_ctx,n_hidden_copies·d_model]
+#   rsqrt  = 1 / sqrt(mean(x_flat²) + ε)
+#   mixes  = F.linear(x_flat, fn) * rsqrt                        # [B,s_ctx,n_hidden_copies]
+#   pre    = sigmoid(mixes * scale + base) + ε
+#   y      = sum(pre.unsqueeze(-1) * x, dim=2)                   # [B,s_ctx,d_model]
+#
+# Pure function: 4 inputs (residual + 3 weights), 0 own params,
+# 1 output (reduced). Caller declares fn/scale/base as
+# parameter_tensor + parameter_vector at its own scope so checkpoint
+# paths land flat — same Block-attribute-as-argument idiom V4-Pro's
+# source uses for the per-block `hc_attn_*` weights.
+#
+# Required dims at call site: d_model, n_hidden_copies.
+
+role: hyper_connection
+description: "Hyper-Connections head reduce: flatten n_hidden_copies copies, project to n_hidden_copies-dim mix vector, sigmoid+scale+bias, weighted reduce → [B,s_ctx,d_model]. Pure-function exit-side mixing. V4-Pro ParallelHead.hc_head and MTPBlock head."
+inputs: [x, fn, scale, base]   # x: [B,s_ctx,n_hidden_copies,d_model], fn: [n_hidden_copies, n_hidden_copies·d_model], scale: [1], base: [n_hidden_copies]
+
+graph:
+  flat:    { op: view_merge, in: x }
+  # `flat_norm` not `norm`: this unscaled norm (no weight tensor) is a
+  # top-level block node when hc_head is invoked as a singleton, so a
+  # bare `norm` collides with the MTP block's weighted final `norm`
+  # (same spec_id, different op/cost). Renaming is tensor-safe — unscaled
+  # rmsnorm emits no checkpoint weight.
+  flat_norm: { op: rmsnorm_unscaled, in: flat, dim: "n_hidden_copies * d_model" }
+  mixes:   { op: linear_external_weight, in: [flat_norm, fn], dims: { in: "n_hidden_copies * d_model", out: n_hidden_copies } }
+  scaled:  { op: mul, in: [mixes, scale], dim: n_hidden_copies }
+  biased:  { op: add, in: [scaled, base], dim: n_hidden_copies }
+  pre:     { op: sigmoid, in: biased, dim: n_hidden_copies }
+  # The weighted reduce over the copies, written out rather than called as
+  # `hc_weighted_reduce`: both frameworks compute it in the same launch as
+  # the mixes (vLLM `hc_head_fuse_tilelang`, sglang `fused_hc_head`), and a
+  # fusion cannot reach into a sub-component's scope. Same function, same
+  # cost.
+  w_expanded: { op: broadcast, in: pre, axis: -1, dims: { width: d_model } }
+  weighted:   { op: mul, in: [x, w_expanded], dim: d_model }
+  reduced:    { op: sum_reduce, in: weighted, axis: 2, dims: { in: n_hidden_copies } }
+
+outputs: [reduced]

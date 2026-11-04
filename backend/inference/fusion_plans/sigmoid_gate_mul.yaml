@@ -1,0 +1,45 @@
+# Attention output gate x * sigmoid(gate) in one elementwise launch.
+#
+# Naive subgraph: a sigmoid of the gate and its product with the merged
+# attention output, in the attention component's scope (Hy4's
+# mla_dsa_gated_sink_attention family: g_act, o_gated; the Qwen gated
+# attentions: gate_act, gated_attn). The same two ops are the shared-expert
+# gate of these models (an `ffn_*` role), so the bindings ask `roles:
+# [attention]`.
+#
+# sglang (v0.5.22): HY V4 calls `sigmoid_gate_mul` (kernels/ops/moe/
+#   triton_sigmoid_gate_mul.py:38, kernel :22) from srt/models/hunyuan_v4.py:505
+#   (`_apply_attention_output_gate_fallback`) when the gate backend resolves to
+#   "triton" — off SM100 or without the optional `hpc` package
+#   (`_resolve_gate_backend` :403-414; hpc's `gated_mla_gemm` also absorbs the
+#   gate projection, SM100/103 only, :439-440; not assumed installed). Qwen3.5
+#   and Qwen4Exp gated attention call `fused_sigmoid_mul`
+#   (kernels/ops/elementwise/elementwise.py:419, kernel :380) on CUDA:
+#   srt/models/qwen3_5.py:1579-1582 (its `quant=True` form is ROCm aiter only,
+#   :317-330) and qwen4_exp.py:1876-1879. Prefill and decode alike. Qwen3-Next
+#   runs torch sigmoid and mul (qwen3_next.py:806-815); qwen2_moe.py and
+#   qwen3_next.py call `sigmoid_gate_mul` on HIP only.
+# vLLM (v0.32.0): Qwen4Exp QSA decode — the split-K merge kernel gates the
+#   merged output (models/qwen4_exp/nvidia/ops/qsa.py:237, gate :280-286; see
+#   `flash_dsa_gated` for why decode splits). HY V4 runs
+#   `attn_out * torch.sigmoid(gate_score)` as two eager ops
+#   (models/hy_v4/nvidia/attention.py:731-740) unless hpc is installed and
+#   VLLM_ENABLE_HPC_OPS=1; whether Inductor fuses them is the open
+#   generic-pointwise question (F10), so vLLM does not bind it there.
+# Kimi-K3's gated MLA (`mla_output_gate_attention`, g_act / o_gated):
+#   vLLM (v0.32.0) runs `_gate_sigmoid_mul`, a function compiled on its own
+#   with Inductor (models/kimi_k3/nvidia/mla.py:117-120, called :623) —
+#   one generated launch; sglang (v0.5.22) the JIT `kimi_k3_mla_output_gate`
+#   (kernels/ops/attention/mla_output_gate.py:48, from srt/models/kimi_k3.py
+#   :2290-2293). See the bindings for the phases billed.
+
+fused_op: sigmoid_gate_mul
+
+naive_pattern:
+  nodes:
+    sigmoid: { op: sigmoid, inputs: [external.gate] }
+    gated:   { op: mul,     inputs: [external.x, sigmoid.out] }
+  io_mapping:
+    x:      external.x
+    gate:   external.gate
+    output: gated.out

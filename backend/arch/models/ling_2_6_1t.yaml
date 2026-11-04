@@ -1,0 +1,220 @@
+# inclusionAI/Ling-2.6-1T (Bailing-MoE V2.5).
+# Trillion-parameter hybrid linear/full-attention MoE.
+#
+# Stack: 80 main-backbone decoder layers + 1 auxiliary MTP layer.
+# Bailing physically concatenates the MTP layer into the main
+# `self.layers` ModuleList at idx n_layers (HF tensors live under
+# `model.layers.80.*`), but in the forward pass MTP is a side branch
+# off layer 79's hidden state, not a step on the main path. So the
+# spec models them separately:
+#   • `name: layers, repeat: n_layers`  — main backbone (idx 0..n_layers-1)
+#   • `name: mtp,    group: true, aux_kind: mtp, repeat: n_mtp_layers` — MTP
+# The MTP group's `checkpoint:` address places its leaves at the tail
+# index of the backbone's layer space (`model.layers.80.*`); lm_head does
+# not consume MTP output, and MTP renders in its own auxiliary section.
+#
+# Layer-type policy (encoded in DecoderLayer.__init__):
+#   - Attention is "attention" (full MLA) iff (idx+1) % layer_group_size
+#     == 0 OR idx >= n_layers (the MTP layer); else "linear_attention" (FLA
+#     simple_gla / Lightning-2 recurrence). With n_layers=80, layer_group_size=8
+#     full-MLA hits idx {7, 15, 23, 31, 39, 47, 55, 63, 71, 79} — 10
+#     layers — plus the MTP layer at idx 80.
+#   - FFN is dense SwiGLU at idx < first_k_dense_replace (=4) and MoE
+#     thereafter. None of the dense-FFN prefix layers fall on a full-MLA
+#     index, so dense FFN always pairs with linear attention.
+#
+# Three concrete main-stack block templates + one MTP template:
+#   - bailing_linear_dense_block  — idx 0..3       (4 layers)
+#   - bailing_full_moe_block      — idx 7,15,…,79  (10 layers)
+#   - bailing_linear_moe_block    — rest           (66 layers)
+#   - bailing_mtp_block (inline)  — idx 80         (1 layer)
+#
+# Checkpoint naming (handled by adapters / components / inline block):
+#   - Block-level: nn.Module is `self.attention`, not `self.self_attn` →
+#     `self_attn → attention` rename in the three main-stack adapters.
+#   - MLA: output linear is `dense`, not `o_proj` → the
+#     `mla_attention_dense` component.
+#   - MoE: noaux_tc bias is `gate.expert_bias`, not
+#     `gate.e_score_correction_bias` → the `moe_ffn_gate_expert_bias`
+#     component.
+#   - Token embedding is `model.word_embeddings`, not
+#     `model.embed_tokens` (declared accordingly below).
+#
+# Quantization: compressed-tensors / FP8_DYNAMIC. Linear weights are
+# F8_E4M3, scales (`*.weight_scale`) are BF16 metadata routed to the
+# quant_metadata bucket via `compressed-tensors` scheme.
+match:
+  model_type: [bailing_hybrid]
+
+components:
+  norm: rmsnorm
+
+dims:
+  d_model:    config.hidden_size
+  n_heads:    config.num_attention_heads
+  n_kv_heads:   config.num_kv_heads_for_linear_attn ?? n_heads
+  d_head:    config.head_dim ?? "d_model // n_heads"
+  # Partial RoPE dim for the linear-attention path. Bailing's
+  # BailingMoeV2_5LinearAttention computes rope_dim = int(head_dim *
+  # partial_rotary_factor) = 64; mirror that with an integer expression.
+  d_rope:   config.rotary_dim ?? "(d_head * 5) // 10"
+  # GroupRMSNorm groups on the GLA output (`g_norm`). HF asserts the width
+  # divides it; vLLM/sglang read it with a default of 1 (one group = full width).
+  n_norm_groups: config.group_norm_size ?? "1"
+  # MLA-specific dims (used by `mla_attention_dense`). That component's
+  # `d_head` means qk_nope_head_dim, so the full-attention assignment and
+  # the MTP block bind `d_head: d_qk_nope`; the GLA path keeps
+  # d_head=head_dim (numerically equal here, but kept distinct for
+  # generality).
+  d_q_lora:    config.q_lora_rank
+  d_kv_lora:     config.kv_lora_rank
+  d_qk_rope:     config.qk_rope_head_dim
+  d_qk_nope: config.qk_nope_head_dim
+  d_v_head:    config.v_head_dim ?? d_qk_nope
+  # FFN dims
+  d_ffn:    config.intermediate_size
+  d_ffn_expert:   config.moe_intermediate_size
+  n_vocab:    config.vocab_size
+  n_layers:    config.num_hidden_layers
+  n_experts:    config.num_experts
+  n_experts_active:    config.num_experts_per_tok
+  # num_shared_experts=1 with shared intermediate = moe_intermediate_size *
+  # num_shared_experts = d_ffn_expert. moe_ffn_gate_routing_bias' shared_expert
+  # `repeat: n_shared_experts` therefore yields one d_ffn_expert-wide shared SwiGLU, matching
+  # `mlp.shared_experts.{gate,up,down}_proj` of shape [d_ffn_expert=2048, d_model].
+  n_shared_experts:   config.num_shared_experts ?? "0"
+  # Read from config, no fallback: BailingMoeV2_5Config defaults 8 / 4, and every shipped config sets both.
+  n_expert_groups:   config.n_group
+  n_groups_active:   config.topk_group
+  n_dense_layers:   config.first_k_dense_replace
+  n_mtp_layers: config.num_nextn_predict_layers ?? "0"
+  s_max: config.max_position_embeddings
+
+view:
+  rope_theta: config.rope_theta
+  hidden_act: config.hidden_act
+  norm.eps: config.rms_norm_eps
+
+blocks:
+  # MTP layer (BailingMoeV2_5MTPLayer; vLLM bailing_moe_v3_mtp.py, sglang
+  # bailing_moe_nextn.py): eh_proj(cat[enorm(inputs_embeds),
+  # hnorm(previous_hidden_states)]) -> the full-MLA MoE decoder layer the
+  # backbone runs at its full-attention indices -> final_layernorm. The MTP
+  # layer is one more entry of the backbone's `layers.X` index space, so the
+  # library head's inner block hangs flat off it (`transformer` has no module);
+  # the checkpoint names the trailing norm `final_layernorm`.
+  bailing_mtp_decoder:
+    graph:
+      layer: { op: bailing_full_moe_block, in: x, module: null, dims: { d_head: d_qk_nope } }
+    outputs: [layer]
+  bailing_mtp_block:
+    inputs: [x, inputs_embeds]
+    graph:
+      layer: { op: mtp_block_shared_head, in: [x, inputs_embeds], module: null,
+               params: { inner: bailing_mtp_decoder },
+               inner_modules: { shared_head.norm: final_layernorm } }
+    outputs: [layer]
+
+model_inputs:
+  input_ids: { kind: tokens }
+
+# The transformers base model's tensors sit under `model.`; the LM head
+# beside it declares its own path.
+checkpoint: { root: model }
+
+model:
+  - { name: word_embeddings, inputs: [input_ids], op: embedding, boundary_role: input_embedding, dims: { n_vocab: n_vocab, d_model: d_model }, weight_axes: [{ world: attention, parts: n_vocab, fit: pad }, { replicated: true }] }
+  - name: layers
+    inputs: [word_embeddings]
+    repeat: n_layers
+    streams:
+      hidden: { carries: true }
+    per_layer:
+      assign:
+        # Dense-FFN prefix (idx 0..n_dense_layers-1). All four are linear-attention.
+        - { type: linear_dense, range: ["0", "n_dense_layers - 1"] }
+        # Full-MLA layers: every layer_group_size-th (idx 7, 15, …, 79 under
+        # n_layers=80, layer_group_size=8). Explicit list — the mod-layer_group_size
+        # rule isn't expressible via range:.
+        - { type: full_moe,     layers: ["7", "15", "23", "31", "39", "47", "55", "63", "71", "79"] }
+        # Remaining 66 layers: linear attention + MoE FFN.
+        - { type: linear_moe,   rest: true }
+      map:
+        linear_dense: { template: bailing_linear_dense_block }
+        # Bind d_head → d_qk_nope so `mla_attention_dense`'s internal `d_head` symbol
+        # (qk_nope_head_dim) gets the right value while leaving d_head=head_dim
+        # for the GLA path.
+        full_moe:     { template: bailing_full_moe_block, dims: { d_head: d_qk_nope } }
+        linear_moe:   { template: bailing_linear_moe_block }
+  - { name: norm, op: rmsnorm, dim: d_model, weight_axes: [{ replicated: true }] , inputs: [layers]}
+  - { name: lm_head, op: linear, checkpoint: { path: lm_head }, boundary_role: output_head, dims: { in: d_model, out: n_vocab }, weight_axes: [{ world: attention, parts: n_vocab, fit: pad }, { replicated: true }], tied_weight: { to: word_embeddings, when: config.tie_word_embeddings } , inputs: [norm]}
+  # MTP head — auxiliary speculative-decoding module, off the main
+  # forward path. Bailing stores its weights physically at
+  # `model.layers.80.*` (concatenated into `self.layers`).
+  - name: mtp
+    group: true
+    aux_kind: mtp
+    # MTP tensors ship as one extra tail entry of the backbone's layer
+    # index space (`model.layers.80.*`), not under an `mtp.*` namespace.
+    checkpoint: { prefix: model.layers, index: { after: backbone } }
+    inputs: [norm]
+    repeat: n_mtp_layers
+    streams:
+      hidden: { carries: true }
+    layers:
+      - name: mtp
+        template: bailing_mtp_block
+        inputs: [norm, word_embeddings]
+      # MTP logits use the target lm_head (vLLM bailing_moe_v3_mtp.py compute_logits with the shared lm_head).
+      - { name: mtp_logits, op: linear, boundary_role: output_head, dims: { in: d_model, out: n_vocab }, weight_axes: [{ world: attention, parts: n_vocab, fit: pad }, { replicated: true }], tied_weight: { to: lm_head } , inputs: [mtp]}
+
+# Weights quantized via llmcompressor "FP8_DYNAMIC" recipe:
+# - F8_E4M3 weights (no packing, `format: float-quantized`)
+# - per-output-channel BF16 scale (`strategy: channel`)
+# - dynamic per-token activation scales (runtime, no on-disk artifact)
+# `router: { method: none }` keeps the routing gates at BF16.
+# `mlp.gate.expert_bias` is F32 on disk — same convention as DSv3's
+# `e_score_correction_bias`.
+quant_context:
+  per_role:
+    # `input_activations: fp8_dynamic_per_token` states what the config's
+    # `config_groups.FP8_DYNAMIC.input_activations` declares — `{num_bits: 8,
+    # type: float, strategy: token, dynamic: true}` — so these matmuls are
+    # W8A8: one FP8 activation scale per token, computed at runtime.
+    attention: { method: compressed-tensors, num_bits: 8, type: float, symmetric: true, strategy: channel, format: float-quantized, input_activations: fp8_dynamic_per_token }
+    ffn_dense: { method: compressed-tensors, num_bits: 8, type: float, symmetric: true, strategy: channel, format: float-quantized, input_activations: fp8_dynamic_per_token }
+    ffn_moe:   { method: compressed-tensors, num_bits: 8, type: float, symmetric: true, strategy: channel, format: float-quantized, input_activations: fp8_dynamic_per_token }
+    router:    { method: none }
+    default:   { method: none }
+  overrides:
+    - tensors_re: 'mlp\.gate\.expert_bias$'
+      dtype: F32
+    # The MTP layer is not quantised, and `quantization_config.ignore` says
+    # so: it lists every `model.layers.80.*` tensor by name, layer 80 being
+    # where this checkpoint stores the MTP module, under the backbone's own
+    # prefix. The file agrees: its layer-80 projections and experts are BF16
+    # with no scales (header at revision 07b9e26b), where the `per_role`
+    # rules would imply F8_E4M3 weights and 6,393,984 bytes of scales.
+    #
+    # Scoped by logical stack identity rather than by a name prefix: the MTP
+    # stack's checkpoint address composes its tensors under the
+    # backbone's own `layers.X.` names, so no name pattern can say "the MTP
+    # copy, not the backbone's 80". A layer scope
+    # (`select.layers`) would not say it either: layer 80 of the backbone's
+    # index space is where this file keeps the MTP module, and what picks it
+    # out is which STACK runs there. The config's per-index `ignore` list is
+    # still not auto-imported for that reason — translating it needs the
+    # reading that the indices name the MTP stack.
+    # `auto_imported` stays false — a translation, not a copy.
+    #
+    # Enumerated rather than pattern-matched: these are the tensors the
+    # `per_role` rules would quantise, and `_proj\.weight$` would miss
+    # `kv_a_proj_with_mqa`. The decode form's `q_absorbed_nope` / `v_absorbed`
+    # (`mla_attention_dense_absorbed`) declare `module: kv_b_proj`, so this
+    # row reaches them through `kv_b_proj` and they need no name of their own.
+    - select:
+        stack: mtp
+        tensors_re: '\.(dense|q_a_proj|q_b_proj|kv_a_proj_with_mqa|kv_b_proj|gate_proj|up_proj|down_proj)\.weight$'
+      dtype: BF16
+      method: none
+  default_dtype: BF16

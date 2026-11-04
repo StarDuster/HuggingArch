@@ -1,0 +1,337 @@
+{
+  "ByteDance-Seed__Seed-OSS-36B-Instruct": {
+    "count": 0,
+    "families": {},
+    "note": ""
+  },
+  "IQuestLab__IQuest-Coder-V1-40B-Instruct": {
+    "count": 0,
+    "families": {},
+    "note": ""
+  },
+  "MiniMaxAI__MiniMax-M2.7": {
+    "count": 0,
+    "families": {},
+    "note": ""
+  },
+  "Qwen__Qwen2.5-72B": {
+    "count": 0,
+    "families": {},
+    "note": ""
+  },
+  "Qwen__Qwen2.5-7B": {
+    "count": 0,
+    "families": {},
+    "note": ""
+  },
+  "Qwen__Qwen3-235B-A22B": {
+    "count": 0,
+    "families": {},
+    "note": ""
+  },
+  "Qwen__Qwen3-30B-A3B": {
+    "count": 0,
+    "families": {},
+    "note": ""
+  },
+  "Qwen__Qwen3-32B": {
+    "count": 0,
+    "families": {},
+    "note": ""
+  },
+  "Qwen__Qwen3-8B": {
+    "count": 0,
+    "families": {},
+    "note": ""
+  },
+  "Qwen__Qwen3-Coder-Next": {
+    "count": 1,
+    "families": {
+      "neg_exp@1": 1
+    },
+    "note": ""
+  },
+  "Qwen__Qwen3-VL-235B-A22B-Instruct": {
+    "count": 0,
+    "families": {},
+    "note": ""
+  },
+  "Qwen__Qwen3.5-35B-A3B": {
+    "count": 1,
+    "families": {
+      "neg_exp@1": 1
+    },
+    "note": ""
+  },
+  "Qwen__Qwen3.8-2.4T-A95B": {
+    "count": 1,
+    "families": {
+      "neg_exp@1": 1
+    },
+    "note": ""
+  },
+  "Qwen__Qwen3.8-27B": {
+    "count": 1,
+    "families": {
+      "neg_exp@1": 1
+    },
+    "note": ""
+  },
+  "Qwen__Qwen3.8-Flash-Next": {
+    "count": 2,
+    "families": {
+      "neg_exp@1": 2
+    },
+    "note": ""
+  },
+  "THUDM__glm-4-9b": {
+    "count": 0,
+    "families": {},
+    "note": ""
+  },
+  "THUDM__glm-4-9b-chat": {
+    "count": 0,
+    "families": {},
+    "note": ""
+  },
+  "XiaomiMiMo__MiMo-7B-RL": {
+    "count": 0,
+    "families": {},
+    "note": ""
+  },
+  "XiaomiMiMo__MiMo-V2-Flash": {
+    "count": 0,
+    "families": {},
+    "note": ""
+  },
+  "XiaomiMiMo__MiMo-V2.5": {
+    "count": 0,
+    "families": {},
+    "note": ""
+  },
+  "XiaomiMiMo__MiMo-V2.5-Pro": {
+    "count": 0,
+    "families": {},
+    "note": ""
+  },
+  "XiaomiMiMo__MiMo-V2.6-Pro-RL": {
+    "count": 0,
+    "families": {},
+    "note": ""
+  },
+  "deepseek-ai__DeepSeek-R1": {
+    "count": 0,
+    "families": {},
+    "note": ""
+  },
+  "deepseek-ai__DeepSeek-V2": {
+    "count": 0,
+    "families": {},
+    "note": ""
+  },
+  "deepseek-ai__DeepSeek-V2-Lite": {
+    "count": 0,
+    "families": {},
+    "note": ""
+  },
+  "deepseek-ai__DeepSeek-V3": {
+    "count": 0,
+    "families": {},
+    "note": ""
+  },
+  "deepseek-ai__DeepSeek-V3.1": {
+    "count": 0,
+    "families": {},
+    "note": ""
+  },
+  "deepseek-ai__DeepSeek-V3.2": {
+    "count": 0,
+    "families": {},
+    "note": ""
+  },
+  "deepseek-ai__DeepSeek-V3.2-Exp": {
+    "count": 0,
+    "families": {},
+    "note": ""
+  },
+  "deepseek-ai__DeepSeek-V4-Flash": {
+    "count": 1,
+    "families": {
+      "linear@4": 1
+    },
+    "note": ""
+  },
+  "deepseek-ai__DeepSeek-V4-Pro": {
+    "count": 1,
+    "families": {
+      "linear@4": 1
+    },
+    "note": ""
+  },
+  "deepseek-ai__DeepSeek-V4.1-Flash": {
+    "count": 11,
+    "families": {
+      "concat@1": 11
+    },
+    "note": "The MoE router keeps a text and a vision correction bias, both [n_routed_experts], and picks one per token (torch.where on image_mask, inference/model.py:818-820). dsv41_moe_vl joins the two rows side by side for the select that reads them: a concat of two rank-1 tensors, which no concat template describes. One per template that binds it, 11: eight backbone variants and the three DSpark stages."
+  },
+  "google__gemma-2-27b": {
+    "count": 0,
+    "families": {},
+    "note": ""
+  },
+  "google__gemma-2-9b": {
+    "count": 0,
+    "families": {},
+    "note": ""
+  },
+  "google__gemma-4-12B-it": {
+    "count": 0,
+    "families": {},
+    "note": ""
+  },
+  "inclusionAI__Ling-2.6-1T": {
+    "count": 0,
+    "families": {},
+    "note": ""
+  },
+  "meituan-longcat__LongCat-Flash-Omni": {
+    "count": 0,
+    "families": {},
+    "note": ""
+  },
+  "meituan-longcat__LongCat-Flash-Thinking-2601": {
+    "count": 0,
+    "families": {},
+    "note": ""
+  },
+  "meta-llama__Llama-2-7b-hf": {
+    "count": 0,
+    "families": {},
+    "note": ""
+  },
+  "meta-llama__Llama-3.2-1B": {
+    "count": 0,
+    "families": {},
+    "note": ""
+  },
+  "meta-llama__Llama-3.2-3B": {
+    "count": 0,
+    "families": {},
+    "note": ""
+  },
+  "mistralai__Mistral-7B-v0.1": {
+    "count": 0,
+    "families": {},
+    "note": ""
+  },
+  "mistralai__Mistral-Nemo-Base-2407": {
+    "count": 0,
+    "families": {},
+    "note": ""
+  },
+  "moonshotai__Kimi-K2-Base": {
+    "count": 0,
+    "families": {},
+    "note": ""
+  },
+  "moonshotai__Kimi-K2-Instruct": {
+    "count": 0,
+    "families": {},
+    "note": ""
+  },
+  "moonshotai__Kimi-K2-Thinking": {
+    "count": 0,
+    "families": {},
+    "note": ""
+  },
+  "moonshotai__Kimi-K2.5": {
+    "count": 0,
+    "families": {},
+    "note": ""
+  },
+  "moonshotai__Kimi-K3": {
+    "count": 16,
+    "families": {
+      "exp@1": 16
+    },
+    "note": ""
+  },
+  "nvidia__NVIDIA-Nemotron-3-Nano-30B-A3B-BF16": {
+    "count": 0,
+    "families": {},
+    "note": ""
+  },
+  "nvidia__NVIDIA-Nemotron-3-Ultra-550B-A55B-BF16": {
+    "count": 0,
+    "families": {},
+    "note": ""
+  },
+  "openai__gpt-oss-20b": {
+    "count": 0,
+    "families": {},
+    "note": ""
+  },
+  "stepfun-ai__Step-3.7-Flash": {
+    "count": 0,
+    "families": {},
+    "note": ""
+  },
+  "stepfun-ai__Step-5-Preview": {
+    "count": 0,
+    "families": {},
+    "note": ""
+  },
+  "tencent__HunyuanOCR": {
+    "count": 0,
+    "families": {},
+    "note": ""
+  },
+  "tencent__Hy3": {
+    "count": 0,
+    "families": {},
+    "note": ""
+  },
+  "tencent__Hy4-preview": {
+    "count": 0,
+    "families": {},
+    "note": ""
+  },
+  "zai-org__GLM-4.5": {
+    "count": 0,
+    "families": {},
+    "note": ""
+  },
+  "zai-org__GLM-4.5-Air": {
+    "count": 0,
+    "families": {},
+    "note": ""
+  },
+  "zai-org__GLM-5": {
+    "count": 0,
+    "families": {},
+    "note": ""
+  },
+  "zai-org__GLM-5.1": {
+    "count": 0,
+    "families": {},
+    "note": ""
+  },
+  "zai-org__GLM-5.2": {
+    "count": 0,
+    "families": {},
+    "note": ""
+  },
+  "zai-org__GLM-5.3": {
+    "count": 0,
+    "families": {},
+    "note": ""
+  },
+  "zai-org__GLM-5.3-Flash": {
+    "count": 2,
+    "families": {
+      "exp@1": 2
+    },
+    "note": ""
+  }
+}

@@ -1,0 +1,1306 @@
+# vLLM framework binding — vLLM's fusion patterns: which fused-op concepts it
+# runs as one launch, and `when:` it does; the serving choices a measured
+# kernel's key depends on that vLLM, not the model, makes (`kv_block_size`,
+# and where it reads `ssm_chunk_size`); which launch it selects for a
+# quantised matmul (`precision_launches`); the output widths the kernels it
+# dispatches to REQUIRE of a declared role (`edge_dtypes`); and which
+# all-reduce algorithm it runs on a payload inside one NVLink domain
+# (`collectives`). Nothing else lives
+# here: framework source is a reference for an implementation, a fusion
+# pattern, a measured kernel's identity and that dispatch; the bytes and the
+# link traversals each algorithm costs are `comm_volume.ALGORITHMS`'.
+# Which release measured a dispatch, and at what latency, is the corpus row's
+# provenance (`framework_version`, date, contributor). Which provider
+# implementation vLLM dispatches to is declared below in `kernel_dispatches`,
+# with the provider library and the provider's COMPLETE resolved
+# `kernel_impl` id.
+#
+# There is one binding per framework and it describes the latest release it
+# was checked against, named by `audited_at`. Every fact and every file:line
+# below was read at that tag with `git show <tag>:<path>`. In comments, paths
+# are relative to `vllm/` unless they start with `csrc/`; a `source_anchor`
+# writes every place it cites from the repository root
+# (`<path>[:<line>[-<line>]]`), and each links to `audited_at.commit` on
+# GitHub (`audited_at.repo`).
+#
+# Ordering: the loader sorts `op_implementations` by pattern size so larger
+# patterns match first; yaml order only breaks ties. Where two patterns share
+# nodes the larger is the launch vLLM takes when its condition holds
+# (`fused_gdn_post_conv_prep` over `fused_recurrent_gated_delta_rule`'s gate
+# chain).
+#
+# vLLM has no single kernel for a whole SwiGLU FFN: it runs the
+# activation-and-mul op with a separate gate+up GEMM and a separate
+# `down_proj`, which is why `gated_act_ffn` is not bound. `grouped_gemm_moe`
+# and `fused_moe` are not bound while their schemes are single-linear
+# placeholders that would overmatch dense linears.
+
+framework: vllm
+audited_at:
+  repo: vllm-project/vllm
+  tag: v0.32.0
+  commit: 5df63a7203cdb9328d824a27b682e77c7b9928be
+
+# Each entry: a fused-op concept (`fusion_plans/`) vLLM runs as one launch,
+# where its source says so, and `when:` it does (absent: whenever the pattern
+# matches).
+# One fused-op name may map to a list of these entries when two audited launch
+# spans have provably disjoint `when:` conditions. Their provider identities
+# still live only in `kernel_dispatches`.
+# The paged-KV page vLLM allocates the cache in, its own default
+# (`vllm/config/cache.py` CacheConfig.DEFAULT_BLOCK_SIZE = 16). A paged
+# attention kernel's time depends on it, so it is part of the measurement
+# key; a request may ask for another value and a backend declines the ones
+# it cannot serve.
+kv_block_size: 16
+
+# Where vLLM reads the chunk length it hands
+# `mamba_chunk_scan_combined(chunk_size=...)` for a Mamba-2 mixer
+# (`FrameworkBinding.ssm_chunk_size_from`): the checkpoint config, first field
+# present wins (`vllm/config/model.py:1664` get_mamba_chunk_size:
+# `mamba_chunk_size`, then `chunk_size`). The value is resolved once per
+# deployment's walk (`Program.scan_chunk_size`). vLLM's own
+# fallback of 2048 when neither is set is for Mamba-1, which has no chunk; it
+# is not taken here — a checkpoint that states neither has no scan cell.
+ssm_chunk_size:
+  from_config: [mamba_chunk_size, chunk_size]
+
+# The launches vLLM may select for a mixed-precision matmul, in the source's
+# own preference order for one scheme/request. The first candidate whose
+# `mma_dtypes` all have columns on the request's card is the launch taken; a
+# card need not be named by an SM family to get that answer. `mma_dtypes`
+# says WHICH operand families enter the hardware instruction. It is
+# deliberately not inferred from operand width — Humming can run MXFP4
+# weights with block-FP8 activations on Hopper by dequantising in software
+# before WGMMA (vllm/model_executor/layers/fused_moe/experts/
+# fused_humming_moe.py:323-325), while DeepGEMM's Blackwell launch is an FP4
+# MMA. A declared launch, not a width, chooses between them.
+#
+# The first two DeepSeek entries are the audited priority list: TRT-LLM
+# MXFP8, then DeepGEMM. The default has no explicit backend fact, so it stops
+# at the first card-capable entry (TRT-LLM on B200). DeepGEMM is reachable
+# only when a request states `moe_backend=deep_gemm`; without that fact it is
+# counted as a skipped selector alternative and the DeepGEMM provider remains
+# a gap rather than becoming an unrequested measured row.
+#
+# The pre-Blackwell entry is the default MXFP4 oracle's input treatment
+# (`act_key=None`, BF16), including MiMo's Fp8Config(store_dtype=mxfp4),
+# whose Blackwell interpretation is not settled. No Blackwell entry is written
+# for MiMo here: its group-32 cell stays a provider gap rather than becoming a
+# silently green contract.
+#
+# gpt-oss's distinct `mxfp4` scheme is deliberately not relabeled as the
+# compressed-tensors `mxfp4-pack-quantized` scheme. Its checkpoint declares no
+# activation quantizer, and vLLM's GPT-OSS selector filters its priority list
+# to BF16-activation variants (`activation_key=None`): CUDA family 100 takes
+# TRT-LLM's BF16 variant, while Hopper takes the OAI Triton W4A16 path (with
+# other W4A16 fallbacks behind it). It remains a scheme-declared W4A16 row on
+# both cards, not the two pack-quantized models'
+# Blackwell selector gap.
+precision_launches:
+  mxfp4_dot_suffix_trtllm_mxfp8:
+    schemes: [mxfp4-dot-suffix]
+    requested_activation_formats:
+      - fp8_token_group128_ue8m0
+      - fp8_token_group32_ue8m0
+    when:
+      device: [cuda]
+      server_flag: {name: moe_backend, default: auto, value: auto}
+    launch:
+      activation: fp8_token_group32_ue8m0
+      compute_dtype: F8_E4M3
+      mma_dtypes: [F8_E4M3, MXFP4]
+    source_anchor: "vLLM's DeepSeek auto selector iterates its priority list and puts FlashInfer TRT-LLM before DeepGEMM (vllm/model_executor/layers/fused_moe/oracle/mxfp4.py:754-807, vllm/model_executor/layers/fused_moe/oracle/mxfp4.py:425-449); that backend eats kMxfp8Dynamic, FP8 E4M3 with a group-32 UE8M0 scale (vllm/model_executor/layers/fused_moe/oracle/mxfp4.py:452-462, vllm/model_executor/layers/quantization/utils/quant_utils.py:249-252); on CUDA family 100 with FlashInfer it accepts the MXFP4/MXFP8 pair, SILU and Standard activation format, and the modular fallback accepts the parallel/routing deployment (vllm/model_executor/layers/fused_moe/experts/trtllm_mxfp4_moe.py:117-155, vllm/model_executor/layers/fused_moe/experts/trtllm_mxfp4_moe.py:300-314); the CUDA build pins FlashInfer (requirements/cuda.txt:13)"
+  mxfp4_dot_suffix_deepgemm_group128:
+    schemes: [mxfp4-dot-suffix]
+    requested_activation_formats: [fp8_token_group128_ue8m0]
+    when:
+      device: [cuda]
+      server_flag: {name: moe_backend, default: auto, value: deep_gemm}
+    launch:
+      activation: fp8_token_group128_ue8m0
+      compute_dtype: F8_E4M3
+      mma_dtypes: [F8_E4M3, MXFP4]
+    source_anchor: "An explicit vLLM moe_backend is honoured before the auto priority list, and deep_gemm maps to DeepGEMM's MXFP4 backend (vllm/model_executor/layers/fused_moe/oracle/mxfp4.py:754-783, vllm/model_executor/layers/fused_moe/oracle/mxfp4.py:341-355); that backend's activation key is FP8 dynamic group 128 (vllm/model_executor/layers/fused_moe/oracle/mxfp4.py:452-462), and DeepGemmFP4Experts calls m_grouped_fp8_fp4_gemm_nt_contiguous with FP8 activations and MXFP4 weights in blocks of 128 and 32 (vllm/model_executor/layers/fused_moe/experts/deep_gemm_moe.py:447-479, vllm/model_executor/layers/fused_moe/experts/deep_gemm_moe.py:650-680)"
+  mxfp4_dot_suffix_weight_only:
+    schemes: [mxfp4-dot-suffix]
+    requested_activation_formats:
+      - fp8_token_group128_ue8m0
+      - fp8_token_group32_ue8m0
+    when: {device: [cuda]}
+    launch:
+      activation: none
+      compute_dtype: BF16
+      mma_dtypes: [BF16]
+    source_anchor: "The default MXFP4 oracle hands Marlin, Humming and Triton no activation key, so their input is BF16 (vllm/model_executor/layers/fused_moe/oracle/mxfp4.py:425-448, vllm/model_executor/layers/fused_moe/oracle/mxfp4.py:468-471); Humming is promoted at SM90 (vllm/model_executor/layers/quantization/utils/humming/priority.py:11, vllm/model_executor/layers/quantization/utils/humming/priority.py:26-48)"
+  mxfp4_pack_quantized_weight_only:
+    schemes: [mxfp4-pack-quantized]
+    when: {device: [cuda], below_compute_capability: "10.0"}
+    launch:
+      activation: none
+      compute_dtype: BF16
+      mma_dtypes: [BF16]
+    source_anchor: "The default MXFP4 oracle hands Marlin, Humming and Triton no activation key, so their input is BF16 (vllm/model_executor/layers/fused_moe/oracle/mxfp4.py:425-448, vllm/model_executor/layers/fused_moe/oracle/mxfp4.py:468-471); Humming is promoted at SM90 (vllm/model_executor/layers/quantization/utils/humming/priority.py:11, vllm/model_executor/layers/quantization/utils/humming/priority.py:26-48)"
+  # gpt-oss's own `mxfp4` scheme has no activation request by default.  This
+  # narrower coordinate is deliberately reachable only when a checkpoint (or a
+  # deployment activation declaration resolved onto that checkpoint scheme)
+  # requests block-FP8 group-128.  It therefore cannot change any current
+  # corpus model's default route.  The explicit backend fact is part of the
+  # audit: `moe_backend=humming` maps to this Humming candidate instead of
+  # guessing from a kernel or scheme name.
+  mxfp4_humming_hopper_w4a8_ladder:
+    schemes: [mxfp4]
+    requested_activation_formats: [fp8_token_group128_ue8m0]
+    when:
+      device: [cuda]
+      min_compute_capability: "9.0"
+      below_compute_capability: "10.0"
+      server_flag: {name: moe_backend, default: auto, value: humming}
+    launch:
+      activation: fp8_token_group128_ue8m0
+      compute_dtype: F8_E4M3
+      mma_dtypes: [F8_E4M3, MXFP4]
+      promotion_ladder: true
+    source_anchor: "vLLM resolves the checkpoint's activation key before honouring an explicit MXFP4 MoE backend, and `moe_backend='humming'` maps exactly to the Humming candidate (vllm/model_executor/layers/fused_moe/oracle/mxfp4.py:598-649, vllm/model_executor/layers/fused_moe/oracle/mxfp4.py:341-367); Humming's supported weight/activation list explicitly contains `(kMxfp4Static, kFp8Dynamic128Sym)` and says that MXFP4 group-32 weights with block-FP8 group-128 activations run through WGMMA software dequantisation on Hopper as well as Blackwell (vllm/model_executor/layers/fused_moe/experts/fused_humming_moe.py:318-326)"
+
+# The width a kernel vLLM dispatches to REQUIRES a declared role's output at,
+# where that is not the width the checkpoint implies
+# (`FrameworkBinding.edge_dtypes`). A role named by no entry carries no such
+# requirement and keeps its stored width — this states the requirements, not a
+# table of every edge, and not every place a framework happens to write wide:
+# where the kernel takes either width we build the cell's, because we model the
+# better form rather than mirror a framework's inefficiency. Each anchor cites
+# both the write and the requirement, and the loader refuses one that cites
+# fewer than two places.
+#
+# DeepSeek-V4's router: `ffn.gate.weight` ships BF16 and vLLM loads it BF16,
+# so the walk would price BF16 logits. The top-k kernel vLLM then dispatches
+# exists only at fp32 — `can_use_dsv4_topk` requires
+# `gating_output.dtype == torch.float32` and `fused_topk_bias` falls through to
+# another kernel when it fails — and vLLM builds the gate as
+# `GateLinear(out_dtype=torch.float32)` to meet it. Keying this span BF16 would
+# store an fp32 measurement under a BF16 name, or — if the harness believed the
+# key — measure the FALLBACK kernel under a name promising the dsv4 one.
+#
+# The weight stays BF16: a framework upcasting a stored weight at load is not
+# followed (`traffic.weight_promotion`), and the operand the GEMM streams is
+# still BF16, so its peak column is BF16 too. Only the OUTPUT is fp32.
+#
+# DeepSeek-V4.1 inherits it: its `DeepseekV4MoE` subclasses V4's and calls
+# `super().__init__`, which builds that same fp32 gate.
+edge_dtypes:
+  deepseek_v4_router_logits_fp32:
+    roles: [router]
+    dtype: F32
+    when: {architectures: [DeepseekV4ForCausalLM, DeepseekV41ForCausalLM]}
+    source_anchor: "DeepseekV4MoE builds its router as GateLinear(out_dtype=torch.float32) (vllm/models/deepseek_v4/nvidia/model.py:724-729, the class at vllm/models/deepseek_v4/nvidia/model.py:661; DeepSeek-V4.1 subclasses it and calls super().__init__ at vllm/models/deepseek_v41/nvidia/model.py:126-143); the kernel that reads those logits takes only fp32, can_use_dsv4_topk (vllm/model_executor/layers/fused_moe/router/dsv4_topk.py:22-24) guarding the dsv4_topk dispatch (vllm/model_executor/layers/fused_moe/router/fused_topk_bias_router.py:179-189)"
+
+# Provider dispatches, first read for Llama-3.2-1B and extended to the Qwen2
+# and Qwen3 audits. vLLM is the declaration holder, while `library` names the
+# provider that a corpus row measured (often torch).
+#
+# ONE ENTRY PER OP, listing in `architectures` every class whose module graph
+# reaches that anchor. The anchors are shared code — `UnquantizedLinearMethod`,
+# `RMSNorm`, `SiluAndMul`, `RotaryEmbedding`, `FlashAttentionImpl` — so an op
+# dispatched the same way for three classes is one fact, and writing it once
+# per class produced three different answers to it: an fp16 Llama-2 got
+# `vllm_rms_norm` where an fp16 Qwen got nothing, and a Qwen on Blackwell lost
+# an elementwise kernel that vLLM runs there. A class is on the list when the
+# audit walked its module graph to the anchor; the conditions beside it are
+# the anchor's, not the class's.
+#
+# What a `when:` may say is the facts the anchored dispatch itself reads:
+#   * `device` — every one of these anchors branches on the platform.
+#   * `server_flag` — `--linear-backend` selects FlashInfer's `mm_bf16` over
+#     `F.linear` (utils.py:620-632) and `--attention-backend` selects another
+#     attention backend entirely, so both are provider identity, not a launch
+#     count. (`docs/inference_cost_model.md`'s "deployment choice" row is
+#     about a plan's launches; a `kernel_dispatches` entry names an exact
+#     `(library, impl_id)` and cannot absorb a different kernel.)
+#   * `unquantized_bf16_launch` — only where the anchor selects on the
+#     operand: the linear and embedding families dispatch through
+#     `Unquantized*Method`, and FlashAttention reads the KV cache dtype
+#     (flash_attn.py:296-318, flash_attn.py:432-440). The norm, activation,
+#     rotation and add anchors read none of it, so they state none.
+#   * `tensor_parallel` — only `embedding`, whose anchor is
+#     VocabParallelEmbedding's unsharded path. `F.linear`, `ir.ops.rms_norm`
+#     and `torch.ops._C.silu_and_mul` do not read the world.
+#   * capability window, `phase`, `kv_block_size` — only FlashAttention,
+#     whose version resolution is by capability (fa_utils.py:94-104) and
+#     whose decode identity names the page it audited.
+#
+# The one narrowing that is AUDIT SCOPE rather than a dispatch fact is the
+# `bf16` half of `unquantized_bf16_launch`: vLLM selects
+# `UnquantizedLinearMethod` because the layer has no `quant_config`, whatever
+# its dtype, and `default_unquantized_gemm` never looks at one. The repository
+# has no dtype-agnostic "this launch is unquantized" fact, and a proxy for one
+# would be worse than the gap, so these entries stay narrower than the
+# framework: an fp16 checkpoint of these classes is `no_active` (a missing
+# number) rather than wrong.
+#
+# Billed under the default serving path, with the assumption stated rather
+# than a condition key added: FA3 on SM90 is upgraded to FA4 for a head size
+# over 256, for ALiBi, and for diff-KV with sinks (fa_utils.py:126-165). Every
+# audited class is well inside that, and `head_dim` is not a
+# `kernel_dispatches` fact today.
+#
+# Cards, backends, and parameterised cells outside what is stated here stay
+# undeclared rather than being inferred from a row label or a base kernel
+# name. `precision_launches` above (and the walk's promoted key) still decides
+# launch dtype before these entries are asked; no dispatch condition repeats
+# weight dtype, quant scheme, or MMA facts.
+kernel_dispatches:
+  - op: linear
+    library: torch
+    impl_id: torch_cublas_linear
+    when: {architectures: [LlamaForCausalLM, Qwen2ForCausalLM, Qwen3ForCausalLM],
+           server_flag: {name: linear_backend, default: auto},
+           unquantized_bf16_launch: true, device: [cuda]}
+    source_anchor: "An unquantized dense projection runs UnquantizedLinearMethod.apply (vllm/model_executor/layers/linear.py:229-239), whose CUDA dispatch reads the platform and --linear-backend only and returns torch.nn.functional.linear at the audited default auto (vllm/model_executor/layers/utils.py:620-632, vllm/model_executor/layers/utils.py:83-90); the projections are Llama's dense ones, Qwen2Attention's o_proj with Qwen2MLP's down_proj and Qwen2ForCausalLM's ParallelLMHead (vllm/model_executor/models/qwen2.py:166-172, vllm/model_executor/models/qwen2.py:98-104, vllm/model_executor/models/qwen2.py:479-487), and Qwen3Attention's o_proj with Qwen3MLP's imported down_proj and untied lm_head (vllm/model_executor/models/qwen3.py:115-121, vllm/model_executor/models/qwen3.py:219-225, vllm/model_executor/models/qwen3.py:306-314)"
+  - op: qkv_parallel_linear
+    library: torch
+    impl_id: torch_cublas_linear
+    when: {architectures: [LlamaForCausalLM, Qwen2ForCausalLM, Qwen3ForCausalLM],
+           server_flag: {name: linear_backend, default: auto},
+           unquantized_bf16_launch: true, device: [cuda]}
+    source_anchor: "Each class builds one packed QKVParallelLinear and calls it before splitting q/k/v: LlamaAttention (vllm/model_executor/models/llama.py:160-173, vllm/model_executor/models/llama.py:229-233), Qwen2Attention (vllm/model_executor/models/qwen2.py:157-165, vllm/model_executor/models/qwen2.py:208-214) and Qwen3Attention, which QK-norms after the split (vllm/model_executor/models/qwen3.py:106-114, vllm/model_executor/models/qwen3.py:156-171); UnquantizedLinearMethod.apply selects torch.nn.functional.linear on auto CUDA (vllm/model_executor/layers/linear.py:229-239, vllm/model_executor/layers/utils.py:620-632, vllm/model_executor/layers/utils.py:83-90)"
+  - op: merged_column_parallel_linear
+    library: torch
+    impl_id: torch_cublas_linear
+    when: {architectures: [LlamaForCausalLM, Qwen2ForCausalLM, Qwen3ForCausalLM],
+           server_flag: {name: linear_backend, default: auto},
+           unquantized_bf16_launch: true, device: [cuda]}
+    source_anchor: "Each MLP merges gate and up into one MergedColumnParallelLinear ahead of SiLU-and-mul: LlamaMLP (vllm/model_executor/models/llama.py:95-121), Qwen2MLP (vllm/model_executor/models/qwen2.py:91-114) and Qwen3MLP, which is Qwen2MLP (vllm/model_executor/models/qwen3.py:58, vllm/model_executor/models/qwen3.py:219-225); UnquantizedLinearMethod.apply selects torch.nn.functional.linear on auto CUDA (vllm/model_executor/layers/linear.py:229-239, vllm/model_executor/layers/utils.py:620-632, vllm/model_executor/layers/utils.py:83-90)"
+  - op: embedding
+    library: torch
+    impl_id: torch_embedding
+    when: {architectures: [LlamaForCausalLM, Qwen2ForCausalLM, Qwen3ForCausalLM],
+           unquantized_bf16_launch: true, device: [cuda], tensor_parallel: [1]}
+    source_anchor: "Each model builds VocabParallelEmbedding for embed_tokens: LlamaModel (vllm/model_executor/models/llama.py:377-386), Qwen2Model (vllm/model_executor/models/qwen2.py:371-375, vllm/model_executor/models/qwen2.py:399-400) and Qwen3Model, which inherits that construction (vllm/model_executor/models/qwen3.py:269-277); at TP=1 its UnquantizedEmbeddingMethod.embedding is torch.nn.functional.embedding's index-select floor (vllm/model_executor/layers/vocab_parallel_embedding.py:522-550, vllm/model_executor/layers/vocab_parallel_embedding.py:73-86)"
+  - op: add
+    library: torch
+    impl_id: torch_add
+    when: {architectures: [LlamaForCausalLM, Qwen2ForCausalLM, Qwen3ForCausalLM],
+           device: [cuda]}
+    source_anchor: "Each decoder carries its residual activation between sublayers and across layer calls: Llama (vllm/model_executor/models/llama.py:313-330), Qwen2 (vllm/model_executor/models/qwen2.py:427-433, vllm/model_executor/models/qwen2.py:297-310) and Qwen3 (vllm/model_executor/models/qwen3.py:231-250, vllm/model_executor/models/qwen2.py:427-445); an unabsorbed block-boundary add is eager torch tensor addition, while an add feeding the next RMSNorm is the separate fused_add_rmsnorm dispatch below (vllm/model_executor/layers/layernorm.py:74-96)"
+  - op: rmsnorm
+    library: vllm
+    impl_id: vllm_rms_norm
+    when: {architectures: [LlamaForCausalLM, Qwen2ForCausalLM, Qwen3ForCausalLM],
+           device: [cuda]}
+    source_anchor: "RMSNorm's forward_cuda/native selects its op on whether a residual was passed and on nothing else — no dtype, no world, no capability (vllm/model_executor/layers/layernorm.py:74-96); without one it lowers to ir.ops.rms_norm. The norms are Llama's decoder and final ones (vllm/model_executor/models/llama.py:308-311, vllm/model_executor/models/llama.py:394-397), Qwen2's (vllm/model_executor/models/qwen2.py:286-289, vllm/model_executor/models/qwen2.py:394-397) and Qwen3's, which adds unconditional per-head q/k norms applied separately (vllm/model_executor/models/qwen3.py:153-170, vllm/model_executor/models/qwen3.py:226-229)"
+  - op: fused_add_rmsnorm
+    library: vllm
+    impl_id: vllm_fused_add_rms_norm
+    when: {architectures: [LlamaForCausalLM, Qwen2ForCausalLM, Qwen3ForCausalLM],
+           device: [cuda]}
+    source_anchor: "With residual non-None the same RMSNorm lowers to ir.ops.fused_add_rms_norm (vllm/model_executor/layers/layernorm.py:74-96); every completed decoder layer passes one into its post-attention norm and the model's final norm receives the carried residual — Llama (vllm/model_executor/models/llama.py:313-330), Qwen2 (vllm/model_executor/models/qwen2.py:297-310, vllm/model_executor/models/qwen2.py:445) and Qwen3 (vllm/model_executor/models/qwen3.py:237-250)"
+  - op: silu_and_mul
+    library: vllm
+    impl_id: vllm_silu_and_mul
+    when: {architectures: [LlamaForCausalLM, Qwen2ForCausalLM, Qwen3ForCausalLM],
+           device: [cuda]}
+    source_anchor: "SiluAndMul picks its op by platform alone (vllm/model_executor/layers/activation.py:128-150), torch.ops._C.silu_and_mul on CUDA; each MLP requires SiLU and runs it between the merged gate/up and the down projection — LlamaMLP (vllm/model_executor/models/llama.py:112-121), Qwen2MLP (vllm/model_executor/models/qwen2.py:91-114) and Qwen3MLP, which is Qwen2MLP (vllm/model_executor/models/qwen3.py:58, vllm/model_executor/models/qwen3.py:219-225)"
+  - op: fused_qk_rope
+    library: vllm
+    impl_id: vllm_c_rotary_embedding
+    when: {architectures: [LlamaForCausalLM, Qwen2ForCausalLM, Qwen3ForCausalLM],
+           device: [cuda]}
+    source_anchor: "RotaryEmbedding.forward_cuda calls ops.rotary_embedding in place (vllm/model_executor/layers/rotary_embedding/base.py:221-247); each attention builds one RotaryEmbedding and rotates q and k together in one call — LlamaAttention (vllm/model_executor/models/llama.py:224-233), Qwen2Attention after the packed split (vllm/model_executor/models/qwen2.py:179-184, vllm/model_executor/models/qwen2.py:208-214, vllm/model_executor/models/qwen2.py:232-234) and Qwen3Attention after QK-norm (vllm/model_executor/models/qwen3.py:123-129, vllm/model_executor/models/qwen3.py:156-171)"
+  - op: flash_attention
+    library: vllm
+    impl_id: vllm_flash_attention_v3
+    when: {architectures: [LlamaForCausalLM, Qwen2ForCausalLM, Qwen3ForCausalLM],
+           server_flag: {name: attention_backend, default: auto},
+           unquantized_bf16_launch: true, device: [cuda], phase: [prefill],
+           min_compute_capability: "9.0", below_compute_capability: "10.0"}
+    source_anchor: "On Hopper vLLM resolves FlashAttention version 3 (vllm/v1/attention/backends/fa_utils.py:94-104) and FlashAttentionImpl's dense path calls its varlen FA kernel with the resolved version (vllm/v1/attention/backends/flash_attn.py:1177-1198, vllm/v1/attention/backends/flash_attn.py:1399-1424); the KV cache dtype is part of that selection, a quantised cache being gated and able to move SM90 to FA4 (vllm/v1/attention/backends/flash_attn.py:432-440, vllm/v1/attention/backends/flash_attn.py:296-318). The decoder attentions are Qwen2Attention's and Qwen3Attention's GQA heads, called after RoPE (vllm/model_executor/models/qwen2.py:185-206, vllm/model_executor/models/qwen2.py:232-234, vllm/model_executor/models/qwen3.py:130-153, vllm/model_executor/models/qwen3.py:156-171) and LlamaAttention's, built with its GQA heads and called after RoPE (vllm/model_executor/models/llama.py:206-222, vllm/model_executor/models/llama.py:229-232)"
+  - op: flash_attention
+    library: vllm
+    impl_id: vllm_flash_attention_v3_kvcache@_b16
+    when: {architectures: [LlamaForCausalLM, Qwen2ForCausalLM, Qwen3ForCausalLM],
+           server_flag: {name: attention_backend, default: auto},
+           unquantized_bf16_launch: true, device: [cuda], phase: [decode],
+           min_compute_capability: "9.0", below_compute_capability: "10.0",
+           kv_block_size: [16]}
+    source_anchor: "The same FA3 resolution (vllm/v1/attention/backends/fa_utils.py:94-104, vllm/v1/attention/backends/flash_attn.py:432-440, vllm/v1/attention/backends/flash_attn.py:296-318); the decode path reads the paged cache through the block table and calls the varlen FA kernel (vllm/v1/attention/backends/flash_attn.py:1177-1305, vllm/v1/attention/backends/flash_attn.py:1399-1424), the audited default cache page is 16 (vllm/config/cache.py:72), and the page is in this identity because the provider resolves it into the impl_id"
+
+# The all-reduce vLLM runs on a tensor-parallel payload inside one NVLink
+# domain, by payload: the first rung the card admits and the payload fits
+# wins, NCCL's schedule past them all (`comm_cost.collective_ladder`; the
+# card's topology is `gpu_specs.csv` `nvlink_gbps` / `nvls`). One
+# representative threshold per algorithm, where the estimate changes under
+# common deployments; vLLM's per-(capability, world) buffer caps, its
+# environment switches and its CUDA-graph details are billed as below, not
+# modelled.
+#
+# The path. At the default `-O2` (config/vllm.py:427) the AR+RMSNorm fusion
+# pass is on for TP>1 on SM90 and the SM100 family with flashinfer installed
+# (config/vllm.py:171-195, :294), and an all-reduce it does not absorb tries
+# FlashInfer first (distributed/device_communicators/cuda_communicator.py:
+# 362-396; `VLLM_ALLREDUCE_USE_FLASHINFER` defaults on, envs.py:278). On one
+# node FlashInfer runs its MNNVL backend, which needs the NVSwitch multicast
+# (flashinfer_all_reduce.py:143-178), and vLLM leaves the one-shot/two-shot
+# choice to FlashInfer's AUTO (compilation/passes/fusion/allreduce_rms_fusion.py:
+# 158-168). In flashinfer-python 0.7.0.post1 (requirements/cuda.txt:13) AUTO
+# takes one-shot when `num_tokens * hidden * world * elem_size <= 1 MiB`
+# (flashinfer/comm/trtllm_mnnvl_ar.py:34-51): each rank writes its payload once
+# to the multicast address and reduces the N copies it reads back
+# (trtllm_mnnvl_allreduce.cuh:916-990), else two-shot, a scatter and a
+# multicast broadcast (:1280-1335). Where FlashInfer does not run (a capability
+# it has no table for: A100, RTX-4090) vLLM's custom all-reduce does the same
+# on fully NVLink-connected GPUs (custom_all_reduce.py:499-514): one stage
+# below 256 KiB at 6-8 ranks and 512 KiB at 4, two stages above
+# (csrc/custom_all_reduce.cuh:291-310) — the 1 MiB-over-the-group rung bills
+# both.
+#
+# Billed, not modelled: FlashInfer's payload cap is 0.5 MiB at TP8 on SM90,
+# 1 MiB on SM100 (allreduce_rms_fusion.py:104-127) — one 1 MiB rung bills
+# both. Past it vLLM runs torch symmetric memory's `multimem_all_reduce_`
+# (NVLS) at the world sizes it lists (symm_mem.py:26-31, 137-154;
+# `VLLM_ALLREDUCE_USE_SYMM_MEM` defaults on, envs.py:277): 4, 6 and 8 on
+# Hopper, 6 and 8 on Blackwell, one NVLS rung each; a 4-rank Blackwell group
+# runs FlashInfer's two-shot to 32 MiB on SM100 (:110-115) and NCCL past it.
+# On SM103 the fused AR+RMSNorm pass caps at 64 MiB at both 4 and 8 ranks
+# (:116-121) while the standalone all-reduce's tuned cap is 64 MiB at 8 and
+# 80 MiB at 4 (all_reduce_utils.py:85-92): the SM103 rung takes 64 MiB, and a
+# 4-rank payload of 64-80 MiB is billed NCCL's — the same bytes, its hops
+# apart. A 2-rank
+# group runs FlashInfer's two-shot to 64 MiB, which costs what NCCL's ring
+# does at 2 ranks. The NVLS rung has no cap: past symmetric memory's
+# 64-128 MiB NCCL runs, and is billed NVLS too — an assumption (NCCL picks
+# its NVLS algorithm on such a fabric; that choice is not in vLLM's source).
+# On SM103 (B300, GB300) a prefill payload thus stays two-shot to 64 MiB
+# (flashinfer_all_reduce.py:56-70). Without NVLink (PCIe cards) every all-reduce
+# is billed as NCCL's, though vLLM's custom kernel runs a two-GPU PCIe group
+# (custom_all_reduce.py:512). Sequence parallelism's custom all-gather and
+# reduce-scatter (custom_all_reduce.py:570-660,
+# models/common/ops/sequence_parallel.py:24-36) are not the default serving
+# path and are billed as NCCL's. Across NVLink domains vLLM runs NCCL
+# (FlashInfer refuses a multi-node Hopper group, flashinfer_all_reduce.py:
+# 165-175), priced as the hierarchical schedule.
+#
+# Group sizes — what decides the algorithm, so each rung states it
+# (`worlds`). FlashInfer has a table for 2, 4, 8 (and 16 on SM100/SM103)
+# ranks and is off for any other (allreduce_rms_fusion.py:104-127,
+# flashinfer_all_reduce.py:421-430); the custom all-reduce takes 2, 4, 6, 8
+# (custom_all_reduce.py:121, :500); symmetric memory 2, 4, 6, 8
+# (all_reduce_utils.py:58-83), multimem at 4, 6, 8 on Hopper and 6, 8 on
+# Blackwell (symm_mem.py:26-31). A group of 32 or 72 ranks in one NVL72 rack
+# runs none of them: NCCL.
+collectives:
+  all_reduce:
+    - algorithm: one_shot
+      max_bytes_times_world: 1048576
+      worlds: [2, 4, 6, 8, 16]
+      source_anchor: "group sizes: FlashInfer's table (vllm/compilation/passes/fusion/allreduce_rms_fusion.py:104-127, checked at vllm/distributed/device_communicators/flashinfer_all_reduce.py:421-430) and the custom all-reduce's, at most 8 (vllm/distributed/device_communicators/custom_all_reduce.py:121, vllm/distributed/device_communicators/custom_all_reduce.py:500); FlashInfer's MNNVL all-reduce, AUTO strategy (vllm/distributed/device_communicators/flashinfer_all_reduce.py:143-178, vllm/compilation/passes/fusion/allreduce_rms_fusion.py:158-168, flashinfer pinned at requirements/cuda.txt:13); custom 1stage on fully connected GPUs (csrc/custom_all_reduce.cuh:291-310)"
+    - algorithm: two_shot
+      max_bytes: 67108864
+      when: { min_compute_capability: "10.3" }
+      worlds: [2, 4, 8, 16]
+      source_anchor: "group sizes of FlashInfer's SM103 table (vllm/compilation/passes/fusion/allreduce_rms_fusion.py:116-121); SM103's tuned standalone FlashInfer MNNVL cap (vllm/distributed/device_communicators/all_reduce_utils.py:85-92, vllm/distributed/device_communicators/flashinfer_all_reduce.py:56-70)"
+    - algorithm: two_shot
+      max_bytes: 1048576
+      worlds: [2, 4, 6, 8, 16]
+      source_anchor: "group sizes as the one-shot rung's (the custom all-reduce's 2stage at 6, vllm/distributed/device_communicators/custom_all_reduce.py:121); FlashInfer's all-reduce cap by capability and world (vllm/compilation/passes/fusion/allreduce_rms_fusion.py:104-127, vllm/distributed/device_communicators/flashinfer_all_reduce.py:421-449)"
+    - algorithm: two_shot
+      max_bytes: 33554432
+      when: { min_compute_capability: "10.0" }
+      worlds: [4]
+      source_anchor: "FlashInfer's SM100 4-rank cap, 32 MiB (vllm/compilation/passes/fusion/allreduce_rms_fusion.py:110-115); symmetric memory runs no multimem at 4 ranks on SM100 (vllm/distributed/device_communicators/symm_mem.py:26-31)"
+    - algorithm: nvls
+      when: { below_compute_capability: "10.0" }
+      worlds: [4, 6, 8]
+      source_anchor: "group sizes torch symmetric memory runs multimem at on SM90 (vllm/distributed/device_communicators/symm_mem.py:26-31) and has a cap for (vllm/distributed/device_communicators/all_reduce_utils.py:58-83); torch symmetric memory's multimem all-reduce (vllm/distributed/device_communicators/symm_mem.py:137-154), dispatched at vllm/distributed/device_communicators/cuda_communicator.py:427-431"
+    - algorithm: nvls
+      when: { min_compute_capability: "10.0" }
+      worlds: [6, 8]
+      source_anchor: "group sizes torch symmetric memory runs multimem at on SM100/SM103 (vllm/distributed/device_communicators/symm_mem.py:26-31) and has a cap for (vllm/distributed/device_communicators/all_reduce_utils.py:58-83); torch symmetric memory's multimem all-reduce (vllm/distributed/device_communicators/symm_mem.py:26-31, vllm/distributed/device_communicators/symm_mem.py:137-154), dispatched at vllm/distributed/device_communicators/cuda_communicator.py:427-431"
+
+op_implementations:
+  # V1 FlashAttention backend (v1/attention/backends/flash_attn.py:1052); FA3
+  # on SM90 (v1/attention/backends/fa_utils.py:99-101), FA4 on SM100
+  # (:102-104). Either is one launch over QK^T + softmax + PV.
+  flash_attention:
+    source_anchor: "vllm.v1.attention.backends.flash_attn.FlashAttentionImpl (vllm/v1/attention/backends/flash_attn.py:1052)"
+  silu_and_mul:
+    source_anchor: "vllm.model_executor.layers.activation.SiluAndMul (vllm/model_executor/layers/activation.py:116, torch.ops._C.silu_and_mul at vllm/model_executor/layers/activation.py:138)"
+  gelu_and_mul:
+    source_anchor: "vllm.model_executor.layers.activation.GeluAndMul (vllm/model_executor/layers/activation.py:411, gelu_and_mul / gelu_tanh_and_mul chosen at vllm/model_executor/layers/activation.py:436-438)"
+  # Kimi-K3's SituGLU, one launch at both of its sites. Dense MLP and shared
+  # expert: `KimiMLP` builds `SituAndMul` (models/kimi_k3/nvidia/model.py:274-278)
+  # → `torch.ops._C.situ_and_mul`. Routed experts: the MXFP4 checkpoint is
+  # rerouted to `Mxfp4Config` (model_executor/models/config.py:414-444), whose
+  # backend list on CUDA runs SM100's FlashInfer/DeepGEMM kernels, then Humming,
+  # then Marlin (fused_moe/oracle/mxfp4.py:425-449; Humming moves ahead of Marlin
+  # on SM90, quantization/utils/humming/priority.py:11, and ships in
+  # requirements/cuda.txt:31). On SM90 Humming applies SiTU in the launch that
+  # prepares the down GEMM's input (fused_moe/experts/fused_humming_moe.py:822-828,
+  # writing `quanted_down_input`, quantised only where that GEMM takes a
+  # quantised operand) — one launch over the same operands, a different kernel
+  # from `situ_and_mul`; without Humming, Marlin calls `torch.ops._C.situ_and_mul`
+  # itself (marlin_moe.py:163 → fused_moe/activation.py:372). On SM100 the
+  # FlashInfer trtllm-gen kernel applies SiTU inside the expert GEMM; with no
+  # whole-expert plan bound that site stays one launch more than vLLM runs.
+  situ_and_mul:
+    source_anchor: "vllm.model_executor.layers.activation.SituAndMul (vllm/model_executor/layers/activation.py:163, torch.ops._C.situ_and_mul at vllm/model_executor/layers/activation.py:182); routed experts: HummingIndexedExperts.apply (vllm/model_executor/layers/fused_moe/experts/fused_humming_moe.py:822-828)"
+  silu_and_mul_with_clamp:
+    source_anchor: "vllm.model_executor.layers.activation.SiluAndMulWithClamp (vllm/model_executor/layers/activation.py:208, torch.ops._C.silu_and_mul_with_clamp at vllm/model_executor/layers/activation.py:237; DeepseekV4MLP builds it at vllm/models/deepseek_v4/nvidia/model.py:181-182)"
+  # The gate+up and q/k/v projections are concatenated along the output dim
+  # and run as one GEMM that reads the input once (linear.py:673, :998;
+  # `UnquantizedLinearMethod` :165 → model_executor/layers/utils.py:620-632).
+  # The short conv in front of every SSM / linear-attention mixer, SiLU
+  # folded in (model_executor/layers/mamba/ops/causal_conv1d.py:481 prefill,
+  # :1096 decode; Qwen PLE's dilated conv: qwen4_exp/common/ops/ple.py:575).
+  causal_conv1d:
+    source_anchor: "vllm.model_executor.layers.mamba.ops.causal_conv1d.causal_conv1d_fn (vllm/model_executor/layers/mamba/ops/causal_conv1d.py:481) / causal_conv1d_update (vllm/model_executor/layers/mamba/ops/causal_conv1d.py:1096)"
+  # The linear-attention output norm gated by silu/sigmoid(z) in one Triton
+  # launch (layers/layernorm.py:404 RMSNormGated.forward_cuda →
+  # third_party/flash_linear_attention/ops/layernorm_guard.py:562 rmsnorm_fn,
+  # kernel :75).
+  rmsnorm_gated:
+    source_anchor: "vllm.model_executor.layers.layernorm.RMSNormGated (vllm/model_executor/layers/layernorm.py:289) -> third_party.flash_linear_attention.ops.layernorm_guard.rmsnorm_fn (vllm/third_party/flash_linear_attention/ops/layernorm_guard.py:562)"
+  # Gated DeltaNet prefill prep: the split of the conv'd q|k|v into
+  # contiguous heads (v copied), the q/k l2norms and both gates, written fp32,
+  # in one Triton launch (third_party/flash_linear_attention/ops/
+  # fused_gdn_prefill_post_conv.py:152), from `_forward_core`
+  # (model_executor/layers/mamba/gdn/qwen_gdn_linear_attn.py:1514) on every
+  # batch with prefill tokens. The layer is CUDA-dispatched (`forward_cuda`
+  # :982; ROCm aiter runs `_forward_core_rocm` :1279). `crosses: component`:
+  # the k and v head views are leaves of the `head_split` component inside
+  # the mixer, and the launch writes them.
+  fused_gdn_post_conv_prep:
+    source_anchor: "vllm.third_party.flash_linear_attention.ops.fused_gdn_prefill_post_conv.fused_post_conv_prep (vllm/third_party/flash_linear_attention/ops/fused_gdn_prefill_post_conv.py:152), from vllm/model_executor/layers/mamba/gdn/qwen_gdn_linear_attn.py:1514"
+    crosses: component
+    when:
+      phase: [prefill]
+      device: [cuda]
+  # Gated DeltaNet decode: l2norm + gates + recurrence as one launch
+  # (third_party/flash_linear_attention/ops/fused_recurrent.py:343, from
+  # mamba/gdn/qwen_gdn_linear_attn.py:1766). Prefill is the entry above.
+  fused_recurrent_gated_delta_rule:
+    source_anchor: "vllm.third_party.flash_linear_attention.ops.fused_recurrent.fused_recurrent_gated_delta_rule_packed_decode (vllm/third_party/flash_linear_attention/ops/fused_recurrent.py:343), from vllm/model_executor/layers/mamba/gdn/qwen_gdn_linear_attn.py:1766"
+    when:
+      phase: [decode]
+  # KDA decode (GLM-5.3-Flash): gate from raw f + dt_bias, beta sigmoid, q/k
+  # l2norm and the recurrence in one launch: the `fused_recurrent_kda`
+  # wrapper (models/glm5next/nvidia/ops/third_party/kda/kernels.py:148) over
+  # `fused_recurrent_gated_delta_rule_fwd_kernel` (fused_recurrent.py:44),
+  # from models/glm5next/common/kda.py:760 (compute_gate=True,
+  # sigmoid_beta=True, use_qk_l2norm_in_kernel=True). Both Glm5Next classes
+  # run it (model_executor/models/registry.py:121, :423). Kimi-K3's decode
+  # is the two entries below.
+  fused_recurrent_kda:
+    source_anchor: "vllm.models.glm5next.nvidia.ops.third_party.kda.kernels.fused_recurrent_kda (vllm/models/glm5next/nvidia/ops/third_party/kda/kernels.py:148) -> fused_recurrent.fused_recurrent_gated_delta_rule_fwd_kernel (vllm/models/glm5next/nvidia/ops/third_party/kda/fused_recurrent.py:44), from vllm/models/glm5next/common/kda.py:760"
+    when:
+      phase: [decode]
+      architectures: [Glm5NextForConditionalGeneration, Glm5NextForCausalLM]
+  # Kimi-K3 KDA decode. The whole mixer —
+  # three short convs, gate, beta, l2norm, recurrence, gated output norm —
+  # is one native launch, `ops.fused_kda_decode`
+  # (models/kimi_k3/nvidia/kda.py:1012-1028), in a decode-only batch with no
+  # speculative tokens (:985-990, `dims: {n_verify: [1]}` - the walk binds
+  # the width of a step that does not speculate as the number 1) when
+  # `resolve_kda_decode_backend` picks
+  # "native" for the default "auto" (:286-312): local heads 12 / 24 / 48 /
+  # 96, head and conv widths 128 / 4, BF16, the binary built, compute
+  # capability 9.0 or family 10.x / 12.x (`is_fused_kda_decode_supported`
+  # :161-188). `min_compute_capability: "9.0"` states that for every SKU
+  # gpu_specs.csv lists (9.0, 10.0, 10.3); an 11.x SKU would need more.
+  # Otherwise the gate + beta + l2norm + recurrence span is one launch,
+  # `fused_recurrent_kda_packed_decode` (ops/third_party/kda/fused_recurrent
+  # .py:582, from kda.py:1338) after the packed conv, with the gated norm
+  # apart (:1372); the speculative path's `fused_recurrent_kda` (:1136) has
+  # the same span, which is what the per-channel entry below bills.
+  # Speculative decode on SM10x is billed on that same default path, not as
+  # a whole mixer: vLLM would run FlashInfer's `packed_fused_kda_decode`
+  # (:219-244, call :951-982) over the whole span, but only when the
+  # installed FlashInfer exposes that API (utils/flashinfer.py:368-373) —
+  # a pinned third-party package this repository cannot open, so the
+  # boundary is one nothing here can read, and
+  # `when:` conditions are conjunctive, so one entry per plan cannot say
+  # "no speculation, or SM10x". Billing the span + conv + norm there
+  # over-counts launches on an opt-in cell and never claims a fusion the
+  # framework does not run (docs/inference_cost_model.md "How precisely to
+  # model a dispatch condition").
+  fused_kda_decode:
+    source_anchor: "vllm._custom_ops.fused_kda_decode (csrc/kimi_k3/fused_kda_decode_kernel.cu), from vllm/models/kimi_k3/nvidia/kda.py:1012"
+    when:
+      phase: [decode]
+      architectures: [KimiK3ForConditionalGeneration]
+      device: [cuda]
+      min_compute_capability: "9.0"
+      activation_dtype: [bf16]
+      dims: { n_verify: [1], d_lin_k_head: [128], s_conv_kernel: [4] }
+      world_local: { world: tp_attention, dim: n_lin_v_heads, local_in: [12, 24, 48, 96] }
+  fused_recurrent_kda_per_channel:
+    source_anchor: "vllm.models.kimi_k3.nvidia.ops.third_party.kda.fused_recurrent.fused_recurrent_kda_packed_decode (vllm/models/kimi_k3/nvidia/ops/third_party/kda/fused_recurrent.py:582, kernel vllm/models/kimi_k3/nvidia/ops/third_party/kda/fused_recurrent.py:487), from vllm/models/kimi_k3/nvidia/kda.py:1338"
+    when:
+      phase: [decode]
+      architectures: [KimiK3ForConditionalGeneration]
+  # The three KDA short convs as one launch over the packed q|k|v row. Both
+  # KDA classes keep one packed filter and state and convolve the merged
+  # projection's q|k|v slice in one call, but not in the same phases:
+  # GLM-5.3 (Glm5Next) in every phase — speculative `causal_conv1d_update`
+  # (models/glm5next/common/kda.py:607-617), prefill `causal_conv1d_fn`
+  # (:625-635), plain decode `causal_conv1d_update` (:642-649), over the
+  # weight it merges once (:563); Kimi-K3 at decode only — plain
+  # (models/kimi_k3/nvidia/kda.py:1325) and speculative (:1084) — while its
+  # prefill convolves q, k and v in three calls (:1166-1185), the per-chain
+  # `causal_conv1d` entry. Hence two alternatives.
+  causal_conv1d_packed:
+    source_anchor: "vllm.model_executor.layers.mamba.ops.causal_conv1d.causal_conv1d_update (vllm/model_executor/layers/mamba/ops/causal_conv1d.py:1096) / causal_conv1d_fn (vllm/model_executor/layers/mamba/ops/causal_conv1d.py:481), from vllm/models/glm5next/common/kda.py:607-649 and vllm/models/kimi_k3/nvidia/kda.py:1325 (speculative vllm/models/kimi_k3/nvidia/kda.py:1084)"
+    when:
+      - architectures: [Glm5NextForConditionalGeneration, Glm5NextForCausalLM]
+      - architectures: [KimiK3ForConditionalGeneration]
+        phase: [decode]
+  # The KDA layer's six input projections as one merged GEMM. GLM-5.3:
+  # `in_proj_qkvbfg_a` over q | k | v | b | f_a | g_a, "6→1 launches"
+  # (models/glm5next/common/kda.py:236-254), run once (:460), both phases.
+  # Kimi-K3: `in_proj_qkvgfab` over q | k | v | g | f_a | b
+  # (models/kimi_k3/nvidia/kda.py:625-652), run once (:870-880); `f_b_proj`
+  # stays its own GEMM (:881) in both models. Except one K3 path: at
+  # attention TP 8 (`_KDA_TP_SIZE`, low_latency_gemm.py:65, checked :976),
+  # on a device with a low-latency table (SM90, SM100, SM103/107,
+  # :670-679), with BF16 weights, a CUDA-graph decode step of at most 14
+  # tokens runs the packed weight as TWO GEMMs on two streams — q|k|v|g and
+  # f_a|b (`run_kda_projection_overlap`, :735-822, enabled :966-997, taken
+  # at kda.py:845-866). Two launches are not this one, and the parallel
+  # pattern cannot split six siblings four and two, so that cell is left
+  # unfused (six launches billed for vLLM's two) and the K3 alternatives
+  # below are the complement of it: prefill; decode at any local head count
+  # but 12 (96 heads / TP 8); decode below SM90; decode in another dtype.
+  # vLLM's own test is the world degree (`tp_size == 8`); the vocabulary asks
+  # a degree through the per-rank count it leaves (`world_local`), so the
+  # list is every per-rank head count 96 splits into except 12 — K3 has 96
+  # KDA heads, and a TP that does not divide them is refused before this.
+  merged_column_parallel_linear_wide:
+    source_anchor: "vllm.models.glm5next.common.kda._Glm5NextMergedColumnParallelLinear (vllm/models/glm5next/common/kda.py:239), from Glm5NextLinearAttention.forward (vllm/models/glm5next/common/kda.py:460); vllm.models.kimi_k3.nvidia.kda._KimiGDNMergedColumnParallelLinear (vllm/models/kimi_k3/nvidia/kda.py:644), from KimiK3DeltaAttention.forward (vllm/models/kimi_k3/nvidia/kda.py:870)"
+    when:
+      - architectures: [Glm5NextForConditionalGeneration, Glm5NextForCausalLM]
+      - architectures: [KimiK3ForConditionalGeneration]
+        phase: [prefill]
+      - architectures: [KimiK3ForConditionalGeneration]
+        phase: [decode]
+        world_local: { world: tp_attention, dim: n_lin_v_heads, local_in: [96, 48, 32, 24, 16, 8, 6, 4, 3, 2, 1] }
+      - architectures: [KimiK3ForConditionalGeneration]
+        phase: [decode]
+        below_compute_capability: "9.0"
+      - architectures: [KimiK3ForConditionalGeneration]
+        phase: [decode]
+        activation_dtype: [fp16, fp32]
+  # Kimi-K3 Attention Residuals before the FFN: `_post_attn_norm` hands the
+  # attention output to `attn_res` as the prefix's `delta`
+  # (models/kimi_k3/nvidia/model.py:1050-1068), and the one launch adds it,
+  # combines and applies `post_attention_layernorm` (ops/attn_res.py:72-85,
+  # :96-150, :154-167; Triton kernel :35 launched :222, or the native
+  # `kimi_k3_attn_res` on SM100, :192-213). Both phases. The other AttnRes
+  # launches are not bound: before attention the same kernel also takes the
+  # previous layer's FFN add (and every 12 layers the history write), and
+  # at the exit it takes the last FFN add but not the final norm — each a
+  # set of nodes across a layer occurrence, which no launch here can span —
+  # so those readouts are billed unfused (see the plan).
+  add_attn_res_combine_norm:
+    source_anchor: "vllm.models.kimi_k3.nvidia.ops.attn_res.attn_res with a delta (vllm/models/kimi_k3/nvidia/ops/attn_res.py:170, add vllm/models/kimi_k3/nvidia/ops/attn_res.py:72-85), from KimiDecoderLayer._post_attn_norm (vllm/models/kimi_k3/nvidia/model.py:1050-1068)"
+    when:
+      architectures: [KimiK3ForConditionalGeneration]
+  # Absorbed-MLA decode: the query's concat and the latent cache insert in
+  # one launch, `fused_mla_decode_q_concat_kv_cache_insert`
+  # (models/kimi_k3/nvidia/ops/fused_mla_key_concat_kv_cache.py:215, one
+  # custom op per cache format :254 / :273 / :288), from `_decode_concat_cache`
+  # (models/kimi_k3/nvidia/mla.py:699, :729). The kernel ships in Kimi-K3's
+  # model directory, but it asks only the row widths of the model —
+  # ql_nope and the latent 512, q_pe and k_pe 64, the query 576
+  # (csrc/fused_kimi_k3_mla_key_concat_kv_cache_kernel.cu:1330-1356) — the
+  # DeepSeek-V3 MLA shape; vLLM's generic MLA runs the concat and
+  # `concat_and_cache_mla` as two launches (vllm/v1/attention/backend.py:1103),
+  # which is the model class it happens to call, not a constraint of the
+  # fused form, so the entry binds every absorbed MLA of those widths.
+  # Billed on the default BF16 cache: with a plain FP8 cache and a backend
+  # that takes no quantised query, vLLM dequantises the query after this
+  # launch (mla.py:772-776), one launch more.
+  mla_q_concat_kv_insert:
+    source_anchor: "vllm.models.kimi_k3.nvidia.ops.fused_mla_key_concat_kv_cache.fused_mla_decode_q_concat_kv_cache_insert (vllm/models/kimi_k3/nvidia/ops/fused_mla_key_concat_kv_cache.py:215), from MultiHeadLatentAttention._decode_concat_cache (vllm/models/kimi_k3/nvidia/mla.py:699)"
+    when:
+      phase: [decode]
+      device: [cuda]
+      dims: { d_qk_rope: [64], d_kv_lora: [512] }
+  # HY V4 independent Hyper-Connections, the three in-tree Triton launches of
+  # one sublayer boundary (models/hy_v4/nvidia/triton_ihc.py), all taken on
+  # CUDA fp16/bf16 when the optional `hpc` package is absent
+  # (`triton_ihc_supported`, triton_ihc.py:19-27: CUDA, fp16/bf16 activations,
+  # and not VLLM_BATCH_INVARIANT — an environment default this binding assumes
+  # off, no key states it). The hpc single-kernel replacements need
+  # VLLM_ENABLE_HPC_OPS=1 and the hpc .so besides
+  # (model_executor/layers/hpc/hpc_ihc.py:48-99), so they are not the default
+  # install these entries describe. Prefill and decode take the same calls:
+  # neither wrapper branches on the phase or the token count.
+  #
+  # `triton_ihc_pre` (:199) is TWO launches, so two plans — the mix
+  # accumulation (`_ihc_pre_stage1`, kernel :30, launched :241) and the gates
+  # with the pre-weighted reduce (`_ihc_pre_stage2`, kernel :78, launched
+  # :254) — both called from `HYV4HCPreLayer.forward` (hc.py:115).
+  # `ihc_pre_mix` also fits the network-exit `hc_head`, which has only the
+  # hpc path (hc.py:279-296) and otherwise runs as torch ops, so the plan
+  # fires at one site per step vLLM does not fuse against the 156
+  # (2·n_layers) it does. That overcount is stated rather than narrowed away:
+  # the fact separating the two sites is scope (`Program.block_of`), and the
+  # key that would ask it per stack does not exist yet — see
+  # `ihc_pre_mix.yaml`, and `fused_hc_head.yaml` for the same gap.
+  # The RMSNorm after the reduce stays its
+  # own launch here: `norm_owner` is left unset (hc.py:76-77).
+  ihc_pre_mix:
+    source_anchor: "vllm.models.hy_v4.nvidia.triton_ihc._ihc_pre_stage1 (vllm/models/hy_v4/nvidia/triton_ihc.py:30, launched vllm/models/hy_v4/nvidia/triton_ihc.py:241), from HYV4HCPreLayer.forward (vllm/models/hy_v4/nvidia/hc.py:115)"
+    when:
+      architectures: [HYV4ForCausalLM]
+      device: [cuda]
+      activation_dtype: [bf16, fp16]
+  # `crosses: component`: the gate chain is the block's own and the reduce
+  # it ends in is the `hc_weighted_reduce` sub-component, and stage 2 is one
+  # launch over both — it accumulates the weighted copies in registers
+  # (triton_ihc.py:137-151) and writes only y.
+  ihc_pre_gate_reduce:
+    source_anchor: "vllm.models.hy_v4.nvidia.triton_ihc._ihc_pre_stage2 (vllm/models/hy_v4/nvidia/triton_ihc.py:78, launched vllm/models/hy_v4/nvidia/triton_ihc.py:254), from HYV4HCPreLayer.forward (vllm/models/hy_v4/nvidia/hc.py:115)"
+    crosses: component
+    when:
+      architectures: [HYV4ForCausalLM]
+      device: [cuda]
+      activation_dtype: [bf16, fp16]
+  # The post (out = post * y + residual) is one launch, from hc.py:194-195.
+  ihc_post:
+    source_anchor: "vllm.models.hy_v4.nvidia.triton_ihc.triton_ihc_post (vllm/models/hy_v4/nvidia/triton_ihc.py:277, kernel vllm/models/hy_v4/nvidia/triton_ihc.py:155)"
+    when:
+      architectures: [HYV4ForCausalLM]
+      device: [cuda]
+      activation_dtype: [bf16, fp16]
+  # Qwen3.8 PLE retrieval gate: both grouped norms, the signed-sqrt gate,
+  # the gated value and the conv input's norm in one Triton launch
+  # (models/qwen4_exp/common/ops/ple.py:304, kernel :186; from
+  # nvidia/ple_layer.py:423), both phases.
+  # ROCm (models/qwen4_exp/amd, qwen4_exp/__init__.py:23-39) runs the same
+  # kernel (amd/ple_layer.py:696), so the platform does not narrow it; BF16 /
+  # FP16 inputs only (ple.py:259-260).
+  ple_gate:
+    source_anchor: "vllm.models.qwen4_exp.common.ops.ple.ple_gate (vllm/models/qwen4_exp/common/ops/ple.py:304, kernel _ple_gate_kernel vllm/models/qwen4_exp/common/ops/ple.py:186), from vllm/models/qwen4_exp/nvidia/ple_layer.py:423"
+    when:
+      activation_dtype: [bf16, fp16]
+  # Qwen3.8 (Qwen4Exp) Hyper-Connection kernels, models/qwen4_exp/nvidia/ops/
+  # hc.py, called from hyperconnection.py (both phases). The grouped norm
+  # alone (`grouped_gemma_rmsnorm`, hc.py:455) runs only where no combine
+  # precedes it; everywhere else the norm is inside hc_combine_norm, whose
+  # cross-layer calls a match cannot reach — so it is not bound. Both
+  # Qwen4Exp classes build this hyper-connection (registry.py:113, :600).
+  # hc_silu: on SM90+ with BF16 weights and 1-48 tokens the decoder layers'
+  # call is replaced by the CuTe-DSL `hc_down_silu`, the down GEMM with the
+  # SiLU in its epilogue (hyperconnection.py:144-155,
+  # ops/cute_dsl/hc_down_silu.py:27); there no hc_silu launch runs and the
+  # estimate bills one launch too many (a token-count condition no key
+  # asks).
+  hc_silu:
+    source_anchor: "vllm.models.qwen4_exp.nvidia.ops.hc.hc_silu (vllm/models/qwen4_exp/nvidia/ops/hc.py:461, kernel vllm/models/qwen4_exp/nvidia/ops/hc.py:82), from vllm/models/qwen4_exp/nvidia/hyperconnection.py:142 / vllm/models/qwen4_exp/nvidia/hyperconnection.py:159 (`_down_and_inject`, from vllm/models/qwen4_exp/nvidia/hyperconnection.py:171 / vllm/models/qwen4_exp/nvidia/hyperconnection.py:199)"
+    when:
+      architectures: [Qwen4ExpForConditionalGeneration, Qwen4ExpForCausalLM]
+  hc_gate_mix:
+    source_anchor: "vllm.models.qwen4_exp.nvidia.ops.hc.hc_gate_mix (vllm/models/qwen4_exp/nvidia/ops/hc.py:465, kernel vllm/models/qwen4_exp/nvidia/ops/hc.py:126), from vllm/models/qwen4_exp/nvidia/hyperconnection.py:173"
+    when:
+      architectures: [Qwen4ExpForConditionalGeneration, Qwen4ExpForCausalLM]
+  hc_combine_norm:
+    source_anchor: "vllm.models.qwen4_exp.nvidia.ops.hc.hc_combine_norm (vllm/models/qwen4_exp/nvidia/ops/hc.py:480, kernel vllm/models/qwen4_exp/nvidia/ops/hc.py:273), from vllm/models/qwen4_exp/nvidia/hyperconnection.py:190 (vllm/models/qwen4_exp/nvidia/model.py:344)"
+    when:
+      architectures: [Qwen4ExpForConditionalGeneration, Qwen4ExpForCausalLM]
+  merged_column_parallel_linear:
+    source_anchor: "vllm.model_executor.layers.linear.MergedColumnParallelLinear (vllm/model_executor/layers/linear.py:673)"
+  qkv_parallel_linear:
+    source_anchor: "vllm.model_executor.layers.linear.QKVParallelLinear (vllm/model_executor/layers/linear.py:998)"
+  fused_add_rmsnorm:
+    source_anchor: "vllm.model_executor.layers.layernorm.RMSNorm.forward_native -> ir.ops.fused_add_rms_norm (vllm/model_executor/layers/layernorm.py:74-96, vllm/model_executor/layers/layernorm.py:88)"
+  # All-reduce + residual add + RMSNorm in one launch at TP > 1: the Inductor
+  # pass (compilation/passes/fusion/allreduce_rms_fusion.py:410, pass :984;
+  # on at O2/O3 on CUDA SM90/SM100 with flashinfer, config/vllm.py:171-194)
+  # for compiled models, and `fused_allreduce_rms_norm`
+  # (models/common/ops/fused_allreduce_rms_norm.py:23) called directly by the
+  # eager DeepSeek-V3.2 / GLM-5 DSA layers (models/deepseek_v32/nvidia/model.py:144, :158).
+  allreduce_fused_rmsnorm:
+    source_anchor: "vllm.compilation.passes.fusion.allreduce_rms_fusion.AllReduceFusedAddRMSNormPattern (vllm/compilation/passes/fusion/allreduce_rms_fusion.py:410)"
+  # DSv3-style noaux_tc router (sigmoid + bias + grouped top-k + gather +
+  # renormalize + scale) in one launch, `torch.ops._moe_C.grouped_topk`
+  # (_custom_ops.py:2372), reached through `fused_grouped_topk`
+  # (fused_moe/router/grouped_topk_router.py:29, call :44) when
+  # `VLLM_USE_FUSED_MOE_GROUPED_TOPK` (default 1, envs.py:215),
+  # num_expert_group <= 32, topk <= 32 and a correction bias exist (:91-97).
+  moe_fused_gate:
+    source_anchor: "vllm._custom_ops.grouped_topk (vllm/_custom_ops.py:2372), from fused_grouped_topk (vllm/model_executor/layers/fused_moe/router/grouped_topk_router.py:44)"
+  # Q and K rotated in place in one launch: `RotaryEmbedding.forward_cuda`
+  # (rotary_embedding/base.py:221, `ops.rotary_embedding` at :244). MLA models
+  # call it once per layer with the rope halves (model_executor/models/deepseek_v2.py:615,
+  # model_executor/layers/mla.py:228-230). Not DeepSeek-V4.1: its q and
+  # latent-KV rotations are never one shared-rotary call — below SM100 both
+  # sit in the q/KV insert launch (`fused_qnorm_rope_kv_insert_no_q_norm`),
+  # and on SM10x the q rotation moves into the mega-attention kernel
+  # (`fused_mla_norm_rope_attn_rope_cast`, not bound here yet) while the KV
+  # rotation stays in the insert (see that entry).
+  fused_qk_rope:
+    source_anchor: "vllm._custom_ops.rotary_embedding (vllm/_custom_ops.py:210), from RotaryEmbedding.forward_cuda (vllm/model_executor/layers/rotary_embedding/base.py:244)"
+    when:
+      excluded_architectures: [DeepseekV41ForCausalLM]
+  # Multimodal RoPE (3-axis `mrope_section`): `MRotaryEmbedding.forward_cuda`
+  # rotates q and k in one `triton_mrope` launch (rotary_embedding/mrope.py:458,
+  # kernel :163). Where the Qwen3-Next family's gated attention runs its wider
+  # QK-norm + partial-rope + gate kernel (`fused_qk_rmsnorm_rope_gate` below),
+  # that larger plan absorbs the rotation; this entry is what runs elsewhere.
+  fused_qk_mrope:
+    source_anchor: "vllm.model_executor.layers.rotary_embedding.mrope.MRotaryEmbedding.forward_cuda (vllm/model_executor/layers/rotary_embedding/mrope.py:439-470)"
+  # Sparse-MLA forward: score + softmax + apply over the selected top-k in one
+  # launch. On SM90 the sparse backends are tried in the order
+  # FLASH_ATTN_MLA_SPARSE, FLASHMLA_SPARSE, FLASHINFER_MLA_SPARSE_SM90
+  # (platforms/cuda.py:137-153); each runs the same three-node boundary
+  # (flashattn_mla_sparse.py:359-372, flashmla_sparse.py:1384).
+  flash_dsa:
+    source_anchor: "vllm.v1.attention.backends.mla.flashmla_sparse.FlashMLASparseImpl (vllm/v1/attention/backends/mla/flashmla_sparse.py:715) / flashattn_mla_sparse (vllm/v1/attention/backends/mla/flashattn_mla_sparse.py:359-372)"
+  # Hy4's sink-bearing sparse attention: the same FlashMLA sparse kernels,
+  # handed `attn_sink` (models/hy_v4/nvidia/flashmla_sparse.py:175-208 FP8,
+  # :217-275 BF16), prefill and decode.
+  flash_dsa_sink:
+    source_anchor: "vllm.models.hy_v4.nvidia.flashmla_sparse.HYV4FlashMLASparseImpl (vllm/models/hy_v4/nvidia/flashmla_sparse.py:175-208, vllm/models/hy_v4/nvidia/flashmla_sparse.py:217-275; attn_sink into flash_mla_with_kvcache / flash_mla_sparse_fwd)"
+  # The plan's forms. Weighted (DSA / DeepSeek-V4 / GLM kpool): the
+  # anchor below. Unweighted (Qwen4Exp QSA): Σ_h ReLU(q_h·k) in one Triton
+  # launch per phase, `qsa_select_paged_prefill`
+  # (models/qwen4_exp/nvidia/ops/qsa_indexer.py:578, kernel
+  # `_qsa_mqa_paged_prefill_kernel` :111, relu + head sum at :208) and
+  # `qsa_select_paged_decode` (:507, kernel `_qsa_mqa_paged_uniform_kernel`
+  # :19, relu :95, head sum :100); no 1/sqrt(d) is applied. Grouped (Step-5):
+  # the same weighted-ReLU sum per provider group, one launch per (query
+  # tile, key tile, group) — the publisher's `_indexer_logits_kernel`
+  # (stepfun-ai/Step-5-Preview snapshot, inference/kernel.py:427-499,
+  # wrapper :518); the grouping views around the sum are absorbed with it.
+  indexer_logits:
+    source_anchor: "vllm.model_executor.layers.sparse_attn_indexer.SparseAttnIndexer (vllm/model_executor/layers/sparse_attn_indexer.py:944; fp8_fp4_paged_mqa_logits at vllm/model_executor/layers/sparse_attn_indexer.py:825, prefill fp8_fp4_mqa_logits at vllm/model_executor/layers/sparse_attn_indexer.py:678); QSA: vllm.models.qwen4_exp.nvidia.ops.qsa_indexer (vllm/models/qwen4_exp/nvidia/ops/qsa_indexer.py:111, vllm/models/qwen4_exp/nvidia/ops/qsa_indexer.py:19)"
+  # MiniMax-M3 MSA indexer: per-head q·k max-pooled over each 128-key block
+  # in one launch, writing [num_idx_heads, total_q, max_block] fp32 block
+  # scores (the per-head top-k is a second launch). Off SM100 the Triton
+  # path (`select_indexer_impl_cls`, models/minimax_m3/common/indexer.py:495):
+  # prefill `minimax_m3_index_score` (common/ops/index_topk.py:674, kernel
+  # `_index_block_score_kernel` :82, block max at :176; called from
+  # common/indexer.py:471), decode `minimax_m3_index_decode_score` (:797,
+  # kernel `_decode_index_score_kernel` :317, block max at :407; via
+  # `minimax_m3_index_decode` :895, called from common/indexer.py:452). On
+  # SM100 with 16 top-k blocks the prefill side is fmha_sm100's score-only
+  # path writing `max_score` (models/minimax_m3/nvidia/indexer_msa.py:321-338).
+  indexer_block_score:
+    source_anchor: "vllm.models.minimax_m3.common.ops.index_topk.minimax_m3_index_score (vllm/models/minimax_m3/common/ops/index_topk.py:674, _index_block_score_kernel vllm/models/minimax_m3/common/ops/index_topk.py:82) / minimax_m3_index_decode_score (vllm/models/minimax_m3/common/ops/index_topk.py:797)"
+  # DeepSeek-V4 attention: q head norm + q/kv RoPE + SWA cache insert in one
+  # launch (models/deepseek_v4/attention.py:759 `_fused_qnorm_rope_kv_insert`,
+  # called at :593, the op at :800).
+  fused_qnorm_rope_kv_insert:
+    source_anchor: "vllm.models.deepseek_v4.attention.DeepseekV4Attention._fused_qnorm_rope_kv_insert (vllm/models/deepseek_v4/attention.py:759)"
+  # DeepSeek-V4.1, which has no query head norm: the same kernel family
+  # with `apply_q_norm=False` (models/deepseek_v41/attention.py:1011, the
+  # three cache-dtype variants at :1072, :1100, :1115), from
+  # `project_query_and_cache_kv` (:856-860), every layer, both phases —
+  # below compute capability 10.0. On SM10x V4.1 defaults to FlashMLA mega
+  # attention (models/deepseek_v41/nvidia/model.py:235-243, when
+  # `DeepseekV4MegaAttnAttention.is_available_for`, nvidia/
+  # flash_mla_mega_attn.py:151-172): that layer declares
+  # `accepts_unnormed_unroped_query` (:197-199), so this launch is called
+  # with `apply_q_rope=False` (deepseek_v41/attention.py:1084) and only
+  # rotates, quantises and inserts the KV; the q rotation moves into the
+  # attention kernel (`fused_norm_rope_attn_rope_cast_{decode,fwd}`,
+  # flash_mla_mega_attn.py:345, :449), with the sparse attention, the
+  # output's inverse RoPE and its FP8 cast. That wider launch has a plan,
+  # `fused_mla_norm_rope_attn_rope_cast` (bound for DeepInfer, which runs the
+  # same FlashMLA kernel), but it is not bound here yet: vLLM takes it only
+  # where, after tensor parallelism, every `wo_a` group keeps WV_GROUP_SIZE
+  # local heads (`is_available_for`, flash_mla_mega_attn.py:151-172), a TP
+  # condition this binding does not state yet, and the KV-only insert the
+  # layer leaves behind (`apply_q_rope=False`) has no plan of its own. Until
+  # both are stated, on SM10x the q and KV rotations are billed unfused (more
+  # launches than vLLM runs, never a grouping it does not run). SM12x keeps
+  # this path (model.py:233-234) but is below no bound here; no SM12x SKU is
+  # listed.
+  fused_qnorm_rope_kv_insert_no_q_norm:
+    source_anchor: "vllm.models.deepseek_v41.attention.DeepseekV4Attention._fused_qnorm_rope_kv_insert (vllm/models/deepseek_v41/attention.py:1011)"
+    when:
+      below_compute_capability: "10.0"
+  # DeepSeek-V4.1 Engram after `wkv`: key/value split, normalised-dot gate
+  # and gated add into every residual copy in one Triton launch,
+  # `_fused_engram_post_wkv_kernel` (models/deepseek_v41/common/engram.py:1186),
+  # from `Engram.forward` (:1676, launch :1711), unconditionally.
+  fused_engram_gate:
+    source_anchor: "vllm.models.deepseek_v41.common.engram._fused_engram_post_wkv_kernel (vllm/models/deepseek_v41/common/engram.py:1186), from Engram.forward (vllm/models/deepseek_v41/common/engram.py:1711)"
+  # ---- the hyper-connection sublayer boundary (the "mHC seam") ----
+  # A manifold-hyper-connection model mixes its `hc_mult` residual copies at
+  # every sublayer boundary. vLLM runs that boundary as two or three launches
+  # through one wrapper, `mhc_fused_post_pre_tilelang`
+  # (model_executor/kernels/mhc/tilelang.py:814; the small-token config is
+  # `mhc_fused_post_pre_split_config`, tilelang_kernels.py:67, bounded by
+  # `_FUSED_POST_PRE_MAX_TOKENS = 32` at :64 and a hidden size divisible by
+  # 128):
+  #   * small-token path, 2 launches: the fused post + pre-GEMM
+  #     (`_MHC_FUSED_TILELANG_KERNEL`, tilelang.py:915, kernel
+  #     tilelang_kernels.py:668), then the big fuse (tilelang.py:925);
+  #   * otherwise 3: the post (`_MHC_POST_TILELANG_KERNEL`, tilelang.py:944;
+  #     the standalone wrapper is `mhc_post_tilelang`, :791, kernel
+  #     tilelang_kernels.py:789), the pre-norm GEMM
+  #     (`_hc_prenorm_gemm_outputs`, tilelang.py:953 — DeepGEMM
+  #     `tf32_hc_prenorm_gemm` or the TileLang fallback, :22), then the big
+  #     fuse (`_MHC_PRE_BIG_FUSE_TILELANG_KERNEL`, tilelang.py:959, kernel
+  #     class tilelang_kernels.py:1264).
+  # Call sites: DeepSeek-V4 at models/deepseek_v4/nvidia/model.py:1236 (the
+  # previous layer's post with this layer's attention pre) and :1264 (the
+  # attention post with the FFN pre); GLM-5.3-Flash through `MHCFusedPostPreOp`
+  # (model_executor/layers/mhc.py:769, dispatching to the same op at :801)
+  # from `hc_fused_post_pre` (models/glm5next/common/model.py:658, calls :571
+  # and :597), which folds the sublayer norm in (:567, :605).
+  #
+  # Each launch is its own plan (`fusion_plans/mhc_*.yaml`); `crosses:
+  # component` is how the big fuse reaches the sublayer RMSNorm and how the
+  # fused form reaches across `hc_post` into `hc_pre`
+  # (`eval.fusion.BoundaryView`).
+  #
+  # The token threshold is billed on the default path of each phase, not as a
+  # condition (`docs/inference_cost_model.md`, "How precisely to model a
+  # dispatch condition"): decode takes the fused 2-launch form, prefill the
+  # 3-launch one. The hidden-size divisor is every corpus HC model's.
+  #
+  # `architectures` is vLLM's own dispatch: these three classes reach the
+  # TileLang wrapper.
+  #
+  # DeepSeek-V4.1 (models/deepseek_v41) runs the SAME three launches over a
+  # shifted schedule, `mhc_shifted_post_pre` (deepseek_v41/nvidia/ops/mhc.py:191)
+  # dispatching to `mhc_fused_post_pre_delayed_tilelang` (tilelang.py:269) on
+  # the default path: the small-token kernel is the same
+  # `_MHC_FUSED_TILELANG_KERNEL` (:388), the large-token path the same post +
+  # prenorm GEMM (:400-432), and only the epilogue differs — `MHC_PRE_NORM_KERNEL`
+  # (kernels/mhc/warmup.py:101, called at tilelang.py:445) where V4 has
+  # `_MHC_PRE_BIG_FUSE_TILELANG_KERNEL`. The delayed epilogue additionally
+  # reads the carried pre-mix `[tokens, hc]` fp32 and writes the next one
+  # (`use_pre_mix_in` / `save_pre_mix` on `mhc_pre_big_fuse_with_norm_tilelang`,
+  # tilelang_kernels.py:322-323, the `[num_tokens, hc_mult]` fp32 tensors
+  # :349-350) — a 32-byte-per-token delta on a seam whose launches move the
+  # whole
+  # `[tokens, hc, d_model]` residual, billed as the same `mhc_pre_big_fuse`
+  # span and stated here rather than split into a twin plan (one naive
+  # pattern may bind once per file, and the reduce + norm subgraph is the
+  # same). Two dispatches the default path does not take, stated rather than
+  # conditioned: Mega-MHC (`can_use_mega_mhc`, DeepGEMM on SM100; the plan
+  # `mhc_mega_post_pre`, which DeepInfer runs by default) and the
+  # coefficient overlap stream (`mhc_pre_delayed_overlap`, FULL cudagraphs
+  # at <= 16 tokens). The layer-0 entry `mhc_pre_delayed_tilelang`
+  # (tilelang.py:74) is the GEMM + the epilogue without a post; the stack
+  # exit is `mhc_post_tilelang` (deepseek_v41/nvidia/model.py:1152) plus
+  # `hc_collapse_triton` (:1070) and the model RMSNorm — the same reduce +
+  # norm shape as this seam's epilogue, but it sits on the model outside
+  # every block occurrence, so the component-crossing pattern cannot reach
+  # it and it bills naive; the 23rd epilogue the rewrite bills (22 seams +
+  # 1) is dspark_stage_last's in-block exit, not this one.
+  mhc_fused_post_pre:
+    source_anchor: "vllm.model_executor.kernels.mhc.tilelang.mhc_fused_post_pre_tilelang (vllm/model_executor/kernels/mhc/tilelang.py:814), small-token path _MHC_FUSED_TILELANG_KERNEL (vllm/model_executor/kernels/mhc/tilelang.py:915); DeepSeek-V4.1: same kernel via mhc_fused_post_pre_delayed_tilelang (vllm/model_executor/kernels/mhc/tilelang.py:269, vllm/model_executor/kernels/mhc/tilelang.py:388)"
+    crosses: component
+    when:
+      architectures: [DeepseekV4ForCausalLM, DeepseekV41ForCausalLM, Glm5NextForConditionalGeneration]
+      phase: [decode]
+      device: [cuda]
+  mhc_post:
+    source_anchor: "vllm.model_executor.kernels.mhc.tilelang.mhc_post_tilelang (vllm/model_executor/kernels/mhc/tilelang.py:791), the large-token first launch of mhc_fused_post_pre_tilelang (_MHC_POST_TILELANG_KERNEL, vllm/model_executor/kernels/mhc/tilelang.py:944) and the stack exit (vllm/models/deepseek_v4/nvidia/model.py:1497, or vllm/models/deepseek_v4/nvidia/model.py:1484 reused when the last layer also captured an aux hidden state; DeepSeek-V4.1: vllm/models/deepseek_v41/nvidia/model.py:1152, the engram boundary vllm/models/deepseek_v41/nvidia/model.py:540, and the delayed wrapper's large-token post vllm/model_executor/kernels/mhc/tilelang.py:400)"
+    crosses: component
+    when:
+      architectures: [DeepseekV4ForCausalLM, DeepseekV41ForCausalLM, Glm5NextForConditionalGeneration]
+      device: [cuda]
+  mhc_pre_big_fuse:
+    source_anchor: "vllm.model_executor.kernels.mhc.tilelang._MHC_PRE_BIG_FUSE_TILELANG_KERNEL (vllm/model_executor/kernels/mhc/tilelang.py:959, kernel class vllm/model_executor/kernels/mhc/tilelang_kernels.py:1264); DeepSeek-V4.1: the delayed epilogue MHC_PRE_NORM_KERNEL (vllm/model_executor/kernels/mhc/warmup.py:101, vllm/model_executor/kernels/mhc/tilelang.py:445)"
+    crosses: component
+    when:
+      architectures: [DeepseekV4ForCausalLM, DeepseekV41ForCausalLM, Glm5NextForConditionalGeneration]
+      device: [cuda]
+  # DeepSeek-V4.1's pre-mix projection over the already-flattened stream —
+  # the same prenorm GEMM (`tf32_hc_prenorm_gemm`, tilelang.py:423, or the
+  # TileLang fallback :425) as `mhc_pre_gemm`, billed by the two-node plan
+  # because V4.1's mix stats have no in-graph flatten leaf.
+  mhc_pre_gemm_stream:
+    source_anchor: "vllm.model_executor.kernels.mhc.tilelang: the prenorm GEMM of mhc_fused_post_pre_delayed_tilelang (DeepGEMM tf32_hc_prenorm_gemm vllm/model_executor/kernels/mhc/tilelang.py:423 or _HC_PRENORM_GEMM_TILELANG_KERNEL vllm/model_executor/kernels/mhc/tilelang.py:425) and of mhc_pre_delayed_tilelang (vllm/model_executor/kernels/mhc/tilelang.py:173, vllm/model_executor/kernels/mhc/tilelang.py:175)"
+    crosses: component
+    when:
+      architectures: [DeepseekV41ForCausalLM]
+      device: [cuda]
+  mhc_pre_gemm:
+    source_anchor: "vllm.model_executor.kernels.mhc.tilelang._hc_prenorm_gemm_outputs (vllm/model_executor/kernels/mhc/tilelang.py:22, called at vllm/model_executor/kernels/mhc/tilelang.py:953; DeepGEMM tf32_hc_prenorm_gemm or the TileLang fallback)"
+    crosses: component
+    when:
+      architectures: [DeepseekV4ForCausalLM, Glm5NextForConditionalGeneration]
+      device: [cuda]
+  # DeepSeek-V4's hyper-connection head (norm + fn GEMM + sigmoid gate +
+  # weighted reduce over the copies) in one TileLang launch,
+  # `hc_head_fused_kernel_tilelang` (model_executor/kernels/mhc/tilelang.py:1041
+  # → tilelang_kernels.py:1021), at the model exit
+  # (models/deepseek_v4/nvidia/model.py:1516) and the MTP head (mtp.py:290).
+  fused_hc_head:
+    source_anchor: "vllm.model_executor.kernels.mhc.tilelang.hc_head_fused_kernel_tilelang (vllm/model_executor/kernels/mhc/tilelang.py:1041), from DeepseekV4 vllm/models/deepseek_v4/nvidia/model.py:1516"
+    when:
+      device: [cuda]
+  # DeepSeek-V4.1's CSA2 compressor (models/deepseek_v41/compressor.py): the
+  # softmax pool of a group + its RMSNorm (+ the state save) in one launch,
+  # `fused_save_compress_norm` (common/ops/fused_compress_quant_cache.py:22,
+  # from `forward` :283), then rope + quant + compressed-cache insert in a
+  # second, `rope_quant_insert` (:224, from `insert_cache` :319). Every
+  # compressing layer, both phases. The two pool plans are the prefill and
+  # decode spellings of the one kernel. The kernels are V4.1's own package.
+  fused_save_compress_norm:
+    source_anchor: "vllm.models.deepseek_v41.common.ops.fused_compress_quant_cache.fused_save_compress_norm (vllm/models/deepseek_v41/common/ops/fused_compress_quant_cache.py:22), from DeepseekCompressor.forward (vllm/models/deepseek_v41/compressor.py:283)"
+    when:
+      architectures: [DeepseekV41ForCausalLM]
+      device: [cuda]
+  fused_save_compress_norm_decode:
+    source_anchor: "vllm.models.deepseek_v41.common.ops.fused_compress_quant_cache.fused_save_compress_norm (vllm/models/deepseek_v41/common/ops/fused_compress_quant_cache.py:22), from DeepseekCompressor.forward (vllm/models/deepseek_v41/compressor.py:283)"
+    when:
+      architectures: [DeepseekV41ForCausalLM]
+      device: [cuda]
+  fused_compress_rope_store:
+    source_anchor: "vllm.models.deepseek_v41.common.ops.fused_compress_quant_cache.rope_quant_insert (vllm/models/deepseek_v41/common/ops/fused_compress_quant_cache.py:224), from DeepseekCompressor.insert_cache (vllm/models/deepseek_v41/compressor.py:319)"
+    when:
+      architectures: [DeepseekV41ForCausalLM]
+      device: [cuda]
+  # The compressor (models/deepseek_v4/compressor.py:200 `DeepseekCompressor`,
+  # kernel chosen :446-472 and launched :475). Overlap (compress_ratio 4,
+  # main and indexer): pool + norm + RoPE + quant + cache store in one launch
+  # (CuteDSL `SparseAttnCompressNormRopeStore{,Full}C4Kernel`, Triton
+  # `_fused_kv_compress_norm_rope_insert_sparse_attn`; the indexer's
+  # head-128 FP8/MXFP4 kernels are
+  # `_fused_kv_compress_norm_rope_insert_indexer{,_mxfp4}_attn`). The indexer's
+  # reference Hadamard is deliberately absent here and in the query launch:
+  # vLLM stores and scores unrotated operands, which is score-equivalent
+  # because an orthogonal H on both sides cancels. The plans absorb the
+  # graph's optional/query nodes into these same launches rather than bill a
+  # standalone transform vLLM never launches. No overlap
+  # (compress_ratio 128, CUDA): the pool is its own launch
+  # (`SparseAttnCompressC128Block8Kernel`) and norm + RoPE + quant + store
+  # the next (`SparseAttnNormRopeStore{,Full}Kernel`). No plan groups that
+  # pool launch yet, so the walk keeps its `weighted` multiply — the
+  # compressor state's carrier — unfused, and no `mul` kernel takes the
+  # state: a counted gap (docs/known_limitations.md §4.4), not a plain multiply's
+  # row.
+  fused_overlap_compress_norm_rope_store:
+    source_anchor: "vllm.models.deepseek_v4.nvidia.ops.sparse_attn_compress_cutedsl.SparseAttnCompressNormRopeStoreC4Kernel (vllm/models/deepseek_v4/nvidia/ops/sparse_attn_compress_cutedsl.py:78) / common.ops.fused_compress_quant_cache._fused_kv_compress_norm_rope_insert_sparse_attn (vllm/models/deepseek_v4/common/ops/fused_compress_quant_cache.py:150) / common.ops.fused_compress_quant_cache._fused_kv_compress_norm_rope_insert_indexer_attn (vllm/models/deepseek_v4/common/ops/fused_compress_quant_cache.py:711) / common.ops.fused_compress_quant_cache._fused_kv_compress_norm_rope_insert_indexer_mxfp4_attn (vllm/models/deepseek_v4/common/ops/fused_compress_quant_cache.py:896), from DeepseekCompressor (vllm/models/deepseek_v4/compressor.py:475)"
+  #
+  # The same norm → RoPE → quant → paged store is DeepSeek-V4.1's index key,
+  # on the layers that own one: `indexer_k_norm_rope_store`
+  # (models/deepseek_v41/common/ops/indexer_k_store.py:29, the Triton
+  # `_indexer_k_norm_rope_quant_store_kernel` :122 launched once at :95, a
+  # program per token that returns unless the token closes a group, :148-154),
+  # from `_produce_k` (deepseek_v41/attention.py:1405, launch :1427) — called
+  # in the short-context branch (:1489) and otherwise (:1509) of the
+  # indexer's `forward`, neither a phase branch, so prefill and decode run
+  # this one launch. It writes the FP8 record (128 values + one fp32 scale)
+  # or, under `indexer_kv_dtype="mxfp4"`, the MXFP4 one (`use_fp4_cache`,
+  # :53-54, :66-71); which is the deployment's, not the graph's. In the spec
+  # the store is the indexer's own `k_cache` node, past the
+  # `csa2_index_keys` component the norm and rotation live in, hence
+  # `crosses: component`; V4's compressor tail is one component and matches
+  # as before.
+  fused_compress_norm_rope_store:
+    source_anchor: "vllm.models.deepseek_v4.nvidia.ops.sparse_attn_compress_cutedsl.SparseAttnNormRopeStoreKernel (vllm/models/deepseek_v4/nvidia/ops/sparse_attn_compress_cutedsl.py:1453), from DeepseekCompressor (vllm/models/deepseek_v4/compressor.py:475) / vllm.models.deepseek_v41.common.ops.indexer_k_store.indexer_k_norm_rope_store (vllm/models/deepseek_v41/common/ops/indexer_k_store.py:29), from DeepseekV4Indexer._produce_k (vllm/models/deepseek_v41/attention.py:1427)"
+    crosses: component
+  # The output's inverse RoPE fused with its FP8 quant
+  # (models/deepseek_v4/common/ops/fused_inv_rope_fp8_quant.py:352, called
+  # from models/deepseek_v4/nvidia/ops/o_proj.py:66). The call is skipped when
+  # the attention already hands back a quantised output (o_proj.py:62-64):
+  # V4.1's SM10x mega attention folds the inverse RoPE and cast into its own
+  # launch (see `fused_qnorm_rope_kv_insert_no_q_norm` for why its plan,
+  # `fused_mla_norm_rope_attn_rope_cast`, is not bound here yet), V4.1's small-batch
+  # SM100 path folds it into the wo_a GEMM (nvidia/ops/fused_wo_a.py), and
+  # DeepSeek-V4 only behind the opt-in FlashInfer sparse backend. There this
+  # entry bills a launch vLLM folds into a wider one — one too many, never a
+  # grouping it does not run.
+  fused_inv_rope:
+    source_anchor: "vllm.models.deepseek_v4.common.ops.fused_inv_rope_fp8_quant.fused_inv_rope_fp8_quant (vllm/models/deepseek_v4/common/ops/fused_inv_rope_fp8_quant.py:352)"
+  # DeepSeek-V4.1: the same launch writing q already MXFP8, where vLLM picks
+  # it — `_split_qkv_and_norm` (deepseek_v41/attention.py:782) when
+  # `q_lora_rank % 32 == 0` and `can_fuse_query_quant` (common/ops/
+  # query_quant.py:135-151). Every clause of that predicate, and where this
+  # entry states it:
+  #   * CUDA (query_quant.py:137) — `device: [cuda]`.
+  #   * every local reader of q (`wq_b`, the indexer's `wq_b`,
+  #     attention.py:768-771) has the MXFP8 dynamic activation key
+  #     (query_quant.py:147; V4.1's 32x32 UE8M0 linears are
+  #     `QuantSpec(weight=kMxfp8Static, activation=kMxfp8Dynamic)`,
+  #     models/deepseek_v41/quant_config.py:241) — `readers_eat:
+  #     fp8_token_group32_ue8m0`, the format `traffic` prices each reader's
+  #     conversion from (`traffic.reader_format`).
+  #   * each reader's selected kernel is FlashInfer CuteDSL or Cutlass MXFP8
+  #     (query_quant.py:148-149). `init_mxfp8_linear_kernel`
+  #     (model_executor/kernels/linear/__init__.py:935-990) tries, on CUDA,
+  #     CuteDSL, then Cutlass, then Marlin and the rest (:552-561), keeping the
+  #     first whose `is_supported` and `can_implement` hold:
+  #       - CuteDSL: compute capability family 10.x and FlashInfer's CuTe-DSL
+  #         module; Cutlass: capability >= 10.0 and FlashInfer
+  #         (mxfp8/flashinfer.py:134-144, :47-57) — `min_compute_capability:
+  #         "10.0"` (a 12.x part takes Cutlass);
+  #       - both: weight K >= 128 and K % 32 == 0, N >= 128 (flashinfer.py:
+  #         27-38; Cutlass on 12.x also N % 32, :59-70). K is `q_lora_rank`
+  #         for both readers (also vLLM's own `q_lora_rank % 32`,
+  #         attention.py:782) and N is whole heads of 512 (wq_b) or 128 (the
+  #         indexer's). Not asked: every V4.1 config passes (q_lora_rank 1280)
+  #         and no failing shape is served, so by the conditions principle
+  #         the default path is billed and the assumption stated here.
+  #   Default install and arguments this entry assumes, not asked: `--linear-backend`
+  #   left at `auto` (config/kernel.py:350; a named backend filters the list,
+  #   linear/__init__.py:395-425), `VLLM_DISABLED_KERNELS` unset
+  #   (envs.py:1221-1225; checked at linear/__init__.py:966), and the CUDA
+  #   build's pinned FlashInfer present (requirements/cuda.txt:13,
+  #   `flashinfer-python==0.7.0.post1`; utils/flashinfer.py:87-106). A
+  #   deployment that changes any of them runs the plain launch.
+  # Where any clause fails the pair falls to the plain `fused_q_kv_rmsnorm`
+  # below: the two plans share one pattern and differ only in the output
+  # contract, so the loader tries this one first and its `when:` decides.
+  fused_q_kv_rmsnorm_quant:
+    source_anchor: "vllm.models.deepseek_v41.common.ops.query_quant.fused_q_kv_rmsnorm_quant (vllm/models/deepseek_v41/common/ops/query_quant.py:90), from DeepseekV4Attention._split_qkv_and_norm (vllm/models/deepseek_v41/attention.py:782)"
+    when:
+      architectures: [DeepseekV41ForCausalLM]
+      device: [cuda]
+      min_compute_capability: "10.0"
+      readers_eat: fp8_token_group32_ue8m0
+  # The q-side and kv-side RMSNorms of one attention in one Triton launch
+  # (models/common/ops/fused_qk_rmsnorm.py:195), both phases, from the model
+  # classes that call it: DeepSeek-V4 (deepseek_v4/attention.py:529),
+  # DeepSeek-V4.1 (deepseek_v41/attention.py:795; the MXFP8 q_b path takes fused_q_kv_rmsnorm_quant, :782-794), GLM-5.3-Flash
+  # (glm5next/common/attention.py:568 `fuse_qkv_rmsnorm=True` →
+  # model_executor/layers/mla.py:204; vision: glm5next/common/multimodal.py:204)
+  # and Kimi-K3 (kimi_k3/nvidia/mla.py:521). The generic MLA wrapper leaves
+  # it off by default (mla.py:80), so other MLA models — whose norm pair has
+  # the same shape — run two launches; the class is what decides. CUDA: the
+  # kernel is Triton under the nvidia / common packages.
+  fused_q_kv_rmsnorm:
+    source_anchor: "vllm.models.common.ops.fused_qk_rmsnorm.fused_q_kv_rmsnorm (vllm/models/common/ops/fused_qk_rmsnorm.py:195), from DeepseekV4Attention._split_qkv_and_norm (vllm/models/deepseek_v4/attention.py:529)"
+    when:
+      architectures: [DeepseekV4ForCausalLM, DeepseekV41ForCausalLM,
+                      Glm5NextForConditionalGeneration, KimiK3ForConditionalGeneration]
+      device: [cuda]
+  # DSA attention input preparation (DeepSeek-V3.2 / GLM-5.x): both a-norms,
+  # the k_pe rotation and, on indexer layers, the indexer key's LayerNorm +
+  # rotation, with both cache writes, in one launch, `fused_norm_rope`
+  # (models/deepseek_v32/common/kernels.py:509, launch :654), from
+  # `DeepseekV32Attention.forward` (deepseek_v32/attention.py:378), every
+  # layer, both phases; `has_indexer` (:339-360) picks the form. The classes
+  # that build this attention (registry.py:92, :120); other MLA classes run
+  # the same-shaped steps as separate launches.
+  fused_dsa_qkv_norm_rope_indexer:
+    source_anchor: "vllm.models.deepseek_v32.common.kernels.fused_norm_rope (vllm/models/deepseek_v32/common/kernels.py:509), from DeepseekV32Attention.forward (vllm/models/deepseek_v32/attention.py:378)"
+    when:
+      architectures: [DeepseekV32ForCausalLM, GlmMoeDsaForCausalLM]
+      device: [cuda]
+  fused_dsa_qkv_norm_rope:
+    source_anchor: "vllm.models.deepseek_v32.common.kernels.fused_norm_rope (vllm/models/deepseek_v32/common/kernels.py:509, has_indexer=False), from DeepseekV32Attention.forward (vllm/models/deepseek_v32/attention.py:378)"
+    when:
+      architectures: [DeepseekV32ForCausalLM, GlmMoeDsaForCausalLM]
+      device: [cuda]
+  # DSA query preparation (`fused_q`, models/deepseek_v32/common/kernels.py
+  # :888, from attention.py:412) is not bound: the launch also reads and
+  # writes the scaled indexer head weights, which the DSA spec carries
+  # inside `indexer_logits` with no node, and on the fp8-query path
+  # (attention.py:238-239, FlashInfer sparse) it also packs [ql_nope; q_pe] —
+  # a backend / KV-format choice no `when:` key states.
+  # The MTP entry, enorm + hnorm + concat in one launch: `fused_eh_norm`
+  # (models/deepseek_v32/common/kernels.py:1150, from deepseek_v32/nvidia/mtp.py:127
+  # with a vocabulary-parallel table; at TP 1 vLLM also folds the gather in,
+  # `fused_embed_eh_norm`, which this plan leaves outside — see the plan;
+  # GLM-5.3-Flash: glm5next/nvidia/ops/fused_eh_norm.py:52, from glm5next/common/mtp.py:100).
+  # DeepSeek-V3's MTP runs three (model_executor/models/deepseek_mtp.py:124-128).
+  fused_eh_norm:
+    source_anchor: "vllm.models.deepseek_v32.common.kernels.fused_eh_norm (vllm/models/deepseek_v32/common/kernels.py:1150), from DeepseekV32 MTP (vllm/models/deepseek_v32/nvidia/mtp.py:127)"
+    when:
+      architectures: [DeepseekV32ForCausalLM, GlmMoeDsaForCausalLM,
+                      Glm5NextForConditionalGeneration]
+      device: [cuda]
+  # GLM-5.3-Flash's k-pool indexer compressor: softmax(gate + ape) pool +
+  # Hadamard + FP8 + index-K cache write in one Triton launch, prefill
+  # (`kpool_compress_and_write_cache`, models/glm5next/nvidia/ops/
+  # kpool_compress.py:259, from models/glm5next/nvidia/sparse_indexer.py:221)
+  # and decode (`kpool_decode_update_and_maybe_write_cache_batched`, :626,
+  # from glm5next/nvidia/sparse_indexer.py:533).
+  fused_kpool_compress_store:
+    source_anchor: "vllm.models.glm5next.nvidia.ops.kpool_compress.kpool_compress_and_write_cache (vllm/models/glm5next/nvidia/ops/kpool_compress.py:259) / kpool_decode_update_and_maybe_write_cache_batched (vllm/models/glm5next/nvidia/ops/kpool_compress.py:626), from SparseAttnIndexerKpool (vllm/models/glm5next/nvidia/sparse_indexer.py:221, vllm/models/glm5next/nvidia/sparse_indexer.py:533)"
+    when:
+      device: [cuda]
+  # GLM-5.3-Flash's indexer query rotated into the Hadamard-rotated index-K
+  # basis and FP8-quantised in one Triton launch, `fwht128_quant_fp8`
+  # (models/glm5next/nvidia/ops/kpool_compress.py:108), from the indexer's
+  # forward (models/glm5next/common/attention.py:350), which runs for every
+  # token of every step — prefill and decode alike. The kernel lives in the
+  # glm5next model code and nothing else calls it, so the framework's own
+  # dispatch key states where it runs.
+  fused_fwht128_quant:
+    source_anchor: "vllm.models.glm5next.nvidia.ops.kpool_compress.fwht128_quant_fp8 (vllm/models/glm5next/nvidia/ops/kpool_compress.py:108), from Glm5Next Indexer.forward (vllm/models/glm5next/common/attention.py:350)"
+    when:
+      architectures: [Glm5NextForConditionalGeneration]
+      device: [cuda]
+  # The indexer's query preparation: partial RoPE + the head weights'
+  # two positive constants, in one launch that writes q at the indexer
+  # cache's FP8 / MXFP4 (models/deepseek_v4/common/ops/fused_indexer_q.py:549,
+  # called for both phases from models/deepseek_v4/attention.py:1112 and
+  # models/deepseek_v41/attention.py:1454). For DeepSeek-V4 this audited
+  # kernel omits the reference query/key Hadamards (score-equivalent, as the
+  # compressor entry above says); the plan still absorbs the reference query
+  # node into this launch, so no standalone Hadamard launch is billed.
+  fused_indexer_q_rope_quant:
+    source_anchor: "vllm.models.deepseek_v4.common.ops.fused_indexer_q.fused_indexer_q_rope_quant (vllm/models/deepseek_v4/common/ops/fused_indexer_q.py:549), from DeepseekV4 indexer (vllm/models/deepseek_v4/attention.py:1112)"
+  # The same kernel where the spec spells the rotation as slice → rope →
+  # concat (DeepSeek-V4.1's CSA2 indexer).
+  fused_indexer_q_rope_quant_split:
+    source_anchor: "vllm.models.deepseek_v4.common.ops.fused_indexer_q.fused_indexer_q_rope_quant (vllm/models/deepseek_v4/common/ops/fused_indexer_q.py:549), from DeepseekV41 indexer (vllm/models/deepseek_v41/attention.py:1454)"
+  # Output-gated Qwen attention prologue, vLLM v0.32.0: q|gate split + per-head
+  # QK RMSNorm + partial NeoX RoPE (1-D or interleaved mrope) + gate copy in
+  # one Triton launch, `fused_qk_rmsnorm_rope_gate`
+  # (model_executor/layers/fused_qk_norm_rope.py:138), called from
+  # `Qwen3NextAttention._project_qkv_gate` (models/qwen3_next.py:407-431, call
+  # :415). Dispatched when `use_fused_qk_norm_rope_gate` holds
+  # (qwen3_next.py:373-394): output gate, NeoX style, CUDA (or XPU), an fp16/bf16 rope
+  # cache (the model dtype), and text-only or a 3-section interleaved mrope
+  # whose sections sum to rotary_dim/2 — the last two are config facts every
+  # corpus snapshot of these classes satisfies, and the `when:` vocabulary
+  # does not ask them. The classes are the ones whose attention is
+  # `Qwen3NextAttention`: Qwen3-Next, Qwen3.5 / 3.5-MoE (qwen3_5.py:158) and
+  # Qwen4Exp (models/qwen4_exp/nvidia/model.py:245; its QSA layer subclasses it
+  # with the same gate, models/qwen4_exp/nvidia/qsa.py:450-456, and calls
+  # `_project_qkv_gate` at :634 only when `use_fused_qsa_prepare` (:496-498) is off — otherwise the norm/RoPE/gate runs inside `qsa_prepare`, ops/qsa_prepare.py:504, with the indexer prepare and the K/V insert). The QSA spec spells the norm as an unscaled
+  # RMSNorm times (1 + w), hence the second plan on the same kernel.
+  # Where this entry runs it absorbs the rotations, so `fused_qk_mrope` no
+  # longer fires for these classes on CUDA: the larger plan matches first
+  # (specificity order). Off its `when:` the unfused path rotates through
+  # MRotaryEmbedding again and `fused_qk_mrope` is what runs.
+  fused_qk_rmsnorm_rope_gate:
+    source_anchor: "vllm.model_executor.layers.fused_qk_norm_rope.fused_qk_rmsnorm_rope_gate (vllm/model_executor/layers/fused_qk_norm_rope.py:138)"
+    when:
+      architectures: [Qwen3NextForCausalLM, Qwen3_5ForCausalLM, Qwen3_5MoeForCausalLM,
+                      Qwen3_5ForConditionalGeneration, Qwen3_5MoeForConditionalGeneration,
+                      Qwen4ExpForCausalLM, Qwen4ExpForConditionalGeneration]
+      activation_dtype: [bf16, fp16]
+      device: [cuda]
+  fused_qk_rmsnorm_rope_gate_split_gain:
+    source_anchor: "vllm.model_executor.layers.fused_qk_norm_rope.fused_qk_rmsnorm_rope_gate (vllm/model_executor/layers/fused_qk_norm_rope.py:138)"
+    when:
+      architectures: [Qwen4ExpForCausalLM, Qwen4ExpForConditionalGeneration]
+      activation_dtype: [bf16, fp16]
+      device: [cuda]
+  # MiniMax-M3 attention prologue, vLLM v0.32.0: per-head Gemma QK-RMSNorm +
+  # partial NeoX RoPE in place over the fused qkv tensor (plus the paged-cache
+  # insert of k / v), one launch: `fused_minimax_m3_qknorm_rope_kv_insert`
+  # (_custom_ops.py:2566; kernel
+  # csrc/fused_minimax_m3_qknorm_rope_kv_insert_kernel.cu). Both
+  # attention classes call it with no condition (models/minimax_m3/nvidia/
+  # model.py:374 dense, :625 sparse). The op takes fp16 / bf16 only (kernel
+  # :986-989) and a 128-wide head (:1005-1008, every M3 checkpoint's head_dim).
+  # Registry: MiniMaxM3SparseForCausalLM / ...ForConditionalGeneration
+  # (model_executor/models/registry.py:163, :509), CUDA (the nvidia package).
+  fused_qk_norm_partial_rope:
+    source_anchor: "vllm._custom_ops.fused_minimax_m3_qknorm_rope_kv_insert (vllm/_custom_ops.py:2566)"
+    when:
+      architectures: [MiniMaxM3SparseForCausalLM, MiniMaxM3SparseForConditionalGeneration]
+      activation_dtype: [bf16, fp16]
+      device: [cuda]
+  # Partial RoPE: the same `ops.rotary_embedding` launch as `fused_qk_rope`,
+  # handed the whole heads; it rotates the first `rotary_dim` of each in place
+  # (csrc/pos_encoding_kernels.cu:35-72) and the spec's
+  # slice / re-join never happens (`q, k = self.rotary_emb(positions, q, k)`,
+  # e.g. models/glm4_moe.py:315, mimo_v2.py:348, minimax_m2.py:243).
+  fused_qk_rope_partial:
+    source_anchor: "vllm._custom_ops.rotary_embedding (vllm/_custom_ops.py:210), from RotaryEmbedding.forward_cuda (vllm/model_executor/layers/rotary_embedding/base.py:244) on the whole q / k"
+  # MLA: the query's rope tail rotated in place through a view, the decoupled
+  # rope key whole (model_executor/layers/mla.py:227-230). Listed last: it
+  # ties in size with the 5-node plans above and must not take their nodes.
+  # Not DeepSeek-V4.1, for the reason at `fused_qk_rope` (its q tail and
+  # latent-KV rope are not one rotary call: models/deepseek_v41/attention.py
+  # :1011-1129, and :1084 on SM10x).
+  fused_qk_rope_partial_q:
+    source_anchor: "vllm._custom_ops.rotary_embedding (vllm/_custom_ops.py:210), from MultiHeadLatentAttentionWrapper.forward (vllm/model_executor/layers/mla.py:228)"
+    when:
+      excluded_architectures: [DeepseekV41ForCausalLM]
+  # Ungrouped top-K routers, one launch each from the router logits to the
+  # top-k ids and weights (fused_moe/router/router_factory.py:135-258):
+  # `FusedTopKBiasRouter` → `ops.topk_sigmoid` with the bias and the routed
+  # scale (fused_topk_bias_router.py:229); `FusedTopKRouter` →
+  # `ops.topk_softmax` (fused_topk_router.py:31); `ZeroExpertRouter` (LongCat)
+  # → `ops.topk_softmax` with the bias, its routed scale a separate multiply
+  # (zero_expert_router.py:67-78); DeepSeek-V4's sqrt-softplus router →
+  # `dsv4_topk` or `ops.topk_hash_softplus_sqrt` (:179-199, :92), with the
+  # token-id table for the hash layers. A monolithic MoE backend with its own
+  # routing (FlashInfer TRT-LLM) runs the top-k inside the MoE kernel instead
+  # — for biased sigmoid at any routed scale since v0.32.0
+  # (fused_moe/config.py:150-156, `MiniMax2`) — and an opt-in DeepGEMM mega-MoE gate
+  # folds the gate GEMM in (models/deepseek_v4/nvidia/model.py:913-975); the
+  # bindings ask no MoE-backend fact, so there the router is billed as its
+  # own launch, one more than vLLM runs.
+  moe_topk_sigmoid:
+    source_anchor: "vllm.model_executor.layers.fused_moe.router.fused_topk_bias_router.fused_topk_bias -> ops.topk_sigmoid (vllm/model_executor/layers/fused_moe/router/fused_topk_bias_router.py:229)"
+  moe_topk_softmax:
+    source_anchor: "vllm.model_executor.layers.fused_moe.router.fused_topk_router.fused_topk -> ops.topk_softmax (vllm/model_executor/layers/fused_moe/router/fused_topk_router.py:33)"
+  moe_topk_softmax_bias:
+    source_anchor: "vllm.model_executor.layers.fused_moe.router.zero_expert_router.ZeroExpertRouter -> fused_topk_bias(scoring_func=softmax) (vllm/model_executor/layers/fused_moe/router/zero_expert_router.py:67-75, vllm/model_executor/layers/fused_moe/router/fused_topk_bias_router.py:217)"
+  moe_topk_sqrtsoftplus:
+    source_anchor: "vllm.model_executor.layers.fused_moe.router.fused_topk_bias_router.fused_topk_bias -> dsv4_topk / ops.topk_hash_softplus_sqrt (vllm/model_executor/layers/fused_moe/router/fused_topk_bias_router.py:179-199, vllm/model_executor/layers/fused_moe/router/fused_topk_bias_router.py:240)"
+  moe_topk_hash_sqrtsoftplus:
+    source_anchor: "vllm.model_executor.layers.fused_moe.router.fused_topk_bias_router.fused_topk_bias -> ops.topk_hash_softplus_sqrt with hash_indices_table (vllm/model_executor/layers/fused_moe/router/fused_topk_bias_router.py:297, vllm/model_executor/layers/fused_moe/router/fused_topk_bias_router.py:92)"
+  # Qwen QSA indexer prep. With `use_fused_qsa_prepare` (qsa.py:496-498: the
+  # main fused qk-norm/rope/gate is on and `_supports_fused_pre_indexer`,
+  # indexer_qsa.py:64-86) ONE `qsa_prepare` launch (ops/qsa_prepare.py:504,
+  # kernel :112; from QSAIndexer.forward, indexer_qsa.py:310) does the
+  # indexer query's norm + rope, every completed key block's pool + norm +
+  # rope + compressed store and the raw-key ring write (key work items
+  # :296-...), and the main attention's q/k norm + rope + gate and K/V cache
+  # write. The spec spells these in three scopes (the attention, its
+  # `qwen_qsa_key_pool` sub-component, and the main q/k chain that
+  # `fused_qk_rmsnorm_rope_gate_split_gain` takes), so three plans: billed two
+  # launches too many, bytes right (they share no intermediate). Prefill and
+  # decode alike; a key work item exists only for a completed block, as the
+  # decode key-pool form prices it. QSA runs BF16 only (qsa.py:354-355).
+  # Assumed of the default (Qwen4Exp) config, not asked: NeoX rope, MRoPE
+  # interleaved with sum(section) == rotary_dim / 2, one index KV head, and a
+  # power-of-two compress ratio > 1 (indexer_qsa.py:72-85).
+  qsa_index_q_norm_rope:
+    source_anchor: "vllm.models.qwen4_exp.nvidia.ops.qsa_prepare.qsa_prepare (vllm/models/qwen4_exp/nvidia/ops/qsa_prepare.py:504, kernel vllm/models/qwen4_exp/nvidia/ops/qsa_prepare.py:112), from QSAIndexer.forward (vllm/models/qwen4_exp/nvidia/indexer_qsa.py:310)"
+    when:
+      architectures: [Qwen4ExpForCausalLM, Qwen4ExpForConditionalGeneration]
+      activation_dtype: [bf16]
+      device: [cuda]
+      dims: { d_indexer_head: [128], d_rope: [64] }
+  qsa_index_k_compress_store:
+    source_anchor: "vllm.models.qwen4_exp.nvidia.ops.qsa_prepare.qsa_prepare (vllm/models/qwen4_exp/nvidia/ops/qsa_prepare.py:504, key work items vllm/models/qwen4_exp/nvidia/ops/qsa_prepare.py:296), from QSAIndexer.forward (vllm/models/qwen4_exp/nvidia/indexer_qsa.py:310)"
+    when:
+      architectures: [Qwen4ExpForCausalLM, Qwen4ExpForConditionalGeneration]
+      activation_dtype: [bf16]
+      device: [cuda]
+      dims: { d_indexer_head: [128], d_rope: [64] }
+  # Qwen QSA sparse attention with the sigmoid output gate in the kernel's
+  # epilogue: `qsa_sparse_paged_attention` (models/qwen4_exp/nvidia/ops/qsa.py:594),
+  # from `forward_qsa` (qsa.py:264, call :318). `_select_config` (:546-591)
+  # keys on rows x local KV heads: above 2048 (512 off SM90, the default
+  # table's split rows) the partial kernel runs unsplit and gates its own
+  # output (:197-205) — one launch, this plan. A long prefill is that case.
+  # Decode rows are few, so the partial kernel splits and
+  # `_qsa_merge_splitk_kernel` (:237, gate :280-286, launched :741) merges
+  # and gates: `flash_dsa` + `sigmoid_gate_mul` there (the partials'
+  # fp32 round trip is not modelled). Billed on that default: prefill
+  # unsplit, decode split.
+  flash_dsa_gated:
+    source_anchor: "vllm.models.qwen4_exp.nvidia.ops.qsa.qsa_sparse_paged_attention (vllm/models/qwen4_exp/nvidia/ops/qsa.py:594; unsplit gate vllm/models/qwen4_exp/nvidia/ops/qsa.py:197-205), from Qwen4ExpQSAFlashAttentionImpl.forward_qsa (vllm/models/qwen4_exp/nvidia/qsa.py:318)"
+    when:
+      architectures: [Qwen4ExpForCausalLM, Qwen4ExpForConditionalGeneration]
+      activation_dtype: [bf16]
+      device: [cuda]
+      phase: [prefill]
+  # Decode's split-K merge, which applies the same gate (see flash_dsa_gated).
+  # Kimi-K3's gated MLA applies its output gate as `_gate_sigmoid_mul`
+  # (models/kimi_k3/nvidia/mla.py:117-120, called :623), a function compiled
+  # on its own with `torch.compile(backend=simple_compile_backend)` —
+  # "inductor" on CUDA (platforms/interface.py:172) — so the sigmoid and the
+  # multiply are one generated pointwise launch, in both phases — the
+  # second alternative below.
+  sigmoid_gate_mul:
+    source_anchor: "vllm.models.qwen4_exp.nvidia.ops.qsa._qsa_merge_splitk_kernel (vllm/models/qwen4_exp/nvidia/ops/qsa.py:237, gate vllm/models/qwen4_exp/nvidia/ops/qsa.py:280-286, launched vllm/models/qwen4_exp/nvidia/ops/qsa.py:741), from qsa_sparse_paged_attention (vllm/models/qwen4_exp/nvidia/ops/qsa.py:594); Kimi-K3: _gate_sigmoid_mul (vllm/models/kimi_k3/nvidia/mla.py:117-120), from vllm/models/kimi_k3/nvidia/mla.py:623"
+    when:
+      - architectures: [Qwen4ExpForCausalLM, Qwen4ExpForConditionalGeneration]
+        activation_dtype: [bf16]
+        device: [cuda]
+        phase: [decode]
+        roles: { gated: [attention] }
+      - architectures: [KimiK3ForConditionalGeneration]
+        device: [cuda]
+        roles: { gated: [attention] }

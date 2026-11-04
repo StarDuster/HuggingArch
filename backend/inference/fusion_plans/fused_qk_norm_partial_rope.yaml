@@ -1,0 +1,50 @@
+# Per-head QK RMSNorm + partial RoPE in one launch — the MiniMax-M3
+# attention prologue.
+#
+# Naive subgraph (gqa_qknorm_partial_rope_attention and the main q/k of
+# gqa_qknorm_partial_rope_dsa_attention, from the head-split Q and K):
+#
+#   q_n, k_n     = rmsnorm(q), rmsnorm(k)             # per head, over d_head
+#   q_rope_slice, q_norope_slice = slice(q_n), slice(q_n)  # first d_rope dims rotate
+#   k_rope_slice, k_norope_slice = slice(k_n), slice(k_n)
+#   q_out = concat(rope_emb(q_rope_slice), q_norope_slice)
+#   k_out = concat(rope_emb(k_rope_slice), k_norope_slice)
+#
+# `fused_qk_norm_rope` is the same chain when the rotation spans the whole
+# head (no slice / concat); this is the partial-rotation form. Both
+# frameworks run it as one in-place launch over the fused qkv tensor, so the
+# normalised activations, the rope halves and the re-join never reach HBM:
+#   - vLLM v0.32.0 `fused_minimax_m3_qknorm_rope_kv_insert`
+#     (csrc/fused_minimax_m3_qknorm_rope_kv_insert_kernel.cu,
+#     wrapper vllm/_custom_ops.py:2566), called unconditionally by
+#     `MiniMaxM3Attention.forward` (vllm/models/minimax_m3/nvidia/model.py:374)
+#     and `MiniMaxM3SparseAttention.forward` (:625), which also inserts k / v
+#     into the paged cache in the same launch.
+#   - sglang v0.5.22 `minimax_qknorm_rope`
+#     (python/sglang/kernels/ops/attention/minimax_qknorm_rope.py:152), or
+#     `minimax_qknorm_rope_grouped` (:96) when the sparse layer folds its
+#     index branch into the same launch
+#     (python/sglang/srt/models/minimax_m3.py:1353-1363, :1378).
+#
+# The rotations are told apart by the operand they become (`feeds`), the
+# slices by the edges between them.
+
+fused_op: fused_qk_norm_partial_rope
+
+naive_pattern:
+  nodes:
+    q_norm:         { op: rmsnorm,  inputs: [external.q] }
+    k_norm:         { op: rmsnorm,  inputs: [external.k] }
+    q_rope_slice:   { op: slice,    inputs: [q_norm.out] }
+    q_norope_slice: { op: slice,    inputs: [q_norm.out] }
+    k_rope_slice:   { op: slice,    inputs: [k_norm.out] }
+    k_norope_slice: { op: slice,    inputs: [k_norm.out] }
+    q_rope:         { op: rope_emb, inputs: [q_rope_slice.out], feeds: q }
+    k_rope:         { op: rope_emb, inputs: [k_rope_slice.out], feeds: k }
+    q_concat:       { op: concat,   inputs: [q_rope.out, q_norope_slice.out] }
+    k_concat:       { op: concat,   inputs: [k_rope.out, k_norope_slice.out] }
+  io_mapping:
+    q:      external.q
+    k:      external.k
+    output: q_concat.out
+    k_out:  k_concat.out

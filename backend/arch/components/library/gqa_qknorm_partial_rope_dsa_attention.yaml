@@ -1,0 +1,102 @@
+# GQA + per-head QK-norm + partial RoPE + MiniMax Sparse Attention (MSA) indexer.
+# Used by: MiniMax-M3 sparse layers (layers 3-59, sparse_attention_freq==1).
+#
+# Same GQA core as gqa_qknorm_partial_rope_attention, plus a lightning
+# indexer (index_q_proj / index_k_proj / index_q_norm / index_k_norm) that
+# scores the query against past keys, max-pools the scores over blocks of
+# sparse_block_size keys and selects the top sparse_topk_blocks blocks per
+# index head (sparse_topk_blocks * sparse_block_size positions). Main attention then runs sparsely
+# over the selected positions (store-full, read-sparse — same KV-cache growth
+# as dense GQA, sparsity is read-side only).
+#
+# Indexer tensors: index_q_proj [n_indexer_heads*d_indexer_head, d_model], index_k_proj [d_indexer_head, d_model] (MQA, one
+# index head), index_q_norm [d_indexer_head], index_k_norm [d_indexer_head].
+#
+# The indexer q and k are rotated after their norms with the main attention's
+# own partial RoPE (the leading d_rope dims, the rest pass through), and the
+# rotated key is what the index cache keeps: HF modeling_minimax_m3_vl.py
+# `MiniMaxM3VLIndexer.forward` (`apply_rotary_pos_emb(idx_q, idx_k, ...)`, then
+# `update_index(idx_k)`); vLLM v0.30.0 models/minimax_m3/nvidia/model.py:484
+# (`index_rotary_emb = self.rotary_emb`); sglang v0.5.21
+# models/minimax_m3.py:677 and `_index_qk_norm_rope` :857-881.
+#
+# Required dims: d_model, n_heads, n_kv_heads, d_head, d_rope, d_nope, n_indexer_heads (index heads), d_indexer_head (index head dim),
+#                n_topk_keys (top-K selected positions), n_topk_blocks, s_sparse_block
+role: attention
+description: "GQA + per-head QK-norm + partial RoPE + MSA sparse indexer (top-K KV positions). MiniMax-M3 sparse layers."
+cache:
+  family: GQA
+  entries:
+    - { node: key_concat, kind: kv }
+    - { node: v_split_heads, kind: kv }
+    - { node: index_key_concat, kind: index_key }
+
+attn_variant: DSA
+graph:
+  # --- main GQA projections + per-head QK-norm + partial RoPE ---
+  q_proj:          { op: linear, in: x, dims: { in: d_model, out: "n_heads * d_head" }, weight_axes: [{ world: attention, parts: n_heads, fit: replica_cells }, { replicated: true }] }
+  k_proj:          { op: linear, in: x, dims: { in: d_model, out: "n_kv_heads * d_head" }, weight_axes: [{ world: attention, parts: n_kv_heads, fit: replica_cells }, { replicated: true }] }
+  v_proj:          { op: linear, in: x, dims: { in: d_model, out: "n_kv_heads * d_head" }, weight_axes: [{ world: attention, parts: n_kv_heads, fit: replica_cells }, { replicated: true }] }
+  q_split_heads:   { op: head_split, in: q_proj, dims: { n_heads: n_heads, d_head: d_head } }
+  k_split_heads:   { op: head_split, in: k_proj, dims: { n_heads: n_kv_heads, d_head: d_head } }
+  v_split_heads:   { op: head_split, in: v_proj, dims: { n_heads: n_kv_heads, d_head: d_head } }
+  q_norm:          { op: rmsnorm, in: q_split_heads, dim: d_head, weight_axes: [{ replicated: true }] }
+  k_norm:          { op: rmsnorm, in: k_split_heads, dim: d_head, weight_axes: [{ replicated: true }] }
+  q_pe_slice:      { op: slice, in: q_norm, dims: { in: d_head, out: d_rope } }
+  q_nope_slice:    { op: slice, in: q_norm, dims: { in: d_head, out: d_nope } }
+  k_pe_slice:      { op: slice, in: k_norm, dims: { in: d_head, out: d_rope } }
+  k_nope_slice:    { op: slice, in: k_norm, dims: { in: d_head, out: d_nope } }
+  q_pe_rope:       { op: rope_emb, in: q_pe_slice, dims: { dim: d_rope } }
+  k_pe_rope:       { op: rope_emb, in: k_pe_slice, dims: { dim: d_rope } }
+  query_concat:    { op: concat, in: [q_pe_rope, q_nope_slice], dims: { in_a: d_rope, in_b: d_nope, out: d_head } }
+  key_concat:      { op: concat, in: [k_pe_rope, k_nope_slice], dims: { in_a: d_rope, in_b: d_nope, out: d_head } }
+  # --- MSA lightning indexer: score query vs keys, emit top-K positions ---
+  # The index heads are their own world (dims.yaml `n_indexer_heads`:
+  # shardable_by [indexer]), not the attention heads beside them. sglang
+  # splits them over the attention TP group up to their count
+  # (models/minimax_m3.py:578-589 `idx_head_tp_size = min(attn_tp_size,
+  # total_idx_heads)`, :622-633 `index_qkv_proj` with that tp_size); that is
+  # the framework's placement of the indexer world, bound per deployment.
+  index_q_proj:    { op: linear, in: x, dims: { in: d_model, out: "n_indexer_heads * d_indexer_head" }, weight_axes: [{ world: indexer, parts: n_indexer_heads, fit: replica_cells }, { replicated: true }] }
+  index_q_split:   { op: head_split, in: index_q_proj, dims: { n_heads: n_indexer_heads, d_head: d_indexer_head } }
+  index_q_norm:    { op: rmsnorm, in: index_q_split, dim: d_indexer_head, weight_axes: [{ replicated: true }] }
+  index_k_proj:    { op: linear, in: x, dims: { in: d_model, out: d_indexer_head }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  index_k_norm:    { op: rmsnorm, in: index_k_proj, dim: d_indexer_head, weight_axes: [{ replicated: true }] }
+  index_q_pe_slice:   { op: slice, in: index_q_norm, dims: { in: d_indexer_head, out: d_rope } }
+  index_q_nope_slice: { op: slice, in: index_q_norm, dims: { in: d_indexer_head, out: "d_indexer_head - d_rope" } }
+  index_k_pe_slice:   { op: slice, in: index_k_norm, dims: { in: d_indexer_head, out: d_rope } }
+  index_k_nope_slice: { op: slice, in: index_k_norm, dims: { in: d_indexer_head, out: "d_indexer_head - d_rope" } }
+  index_q_pe_rope:    { op: rope_emb, in: index_q_pe_slice, dims: { dim: d_rope } }
+  index_k_pe_rope:    { op: rope_emb, in: index_k_pe_slice, dims: { dim: d_rope } }
+  index_query_concat: { op: concat, in: [index_q_pe_rope, index_q_nope_slice], dims: { in_a: d_rope, in_b: "d_indexer_head - d_rope", out: d_indexer_head } }
+  index_key_concat:   { op: concat, in: [index_k_pe_rope, index_k_nope_slice], dims: { in_a: d_rope, in_b: "d_indexer_head - d_rope", out: d_indexer_head } }
+  index_k_bcast:   { op: head_broadcast, in: index_key_concat, dims: { n_heads: n_indexer_heads } }
+  # Selection is per index head and per BLOCK of s_sparse_block keys
+  # (config `sparse_score_type: "max"`): each head's raw q·k scores are
+  # max-pooled over every block, and each head keeps its own top
+  # n_topk_blocks blocks. No ReLU, no head weights, no sum over heads.
+  #   HF modeling_minimax_m3_vl.py `MiniMaxM3VLIndexer.forward`:
+  #     `scores.view(B, H_idx, S_q, num_key_blocks, block_size).amax(-1)`
+  #     then `block_scores.topk(topk_blocks)` → [B, H_idx, S_q, topk]
+  #     (transformers 5.17.0, modeling_minimax_m3_vl.py:579-597).
+  #   vLLM v0.30.0 `minimax_m3_index_score` → [num_idx_heads, total_q,
+  #     max_block] (models/minimax_m3/common/ops/index_topk.py:648-704;
+  #     block max at :154), then per-head `minimax_m3_index_topk` (:707).
+  #   sglang v0.5.21 `flash_prefill_with_topk_index`
+  #     (kernels/ops/attention/minimax_sparse/prefill/flash_with_topk_idx.py:584;
+  #     score [num_heads, total_q, max_seqblock_k], block max at :236).
+  # The forced init / local blocks are boosted INSIDE the top-k (HF :586-590,
+  # vLLM index_topk.py:236-244), so the attention still reads n_topk_blocks ·
+  # s_sparse_block = n_topk_keys positions. Each KV head reading its own
+  # head's blocks reads as many positions as a shared selection would, so the
+  # main attention below is unchanged.
+  index_score:     { op: attention_score, in: [index_query_concat, index_k_bcast], dims: { n_heads: n_indexer_heads, d_head: d_indexer_head } }
+  index_block_max: { op: group_max, in: index_score, dims: { in: s_kv, out: "ceiling(s_kv / s_sparse_block)" }, formula: "block_scores[b,h,s,j] = max_{t ∈ block j} index_score[b,h,s,t]   (amax over s_sparse_block keys)" }
+  index_topk:      { op: topk, in: index_block_max, dims: { in: "ceiling(s_kv / s_sparse_block)", k: n_topk_blocks }, formula: "topk_indices[b,h,s] = TopK_n_topk_blocks(block_scores[b,h,s,:])   (per index head)" }
+  # --- sparse main attention over the selected top-K positions ---
+  qk_score:        { op: dsa_attention_score, in: [query_concat, key_concat, index_topk], dims: { n_heads: n_heads, d_head: d_head, k: n_topk_keys } }
+  softmax:         { op: dsa_softmax, in: qk_score, dims: { n_heads: n_heads, k: n_topk_keys } }
+  attn_apply:      { op: dsa_attention_apply, in: [softmax, v_split_heads], dims: { n_heads: n_heads, d_head: d_head, k: n_topk_keys } }
+  o_merge_heads:   { op: head_merge, in: attn_apply, dims: { n_heads: n_heads, d_head: d_head } }
+  o_proj:          { op: linear, in: o_merge_heads, dims: { in: "n_heads * d_head", out: d_model }, weight_axes: [{ replicated: true }, { world: attention, parts: n_heads, fit: replica_cells }] }
+outputs: [o_proj]

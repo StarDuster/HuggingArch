@@ -1,0 +1,71 @@
+# The pinned-fact lane: every measurement this repository has written down,
+# compared against what the code produces today, once a night.
+#
+# Why it exists. The four measuring goldens — the SOL surface, the capacity
+# baseline, the Scaling payload, the spec-match fingerprints — are all
+# `regression`-marked, `pyproject.toml` deselects that mark, and the only
+# thing that ran them was `regression.yml`, which is `workflow_dispatch`
+# only. On 2026-10-29/30 six commits changed the engine and left all four
+# behind: 56 SOL cells over 29 models, 26 capacity fields, 145 Scaling
+# points, and a spec-match field still holding a hash from 435 commits
+# earlier. Every one of those commits said no number moved and every one was
+# right about each check that ran. A golden nothing runs is indistinguishable
+# from a golden that passes.
+#
+# Why not simply schedule `regression.yml`. That lane is 93 test files and
+# four hours, and most of it is surveys — per-model sweeps that are useful to
+# run on purpose and cost a night's minutes to run on a timer. This one is
+# the subset whose whole job is to go red when the engine moves, which is the
+# distinction `regression` cannot express on its own.
+#
+# The list is DERIVED, not written here: `tools/corpus_pins.lane` asks the pin
+# registry, which already declares once who compares each pinned file. A list
+# in this file would be a second table, and the first golden added without a
+# line here would be unguarded with nothing going red
+# (`tests/meta/test_corpus_pin_registry.py` keeps the derivation honest).
+
+name: pins
+
+on:
+  schedule:
+    # 03:17 UTC — off the hour, so it does not pile onto every other
+    # repository's midnight cron.
+    - cron: "17 3 * * *"
+  workflow_dispatch: {}
+
+concurrency:
+  group: pins-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Sync
+        run: uv sync --frozen
+
+      - name: Which pinned facts are compared
+        id: lane
+        run: |
+          uv run python -m tools.corpus_pins.lane | tee /tmp/lane.txt
+          echo "count=$(wc -l < /tmp/lane.txt)" >> "$GITHUB_OUTPUT"
+
+      # `-m ""` is required: the default `addopts` is `-m 'not regression'`,
+      # which would deselect most of what this lane exists to run.
+      - name: Compare every pinned fact
+        run: uv run pytest $(cat /tmp/lane.txt | tr '\n' ' ') -m "" -q
+
+      - name: What a failure means
+        if: failure()
+        run: |
+          echo "A pinned fact no longer matches what the code produces."
+          echo "This is not a request to regenerate. Find the commit that"
+          echo "predicts the size of what moved; if no commit does, that is"
+          echo "the finding. ${{ steps.lane.outputs.count }} targets ran."

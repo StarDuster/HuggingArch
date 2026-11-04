@@ -1,0 +1,55 @@
+# CSA2 indexer, the form that owns no keys — `Indexer` on a layer that is an
+# index source but not a kv source (source/model.py:500, 517-525):
+#
+#     self.owns_k = layer_id in args.kv_source_layers      # False here
+#     ...
+#     if self.owns_k:  self.wk = ...; self.k_norm = ...; self.k_cache = ...
+#
+# so only `wq_b` and `weights_proj` are stored, and the keys arrive from the
+# nearest kv source's buffer (`index_k = shared_attn.index_k[:bsz, : end_pos
+# // ratio]`, :554). Such a layer lies after the candidate source by
+# construction (`self.uses_candidates = 0 <= candidate_source_layer <
+# layer_id`, :503), so it scores inside that layer's candidate blocks
+# (:573-575) and publishes its own selection.
+#
+# It scores ONLY the candidates, the paper's Reindex Mode (§2.3.2: 2,048
+# blocks × 8 positions = 16,384 candidate positions) as sglang runs it:
+# `v41_indexer/sparse_table.py:303-323` (`consume_decode`) calls
+# `sparse_logits` over the candidate schedule only
+# (`deep_gemm.fp8_fp4_paged_sparse_mqa_logits`), then
+# `topk_transform_sparse`. vLLM (`sparse_attn_indexer.py:714-752`) and the
+# reference (source/model.py:575) score the full length and mask it; the
+# selection is the same and the cost is not. The FP4 indexer needs SM100,
+# where sglang takes the sparse path, so that is the form modelled.
+#
+# `latent` is the formal every `indexer` slot binding takes (a layer that
+# owns its keys derives them from it); this form reads the shared keys
+# instead and does not look at it.
+#
+# Required dims: `csa2_index_score`'s, plus n_topk_keys.
+
+description: "CSA2 indexer, shared-keys form: re-scores the shared index keys with its own wq_b / weights_proj inside the candidate source's blocks and publishes csa_topk. No wk, no key cache."
+inputs: [x, q_norm, latent]
+reads: [index_k, candidates]
+stream_out:
+  csa_topk: topk_idx
+graph:
+  # The shared index keys are read, not derived: a stream may be a node's
+  # input the way `library/qwen3_vl_deepstack_decoder_block.yaml` reads
+  # `deepstack_feat`.
+  # The candidate keys: the shared keys, of which a query reads at most
+  # `n_topk_blocks · s_sparse_block` positions — a view of the published
+  # buffer bounded by the selection, whose positions arrive with the stream.
+  k_cand:
+    op: kv_cache_view
+    in: index_k
+    dims: { read_topk: "n_topk_blocks * s_sparse_block" }
+    formula: "index_k[candidates]   (sparse_table.py consume_decode: the candidate schedule's keys)"
+  score: { op: csa2_index_score, in: [x, q_norm, k_cand], module: null }
+  # The top-k over the candidate logits picks positions WITHIN the pool;
+  # `topk_transform_sparse` maps them back through the published blocks to
+  # cache positions (sparse_table.py:320-322) — a gather of the candidate
+  # list at the local winners.
+  topk_local: { op: topk, in: score, dims: { k: n_topk_keys } }
+  topk_idx:   { op: gather, in: [candidates, topk_local], dims: { in: "Min(n_topk_blocks, s_kv // compress_ratio // s_sparse_block)", k: "Min(n_topk_keys, s_kv // compress_ratio)" }, formula: "topk = phys_blocks[local]   (topk_transform_sparse, sparse_table.py:320-322)" }
+outputs: [topk_idx]

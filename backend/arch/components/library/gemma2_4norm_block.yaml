@@ -1,0 +1,30 @@
+# Gemma 2 decoder block (Gemma2DecoderLayer.forward).
+#
+# 4-norm topology: pre/post norms wrap both attention AND FFN branches.
+#   residual = x
+#   x = input_layernorm(x); x = self_attn(x); x = post_attention_layernorm(x)
+#   x = residual + x                            # attn residual
+#   residual = x
+#   x = pre_feedforward_layernorm(x); x = mlp(x); x = post_feedforward_layernorm(x)
+#   x = residual + x                            # mlp residual
+#
+# Same shape as gemma4_4norm_scaled_block but WITHOUT the learnable
+# layer_scalar (Gemma 2 doesn't have it). FFN defaults to gemma_geglu_ffn (tanh-approximate GELU).
+role: block
+description: "Gemma 2 decoder layer: 4 RMSNorms (input/post-attn/pre-ffn/post-ffn) wrapping attn and ffn branches. Parameterized attn + ffn."
+
+params:
+  attn: { kind: component }
+  ffn:  { kind: component, default: gemma_geglu_ffn }
+  norm: { kind: component, default: rmsnorm }
+
+graph:
+  input_layernorm:            { op: <norm>, in: x, dim: d_model, weight_axes: [{ replicated: true }] }
+  self_attn:                  { op: <attn>, in: input_layernorm }
+  post_attention_layernorm:   { op: <norm>, in: self_attn, dim: d_model, weight_axes: [{ replicated: true }] }
+  attn_residual:              { op: add, in: [x, post_attention_layernorm], dim: d_model }
+  pre_feedforward_layernorm:  { op: <norm>, in: attn_residual, dim: d_model, weight_axes: [{ replicated: true }] }
+  mlp:                        { op: <ffn>, in: pre_feedforward_layernorm }
+  post_feedforward_layernorm: { op: <norm>, in: mlp, dim: d_model, weight_axes: [{ replicated: true }] }
+  out:                        { op: add, in: [attn_residual, post_feedforward_layernorm], dim: d_model }
+outputs: [out]

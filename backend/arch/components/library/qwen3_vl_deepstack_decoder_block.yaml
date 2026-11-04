@@ -1,0 +1,35 @@
+# Qwen3-VL-MoE decoder layer that receives a DeepStack feature.
+#
+# Forward (Qwen3VLMoeTextModel.forward, the decoder loop):
+#   hidden_states = decoder_layer(hidden_states, ...)            # pre-norm block
+#   if layer_idx in range(len(deepstack_visual_embeds)):
+#       hidden_states = self._deepstack_process(
+#           hidden_states, visual_pos_masks, deepstack_visual_embeds[layer_idx])
+#   _deepstack_process: hidden_states[visual_pos_masks, :] += visual_embeds
+#
+# The layer is `pre_norm`, then `scatter_rows_add` of the stream elements this
+# iteration reads (the images' and the videos') onto the visual rows of its
+# output. The stack pairs element j with its j-th reading iteration
+# (`deepstack_feat: { read: each }`, `deepstack_feat_video` likewise).
+role: block
+description: "Qwen3-VL DeepStack decoder layer: pre-norm block, then its layer's DeepStack feature added onto the visual token rows of the output (scatter_rows_add)."
+
+params:
+  attn: { kind: component }
+  ffn:  { kind: component }
+  norm: { kind: component, default: rmsnorm }
+
+reads: [deepstack_feat, deepstack_feat_video]
+
+graph:
+  input_layernorm:          { op: <norm>, in: x, dim: d_model, weight_axes: [{ replicated: true }] }
+  self_attn:                { op: <attn>, in: input_layernorm }
+  post_attn_add:            { op: add, in: [x, self_attn], dim: d_model }
+  post_attention_layernorm: { op: <norm>, in: post_attn_add, dim: d_model, weight_axes: [{ replicated: true }] }
+  mlp:                      { op: <ffn>, in: post_attention_layernorm }
+  layer_out:                { op: add, in: [post_attn_add, mlp], dim: d_model }
+  # Images' and videos' features in one add over the visual positions
+  # (vLLM v0.30.0 qwen3_vl.py:2922-2961: one deepstack_input_embeds for
+  # every multimodal embedding).
+  deepstack:                { op: scatter_rows_add, in: [layer_out, deepstack_feat, deepstack_feat_video] }
+outputs: [deepstack]

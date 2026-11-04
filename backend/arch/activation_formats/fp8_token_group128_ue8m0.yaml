@@ -1,0 +1,12 @@
+description: "FP8 (E4M3) activations, one dynamic UE8M0 scale per token per 128 channels."
+source: "DeepSeek-V4 inference/model.py:20-21, :114-118 — `act_quant(x, block_size=128, scale_fmt='ue8m0', scale_dtype=torch.float8_e8m0fnu)` before every fp8_gemm / fp4_gemm; transformers reaches the same quantiser through DeepGEMM (integrations/deepgemm.py:432-444, gran_k 128 with packed UE8M0)"
+# The scale's own dtype is the model's reference implementation's, and it is
+# the one this format states. transformers' DeepGEMM integration keeps the
+# ACTIVATION scales FP32 on SM90 while the weight's stay UE8M0 ("the SM90
+# dispatch in layout.hpp only matches FP32 SFs, so we keep act SFs as FP32",
+# integrations/deepgemm.py:419-444): on such a card this format is a declared
+# approximation that reads 1 byte per 128 values where that stack reads 4 —
+# 3 bytes per 128 activation values, and no difference to the dtype the matmul
+# multiplies in.
+dtype: F8_E4M3
+scale: { granularity: per-group, group: 128, dtype: F8_E8M0 }

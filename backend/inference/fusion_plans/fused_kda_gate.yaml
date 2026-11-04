@@ -1,0 +1,73 @@
+# Kimi Delta Attention prefill gates in one launch: the bounded forget gate
+# formed from the raw low-rank projection, and beta = sigmoid(beta_raw), both
+# written fp32 — the KDA sibling of `fused_gdn_gating`.
+#
+#   f    = f_b + dt_bias                          forget (add)
+#   f    = head-first view of f                   forget_split, forget_heads
+#   g    = lower_bound * sigmoid(f * exp(a_log))  rate, gate_rate, gate_sigmoid, gate_bound
+#   beta = sigmoid(beta_raw)
+#
+# Naive subgraph, both spellings of the gate in the corpus:
+#   * kimi_k3_kda_attention (Kimi-K3): the rate multiplies the head-first
+#     view directly;
+#   * kda_perhead_decay_lowrank_gate_attention (GLM-5.3-Flash): the per-head
+#     rate is applied in a head-last frame, a transpose before the multiply
+#     (`forget_heads_last`) and one after the bound (`gate_heads_first`). The two
+#     `optional` transposes are those; absent, their reader reads straight
+#     through.
+# The q/k l2norms are not part of it: they stay two launches before the
+# chunk kernel in the framework below.
+#
+# PREFILL, sglang (audited at v0.5.22), CUDA: `kda_gate_chunk_cumsum`
+#   (kernels/ops/attention/fla/kda.py:1059, kernel
+#   `kda_gate_chunk_cumsum_vector_kernel` :947: bounded gate :1023-1029, beta
+#   sigmoid :1045-1054), called from `chunk_kda_fwd` (:1178) when `A_log` is
+#   given, in place of the plain chunk-local cumsum the chunk pipeline runs
+#   otherwise (:1191-1201). `chunk_kda` (:1274; l2norms :1299-1301) is reached
+#   from `TritonKDAKernel.extend` (srt/layers/attention/linear/kernels/
+#   kda_triton.py:237) via `KDAKernelDispatcher.extend`
+#   (srt/layers/attention/linear/kda_backend.py:414-428) from
+#   `forward_extend` (:1126, `A_log`, `dt_bias`, `lower_bound`,
+#   `beta_is_raw=True`), the same arguments on the prefill-graph path
+#   (kda_prefill_graph.py:353-365). Triton is the default prefill backend
+#   (`--linear-attn-backend` default "triton", arg_groups/fields/exec_.py:480;
+#   `--linear-attn-prefill-backend` unset, :494), for GLM-5.3-Flash and
+#   Kimi-K3 alike (the models hand the raw gate, srt/models/kimi_k3.py:2119-2123).
+#   It writes the gate at fp32 (`output_dtype` default torch.float, :1066) —
+#   already chunk-cumsummed, the form the chunk kernels read — and beta at
+#   fp32 (:1112), declared per port below.
+#
+# vLLM (audited at v0.32.0) is not bound. Its default KDA prefill on SM90 and
+# newer is FlashKDA for both classes (models/glm5next/common/kda.py:137-160;
+# models/kimi_k3/nvidia/kda.py:463-502): `torch.ops._flashkda_C.fwd`, built
+# from an external repository (cmake/external_projects/flashkda.cmake,
+# FlashKDA@17a037d), whose prepare launch takes the raw gate, raw beta and
+# un-normalised q/k and writes the chunk workspaces the recurrence launch
+# reads — tensors the graph has no node for, and code not in the audited
+# tree. The Triton `chunk_kda_with_fused_gate` (third_party/
+# flash_linear_attention/ops/kda.py:1426; models/kimi_k3/nvidia/kda.py:1300)
+# is its fallback, taken below SM90 or on request.
+
+fused_op: fused_kda_gate
+
+output_dtype: { output: float32, beta_out: float32 }
+
+naive_pattern:
+  nodes:
+    forget:            { op: add,         inputs: [external.forget_raw, external.dt_bias] }
+    forget_split:      { op: view_split,  inputs: [forget.out] }
+    forget_heads:      { op: transpose,   inputs: [forget_split.out] }
+    forget_heads_last: { op: transpose,   inputs: [forget_heads.out], optional: true }
+    rate:              { op: exp,         inputs: [external.a_log] }
+    gate_rate:         { op: mul,         inputs: [forget_heads_last.out, rate.out] }
+    gate_sigmoid:      { op: sigmoid,     inputs: [gate_rate.out] }
+    gate_bound:        { op: scale_const, inputs: [gate_sigmoid.out] }
+    gate_heads_first:  { op: transpose,   inputs: [gate_bound.out], optional: true }
+    beta:              { op: sigmoid,     inputs: [external.beta_raw], feeds: write }
+  io_mapping:
+    forget_raw: external.forget_raw
+    dt_bias:    external.dt_bias
+    a_log:      external.a_log
+    beta_raw:   external.beta_raw
+    output:     gate_heads_first.out
+    beta_out:   beta.out

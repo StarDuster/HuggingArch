@@ -1,0 +1,38 @@
+# Qwen3 dense (Qwen3-8B etc.). Differs from Qwen2 by per-head QK-RMSNorm
+# inside attention; final norm tensor is `model.norm.weight`.
+match:
+  model_type: [qwen3]
+
+components:
+  attention: gqa_qknorm_attention
+  ffn_dense: swiglu_ffn
+  norm: rmsnorm
+  block: pre_norm
+
+dims:
+  d_model:  config.hidden_size
+  n_heads:  config.num_attention_heads
+  n_kv_heads: config.num_key_value_heads ?? n_heads
+  d_head:  config.head_dim ?? "d_model // n_heads"
+  d_ffn:  config.intermediate_size
+  n_vocab:  config.vocab_size
+  n_layers:  config.num_hidden_layers
+  s_max: config.max_position_embeddings
+
+view:
+  rope_theta: config.rope_theta
+  hidden_act: config.hidden_act
+  norm.eps: config.rms_norm_eps
+
+model_inputs:
+  input_ids: { kind: tokens }
+
+# The transformers base model's tensors sit under `model.`; the LM head
+# beside it declares its own path.
+checkpoint: { root: model }
+
+model:
+  - { name: embed_tokens, inputs: [input_ids], op: embedding, boundary_role: input_embedding, dims: { n_vocab: n_vocab, d_model: d_model }, weight_axes: [{ world: attention, parts: n_vocab, fit: pad }, { replicated: true }] }
+  - { name: layers, repeat: n_layers, template: block, inputs: [embed_tokens], streams: { hidden: { carries: true } }}
+  - { name: norm, op: rmsnorm, dim: d_model, weight_axes: [{ replicated: true }] , inputs: [layers]}
+  - { name: lm_head, op: linear, checkpoint: { path: lm_head }, boundary_role: output_head, dims: { in: d_model, out: n_vocab }, weight_axes: [{ world: attention, parts: n_vocab, fit: pad }, { replicated: true }], tied_weight: { to: embed_tokens, when: config.tie_word_embeddings } , inputs: [norm]}

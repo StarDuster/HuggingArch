@@ -1,0 +1,70 @@
+# DeepSeek-V4.1-Flash decoder block WITH an Engram, for backbone layers 1 and 14.
+#
+# Identical to `dsv41_hc_block` except that the n-gram retrieval runs on each
+# hc copy before the block's own HC wiring. The call site is in
+# `Transformer.forward`, not in `Block.forward` (source/model.py:1255-1262):
+#
+#     for i, layer in enumerate(self.layers):
+#         if layer.engram is not None:
+#             h = layer.engram(h, engram_hashes[:, :, layer.engram.layer_hash_index, :], engram_mask)
+#         if i in self.target_layer_ids:
+#             main_hiddens.append(h.mean(dim=2))
+#         h, pre_mix = layer(h, start_pos, pre_mix, image_mask)
+#
+# The module is nonetheless owned by the Block (`self.engram = Engram(...)`,
+# source/model.py:930-932), so its tensors land at `layers.X.engram.*` — which
+# is why it is a node of this block rather than of the model graph.
+# `engram_layer_ids: [1, 14]`; `layers.X.engram.*` ×2 in pattern_counts.
+#
+# The caller rebinds `n_vocab` to this layer's table height
+# (`engram_num_embeddings: [384006168, 384016682]`).
+#
+# Required dims: d_model, n_hidden_copies, d_hc_mix, n_vocab (engram table height).
+
+role: block
+description: "DSv4.1 decoder block with single-pass Hyper-Connections plus an Engram n-gram retrieval applied per hc copy at block entry (backbone layers 1 and 14)."
+reads: [hc_pre_mix]
+inputs: [x, input_ids]
+
+params:
+  attn: { kind: component }
+  ffn:  { kind: component }
+
+stream_out:
+  hc_pre_mix: hc_ffn_split
+
+graph:
+  # `h = layer.engram(h, ...)` — flattened in, WIDENED out (the engram's own
+  # ops are per-copy, so it re-exposes the axis itself). Everything downstream
+  # reads `engram` / `engram_flat` where dsv41_hc_block reads `x_hc` / `x`.
+  engram:        { op: dsv41_engram, in: [x, input_ids] }
+  engram_flat:   { op: view_merge, in: engram }
+
+  hc_attn_fn:    { op: parameter_tensor, role: hyper_connection, shape: [d_hc_mix, "n_hidden_copies * d_model"], weight_axes: [{ replicated: true }, { replicated: true }] }
+  hc_attn_base:  { op: parameter_vector, role: hyper_connection, dim: d_hc_mix, weight_axes: [{ replicated: true }] }
+  hc_attn_scale: { op: parameter_vector, role: hyper_connection, dim: "3", weight_axes: [{ replicated: true }] }
+  hc_ffn_fn:     { op: parameter_tensor, role: hyper_connection, shape: [d_hc_mix, "n_hidden_copies * d_model"], weight_axes: [{ replicated: true }, { replicated: true }] }
+  hc_ffn_base:   { op: parameter_vector, role: hyper_connection, dim: d_hc_mix, weight_axes: [{ replicated: true }] }
+  hc_ffn_scale:  { op: parameter_vector, role: hyper_connection, dim: "3", weight_axes: [{ replicated: true }] }
+
+  # `attn_pre, attn_post, attn_comb = self.hc_mixes(h, self.hc_attn_fn, ...)`
+  hc_attn_split: { op: dsv41_hc_mixes, in: [engram_flat, hc_attn_fn, hc_attn_scale, hc_attn_base] }
+
+  attn_reduce:   { op: hc_weighted_reduce, in: [engram, hc_pre_mix], dims: { n_hidden_copies: n_hidden_copies, d_model: d_model } }
+  attn_norm:     { op: rmsnorm, in: attn_reduce, dim: d_model, weight_axes: [{ replicated: true }] }
+  attn:          { op: <attn>, in: attn_norm }
+  attn_out:      { op: hc_post, in: [attn, engram, hc_attn_split.post, hc_attn_split.comb] }
+  attn_out_flat: { op: view_merge, in: attn_out }
+
+  hc_ffn_split:  { op: dsv41_hc_mixes, in: [attn_out_flat, hc_ffn_fn, hc_ffn_scale, hc_ffn_base] }
+
+  ffn_reduce:    { op: hc_weighted_reduce, in: [attn_out, hc_attn_split], dims: { n_hidden_copies: n_hidden_copies, d_model: d_model } }
+  ffn_norm:      { op: rmsnorm, in: ffn_reduce, dim: d_model, weight_axes: [{ replicated: true }] }
+  ffn:           { op: <ffn>, in: ffn_norm }
+  out:           { op: hc_post, in: [ffn, attn_out, hc_ffn_split.post, hc_ffn_split.comb] }
+  out_flat:      { op: view_merge, in: out }
+
+outputs: [out_flat]
+
+# No `axioms:` block — see the note in `dsv41_hc_block.yaml`. The Engram states
+# its own (`storage: none`), and so does the attention this block hosts.

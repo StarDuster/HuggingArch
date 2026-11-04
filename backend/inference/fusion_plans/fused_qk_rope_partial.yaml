@@ -1,0 +1,67 @@
+# QK RoPE over the first `d_rope` dims of each head, both heads rotated in
+# place — `fused_qk_rope` where the rotation is partial (GQA with a
+# `partial_rotary_factor` < 1).
+#
+# Naive subgraph (gqa_partial_rope*, gqa_qknorm_partial_rope*,
+# swa_partial_rope_sink*, minimax_m2_decoder_block, Ling's GLA and the
+# Qwen3-Next / Step-3.x partial-rope attentions), from the head-split Q and K:
+#
+#   q_rope_slice, q_norope_slice = slice(q), slice(q)   # first d_rope dims rotate
+#   k_rope_slice, k_norope_slice = slice(k), slice(k)
+#   q_out = concat(rope(q_rope_slice), q_norope_slice)
+#   k_out = concat(rope(k_rope_slice), k_norope_slice)
+#
+# Neither framework slices, copies or re-joins anything: the rotary kernel is
+# handed the whole q and k and rotates the first `rotary_dim` of every
+# `head_size`-strided head in place, never touching the tail. So the two
+# concats the spec spells are not HBM copies at serving time; the one launch
+# reads and writes the heads where they lie.
+#   vLLM (audited at v0.32.0): `q, k = self.rotary_emb(positions, q, k)` —
+#     mimo_v2.py:348, glm4_moe.py:315, minimax_m2.py:243, step3p5.py:272,
+#     qwen3_next.py:455, layers/mamba/linear/bailing_linear_attn.py:592 (Ling
+#     GLA) — into
+#     `RotaryEmbedding.forward_cuda` (rotary_embedding/base.py:221,
+#     `ops.rotary_embedding` at :244), kernel
+#     csrc/pos_encoding_kernels.cu:35-72 (loop bound
+#     `num_heads * rot_dim / 2`, offsets `head_idx * head_stride`). Where
+#     vLLM compiles `forward_native` instead (:203), Inductor emits the
+#     rotate and its `torch.cat` as one kernel over the whole heads — the same
+#     boundary.
+#   sglang (audited at v0.5.22): the same call sites (mimo_v2.py:716/:744,
+#     glm4_moe.py:327, minimax_m2.py:759, step3p5.py:375, qwen3_next.py:759,
+#     bailing_moe_linear.py:592/:719) into `RotaryEmbedding.forward_cuda`
+#     (srt/layers/rotary_embedding/base.py:390-412), which views
+#     `q[..., :rotary_dim]` and calls `apply_rope_with_cos_sin_cache_inplace`
+#     (kernels/ops/attention/rope.py:183); heads whose width is not
+#     64/128/256/512 take the vLLM-identical in-place `rotary_embedding`
+#     fallback (base.py:119-138).
+#
+# The slices are part of the pattern because they are what says the concat is
+# a re-join: both halves must be slices of ONE tensor (`external.q` is bound
+# once), so a concat of a rotated slice with some other tensor — MLA's
+# absorbed query against `q_pe`, the latent key against its rope part — is a
+# real copy and does not match. The rope goes first (`concat(rope, nope)`):
+# that is the kernel's own layout, the leading `rotary_dim` of each head.
+# MLA's tail rotation is `fused_qk_rope_partial_q`.
+#
+# Ordering: 8 nodes, so it runs before `fused_qk_rope` (2) and after every
+# plan that also absorbs the norms or the gate (`fused_qk_norm_partial_rope`,
+# `fused_qk_rmsnorm_rope_gate*`); where those fire, they take these nodes.
+
+fused_op: fused_qk_rope_partial
+
+naive_pattern:
+  nodes:
+    q_rope_slice:   { op: slice,    inputs: [external.q] }
+    q_norope_slice: { op: slice,    inputs: [external.q] }
+    k_rope_slice:   { op: slice,    inputs: [external.k] }
+    k_norope_slice: { op: slice,    inputs: [external.k] }
+    q_rope:         { op_choices: [rope, rope_emb], inputs: [q_rope_slice.out], feeds: q }
+    k_rope:         { op_choices: [rope, rope_emb], inputs: [k_rope_slice.out], feeds: k }
+    q_concat:       { op: concat,   inputs: [q_rope.out, q_norope_slice.out] }
+    k_concat:       { op: concat,   inputs: [k_rope.out, k_norope_slice.out] }
+  io_mapping:
+    q:     external.q
+    k:     external.k
+    q_out: q_concat.out
+    k_out: k_concat.out

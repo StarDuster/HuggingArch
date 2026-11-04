@@ -1,0 +1,45 @@
+# Step-3.7-Flash Perception-Encoder vision tower.
+#
+# Wraps the entire vision tower (patch conv + posembed + ln_pre +
+# n_vis_layers ViT blocks with LayerScale + 2x downsampler conv + projector
+# to text d_model) as a single singleton aux_block. The vision tower is
+# physically one-shot at the model root — no outer `.X.` indexing: its
+# group declares no stack address, so leaf names land at the group's root.
+#
+# Forward (Perception-Encoder, CLIP-style):
+#   x = conv1(image_patches)              # patch projection
+#   x = x + positional_embedding
+#   x = ln_pre(x)
+#   for blk in transformer.resblocks: x = blk(x)
+#   x = vit_downsampler1(x)               # conv2d 3x3
+#   x = vit_downsampler2(x)               # conv2d 3x3
+#   x = vit_large_projector(x)            # -> d_model (text hidden)
+#
+# Required dims: d_vis_model, n_vis_pos_slots, n_vis_channels, s_patch, n_vis_layers, s_vis_ds_kernel, d_vis_ds_out1, d_vis_ds_out2, d_model.
+
+role: aux_block
+description: "Step-3.7-Flash Perception-Encoder ViT vision tower: patch conv + posembed + ln_pre + n_vis_layers ViT blocks (LayerScale) + 2x downsampler conv + projector to text d_model. Singleton wrapper — emits flat HF tensor paths."
+
+graph:
+  vision_model.positional_embedding:    { op: parameter_tensor, shape: [n_vis_pos_slots, d_vis_model], weight_axes: [{ replicated: true }, { replicated: true }] }
+  vision_model.conv1:                   { op: linear, in: x, dims: { in: "n_vis_channels * s_patch * s_patch", out: d_vis_model, bias: "0" }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  # `x = x + positional_embedding` (see the forward above). One node, not
+  # a gather then an add: the source does not materialize an expanded
+  # table between them, so splitting it would invent a full-size
+  # activation read and write. Kimi's vision towers write it the same way.
+  vision_model.add_pe:
+    op: position_table_add
+    in: [vision_model.conv1, vision_model.positional_embedding]
+    dim: d_vis_model
+    formula: "y[b, i, :] = x[b, i, :] + pos_emb[i, :]   (lookup by patch slot)"
+  vision_model.ln_pre:                  { op: layernorm, in: vision_model.add_pe, dim: d_vis_model, weight_axes: [{ replicated: true }] }
+  vision_model.transformer.resblocks:   { op: perception_encoder_block, in: vision_model.ln_pre, chain: n_vis_layers, checkpoint: { index: local }, role: aux_block }
+  # 3x3 stride-2 overlapping convs downsample the ViT patch grid before the
+  # projector; each `conv2d` OWNS its `.weight`/`.bias` (read here, not
+  # orphaned) and shrinks the image's square patch grid stride^2-fold
+  # (52x52 -> 26x26 -> 13x13 for the 728 view).
+  vision_model.vit_downsampler1:        { op: conv2d, in: vision_model.transformer.resblocks, dims: { C_in: d_vis_model, C_out: d_vis_ds_out1, kernel_size: s_vis_ds_kernel, stride: s_vis_ds_stride, bias: "1" }, weight_axes: [{ replicated: true }, { replicated: true }, { replicated: true }, { replicated: true }] }
+  vision_model.vit_downsampler2:        { op: conv2d, in: vision_model.vit_downsampler1, dims: { C_in: d_vis_ds_out1, C_out: d_vis_ds_out2, kernel_size: s_vis_ds_kernel, stride: s_vis_ds_stride, bias: "1" }, weight_axes: [{ replicated: true }, { replicated: true }, { replicated: true }, { replicated: true }] }
+  vit_large_projector:                  { op: linear, in: vision_model.vit_downsampler2, dims: { in: d_vis_ds_out2, out: d_model }, weight_axes: [{ replicated: true }, { replicated: true }] }
+
+outputs: [vit_large_projector]

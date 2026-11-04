@@ -1,0 +1,35 @@
+# Independent Hyper-Connections post: scatter a sub-block's output back onto
+# the n residual copies, each scaled by its post gate, plus the residual.
+#
+#   out[c] = post[c] * y + residual[c]
+#
+# Naive subgraph (hc_independent_pre_norm_block, Hy4): attn_post_b /
+# ffn_post_b (broadcast the gates over d_model), attn_out_b / ffn_out_b
+# (broadcast y over the copies), the spread `mul`, the residual `add`.
+#
+# One Triton launch in both frameworks (no `hpc` package installed — the
+# optional external `hpc.fuse_ihc_post` has the same boundary; its internals
+# are not in tree):
+#   vLLM (v0.32.0): models/hy_v4/nvidia/triton_ihc.py:277 `triton_ihc_post`,
+#     kernel `_ihc_post_kernel` :155, from hc.py:194-195 (CUDA, fp16/bf16,
+#     not batch-invariant: `triton_ihc_supported` :19-27).
+#   sglang (v0.5.22): kernels/ops/layernorm/hy4_ihc.py:303
+#     `fused_hy4_ihc_post`, kernel `_hy4_ihc_post_kernel` :169, from
+#     srt/models/hunyuan_v4.py `HYV4HCLayer.post`. (sglang's `post_pre`, which
+#     also runs the next pre, is hpc-only.)
+# Both are called only by the HY V4 model, hence the bindings'
+# `architectures`.
+
+fused_op: ihc_post
+
+naive_pattern:
+  nodes:
+    post_broadcast: { op: broadcast, inputs: [external.post] }
+    y_broadcast:    { op: broadcast, inputs: [external.y] }
+    spread:         { op: mul,       inputs: [post_broadcast.out, y_broadcast.out] }
+    residual_add:   { op: add,       inputs: [spread.out, external.residual] }
+  io_mapping:
+    post:     external.post
+    y:        external.y
+    residual: external.residual
+    output:   residual_add.out

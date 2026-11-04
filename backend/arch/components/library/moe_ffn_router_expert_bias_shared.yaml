@@ -1,0 +1,46 @@
+# MoE FFN with aux-loss-free load-balancing bias stored as a TOP-LEVEL
+# parameter (sibling of the router, not nested under it) + ONE shared
+# expert of width d_ffn_shared. First observed on Hunyuan-V3 (hy_v3).
+#
+# HF tensor naming this matches (all direct children of `mlp.`):
+#   <moe>.router.weight                         -> `router` (linear)
+#   <moe>.expert_bias                           -> `expert_bias` (parameter, [n_experts])
+#   <moe>.experts.X.{gate,up,down}_proj.weight  -> `expert.*` (xE)
+#   <moe>.shared_mlp.{gate,up,down}_proj.weight -> `shared_mlp.*` (1 expert, d_ffn=d_ffn_shared)
+#
+# Structurally distinct from:
+#   - moe_ffn_routing_bias (MiniMax): same top-level-bias idea, but router
+#     node is `gate`/bias is `e_score_correction_bias`, and NO shared expert.
+#   - moe_ffn_gate_*_bias (DSv3/Bailing): bias nested UNDER the router
+#     namespace (`gate.e_score_correction_bias` / `gate.expert_bias`).
+# Here the correction bias is a flat sibling of `router` under `mlp.`, so it
+# must be a top-level node of this component (a router sub-component would
+# fold it under the router namespace, giving the wrong tensor path).
+#
+# Routing math (HYV3TopKRouter.forward): sigmoid over the router logits; the
+# correction bias is added for selection only; top-k picks the experts and
+# the weights are gathered from the unbiased sigmoid scores, renormalized to
+# sum to one (route_norm) and scaled by router_scaling_factor. These nodes
+# carry no weights; permute/combine abstract the dispatch.
+#
+# Required dims: d_model, d_ffn_expert (routed expert intermediate), d_ffn_shared (shared expert
+#   intermediate = d_ffn_expert * n_shared_experts), n_experts (routed experts), n_experts_active (top-k).
+# Optional dims: n_route_targets (the gate's width, derived), n_router_bias_params (router bias, default 0).
+
+role: ffn_moe
+description: "MoE + top-level expert_bias correction (sigmoid noaux) + 1 wide shared expert; router node named `router`. Hunyuan-V3 (hy_v3)."
+graph:
+  router:        { op: linear, role: router, in: x, dims: { in: d_model, out: n_route_targets, bias: n_router_bias_params }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  expert_bias:   { op: parameter_vector, role: router, dim: n_route_targets, weight_axes: [{ replicated: true }] }
+  sigmoid:       { op: sigmoid, in: router, dim: n_route_targets }
+  scores_biased: { op: add, in: [sigmoid, expert_bias], dim: n_route_targets }
+  topk_indices:  { op: topk, in: scores_biased, dims: { in: n_route_targets, k: n_experts_active } }
+  topk_gather:   { op: gather, in: [sigmoid, topk_indices], dims: { in: n_route_targets, k: n_experts_active } }
+  topk_norm:     { op: normalize_sum_one, in: topk_gather, dims: { in: n_experts_active } }
+  topk_scale:    { op: scale_const, in: topk_norm, dims: { in: n_experts_active } }
+  permute:       { op: permute, in: [x, topk_scale] }
+  experts:        { op: gated_experts, role: ffn_moe, in: permute, dims: { d_model: d_model, d_ffn: d_ffn_expert }, expert_weight: unrolled }
+  combine:       { op: combine, in: [experts, topk_scale] }
+  shared_mlp:    { op: swiglu_ffn, role: ffn_moe, in: x, dims: { d_model: d_model, d_ffn: d_ffn_shared } }
+  moe_out:       { op: add, in: [combine, shared_mlp], dim: d_model }
+outputs: [moe_out]

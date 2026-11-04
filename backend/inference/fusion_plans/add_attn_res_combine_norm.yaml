@@ -1,0 +1,52 @@
+# The residual add into the Attention Residuals (AttnRes) prefix, the
+# readout over the history and the sublayer RMSNorm in ONE launch.
+#
+# Naive subgraph (Kimi-K3's `attn_residual` → `mlp_res` →
+# `post_attention_layernorm`):
+#
+#   prefix = x + sublayer_out                       (the running prefix sum)
+#   mixed  = attn_res_combine(prefix, history, res_norm_w, res_proj_w)
+#   out    = rmsnorm(mixed)
+#
+# The updated prefix is read again later in the layer (the FFN's residual
+# add), so it stays an exposed port: the kernel stores it back in place and
+# writes the normed row beside it.
+#
+# vLLM (audited at v0.32.0), Kimi-K3: `_post_attn_norm` hands the attention
+# output to `attn_res` as the prefix's `delta` (models/kimi_k3/nvidia/
+# model.py:1050-1068), and the one launch adds it into the prefix and stores
+# the sum (`HAS_DELTA`, ops/attn_res.py:72-85), combines (:96-150) and
+# normalises with `post_attention_layernorm`'s gain (`APPLY_OUTPUT_NORM`,
+# :154-167) — the Triton `_attn_res_kernel` launched at :222, or on SM100
+# with hidden 7168 the native `kimi_k3_attn_res` (:192-213). Both phases.
+#
+# The other AttnRes launches have no plan, because none of them is a set of
+# nodes one launch here can hold. Before attention the same kernel takes the
+# previous layer's FFN residual add as its `delta` (model.py:1024-1035) and,
+# every 12 layers, writes the prefix into the history (`WRITE_BLOCK`,
+# ops/attn_res.py:86-93, the graph's `stack_append`); at the network exit it
+# takes the last FFN add and the combine but not the final norm, which runs
+# later in `compute_logits` (model.py:1383-1394, :1413-1414). Each of those
+# adds is a node of another layer occurrence, and a launch cannot span two
+# (`eval.fusion.BoundaryView`). A plan of the combine and the norm alone
+# would stand for part of one launch and, at the exit, parts of two, so
+# those readouts stay unfused: billed as separate launches, more than vLLM
+# runs, rather than as a launch it does not run.
+
+fused_op: add_attn_res_combine_norm
+
+naive_pattern:
+  nodes:
+    add: { op: add, inputs: [external.x, external.delta] }
+    combine:
+      op: attn_res_combine
+      inputs: [add.out, external.history, external.res_norm_weight, external.res_proj_weight]
+    norm: { op: rmsnorm, inputs: [combine.out] }
+  io_mapping:
+    x:               external.x
+    delta:           external.delta
+    history:         external.history
+    res_norm_weight: external.res_norm_weight
+    res_proj_weight: external.res_proj_weight
+    output:          norm.out
+    residual_out:    add.out

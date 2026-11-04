@@ -1,0 +1,4 @@
+description: "FP8 (E4M3) with one dynamic power-of-two scale per 128 channels (stored F32)."
+source: "vLLM's FP8 index-key record (132 B a 128-wide key): DeepSeek-V4.1 models/deepseek_v41/common/ops/indexer_k_store.py:237-256 and DeepSeek-V4 models/deepseek_v4/common/ops/fused_compress_quant_cache.py:752, :868-881 (`exp2(ceil(log2(amax / 448)))` stored as one float32)"
+dtype: F8_E4M3
+scale: { granularity: per-group, group: 128, dtype: F32, power_of_two: true }

@@ -1,0 +1,45 @@
+# Kimi-K3 MoonViT encoder layer (MoonViTEncoderLayer.forward).
+#
+# Pre-norm ViT block, RMSNorm, all projections BIAS-FREE (attn_bias=false,
+# linear_bias=false), with a separate qkv_hidden_size (d_vis_qkv=1536) larger than
+# the block hidden (d_vis_model=1024):
+#   residual = x; x = norm0(x); x = wo(attn(rope(wqkv(x)))); x = residual + x
+#   residual = x; x = norm1(x); x = fc1(gelu(fc0(x)));       x = residual + x
+#
+# wqkv: d_vis_model -> 3·d_vis_qkv (fused, split q|k|v). Head dim d_vis_head = d_vis_qkv / n_vis_heads.
+# wo:   n_vis_heads·d_vis_head (= d_vis_qkv) -> d_vis_model.  mlp.fc0: d_vis_model -> d_vis_ffn ; mlp.fc1: d_vis_ffn -> d_vis_model.
+#
+# Tensor parallelism splits wqkv's q/k/v and wo's input by head and the MLP by
+# d_vis_ffn, as vLLM's MoonViTEncoderLayer does when the attention TP degree
+# divides n_vis_heads (12). When it does not (TP=8), vLLM runs the whole tower
+# data parallel (vision.is_vit_use_data_parallel), and the layout replicates
+# every weight of the stack: the decision is the encoder stack's, keyed on the
+# query heads its attention score declares (attention_plan.replicated_encoders).
+#
+# Required dims: d_vis_model, n_vis_heads, d_vis_qkv, d_vis_head, d_vis_ffn.
+role: block
+description: "Kimi-K3 MoonViT encoder layer: pre-RMSNorm, bias-free fused QKV (separate qkv_hidden 1536) + RoPE + GELU MLP."
+graph:
+  norm0:              { op: rmsnorm, in: x, dim: d_vis_model, weight_axes: [{ replicated: true }] }
+  wqkv:               { op: linear, in: norm0, dims: { in: d_vis_model, out: "3 * d_vis_qkv", bias: "0" }, weight_axes: [{ segments: [{ segment: q, extent: "n_vis_heads * d_vis_head", world: attention, parts: n_vis_heads, fit: replica_cells }, { segment: k, extent: "n_vis_heads * d_vis_head", world: attention, parts: n_vis_heads, fit: replica_cells }, { segment: v, extent: "n_vis_heads * d_vis_head", world: attention, parts: n_vis_heads, fit: replica_cells }] }, { replicated: true }] }
+  q_flat:             { op: slice, in: wqkv, dims: { in: "3 * d_vis_qkv", out: d_vis_qkv } }
+  k_flat:             { op: slice, in: wqkv, dims: { in: "3 * d_vis_qkv", out: d_vis_qkv } }
+  v_flat:             { op: slice, in: wqkv, dims: { in: "3 * d_vis_qkv", out: d_vis_qkv } }
+  q_split_heads:      { op: head_split, in: q_flat, dims: { n_heads: n_vis_heads, d_head: d_vis_head } }
+  k_split_heads:      { op: head_split, in: k_flat, dims: { n_heads: n_vis_heads, d_head: d_vis_head } }
+  v_split_heads:      { op: head_split, in: v_flat, dims: { n_heads: n_vis_heads, d_head: d_vis_head } }
+  q_rope:             { op: rope_2d, in: q_split_heads, dim: d_vis_head }
+  k_rope:             { op: rope_2d, in: k_split_heads, dim: d_vis_head }
+  # Bidirectional: every query sees every key of its image (sglang kimi_k3_vl.py:487-505 sdpa_varlen_attention, no causal mask, per image).
+  qk_score:           { op: attention_score, in: [q_rope, k_rope], dims: { is_causal: "0", n_heads: n_vis_heads, d_head: d_vis_head } }
+  softmax:            { op: softmax, in: qk_score, dims: { is_causal: "0", n_heads: n_vis_heads } }
+  attn_apply:         { op: attention_apply, in: [softmax, v_split_heads], dims: { is_causal: "0", n_heads: n_vis_heads, d_head: d_vis_head } }
+  o_merge_heads:      { op: head_merge, in: attn_apply, dims: { n_heads: n_vis_heads, d_head: d_vis_head } }
+  wo:                 { op: linear, in: o_merge_heads, dims: { in: "n_vis_heads * d_vis_head", out: d_vis_model, bias: "0" }, weight_axes: [{ replicated: true }, { world: attention, parts: n_vis_heads, fit: replica_cells }] }
+  attn_residual:      { op: add, in: [x, wo], dim: d_vis_model }
+  norm1:              { op: rmsnorm, in: attn_residual, dim: d_vis_model, weight_axes: [{ replicated: true }] }
+  mlp.fc0:            { op: linear, in: norm1, dims: { in: d_vis_model, out: d_vis_ffn, bias: "0" }, weight_axes: [{ world: dense_ffn, parts: d_vis_ffn, fit: exact }, { replicated: true }] }
+  mlp.gelu:           { op: gelu, in: mlp.fc0, dim: d_vis_ffn }
+  mlp.fc1:            { op: linear, in: mlp.gelu, dims: { in: d_vis_ffn, out: d_vis_model, bias: "0" }, weight_axes: [{ replicated: true }, { world: dense_ffn, parts: d_vis_ffn, fit: exact }] }
+  out:                { op: add, in: [attn_residual, mlp.fc1], dim: d_vis_model }
+outputs: [out]

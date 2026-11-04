@@ -1,0 +1,4 @@
+# Identity file for XiaomiMiMo/MiMo-V2.5-Pro
+base: mimo_v2_5_pro
+match:
+  model_id: [XiaomiMiMo/MiMo-V2.5-Pro]

@@ -1,0 +1,4 @@
+# Identity file for inclusionAI/Ling-2.6-1T
+base: ling_2_6_1t
+match:
+  model_id: [inclusionAI/Ling-2.6-1T]

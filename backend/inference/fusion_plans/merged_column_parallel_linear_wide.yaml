@@ -1,0 +1,41 @@
+# More than three sibling linears over one input run as ONE GEMM over the
+# concatenation of their weights — vLLM's `MergedColumnParallelLinear` with
+# as many output slices as the module declares.
+#
+# Naive subgraph: four to eight sibling linears of one parent module reading
+# the same input (a linear-attention mixer's input projections):
+#
+#   q, k, v, g, f_a, b = linear(x) ×6
+#
+# Disjoint by count from `merged_column_parallel_linear` (exactly 2) and
+# `qkv_parallel_linear` (exactly 3). Those two are bound for every model,
+# because the wrapper classes they stand for are what every model built on
+# them calls. A wider merge is a per-model choice of which projections share
+# one module, so this plan is bound per architecture, where the model's
+# source shows the merge.
+#
+# vLLM (audited at v0.32.0), both KDA classes, both phases: GLM-5.3's
+# `in_proj_qkvbfg_a` over q | k | v | b | f_a | g_a ("6→1 launches",
+# models/glm5next/common/kda.py:236-254, run once :460) and Kimi-K3's
+# `in_proj_qkvgfab` over q | k | v | g | f_a | b
+# (models/kimi_k3/nvidia/kda.py:625-652, run once and split :870-880).
+# `f_b_proj` reads f_a and stays a GEMM of its own (:881). One K3 cell is
+# not this launch: at attention TP 8 on a small CUDA-graph decode step vLLM
+# runs the packed weight as two GEMMs on two streams (q|k|v|g and f_a|b,
+# models/kimi_k3/nvidia/low_latency_gemm.py:735-822, enabled at TP 8 only
+# :966-997). Two launches are not one node, and six siblings cannot be
+# split four and two by this form, so the binding leaves that cell out.
+#
+# Cost preservation: one GEMM over the concatenated weight computes the
+# same per-sibling products; the input row is read once.
+
+fused_op: merged_column_parallel_linear_wide
+
+naive_pattern:
+  parallel:
+    op: linear
+    shared_inputs: [external.x]
+    min_count: 4
+    max_count: 8
+  io_mapping:
+    x: external.x

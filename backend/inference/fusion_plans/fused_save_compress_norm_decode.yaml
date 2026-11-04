@@ -1,0 +1,18 @@
+# The decode spelling of `fused_save_compress_norm` (csa2_compressor_gated_decode:
+# one token a step, so no slice to the complete groups). Same vLLM launch,
+# same boundary; `fused_save_compress_norm.yaml` describes it.
+
+fused_op: fused_save_compress_norm_decode
+
+naive_pattern:
+  nodes:
+    kv_window:    { op: view_split,  inputs: [external.kv] }
+    score_window: { op: view_split,  inputs: [external.score] }
+    softmax:      { op: softmax_act, inputs: [score_window.out] }
+    kv_weighted:  { op: mul,         inputs: [kv_window.out, softmax.out] }
+    pool:         { op: sum_reduce,  inputs: [kv_weighted.out] }
+    norm:         { op: rmsnorm,     inputs: [pool.out] }
+  io_mapping:
+    kv:     external.kv
+    score:  external.score
+    output: norm.out

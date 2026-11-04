@@ -1,0 +1,21 @@
+# Bailing-MoE V2.5 (Ling-2.6) linear-attention dense-FFN decoder block.
+# Used at layer indices [0, first_k_dense_replace) — the four prefix
+# layers that retain a dense SwiGLU FFN (intermediate_size=d_ffn) instead
+# of the MoE FFN. All four are linear-attention (no layer in 0..n_dense_layers-1
+# satisfies Bailing's full-attention rule (i+1) % layer_group_size == 0
+# at layer_group_size=8).
+# Pre_norm whose attention the checkpoint stores under `attention`.
+role: block
+description: "Bailing-MoE V2.5 linear-attention dense-FFN layer: pre-norm + GLA attention + swiglu_ffn, naming its attention `attention` as the checkpoint does."
+
+graph:
+  layer:
+    module: null
+    op: pre_norm
+    in: x
+    params:
+      attn: gla_qknorm_partial_rope_sigmoid_gated_attention
+      ffn:  swiglu_ffn
+    inner_modules:
+      self_attn: attention
+outputs: [layer]

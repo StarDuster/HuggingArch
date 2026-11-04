@@ -1,0 +1,149 @@
+# Kimi-Delta-Attention (KDA) linear attention with a PER-HEAD decay rate and a
+# LOW-RANK output gate.
+#
+# Same mechanism as `kimi_k3_kda_attention` (separate q/k/v projections, each
+# with its own depthwise causal short conv + SiLU, a low-rank channel-wise
+# forget gate, per-head β, RMSNorm-gated output, o_proj), with two structural
+# differences that are visible in the checkpoint and cannot be reached by any
+# binding on that component:
+#
+#   1. `A_log` is stored PER HEAD, `[n_lin_v_heads]`, not per key channel
+#      `[d_lin_k_head]`:
+#        Glm5NextTextForgetGate.__init__:316  `self.A_log = nn.Parameter(torch.empty(self.num_heads))`
+#        Glm5NextTextForgetGate.forward:325   `A_log = self.A_log.float().view(1, 1, self.num_heads, 1)`
+#      i.e. one decay rate per head, broadcast across that head's
+#      d_lin_k_head channels (checkpoint: `self_attn.A_log` [64], F32, 34×).
+#      Kimi-K3 stores [d_lin_k_head] and broadcasts across heads instead — the
+#      transpose of this, and a different parameter count per layer.
+#
+#   2. The output gate is LOW-RANK — two projections instead of one
+#      `g_proj`: `g_a_proj` d_model → d_gate_lowrank and `g_b_proj`
+#      d_gate_lowrank → n_lin_v_heads·d_lin_v_head
+#      (Glm5NextTextLinearAttention.__init__:623-624,
+#       forward:732 `gate = self.g_b_proj(self.g_a_proj(hidden_states)).view(hidden_shape)`),
+#      the same low-rank shape as the forget gate's f_a/f_b pair.
+#
+# Only the lower-bounded decay form exists here: `linear_attn_config.gate_lower_bound`
+# (read as `config.linear_lower_bound`, flattened at
+# configuration_glm5_next.py:195-199, which also forces -5.0 whenever
+# `safe_gate` is set) is -5.0 for every KDA layer of this family, and the
+# softplus branch (modeling_glm5_next.py:332-336) is dead config, so the graph
+# states the bounded form directly (:330
+# `return self.safe_gate_lower_bound * torch.sigmoid(decay_rate * g)`) rather
+# than carrying `when:` switches on a value this checkpoint cannot take.
+#
+# Forward (Glm5NextTextLinearAttention.forward:631-736):
+#   q = silu(q_conv1d(q_proj(x)));  k = silu(k_conv1d(k_proj(x)));  v = silu(v_conv1d(v_proj(x)))
+#     (the SiLU is the `activation=self.activation` argument of causal_conv1d_fn, :677-683)
+#   f = f_b_proj(f_a_proj(x)) + dt_bias                     # :323-324
+#   g = lower_bound · sigmoid(exp(A_log) · f)               # :326-330, per (head, channel)
+#   β = sigmoid(b_proj(x))                                  # :700
+#   q, k = l2norm(q), l2norm(k)                             # use_qk_l2norm_in_kernel=True, :712 / :724
+#   o = gated_delta_rule(q, k, v, g, β)                     # chunk/recurrent_kimi_delta_attention
+#   o = o_norm(o, gate) = rmsnorm(o) · sigmoid(gate)        # Glm5NextTextRMSNormGated.forward:348-360
+#   out = o_proj(o)                                         # :734
+#
+# CHECKPOINT vs HF MODULE NAMES: HF builds ONE fused depthwise conv over
+# 3·qkv_dim channels (`self.conv1d = nn.Conv1d(self.conv_dim, ...)`, :611-618)
+# and never registers a conversion mapping, while the released checkpoint ships
+# three separate `self_attn.{q,k,v}_conv1d.weight` [8192,1,4] tensors (34 each)
+# — the per-projection layout vLLM/sglang read. The graph follows the
+# checkpoint (one conv node per projection); the fused HF buffer is the same
+# parameters concatenated along the channel axis.
+#
+# Required dims: d_model, n_lin_k_heads, n_lin_v_heads, d_lin_k_head,
+#                d_lin_v_head, s_conv_kernel, d_gate_lowrank.  All linears bias-free.
+
+role: attention
+description: "KDA linear attention with per-head decay rate (A_log [n_heads]) and a low-rank output gate (g_a_proj/g_b_proj): separate q/k/v projections + per-projection short conv, low-rank lower-bounded channel-wise forget gate, per-head beta, RMSNorm-gated output."
+attn_variant: KDA
+cache:
+  family: GatedDeltaNet
+  entries:
+    # The delta-rule matrix S ∈ [n_lin_v_heads, d_k, d_v], carried by the scan
+    # (recurrent_kimi_delta_attention:460 allocates
+    # `zeros(batch_size, num_heads, k_head_dim, v_head_dim)`; :729 writes it
+    # back as F32 via `cache_params.update_recurrent_state`).
+    # Kept in F32: :729 casts before it caches (`last_recurrent_state.to(
+    # torch.float32)`); the chunked path computes in float32 (:500) and its
+    # hub kernel is fla's `chunk_kda` (:483), whose final state fla-core 0.5.2
+    # allocates as float32 (fla/ops/common/chunk_delta_h.py:704, :707). The
+    # conv states stay at the model's dtype.
+    - { state: recurrent_state, kind: recurrent_state, carrier: delta_rule, shape: [n_lin_v_heads, d_lin_k_head, d_lin_v_head], dtype: F32 }
+    # Each short conv keeps its window, [C, kernel_size]: the cache keeps the
+    # last `conv_kernel_size` columns (:673-674 `update_conv_state(...,
+    # conv_kernel_size=self.conv_kernel_size)`; causal_conv1d_update:384-387
+    # `state_len = conv_state.shape[-1]`).
+    - { state: q_conv_state, kind: conv_state, carrier: q_conv1d, shape: [C, kernel_size] }
+    - { state: k_conv_state, kind: conv_state, carrier: k_conv1d, shape: [C, kernel_size] }
+    - { state: v_conv_state, kind: conv_state, carrier: v_conv1d, shape: [C, kernel_size] }
+
+# KV growth: none. The recurrent state is [n_lin_v_heads, d_lin_k_head,
+# d_lin_v_head] and the three conv states are [C, kernel_size] — both fixed
+# by the layer's shapes, not by how many tokens have been seen: the scan
+# OVERWRITES the state each step instead of appending a per-token entry.
+
+graph:
+  # --- Q / K / V projections, each with its own depthwise short conv + SiLU ---
+  q_proj:   { op: linear, in: x, dims: { in: d_model, out: "n_lin_v_heads * d_lin_k_head" }, weight_axes: [{ world: attention, parts: n_lin_v_heads, fit: replica_cells }, { replicated: true }] }
+  k_proj:   { op: linear, in: x, dims: { in: d_model, out: "n_lin_v_heads * d_lin_k_head" }, weight_axes: [{ world: attention, parts: n_lin_v_heads, fit: replica_cells }, { replicated: true }] }
+  v_proj:   { op: linear, in: x, dims: { in: d_model, out: "n_lin_v_heads * d_lin_v_head" }, weight_axes: [{ world: attention, parts: n_lin_v_heads, fit: replica_cells }, { replicated: true }] }
+  q_conv1d: { op: conv1d, in: q_proj, dims: { C: "n_lin_v_heads * d_lin_k_head", C_in: "n_lin_v_heads * d_lin_k_head", C_out: "n_lin_v_heads * d_lin_k_head", kernel_size: s_conv_kernel, dilation: "1", groups: "n_lin_v_heads * d_lin_k_head", bias: "0" }, weight_axes: [{ world: attention, parts: n_lin_v_heads, fit: replica_cells }, { replicated: true }, { replicated: true }] }
+  k_conv1d: { op: conv1d, in: k_proj, dims: { C: "n_lin_v_heads * d_lin_k_head", C_in: "n_lin_v_heads * d_lin_k_head", C_out: "n_lin_v_heads * d_lin_k_head", kernel_size: s_conv_kernel, dilation: "1", groups: "n_lin_v_heads * d_lin_k_head", bias: "0" }, weight_axes: [{ world: attention, parts: n_lin_v_heads, fit: replica_cells }, { replicated: true }, { replicated: true }] }
+  v_conv1d: { op: conv1d, in: v_proj, dims: { C: "n_lin_v_heads * d_lin_v_head", C_in: "n_lin_v_heads * d_lin_v_head", C_out: "n_lin_v_heads * d_lin_v_head", kernel_size: s_conv_kernel, dilation: "1", groups: "n_lin_v_heads * d_lin_v_head", bias: "0" }, weight_axes: [{ world: attention, parts: n_lin_v_heads, fit: replica_cells }, { replicated: true }, { replicated: true }] }
+  q_act:    { op: silu, in: q_conv1d, dim: "n_lin_v_heads * d_lin_k_head" }
+  k_act:    { op: silu, in: k_conv1d, dim: "n_lin_v_heads * d_lin_k_head" }
+  v_act:    { op: silu, in: v_conv1d, dim: "n_lin_v_heads * d_lin_v_head" }
+  q_split_heads: { op: head_split, in: q_act, dims: { n_heads: n_lin_k_heads, d_head: d_lin_k_head } }
+  k_split_heads: { op: head_split, in: k_act, dims: { n_heads: n_lin_k_heads, d_head: d_lin_k_head } }
+  v_split_heads: { op: head_split, in: v_act, dims: { n_heads: n_lin_v_heads, d_head: d_lin_v_head } }
+  q_l2norm: { op: l2norm, in: q_split_heads, dim: d_lin_k_head }
+  k_l2norm: { op: l2norm, in: k_split_heads, dim: d_lin_k_head }
+
+  # --- Low-rank channel-wise forget gate, per-head decay rate ---
+  f_a_proj:   { op: linear, in: x, dims: { in: d_model, out: d_gate_lowrank }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  f_b_proj:   { op: linear, in: f_a_proj, dims: { in: d_gate_lowrank, out: "n_lin_v_heads * d_lin_k_head" }, weight_axes: [{ world: attention, parts: n_lin_v_heads, fit: replica_cells }, { replicated: true }] }
+  dt_bias:    { op: parameter_vector, dim: "n_lin_v_heads * d_lin_k_head", weight_axes: [{ world: attention, parts: n_lin_v_heads, fit: replica_cells }] }
+  f_plus_dt:  { op: add, in: [f_b_proj, dt_bias], dim: "n_lin_v_heads * d_lin_k_head" }
+  # The `head_split` component (view_split + transpose) spelled inline, so
+  # the bias add and the gate chain share this component's scope with the
+  # recurrence — the span the decode kernels compute in-kernel from the raw
+  # f (`fused_recurrent_kda_gate`). The same two view ops, same cost.
+  f_unflatten: { op: view_split, in: f_plus_dt, axis: -1, dims: { in: "n_lin_v_heads * d_lin_k_head", n_heads: n_lin_v_heads, d_head: d_lin_k_head } }
+  f_heads:    { op: transpose, in: f_unflatten, axes: [0, 2, 1, 3] }
+  # One rate per HEAD (:316), read in the [1, 1, n_heads, 1] frame (:325) —
+  # so it broadcasts across the head's d_lin_k_head channels.
+  A_log:      { op: parameter_vector, dim: n_lin_v_heads, weight_axes: [{ world: attention, parts: n_lin_v_heads, fit: replica_cells }] }
+  exp_A:      { op: exp, in: A_log, dim: n_lin_v_heads }
+  # The rate is per HEAD while the gate it scales is per (head, key channel), so
+  # the multiply happens in a head-LAST frame: [B,n_heads,s,d_k] → [B,s,d_k,n_heads],
+  # elementwise × exp(A_log) over the head axis, then back. This is the `view(1, 1,
+  # num_heads, 1)` of :325 — one rate shared by that head's d_lin_k_head channels —
+  # written as the axis permutation the engine can label (a [n_heads] parameter
+  # broadcast onto a 4-D activation's third axis has no frame of its own).
+  f_heads_t:  { op: transpose, in: f_heads, axes: [0, 2, 3, 1] }
+  g_rate:     { op: mul, in: [f_heads_t, exp_A], dim: n_lin_v_heads }
+  g_sigmoid:  { op: sigmoid, in: g_rate, dim: n_lin_v_heads }
+  g_decay_t:  { op: scale_const, in: g_sigmoid, dims: { in: n_lin_v_heads }, formula: "g = lower_bound · sigmoid(exp(A_log) · (f + dt_bias)),  lower_bound = linear_attn_config.gate_lower_bound = −5.0" }
+  g_decay:    { op: transpose, in: g_decay_t, axes: [0, 3, 1, 2] }
+
+  # --- Per-head update gate beta ---
+  b_proj:     { op: linear, in: x, dims: { in: d_model, out: n_lin_v_heads }, weight_axes: [{ world: attention, parts: n_lin_v_heads, fit: replica_cells }, { replicated: true }] }
+  beta:       { op: sigmoid, in: b_proj, dim: n_lin_v_heads }
+
+  # --- Core linear-attention recurrence (zero params) ---
+  delta_rule: { op: gated_delta_rule, in: [q_l2norm, k_l2norm, v_split_heads, g_decay, beta] }
+
+  # --- RMSNorm-gated output, low-rank sigmoid output gate, projection ---
+  o_norm:        { op: rmsnorm, in: delta_rule, dim: d_lin_v_head, weight_axes: [{ replicated: true }] }
+  g_a_proj:      { op: linear, in: x, dims: { in: d_model, out: d_gate_lowrank }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  g_b_proj:      { op: linear, in: g_a_proj, dims: { in: d_gate_lowrank, out: "n_lin_v_heads * d_lin_v_head" }, weight_axes: [{ world: attention, parts: n_lin_v_heads, fit: replica_cells }, { replicated: true }] }
+  # Heads split before the sigmoid (elementwise, so the same function): the
+  # gated norm reads `o_norm` and the activated gate in one component scope,
+  # the form `rmsnorm_gated` matches (as gated_delta_net_attention's z gate).
+  g_split_heads: { op: head_split, in: g_b_proj, dims: { n_heads: n_lin_v_heads, d_head: d_lin_v_head } }
+  g_act:         { op: sigmoid, in: g_split_heads, dim: d_lin_v_head }
+  o_gated:       { op: mul, in: [o_norm, g_act], dim: d_lin_v_head }
+  o_merge_heads: { op: head_merge, in: o_gated, dims: { n_heads: n_lin_v_heads, d_head: d_lin_v_head } }
+  o_proj:        { op: linear, in: o_merge_heads, dims: { in: "n_lin_v_heads * d_lin_v_head", out: d_model }, weight_axes: [{ replicated: true }, { world: attention, parts: n_lin_v_heads, fit: replica_cells }] }
+outputs: [o_proj]

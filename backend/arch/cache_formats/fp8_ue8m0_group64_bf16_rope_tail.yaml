@@ -1,0 +1,5 @@
+description: "FP8 (E4M3) with one dynamic UE8M0 scale per 64 channels; the last d_qk_rope channels (the RoPE part) stay BF16."
+source: "DeepSeek-V4 reference KV / compressed-KV write (inference/model.py:372, :506: `act_quant(kv[..., :-rd], 64, scale_fmt, scale_dtype, True)`); the FlashMLA V4 record vLLM and sglang store it as (vLLM deepseek_v4/common/ops/fused_compress_quant_cache.py:7, :191-192: 448 FP8 + 64 BF16 + 7 UE8M0 scales and one pad byte a token; sglang kernels/ops/attention/dsv4/kv_layout.py `KVLayout.V4`)"
+dtype: F8_E4M3
+scale: { granularity: per-group, group: 64, dtype: F8_E8M0 }
+unquantized_tail: { channels: d_qk_rope, dtype: BF16 }

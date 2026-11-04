@@ -1,0 +1,228 @@
+{
+  "corpus": {
+    "MiniMaxAI__MiniMax-M2.7.json": {
+      "match/header_ok": 6
+    },
+    "Qwen__Qwen3-235B-A22B.json": {
+      "match/header_ok": 3
+    },
+    "Qwen__Qwen3-30B-A3B.json": {
+      "match/header_ok": 3
+    },
+    "Qwen__Qwen3-Coder-Next.json": {
+      "match/header_ok": 3
+    },
+    "Qwen__Qwen3-VL-235B-A22B-Instruct.json": {
+      "match/header_ok": 2
+    },
+    "Qwen__Qwen3.5-35B-A3B.json": {
+      "match/header_ok": 5
+    },
+    "Qwen__Qwen3.8-2.4T-A95B.json": {
+      "match/header_ok": 4
+    },
+    "Qwen__Qwen3.8-Flash-Next.json": {
+      "match/header_ok": 4
+    },
+    "XiaomiMiMo__MiMo-V2-Flash.json": {
+      "match/header_ok": 6
+    },
+    "XiaomiMiMo__MiMo-V2.5-Pro.json": {
+      "match/header_ok": 6
+    },
+    "XiaomiMiMo__MiMo-V2.5.json": {
+      "match/header_ok": 6
+    },
+    "XiaomiMiMo__MiMo-V2.6-Pro-RL.json": {
+      "match/header_ok": 6
+    },
+    "deepseek-ai__DeepSeek-R1.json": {
+      "match/header_ok": 6
+    },
+    "deepseek-ai__DeepSeek-V2-Lite.json": {
+      "match/header_ok": 3
+    },
+    "deepseek-ai__DeepSeek-V2.json": {
+      "match/header_ok": 3
+    },
+    "deepseek-ai__DeepSeek-V3.1.json": {
+      "match/header_ok": 6
+    },
+    "deepseek-ai__DeepSeek-V3.2-Exp.json": {
+      "match/header_ok": 6
+    },
+    "deepseek-ai__DeepSeek-V3.2.json": {
+      "match/header_ok": 6
+    },
+    "deepseek-ai__DeepSeek-V3.json": {
+      "match/header_ok": 6
+    },
+    "deepseek-ai__DeepSeek-V4-Flash.json": {
+      "match/header_ok": 12
+    },
+    "deepseek-ai__DeepSeek-V4-Pro.json": {
+      "match/header_ok": 12
+    },
+    "deepseek-ai__DeepSeek-V4.1-Flash.json": {
+      "match/header_ok": 12
+    },
+    "inclusionAI__Ling-2.6-1T.json": {
+      "match/header_ok": 6
+    },
+    "meituan-longcat__LongCat-Flash-Omni.json": {
+      "match/header_ok": 3
+    },
+    "meituan-longcat__LongCat-Flash-Thinking-2601.json": {
+      "match/header_ok": 3
+    },
+    "moonshotai__Kimi-K2-Base.json": {
+      "match/header_ok": 6
+    },
+    "moonshotai__Kimi-K2-Instruct.json": {
+      "match/header_ok": 6
+    },
+    "moonshotai__Kimi-K2-Thinking.json": {
+      "match/header_ok": 9
+    },
+    "moonshotai__Kimi-K2.5.json": {
+      "match/header_ok": 9
+    },
+    "moonshotai__Kimi-K3.json": {
+      "match/header_ok": 6
+    },
+    "nvidia__NVIDIA-Nemotron-3-Nano-30B-A3B-BF16.json": {
+      "match/header_ok": 2
+    },
+    "nvidia__NVIDIA-Nemotron-3-Ultra-550B-A55B-BF16.json": {
+      "match/header_ok": 4
+    },
+    "openai__gpt-oss-20b.json": {
+      "match/header_ok": 6
+    },
+    "stepfun-ai__Step-3.7-Flash.json": {
+      "match/header_ok": 3
+    },
+    "stepfun-ai__Step-5-Preview.json": {
+      "match/header_ok": 6
+    },
+    "tencent__Hy3.json": {
+      "match/header_ok": 3
+    },
+    "tencent__Hy4-preview.json": {
+      "match/header_ok": 4
+    },
+    "zai-org__GLM-4.5-Air.json": {
+      "match/header_ok": 3
+    },
+    "zai-org__GLM-4.5.json": {
+      "match/header_ok": 3
+    },
+    "zai-org__GLM-5.1.json": {
+      "match/header_ok": 3
+    },
+    "zai-org__GLM-5.2.json": {
+      "match/header_ok": 3
+    },
+    "zai-org__GLM-5.3-Flash.json": {
+      "match/header_ok": 6
+    },
+    "zai-org__GLM-5.3.json": {
+      "match/header_ok": 6
+    },
+    "zai-org__GLM-5.json": {
+      "match/header_ok": 3
+    }
+  },
+  "digests": {
+    "MiniMaxAI__MiniMax-M2.7.json": "2ebe50603f0786e5",
+    "Qwen__Qwen3-235B-A22B.json": "2721f739ca9d9f5d",
+    "Qwen__Qwen3-30B-A3B.json": "d143528eaac8caf2",
+    "Qwen__Qwen3-Coder-Next.json": "d81d56411f16411c",
+    "Qwen__Qwen3-VL-235B-A22B-Instruct.json": "cc8f74fd9283e23c",
+    "Qwen__Qwen3.5-35B-A3B.json": "0a06744a3ed0e2f4",
+    "Qwen__Qwen3.8-2.4T-A95B.json": "39707371342b15e9",
+    "Qwen__Qwen3.8-Flash-Next.json": "75a7433c6f8f672f",
+    "XiaomiMiMo__MiMo-V2-Flash.json": "17128969c0945e49",
+    "XiaomiMiMo__MiMo-V2.5-Pro.json": "2c00e6739d0e0560",
+    "XiaomiMiMo__MiMo-V2.5.json": "17128969c0945e49",
+    "XiaomiMiMo__MiMo-V2.6-Pro-RL.json": "bc89515423a72bd0",
+    "deepseek-ai__DeepSeek-R1.json": "e2fdb98f91dc8047",
+    "deepseek-ai__DeepSeek-V2-Lite.json": "e2df51af9a109534",
+    "deepseek-ai__DeepSeek-V2.json": "7eb5059847cc97f7",
+    "deepseek-ai__DeepSeek-V3.1.json": "e2fdb98f91dc8047",
+    "deepseek-ai__DeepSeek-V3.2-Exp.json": "e2fdb98f91dc8047",
+    "deepseek-ai__DeepSeek-V3.2.json": "e2fdb98f91dc8047",
+    "deepseek-ai__DeepSeek-V3.json": "e2fdb98f91dc8047",
+    "deepseek-ai__DeepSeek-V4-Flash.json": "bd2e2bda632a9144",
+    "deepseek-ai__DeepSeek-V4-Pro.json": "a37376bacff3bb8a",
+    "deepseek-ai__DeepSeek-V4.1-Flash.json": "2a9f23b727a6449f",
+    "inclusionAI__Ling-2.6-1T.json": "c627d77b9525a58e",
+    "meituan-longcat__LongCat-Flash-Omni.json": "e1ccc402502b9ad2",
+    "meituan-longcat__LongCat-Flash-Thinking-2601.json": "e1ccc402502b9ad2",
+    "moonshotai__Kimi-K2-Base.json": "d59da0e5059bc1cd",
+    "moonshotai__Kimi-K2-Instruct.json": "d59da0e5059bc1cd",
+    "moonshotai__Kimi-K2-Thinking.json": "18a1d25dfe61bc02",
+    "moonshotai__Kimi-K2.5.json": "5985491387f0ee8e",
+    "moonshotai__Kimi-K3.json": "98d0baa984c769cc",
+    "nvidia__NVIDIA-Nemotron-3-Nano-30B-A3B-BF16.json": "045d0aa5ce9919c0",
+    "nvidia__NVIDIA-Nemotron-3-Ultra-550B-A55B-BF16.json": "85b7953baed05e7f",
+    "openai__gpt-oss-20b.json": "c55f4a89697c6e04",
+    "stepfun-ai__Step-3.7-Flash.json": "5c68abd83d8002f9",
+    "stepfun-ai__Step-5-Preview.json": "b9d404ce307097be",
+    "tencent__Hy3.json": "f929b499b2cb03ec",
+    "tencent__Hy4-preview.json": "5c188a0a2d1e81f0",
+    "zai-org__GLM-4.5-Air.json": "602efefb9d8bb47f",
+    "zai-org__GLM-4.5.json": "8fb682c3cce82911",
+    "zai-org__GLM-5.1.json": "03a26905ff0b21e0",
+    "zai-org__GLM-5.2.json": "03a26905ff0b21e0",
+    "zai-org__GLM-5.3-Flash.json": "aa3dd1a5045e27b5",
+    "zai-org__GLM-5.3.json": "0a7236b301da8a4a",
+    "zai-org__GLM-5.json": "03a26905ff0b21e0"
+  },
+  "row_totals": {
+    "MiniMaxAI__MiniMax-M2.7.json": 6,
+    "Qwen__Qwen3-235B-A22B.json": 3,
+    "Qwen__Qwen3-30B-A3B.json": 3,
+    "Qwen__Qwen3-Coder-Next.json": 3,
+    "Qwen__Qwen3-VL-235B-A22B-Instruct.json": 2,
+    "Qwen__Qwen3.5-35B-A3B.json": 5,
+    "Qwen__Qwen3.8-2.4T-A95B.json": 4,
+    "Qwen__Qwen3.8-Flash-Next.json": 4,
+    "XiaomiMiMo__MiMo-V2-Flash.json": 6,
+    "XiaomiMiMo__MiMo-V2.5-Pro.json": 6,
+    "XiaomiMiMo__MiMo-V2.5.json": 6,
+    "XiaomiMiMo__MiMo-V2.6-Pro-RL.json": 6,
+    "deepseek-ai__DeepSeek-R1.json": 6,
+    "deepseek-ai__DeepSeek-V2-Lite.json": 3,
+    "deepseek-ai__DeepSeek-V2.json": 3,
+    "deepseek-ai__DeepSeek-V3.1.json": 6,
+    "deepseek-ai__DeepSeek-V3.2-Exp.json": 6,
+    "deepseek-ai__DeepSeek-V3.2.json": 6,
+    "deepseek-ai__DeepSeek-V3.json": 6,
+    "deepseek-ai__DeepSeek-V4-Flash.json": 12,
+    "deepseek-ai__DeepSeek-V4-Pro.json": 12,
+    "deepseek-ai__DeepSeek-V4.1-Flash.json": 12,
+    "inclusionAI__Ling-2.6-1T.json": 6,
+    "meituan-longcat__LongCat-Flash-Omni.json": 3,
+    "meituan-longcat__LongCat-Flash-Thinking-2601.json": 3,
+    "moonshotai__Kimi-K2-Base.json": 6,
+    "moonshotai__Kimi-K2-Instruct.json": 6,
+    "moonshotai__Kimi-K2-Thinking.json": 9,
+    "moonshotai__Kimi-K2.5.json": 9,
+    "moonshotai__Kimi-K3.json": 6,
+    "nvidia__NVIDIA-Nemotron-3-Nano-30B-A3B-BF16.json": 2,
+    "nvidia__NVIDIA-Nemotron-3-Ultra-550B-A55B-BF16.json": 4,
+    "openai__gpt-oss-20b.json": 6,
+    "stepfun-ai__Step-3.7-Flash.json": 3,
+    "stepfun-ai__Step-5-Preview.json": 6,
+    "tencent__Hy3.json": 3,
+    "tencent__Hy4-preview.json": 4,
+    "zai-org__GLM-4.5-Air.json": 3,
+    "zai-org__GLM-4.5.json": 3,
+    "zai-org__GLM-5.1.json": 3,
+    "zai-org__GLM-5.2.json": 3,
+    "zai-org__GLM-5.3-Flash.json": 6,
+    "zai-org__GLM-5.3.json": 6,
+    "zai-org__GLM-5.json": 3
+  }
+}

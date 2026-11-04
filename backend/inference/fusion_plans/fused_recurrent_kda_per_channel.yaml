@@ -1,0 +1,62 @@
+# Kimi Delta Attention decode step in one launch, per-channel decay rate,
+# bounded gate: the forget gate formed in-kernel from the raw low-rank
+# projection, beta = sigmoid(beta_raw), q/k L2 norm and the delta-rule
+# recurrence. The per-channel sibling of `fused_recurrent_kda` (GLM's
+# per-head form).
+#
+# Naive subgraph (kimi_k3_kda_attention):
+#
+#   f    = f_b + dt_bias                          forget (add)
+#   f    = head-first view of f                   forget_split, forget_heads
+#   g    = lower_bound * sigmoid(f * exp(a_log))  rate, gate_rate, gate_sigmoid, gate_bound
+#   beta = sigmoid(beta_raw)
+#   o    = gated_delta_rule(l2norm(q), l2norm(k), v, g, beta)
+#
+# One exact form, no optional nodes (the unbounded softplus form is another
+# spelling; no corpus model has it and no binding needs it).
+#
+# DECODE, Kimi-K3 (`KimiK3ForConditionalGeneration`):
+#   vLLM (v0.32.0) when its whole-mixer kernel does not run (the
+#     `fused_kda_decode` plan, more specific, wins where it does): the packed
+#     conv update, then `fused_recurrent_kda_packed_decode`
+#     (models/kimi_k3/nvidia/ops/third_party/kda/fused_recurrent.py:582,
+#     kernel :487: l2norm :550-551, dt_bias + bounded gate :556-560, beta
+#     sigmoid :571), from models/kimi_k3/nvidia/kda.py:1338-1356.
+#   sglang (v0.5.22) on a plain decode step below attention TP 8:
+#     `fused_sigmoid_gating_delta_rule_update(is_kda=True, lower_bound,
+#     use_qk_l2norm_in_kernel=True)` (srt/layers/attention/linear/kernels/
+#     kda_triton.py:141, gate both forms kernels/ops/attention/fla/
+#     fused_sigmoid_gating_recurrent.py:331-355, beta :361), from
+#     kda_backend.py:981; at attention TP 8 the whole mixer runs instead
+#     (the `fused_kda_decode` plan), and a speculative verify is claimed by
+#     neither (see the sglang binding).
+#
+# The recurrence carries the recurrent state (carrier `delta_rule`); its read
+# moves onto this launch.
+
+fused_op: fused_recurrent_kda_per_channel
+
+naive_pattern:
+  nodes:
+    q_norm:   { op: l2norm,      inputs: [external.q] }
+    k_norm:   { op: l2norm,      inputs: [external.k] }
+    forget:       { op: add,         inputs: [external.forget_raw, external.dt_bias] }
+    forget_split: { op: view_split,  inputs: [forget.out] }
+    forget_heads: { op: transpose,   inputs: [forget_split.out] }
+    rate:         { op: exp,         inputs: [external.a_log] }
+    gate_rate:    { op: mul,         inputs: [forget_heads.out, rate.out] }
+    gate_sigmoid: { op: sigmoid,     inputs: [gate_rate.out] }
+    gate_bound:   { op: scale_const, inputs: [gate_sigmoid.out] }
+    beta:         { op: sigmoid,     inputs: [external.beta_raw] }
+    rule:
+      op: gated_delta_rule
+      inputs: [q_norm.out, k_norm.out, external.v, gate_bound.out, beta.out]
+  io_mapping:
+    q:          external.q
+    k:          external.k
+    v:          external.v
+    forget_raw: external.forget_raw
+    dt_bias:    external.dt_bias
+    a_log:      external.a_log
+    beta_raw:   external.beta_raw
+    output:     rule.out

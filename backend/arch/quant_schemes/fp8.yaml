@@ -1,0 +1,113 @@
+# FP8 — aligned with `transformers.FineGrainedFP8Config`
+# (quant_method: "fp8"; "fine-grained FP8 quantization used mainly
+# for deepseek models").
+#
+# HF official field set:
+#   activation_scheme  : "dynamic" (only supported value today)
+#   weight_block_size  : tuple, defaults (128, 128)
+#   dequantize         : bool, default False
+#   modules_to_not_convert : list[str]
+# These are read by backend/inference/deployment_dtype.py to derive
+# weight_quant_granularity / scale_dtype / weight_dtype_bytes.
+#
+# **Author extensions seen in the wild but not in HF spec:**
+#   fmt        : "e4m3" / "e5m2"     (DeepSeek)
+#   scale_fmt  : "ue8m0" / "fp32"    (DeepSeek)
+# We tolerate them as scale-dtype hints in deployment_dtype.py but
+# they are NOT part of the HF API contract.
+#
+# On-disk layout: F8_E4M3 weights stored unpacked; quant metadata
+# lives in `*.weight_scale_inv` siblings. `scale_inv` is also caught
+# by a substring check inside `is_quantization_metadata` (predates
+# the suffix lists), so the metadata bucket is reached via two
+# complementary paths.
+#
+# Known clients: DeepSeek-V3 family, Kimi-K2 base/instruct,
+# MiMo-V2-Flash, MiniMax-M2.
+description: "FP8 — F8_E4M3 weights + `*_scale_inv` scales (transformers.FineGrainedFP8Config)."
+
+num_bits:
+  fixed: 8
+badge: FP8
+
+# Single on-disk variant. F8_E4M3 stored unpacked.
+format_variants:
+  default:
+    packing_factor: 1
+    storage_dtype: F8_E4M3
+    weight_storage_suffix: ".weight"
+
+# FineGrainedFP8 is always E4M3.
+numeric_format: [fp_e4m3]
+numeric_format_resolver:
+  - { when: "true", format: fp_e4m3 }
+
+# Per-tile (block) scale: shape = (out/block_h) × (in/block_w), F32.
+scale_strategy: [tile_2d]
+
+metadata_siblings:
+  - suffix: ".weight_scale_inv"
+    kind: scale
+    shape_per_strategy:
+      # Block quantisation pads each axis INDEPENDENTLY, so the count is a
+      # product of two ceil-divisions and not a ceil of the product. The plain
+      # division dropped the final partial block of any axis that is not a
+      # multiple of the block size — DeepSeek's `kv_a_proj_with_mqa` is
+      # [576, 7168] against a 128 block, so 576/128 = 4.5 became 4 where the
+      # checkpoint stores 5, and the file's own scale shape says [5, 56].
+      # 28 scales x 4 bytes x 62 layers = 6,944 bytes, exactly the diff.
+      #
+      # Axis ORDER follows the stored weight, which safetensors lays out as
+      # (out, in): that same [5, 56] is (ceil(576/128), ceil(7168/128)) with
+      # out = 576. The scheme long declared (in, out) — invisible to bytes
+      # and params, which consume only the product, until the checkpoint
+      # oracle compared shapes against headers.
+      tile_2d: ["(out + block_h - 1) // block_h", "(in + block_w - 1) // block_w"]
+    dtype: F32
+
+# Per-role config MUST supply block_h, block_w (default (128, 128)
+# in HF FineGrainedFP8Config). Engine errors if missing.
+required_fields: [block_h, block_w]
+
+valid_status: [compressed, frozen]
+
+# A FineGrainedFP8 config can declare a checkpoint that holds more than this
+# layout. DeepSeek-V4 (`scale_fmt: ue8m0`) stores its block scales UE8M0 at
+# `.scale`, the `fp8_ue8m0` layout, and its FP4 experts' scales the same way;
+# MiMo-V2.6 (`store_dtype: mxfp4`) stores its experts MXFP4 with `.weight_scale`
+# siblings, the `mxfp4-pack-quantized` layout.
+also_stores:
+  - { field: scale_fmt, equals: ue8m0, scheme: fp8_ue8m0 }
+  - { field: store_dtype, equals: mxfp4, scheme: mxfp4-pack-quantized }
+
+# A deployment's FP8 weight: HF FineGrainedFP8Config's default 128x128
+# blocks. How its matmul treats the activation is the scheme's
+# `activation_scheme` (dynamic per-token-group FP8), priced with the
+# checkpoint FP8 matmuls in the compute phase; until then the matmul runs
+# at its input edge's dtype, like every FP8 checkpoint's.
+deployment_fields:
+  block_h: 128
+  block_w: 128
+
+# What the matmul does to its ACTIVATION operand, as the checkpoint's own
+# config says: `activation_scheme` (HF FineGrainedFP8Config's only supported
+# value is `dynamic`, which `default_fields` carries). Dynamic means the
+# kernel quantises the activation per token per K-block before the FP8 GEMM
+# — transformers `FP8Linear.forward` → `fp8_linear`
+# (integrations/finegrained_fp8.py:329-341, :208), whose two backends both do
+# it: DeepGEMM `per_token_cast_to_fp8` (integrations/deepgemm.py:603, recipe
+# at :419-444) and the Triton `finegrained_fp8_linear` fallback (:178-204).
+# The group follows the weight's K block, and the scale's own dtype follows
+# the checkpoint's `scale_fmt` (DeepSeek's UE8M0 extension, `also_stores`
+# above; `deepgemm.py:442-444` keeps act scales UE8M0 with the weight's).
+activation:
+  from_config: activation_scheme
+  dynamic:
+    - { when: "scale_fmt == 'ue8m0' and block_w == 32", format: fp8_token_group32_ue8m0 }
+    - { when: "scale_fmt == 'ue8m0'", format: fp8_token_group128_ue8m0 }
+    - { when: "true", format: fp8_token_group128 }
+
+default_fields:
+  activation_scheme: dynamic
+  # No `scale_fmt` in HF's own field set; DeepSeek's extension states it.
+  scale_fmt: null

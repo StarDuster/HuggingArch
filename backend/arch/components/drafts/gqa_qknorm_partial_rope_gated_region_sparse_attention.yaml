@@ -1,0 +1,235 @@
+# GQA + per-head QK-norm + partial RoPE + head-wise sigmoid gate, with a
+# CSA block-compress sparse indexer: the indexer scores REGIONS of
+# `compress_ratio` consecutive tokens (one softmax-pooled summary each) and the
+# main attention reads only the tokens of the top `n_topk_blocks` regions plus
+# the query's own region. First observed in Step-5 (`Step5Attention`,
+# inference/model.py:1231-1739, with `Step5SparseIndexer`
+# inference/kernel.py:1921-2005 and `score_regions` kernel.py:2080-2143).
+#
+# Forward (model.py:1639-1739), line for line:
+#
+#   q, k, v = self._project(x, positions)            # :1660, :1591-1625
+#       qkv = linear(x, cat[q_proj, k_proj, v_proj]) # one fused GEMM, three
+#                                                    # checkpoint tensors
+#       q = rope(q_norm(q)); k = rope(k_norm(k))     # fused_qknorm_rope,
+#                                                    # norm BEFORE rope, the
+#                                                    # leading `rotary_span`
+#                                                    # dims rotated (:1551-1570)
+#   index_q, index_k, index_z, w = indexer.project(x, positions)  # :1699
+#   cache.write_kv(k, v)                             # :1702-1707, EVERY token
+#   update_summaries(cache, index_k, index_z)        # :1710 / :1725
+#   packed, counts = {decode,prefill}_metadata(...)  # :1711 / :1726
+#       logits = score_regions(index_q, w, summary)  # kernel.py:2133
+#       ids    = region_topk(logits, topk)           # kernel.py:region_topk_*
+#                + the query's own region, always    # kernel.py:_append_current_region_kernel
+#   o = sparse_attention_{decode,prefill}(q, cache.key, cache.value, packed)
+#   return self._gate_and_project(o, x)              # :1684, :1627-1637
+#       o = o * sigmoid(g_proj(x))[..., None]        # per-head gate, BEFORE o_proj
+#       return o_proj(o.reshape(tokens, -1))
+#
+# Why this is not an existing component:
+#   * `qwen_qsa_attention` is the closest (GQA + QK-norm + partial RoPE +
+#     pooled-block indexer + dsa_* sparse core) but its query and gate come
+#     from ONE fused `q_proj` and its gate is CHANNEL-wise after head_merge;
+#     Step-5 has a separate `g_proj` of width n_heads and a PER-HEAD gate, and
+#     its indexer pools with a learned per-channel softmax over a separate `z`
+#     projection rather than a mean.
+#   * `dsv4_csa_attention` / `csa2_attention` are q-LoRA + MQA-latent (k_eq_v)
+#     window-union attentions with sinks and grouped output LoRA; Step-5 is a
+#     plain GQA q/k/v with no window on these layers at all.
+#   * `gqa_qknorm_partial_rope_gated_no_kpe_attention` IS this component's
+#     dense core (same projections, same norms, same gate, same o_proj width):
+#     everything below the `--- indexer ---` rule is what Step-5 adds, and a
+#     dense GQA score cannot express the region selection or the summary cache.
+#
+# The indexer's parameters sit DIRECTLY on the attention module in both the
+# source and the checkpoint (`self_attn.sparse_indexer_q.weight`, …) —
+# model.py:1234-1237 says so explicitly and kernel.py:1921-1927 repeats it —
+# so they are nodes of this graph rather than a sub-module, exactly as
+# `mla_dsa_attention` inlines DSv3.2's indexer. The one sub-component is the
+# region compressor, which owns the summary cache and the pending rings and
+# has its own decode form.
+#
+# Required dims: d_model, n_heads, n_kv_heads, d_head, d_rope, d_nope,
+#   n_indexer_group_heads, d_indexer_head, d_indexer_rope, compress_ratio,
+#   n_topk_blocks, n_topk_keys.
+
+role: attention
+description: "GQA + per-head QK-norm + partial RoPE + head-wise sigmoid gate + CSA region indexer (per-channel-softmax-pooled region summaries, top-K regions) over a full K/V cache read sparsely."
+# The cache is GQA-shaped (per-token K and V at the full head width); what DSA
+# bounds is the READ (the selected regions), not the storage.
+attn_variant: CSA
+cache:
+  family: GQA
+  entries:
+    # Every token's K and V, at the full head dim, for the whole context:
+    # `DSALayerCache.key/value` are [batch * max_tokens, kv_groups, head_dim]
+    # (kernel.py:1887-1890) and `write_kv` stores every token (:1914-1918).
+    # No window on these layers (Step5Cache gives them a DSALayerCache,
+    # model.py:1043-1054).
+    - { node: key_concat, kind: kv }
+    - { node: v_split_heads, kind: kv }
+    # The indexer's FP8 region summaries plus the pending region's rings, all
+    # declared by the `region_softmax_pool_compressor` sub-component.
+    - { node: summary, kind: index_key, dtype: fp8 }
+graph:
+  # ---------------- main GQA projections (one fused GEMM, three tensors) ----
+  q_proj:          { op: linear, in: x, dims: { in: d_model, out: "n_heads * d_head" }, weight_axes: [{ world: attention, parts: n_heads, fit: replica_cells }, { replicated: true }] }
+  k_proj:          { op: linear, in: x, dims: { in: d_model, out: "n_kv_heads * d_head" }, weight_axes: [{ world: attention, parts: n_kv_heads, fit: replica_cells }, { replicated: true }] }
+  v_proj:          { op: linear, in: x, dims: { in: d_model, out: "n_kv_heads * d_head" }, weight_axes: [{ world: attention, parts: n_kv_heads, fit: replica_cells }, { replicated: true }] }
+  # `use_head_wise_attn_gate` (model.py:1288-1293): one scalar per head.
+  g_proj:          { op: linear, in: x, dims: { in: d_model, out: n_heads }, weight_axes: [{ world: attention, parts: n_heads, fit: replica_cells }, { replicated: true }] }
+  q_split_heads:   { op: head_split, in: q_proj, dims: { n_heads: n_heads, d_head: d_head } }
+  k_split_heads:   { op: head_split, in: k_proj, dims: { n_heads: n_kv_heads, d_head: d_head } }
+  v_split_heads:   { op: head_split, in: v_proj, dims: { n_heads: n_kv_heads, d_head: d_head } }
+  # Per-head RMSNorm over d_head, applied BEFORE the rotation
+  # (model.py:1623-1624, and the fused kernel's norm→rope order at :1596-1612).
+  q_norm:          { op: rmsnorm, in: q_split_heads, dim: d_head, weight_axes: [{ replicated: true }] }
+  k_norm:          { op: rmsnorm, in: k_split_heads, dim: d_head, weight_axes: [{ replicated: true }] }
+  # Partial RoPE: the LEADING `rotary_span` = round(d_head · partial_rotary_factor)
+  # dims of every head rotate and the rest pass through untouched
+  # (model.py:1295-1296, :1562-1570). On these layers the factor is 1/3, so
+  # d_rope = 64 of 192 and two thirds of each head carries no position signal.
+  q_pe_slice:      { op: slice, in: q_norm, dims: { in: d_head, out: d_rope } }
+  q_nope_slice:    { op: slice, in: q_norm, dims: { in: d_head, out: d_nope, start: d_rope } }
+  k_pe_slice:      { op: slice, in: k_norm, dims: { in: d_head, out: d_rope } }
+  k_nope_slice:    { op: slice, in: k_norm, dims: { in: d_head, out: d_nope, start: d_rope } }
+  q_pe_rope:       { op: rope_emb, in: q_pe_slice, dims: { dim: d_rope } }
+  k_pe_rope:       { op: rope_emb, in: k_pe_slice, dims: { dim: d_rope } }
+  query_concat:    { op: concat, in: [q_pe_rope, q_nope_slice], dims: { in_a: d_rope, in_b: d_nope, out: d_head } }
+  key_concat:      { op: concat, in: [k_pe_rope, k_nope_slice], dims: { in_a: d_rope, in_b: d_nope, out: d_head } }
+
+  # ---------------- indexer projections (kernel.py:1953-2005) --------------
+  # q: one proxy_dim head per indexer head; k and z single-head (MQA, :1985).
+  # The indexer heads come in provider groups, and the provider groups ARE the
+  # KV groups (`Step5SparseIndexer.__init__`, kernel.py:1929-1951; model.py
+  # refuses any other pairing, :370-384), so the head axis is written
+  # `n_kv_heads * n_indexer_group_heads`: tensor parallelism splits it by KV
+  # group exactly as it splits k_proj, and a rank builds only its own groups'
+  # Q and W heads — "TP=8 therefore constructs only four Q/W heads on each
+  # rank" (model.py:1437-1446; vLLM step5/nvidia/model.py shards index_q and
+  # sparse_indexer_w the same way). k, z and the norms are replicated.
+  # These three are BF16 like every other projection of the attention module
+  # they are stored on, so they inherit the component's `attention` role; the
+  # F32 indexer tensors below carry the finer `attention_indexer` role, which
+  # is what lets precision stay a per-role fact.
+  sparse_indexer_q:      { op: linear, in: x, dims: { in: d_model, out: "n_kv_heads * n_indexer_group_heads * d_indexer_head" }, weight_axes: [{ world: attention, parts: n_kv_heads, fit: replica_cells }, { replicated: true }] }
+  sparse_indexer_k:      { op: linear, in: x, dims: { in: d_model, out: d_indexer_head }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  sparse_indexer_z:      { op: linear, in: x, dims: { in: d_model, out: d_indexer_head }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  index_q_split_heads:   { op: head_split, in: sparse_indexer_q, dims: { n_heads: "n_kv_heads * n_indexer_group_heads", d_head: d_indexer_head } }
+  # q is RMSNorm'd, k is LayerNorm'd (weight AND bias) — one reduction apart
+  # and easy to confuse, which is why `indexer_norm_rope` takes a
+  # SUBTRACT_MEAN flag (kernel.py:92-120, :1977-1979; the norm types come from
+  # sparse_indexer_{q,k}_norm_type in the config).
+  sparse_indexer_q_norm: { op: rmsnorm, role: attention_indexer, in: index_q_split_heads, dim: d_indexer_head, weight_axes: [{ replicated: true }] }
+  sparse_indexer_k_norm: { op: layernorm, role: attention_indexer, in: sparse_indexer_k, dim: d_indexer_head, weight_axes: [{ replicated: true }] }
+  # Indexer RoPE: the leading d_indexer_rope (= sparse_indexer_rope_dim) dims
+  # of each head rotate, after the norm. The kernel's `rotary_dim` is the
+  # cos table's width, HALF the span (kernel.py:1986, :1772-1810): dims
+  # ≥ 2·rotary_dim keep the plain normalized value, the first rotary_dim and
+  # the next rotary_dim are the real / imaginary halves (kernel.py:85-178).
+  index_q_pe_slice:      { op: slice, in: sparse_indexer_q_norm, dims: { in: d_indexer_head, out: d_indexer_rope } }
+  index_q_nope_slice:    { op: slice, in: sparse_indexer_q_norm, dims: { in: d_indexer_head, out: "d_indexer_head - d_indexer_rope", start: d_indexer_rope } }
+  index_q_pe_rope:       { op: rope_emb, in: index_q_pe_slice, dims: { dim: d_indexer_rope } }
+  index_q_concat:        { op: concat, in: [index_q_pe_rope, index_q_nope_slice], dims: { in_a: d_indexer_rope, in_b: "d_indexer_head - d_indexer_rope", out: d_indexer_head } }
+  index_k_pe_slice:      { op: slice, in: sparse_indexer_k_norm, dims: { in: d_indexer_head, out: d_indexer_rope } }
+  index_k_nope_slice:    { op: slice, in: sparse_indexer_k_norm, dims: { in: d_indexer_head, out: "d_indexer_head - d_indexer_rope", start: d_indexer_rope } }
+  index_k_pe_rope:       { op: rope_emb, in: index_k_pe_slice, dims: { dim: d_indexer_rope } }
+  index_k_concat:        { op: concat, in: [index_k_pe_rope, index_k_nope_slice], dims: { in_a: d_indexer_rope, in_b: "d_indexer_head - d_indexer_rope", out: d_indexer_head } }
+  # Per-head scoring weights. The checkpoint stores this projection in F32
+  # (model.py:1446) and the deployed path rounds it to the activation dtype for
+  # the GEMM (kernel.py:1993-1996). `module: null` is NOT used: the tensor is
+  # `self_attn.sparse_indexer_w.weight`, a real Linear.
+  sparse_indexer_w:      { op: linear, role: attention_indexer, in: x, dims: { in: d_model, out: "n_kv_heads * n_indexer_group_heads" }, weight_axes: [{ world: attention, parts: n_kv_heads, fit: replica_cells }, { replicated: true }] }
+  # `weights * self.weight_prescale`, weight_prescale = heads_per_group^-0.5
+  # (kernel.py:1951, applied at :1998) — a positive constant folded into the
+  # per-head weights, which is where the kernel applies it.
+  index_w_scaled:        { op: scale_const, in: sparse_indexer_w, dims: { in: "n_kv_heads * n_indexer_group_heads" }, formula: "w = sparse_indexer_w(x) · n_indexer_group_heads^-0.5   (heads_per_group^-0.5, kernel.py:1951)" }
+
+  # ---------------- region summaries + scoring -----------------------------
+  # One summary per complete region of `compress_ratio` tokens: a per-channel
+  # softmax over that region's `index_z` weighting its `index_k`
+  # (kernel.py:293-371). The component owns the FP8 summary cache and the two
+  # BF16 pending rings. `module: null`: `csa_compress_regions` is a kernel, not
+  # an nn.Module, so it contributes no checkpoint segment.
+  summary:               { op: region_softmax_pool_compressor, in: [index_k_concat, sparse_indexer_z], module: null }
+  # The score reads the CACHED summaries — ⌊s_kv / compress_ratio⌋ complete
+  # regions, the step's own at prefill and the whole history at decode
+  # (kernel.py:2136 `cache.summary[base : base + regions]`, regions =
+  # (past + len - 1) // region_size).
+  summary_read:          { op: kv_cache_view, in: summary }
+  # One summary per region shared by every indexer head (MQA, kernel.py:1985).
+  index_k_bcast:         { op: head_broadcast, in: summary_read, dims: { n_heads: "n_kv_heads * n_indexer_group_heads" } }
+  # `indexer_logits` (kernel.py:427-499, wrapper :518) as its three steps:
+  #   score[q, g, h, r] = dot(index_q[q, g, h], summary[r])
+  #   logits[g, q, r]   = Σ_h relu(score[q, g, h, r]) · w[q, g, h]
+  # The relu is INSIDE the sum (kernel.py:446-452, the maximum at :491), so
+  # the heads cannot be
+  # folded into one matmul; the weights are signed, so the logits are signed.
+  # The sum is over ONE provider group's heads: the kernel emits one logit row
+  # per (provider group, query), group-major (`score_regions`,
+  # kernel.py:2080-2143), the selector picks regions per row, and the sparse
+  # attention reads each KV group's own selection (`packed_regions:
+  # [num_kv_groups * total_q, topk]`, kernel.py:1351-1395). So the group axis
+  # is kept: the heads are moved last, split into (group, head-in-group), the
+  # inner one summed, and the group axis put back in front of the queries.
+  # A rank holding one group scores, selects and attends for that group alone,
+  # with no exchange between ranks.
+  index_score:           { op: attention_score, in: [index_q_concat, index_k_bcast], dims: { n_heads: "n_kv_heads * n_indexer_group_heads", d_head: d_indexer_head } }
+  index_relu:            { op: relu, in: index_score, dim: "n_kv_heads * n_indexer_group_heads" }
+  index_w_heads:         { op: transpose, in: index_w_scaled, axes: [0, 2, 1] }
+  index_w_full:          { op: broadcast, in: index_w_heads, axis: -1, dims: { width: "1" } }
+  index_weighted:        { op: mul, in: [index_relu, index_w_full], dim: "n_kv_heads * n_indexer_group_heads" }
+  index_heads_last:      { op: transpose, in: index_weighted, axes: [0, 2, 3, 1] }
+  index_group_split:     { op: view_split, in: index_heads_last, axis: -1, dims: { in: "n_kv_heads * n_indexer_group_heads", n_heads: n_kv_heads, d_head: n_indexer_group_heads } }
+  index_group_sum:
+    op: sum_reduce
+    in: index_group_split
+    dims: { in: n_indexer_group_heads }
+    formula: "logits[b, q, r, g] = Σ_h relu(index_q[b, q, g, h, :] · summary[b, r, :]) · w[b, q, g, h]   (h over provider group g's indexer heads, r over the ⌊s_kv/m⌋ complete regions; kernel.py:475-491)"
+  index_logits:          { op: transpose, in: index_group_sum, axes: [0, 3, 1, 2] }
+  # Top `topk` regions of the causally visible history per (KV group, query),
+  # ascending; the query's own (partial) region is then appended
+  # unconditionally (kernel.py:_append_current_region_kernel /
+  # _decode_pack_kernel), so a query reads (n_topk_blocks + 1) · compress_ratio
+  # = n_topk_keys tokens at most. `topk`, not `dsa_topk_mask`: the selection
+  # is one per KV head, `[B, n_kv_heads, s_query, k]`, the per-head form
+  # `dsa_attention_score` already reads (as MiniMax-M3's MSA indexer feeds it),
+  # and `dsa_topk_mask` has no head axis. Its cost law ranks every region
+  # rather than the causally visible ones, which at prefill bills the
+  # selection up to 2x — a few MFLOPs a layer beside the GFLOPs of the score.
+  index_topk:
+    op: topk
+    in: index_logits
+    dims: { k: n_topk_blocks }
+    formula: "region_ids[b, g, q] = TopK_n_topk_blocks(logits[b, g, q, :]) over ⌊s_kv/m⌋ regions, ties by ascending region id (kernel.py:_radix_topk_threshold, :605-672)"
+
+  # ---------------- sparse attention over the selected regions -------------
+  # `sparse_attention_{prefill,decode}` (kernel.py:1047-1200, :1250-1420):
+  # an online softmax over the gathered tokens of the selected regions only,
+  # scale = head_dim^-0.5 (model.py:1254), GQA head groups, causal via the
+  # per-region valid_tokens count in the metadata word.
+  qk_score:        { op: dsa_attention_score, in: [query_concat, key_concat, index_topk], dims: { n_heads: n_heads, d_head: d_head, k: n_topk_keys } }
+  softmax:         { op: dsa_softmax, in: qk_score, dims: { n_heads: n_heads, k: n_topk_keys } }
+  attn_apply:      { op: dsa_attention_apply, in: [softmax, v_split_heads], dims: { n_heads: n_heads, d_head: d_head, k: n_topk_keys } }
+  # Per-head sigmoid gate BEFORE o_proj (model.py:1627-1637).
+  head_gate:       { op: headwise_gate, in: [attn_apply, g_proj], dims: { n_heads: n_heads, d_head: d_head } }
+  o_merge_heads:   { op: head_merge, in: head_gate, dims: { n_heads: n_heads, d_head: d_head } }
+  o_proj:          { op: linear, in: o_merge_heads, dims: { in: "n_heads * d_head", out: d_model }, weight_axes: [{ replicated: true }, { world: attention, parts: n_heads, fit: replica_cells }] }
+  # `ssmax_s` is in the checkpoint on every sparse layer at its initialisation
+  # value and read by nothing: the indexer scores with a weighted ReLU, which
+  # has no softmax for a scalable-softmax scale to act on (model.py:1449-1457).
+  # Every rank holds the whole vector: it is registered at the full head count
+  # and the convert step ships it as a replicate (`_SHARD_TABLE`,
+  # model.py:1450-1457, "the full shape is retained for checkpoint
+  # compatibility") — a head axis a deployment does not split.
+  ssmax_s:
+    op: parameter_vector
+    role: attention_indexer
+    dim: n_heads
+    weight_axes: [{ replicated: true }]
+    stored_without_graph_reader:
+      kind: forward_unread
+      reason: "the indexer's score is a weighted ReLU sum, so there is no softmax for a scalable-softmax scale to act on; registered only so loading is clean"
+      source_anchor: "inference/model.py:1449-1457"
+outputs: [o_proj]

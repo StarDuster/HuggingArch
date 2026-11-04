@@ -1,0 +1,10 @@
+schema: huggingarch.claims/v1
+subject: gla_qknorm_partial_rope_sigmoid_gated_attention
+axioms:
+  checks:
+  - kind: kv_growth
+    storage: constant_state
+    src: 'GLA (gated linear attention) — fixed-size recurrent state S ∈ [heads,
+      d_k, d_v] per request, constant in context length. Declared as a cache.entries
+      state carried by gla_recurrence, with constant (s_kv-independent) storage; no
+      per-token growing cache.'

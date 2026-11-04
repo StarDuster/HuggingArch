@@ -1,0 +1,25 @@
+# CSA2 KV compressor, the plain branch (compress_ratio == 1).
+#
+# `Compressor.forward`'s early return (source/model.py:461-462):
+#
+#     if ratio == 1:  # one token per group: nothing to pool, so no gate and no fp32
+#         return self.norm(self.wkv(x))
+#
+# So there is no `wgate` tensor and no softmax pooling at all — which is what
+# `pattern_counts` shows for DeepSeek-V4.1-Flash: compressor.wkv ×4 against
+# compressor.wgate ×3, the missing one being the ratio-1 kv source (layer 20).
+# Its own component rather than a switch inside `csa2_compressor_gated`,
+# because the branch is a weight that is not stored, and a step a `when:`
+# switch removes has to be weightless.
+#
+# The latent leaves PRE-ROTATION, as in the pooled branch: the indexer needs
+# the unrotated form and `Attention._compress_kv` rotates and stores it
+# (source/model.py:753-761).
+#
+# Required dims: d_model, d_head.
+
+description: "CSA2 KV compressor, ratio == 1: the plain projection branch (wkv + norm, no gate, no pooling) producing the pre-RoPE latent."
+graph:
+  wkv:  { op: linear, role: attention_compressor, in: x, dims: { in: d_model, out: d_head }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  norm: { op: rmsnorm, role: attention_compressor, in: wkv, dim: d_head, weight_axes: [{ replicated: true }] }
+outputs: [norm]

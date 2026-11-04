@@ -1,0 +1,60 @@
+# DeepSeek-V4.1 Engram after its `wkv` GEMM — the per-copy key/value split,
+# the normalised-dot gate and the gated add into every copy of the residual,
+# in one launch.
+#
+# Naive subgraph (dsv41_engram, everything after `wkv`):
+#
+#   key, value = split(kv)                         # [T, hc·d], [T, d]
+#   h, k       = rms(x_c), rms(key_c)              # per copy c, no gain
+#   dot        = Σ_d (h·q_weight)(k·k_weight) / √d
+#   gate       = sigmoid(signed_sqrt(dot))
+#   out_c      = x_c + gate_c · value
+#
+# Both frameworks run all of it as one Triton launch, one program per
+# (token, copy), reading x, kv and the two weights and writing the output:
+#   vLLM (audited at v0.32.0): `_fused_engram_post_wkv_kernel`
+#     (vllm/models/deepseek_v41/common/engram.py:1186), launched from
+#     `Engram.forward` (:1676, launch :1711) on every engram layer with no
+#     phase or platform branch (there is no platform subclass; the
+#     embedding's lookup is batched in common/engram.py, `EngramBatch`
+#     :1391). The kernel's token mask (`token_mask`, dead
+#     positions pass through) is a serving detail, not a node.
+#   sglang (audited at v0.5.22): `fused_engram_gate`
+#     (kernels/ops/embeddings/engram_gate.py:41, kernel `_engram_gate_kernel`
+#     :10), from `engram_gate` (srt/layers/engram.py:942) called by
+#     `Engram.forward` (:1023), whenever the tensors are on CUDA or ROCm gfx950
+#     (`_cuda_kernels`, :67), contiguous, and bf16 / fp32 (:952-962); else a
+#     torch sequence of separate kernels.
+# Prefill and decode take the same call in both.
+#
+# The `hash_embedding` lookup and `wkv` stay outside: they are separate
+# launches in both frameworks (vLLM `ParallelEngramEmbedding.forward`
+# :1166 then `self.wkv`, :1688; sglang :1017, :1022).
+
+fused_op: fused_engram_gate
+
+naive_pattern:
+  nodes:
+    key_slice:        { op: slice,            inputs: [external.kv] }
+    value_slice:      { op: slice,            inputs: [external.kv] }
+    key_split:        { op: view_split,       inputs: [key_slice.out] }
+    x_split:          { op: view_split,       inputs: [external.x] }
+    h_rmsnorm:        { op: rmsnorm_unscaled, inputs: [x_split.out] }
+    key_rmsnorm:      { op: rmsnorm_unscaled, inputs: [key_split.out] }
+    h_weighted:       { op: mul,              inputs: [h_rmsnorm.out, external.q_weight] }
+    key_weighted:     { op: mul,              inputs: [key_rmsnorm.out, external.k_weight] }
+    hk_product:       { op: mul,              inputs: [h_weighted.out, key_weighted.out] }
+    dot:              { op: sum_reduce,       inputs: [hk_product.out] }
+    dot_scale:        { op: scale_const,      inputs: [dot.out] }
+    gate_signed_sqrt: { op: signed_sqrt,      inputs: [dot_scale.out] }
+    gate:             { op: sigmoid,          inputs: [gate_signed_sqrt.out] }
+    gate_broadcast:   { op: broadcast,        inputs: [gate.out] }
+    value_broadcast:  { op: broadcast,        inputs: [value_slice.out] }
+    gated_value:      { op: mul,              inputs: [value_broadcast.out, gate_broadcast.out] }
+    residual_add:     { op: add,              inputs: [x_split.out, gated_value.out] }
+  io_mapping:
+    x:        external.x
+    kv:       external.kv
+    q_weight: external.q_weight
+    k_weight: external.k_weight
+    output:   residual_add.out

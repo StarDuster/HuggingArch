@@ -1,0 +1,12 @@
+# Provider env: flashinfer — GENERATED from the library registry (`python -m kernel_bench envs`). Edit the provider, not this file.
+# Measure just this env (uv resolves+caches the deps, no venv):
+#   PYTHONPATH=. uv run --no-project --with-requirements kernel_bench/envs/flashinfer.txt \
+#       -- python -m kernel_bench run --jobs jobs.jsonl -o results/flashinfer.csv --library flashinfer --skip-existing
+# Or every provider env in one command:  python -m kernel_bench run-all --jobs jobs.jsonl
+# Providers: flashinfer_cutlass_fused_moe, flashinfer_fused_add_rmsnorm, flashinfer_gdn_prefill, flashinfer_mla_decode, flashinfer_paged_decode, flashinfer_paged_verify, flashinfer_ragged_prefill, flashinfer_rmsnorm, flashinfer_rope, flashinfer_silu_and_mul
+torch>=2.5
+pydantic
+pyyaml
+huggingface-hub
+httpx
+flashinfer-python>=0.2.0

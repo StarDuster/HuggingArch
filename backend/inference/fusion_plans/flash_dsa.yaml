@@ -1,0 +1,87 @@
+# FlashMLA-Sparse forward — the sparse-attention analog of
+# `flash_attention` for DSA (DSv3.2 / GLM-MoE-DSA).
+#
+# Scope: this plan covers ONLY the sparse main-attention kernel — the
+# Q · K^T → softmax → A · V chain that consumes the already-computed
+# top-K KV indices. DSA at runtime has three causally-serial stages
+# (the top-K selection HAS to finish before sparse attention can
+# start), so they can never be a single kernel:
+#
+#   stage 1 — lightning indexer compute
+#     indexer.wk                      (standalone linear; both vLLM and
+#                                      sglang call wk → k_norm as two
+#                                      separate launches — no fused
+#                                      linear+rmsnorm kernel exists)
+#     indexer.k_norm                  (standalone rmsnorm)
+#     indexer.wq_b                    (standalone linear)
+#     indexer.weights_proj            (standalone linear; in vLLM this
+#                                      is co-located with wk inside one
+#                                      MergedColumnParallelLinear GEMM,
+#                                      which is already covered by the
+#                                      `merged_column_parallel_linear`
+#                                      fused_op — sglang keeps them
+#                                      separate)
+#     indexer.q_pe_rope / k_pe_rope   (RoPE on the first d_qk_rope dims
+#                                      of each indexer query head and of
+#                                      the key; the rotated half is
+#                                      concatenated back in front —
+#                                      vLLM `indexer_rope_emb`, fused with
+#                                      the FP8 quant of q on CUDA)
+#
+#   stage 2 — top-K selection
+#     dsa_topk_mask                   (standalone fused leaf — its own
+#                                      kernel in vLLM/sglang, references
+#                                      DeepSeek's TileLang sample)
+#
+#   stage 3 — sparse main attention  ← THIS PLAN
+#     dsa_attention_score(q, k, topk_indices)
+#     dsa_softmax(score)
+#     dsa_attention_apply(softmax, v)
+#
+# Where the KV-bandwidth saving lives: at `dsa_attention_score`'s
+# `kv_positions_per_query_fn = Min(s_kv, n_topk_keys)`. Stage 3's main attention
+# reads only the top-K KV positions per query (≈ 2048 vs the full
+# context s_kv), which is the headline DSA win. The indexer itself still
+# scores every cached position so the storage stays s_kv-full.
+#
+# Production binding (verified against local source checkouts —
+# vLLM v0.32.0 and sglang v0.5.22):
+#   • vLLM: `FlashMLASparseImpl.forward*` at
+#     `vllm/v1/attention/backends/mla/flashmla_sparse.py` dispatches
+#     `flash_mla_sparse_fwd` (line 1384, BF16 KV) and
+#     `flash_mla_with_kvcache` (line 1295, FP8 KV path). Both come from
+#     the deepseek-ai/FlashMLA library released alongside V3.2-Exp.
+#   • SGLang: `DeepseekSparseAttnBackend` at
+#     `python/sglang/srt/layers/attention/dsa_backend.py:484` dispatches
+#     `sgl_kernel.flash_mla.flash_mla_sparse_fwd` (line 2799) and
+#     `sgl_kernel.flash_mla.flash_mla_with_kvcache` (line 3283) — same
+#     two-impl split (BF16 vs FP8 KV), same naive-pattern collapse,
+#     kept under one fused_op here.
+#
+# Both backends gather the top-K KV entries directly from HBM to SRAM
+# inside the kernel — no intermediate score / softmax tensor lands in
+# HBM. Analytical FLOPs are unchanged (the kernel-internal tiling
+# savings show up in the calibration overlay, not theoretical FLOPs).
+#
+# Matcher note: three nodes in a strict chain with no internal
+# fan-out, single ordering. q, k, v, and the precomputed top-K mask
+# (`mask`) are all external — `mask` resolves to the `dsa_topk_mask`
+# node sitting upstream in the spec graph, which stays UNFUSED.
+
+fused_op: flash_dsa
+
+naive_pattern:
+  nodes:
+    # Full indexer layers pass the top-K mask as a third operand; shared
+    # layers reuse the previous layer's selection and score only (q, k).
+    score:
+      op: dsa_attention_score
+      inputs: [external.q, external.k]
+      optional_inputs: [external.mask]
+    softmax: { op: dsa_softmax,          inputs: [score.out] }
+    apply:   { op: dsa_attention_apply,  inputs: [softmax.out, external.v] }
+  io_mapping:
+    q:       external.q
+    k:       external.k
+    v:       external.v
+    output:  apply.out

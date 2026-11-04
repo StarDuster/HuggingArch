@@ -1,0 +1,64 @@
+# Qwen3-VL-MoE routed MoE FFN.
+#
+# Structure (from Qwen3VLMoeTextSparseMoeBlock.forward + Qwen3VLMoeTextExperts):
+#   router_logits = F.linear(x, gate.weight)      # gate.weight [n_experts, d_model]
+#   probs   = softmax(router_logits)
+#   topk    = probs.topk(n_experts_active); topk /= topk.sum()   # norm_topk_prob
+#   per expert:
+#     gate, up = F.linear(x, gate_up_proj[e]).chunk(2)   # gate_up_proj [n_experts, d_model, 2*d_ffn]
+#     y = down( silu(gate) * up )                         # down_proj    [n_experts, d_ffn, d_model]
+#   NO shared expert.
+
+role: ffn_moe
+description: "Qwen3-VL-MoE routed MoE: softmax top-K router + packed fused gate_up / down expert banks (naked nn.Parameter, expert count on leading axis). No shared expert."
+
+# Packed expert weights are naked nn.Parameters (no `.weight` suffix) with the
+# expert count on the leading axis: `linear_param` with a declared
+# `[n_expert_copies, out, in]` weight, `expert_weight: leading_axis` (one
+# checkpoint entry per bank). The same bank as `fused_gated_experts`, written
+# here rather than called because the checkpoint stores each expert slice
+# transposed, as [in, out] — the safetensors headers are
+#   model.language_model.layers.X.mlp.experts.gate_up_proj  [128, 4096, 3072] BF16
+#   model.language_model.layers.X.mlp.experts.down_proj     [128, 1536, 4096] BF16
+# i.e. [n_experts, d_model, 2*d_ffn_expert] and [n_experts, d_ffn_expert, d_model],
+# while `linear_param` computes with (out, in). `stored_axes: [0, 2, 1]` says
+# the checkpoint keeps the expert axis leading and swaps the last two;
+# `weight_axes` lists the axes in that checkpoint order. Axis order on disk is
+# a fact of this one checkpoint, and a call site has no way to state it for a
+# shared template's leaves.
+#
+graph:
+  gate:    { op: router_softmax_topk, in: x }
+  permute: { op: permute, in: [x, gate] }
+  experts.gate_up_proj:
+    op: linear_param
+    role: ffn_moe
+    in: permute
+    dims: { in: d_model, out: "2 * d_ffn_expert" }
+    shape: [n_expert_copies, "2 * d_ffn_expert", d_model]
+    stored_axes: [0, 2, 1]       # header [E, d_model, 2*d_ffn_expert]
+    weight_axes:
+      - { world: moe_copies, parts: n_expert_copies, fit: exact }
+      - { replicated: true }
+      - segments:
+          - { segment: gate, extent: d_ffn_expert, world: moe_expert, parts: d_ffn_expert, fit: exact }
+          - { segment: up,   extent: d_ffn_expert, world: moe_expert, parts: d_ffn_expert, fit: exact }
+    expert_weight: leading_axis
+  experts.gate_slice: { op: slice, in: experts.gate_up_proj, dims: { in: "2 * d_ffn_expert", out: d_ffn_expert } }
+  experts.up_slice:   { op: slice, in: experts.gate_up_proj, dims: { in: "2 * d_ffn_expert", out: d_ffn_expert } }
+  experts.silu:       { op: silu, in: experts.gate_slice, dim: d_ffn_expert }
+  experts.gate_mul:   { op: mul, in: [experts.silu, experts.up_slice], dim: d_ffn_expert }
+  experts.down_proj:
+    op: linear_param
+    role: ffn_moe
+    in: experts.gate_mul
+    dims: { in: d_ffn_expert, out: d_model }
+    shape: [n_expert_copies, d_model, d_ffn_expert]
+    stored_axes: [0, 2, 1]       # header [E, d_ffn_expert, d_model]
+    weight_axes:
+      - { world: moe_copies, parts: n_expert_copies, fit: exact }
+      - { world: moe_expert, parts: d_ffn_expert, fit: exact }
+      - { replicated: true }
+    expert_weight: leading_axis
+  combine: { op: combine, in: [experts.down_proj, gate] }
+outputs: [combine]

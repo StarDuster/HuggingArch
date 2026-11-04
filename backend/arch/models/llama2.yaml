@@ -1,0 +1,61 @@
+# LLaMA / LLaMA-2 (legacy serialization)
+# Same backbone as llama.yaml (GQA + SwiGLU + RMSNorm pre-norm), but the
+# checkpoints serialize `self_attn.rotary_emb.inv_freq` as a persistent
+# per-layer buffer (older transformers behavior, pre-Llama-3). Counted via
+# the `rotary_inv_freq_buffer` primitive.
+#
+# Both this spec and llama.yaml carry model_type: llama; an identity file
+# names the variant its checkpoint follows via `base:`.
+match:
+  model_type: [llama]
+
+components:
+  attention: gqa_attention
+  ffn_dense: swiglu_ffn
+  norm: rmsnorm
+  block: pre_norm
+
+# Legacy LLaMA-1 / LLaMA-2 checkpoints ship in float16, not bf16 (bf16 became
+# the default only with Llama-3). The schema's BF16 default is byte-neutral for
+# storage totals but mislabels every tensor's dtype; declare F16 explicitly so
+# the reported dtype matches the checkpoint (Llama-2-7b's lm_head is F16).
+# llama.yaml (Llama-3+) keeps the BF16 default.
+quant_context:
+  default_dtype: F16
+  overrides:
+    # `inv_freq` is a precomputed table, not a weight, and its dtype is chosen
+    # by whoever exported the checkpoint rather than by the model's precision.
+    # An older transformers built it in float32 and never cast it, so this F16
+    # checkpoint holds it at F32 while glm-4-9b and Kimi-K2 hold the same table
+    # at BF16 — which is why it cannot be derived and has to be recorded.
+    - tensors_re: 'rotary_emb\.inv_freq$'
+      dtype: F32
+
+dims:
+  d_model:  config.hidden_size
+  n_heads:  config.num_attention_heads
+  n_kv_heads: config.num_key_value_heads ?? n_heads
+  d_head:  config.head_dim ?? "d_model // n_heads"
+  d_ffn:  config.intermediate_size
+  n_vocab:  config.vocab_size
+  n_layers:  config.num_hidden_layers
+  s_max: config.max_position_embeddings
+
+view:
+  hidden_act: config.hidden_act
+  norm.eps: config.rms_norm_eps
+
+model_inputs:
+  input_ids: { kind: tokens }
+
+# The transformers base model's tensors sit under `model.`; the LM head
+# beside it declares its own path.
+checkpoint: { root: model }
+
+model:
+  - { name: embed_tokens, inputs: [input_ids], op: embedding, boundary_role: input_embedding, dims: { n_vocab: n_vocab, d_model: d_model }, weight_axes: [{ world: attention, parts: n_vocab, fit: pad }, { replicated: true }] }
+  - { name: layers, repeat: n_layers, template: block, inputs: [embed_tokens], streams: { hidden: { carries: true } }}
+  - { name: norm, op: rmsnorm, dim: d_model, weight_axes: [{ replicated: true }] , inputs: [layers]}
+  - { name: lm_head, op: linear, checkpoint: { path: lm_head }, boundary_role: output_head, dims: { in: d_model, out: n_vocab }, weight_axes: [{ world: attention, parts: n_vocab, fit: pad }, { replicated: true }], tied_weight: { to: embed_tokens, when: config.tie_word_embeddings } , inputs: [norm]}
+  # Per-layer rotary inv_freq buffer (persistent=True in legacy LLaMA modeling code).
+  - { name: rotary_inv_freq, op: rotary_inv_freq_buffer, checkpoint: { prefix: model.layers, path: self_attn.rotary_emb }, dim: "d_head // 2", weight_axes: [{ replicated: true }], repeat: n_layers }

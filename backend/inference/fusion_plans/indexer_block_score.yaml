@@ -1,0 +1,31 @@
+# Fused block-max indexer scores — MiniMax-M3 MSA (`sparse_score_type:
+# "max"`). Each index head's q·k scores are max-pooled over every block of
+# s_sparse_block keys inside the kernel, so only the
+# [n_indexer_heads, s_query, s_kv / s_sparse_block] block scores land in HBM,
+# never the [n_indexer_heads, s_query, s_kv] score matrix. The per-head
+# top-k over the block scores is a separate launch in every framework, so
+# it stays outside the pattern.
+#
+# The spec stays plain torch ops (`attention_score` → `group_max`, as the HF
+# reference writes it: `scores.view(..., num_key_blocks, block_size).amax(-1)`);
+# matching this subgraph is what prices it as the kernel.
+#
+# No registered op: the fused node's cost is its two members' (the Q·K dot
+# and the max), its traffic the inputs it reads and the block scores it
+# writes.
+#
+# The block scores land as float32 in both frameworks: vLLM allocates them
+# `dtype=torch.float32` (models/minimax_m3/common/ops/index_topk.py:699-703
+# prefill, :845-849 decode); sglang's `flash_prefill_with_topk_index` writes
+# [num_heads, total_q, max_seqblock_k] fp32 block scores (the binding's
+# source anchor).
+fused_op: indexer_block_score
+output_dtype: { output: float32 }
+naive_pattern:
+  nodes:
+    score:     { op: attention_score, inputs: [external.q, external.k] }
+    block_max: { op: group_max,       inputs: [score.out] }
+  io_mapping:
+    q:      external.q
+    k:      external.k
+    output: block_max.out

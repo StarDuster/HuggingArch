@@ -1,0 +1,4 @@
+# Identity file for google/gemma-4-12B-it
+base: gemma4_unified
+match:
+  model_id: [google/gemma-4-12B-it]

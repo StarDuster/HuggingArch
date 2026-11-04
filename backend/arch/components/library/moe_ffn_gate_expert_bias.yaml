@@ -1,0 +1,24 @@
+# MoE FFN with aux-loss-free (noaux_tc) sigmoid routing — Bailing/Ling
+# variant. Structurally identical to `moe_ffn_gate_routing_bias`; only
+# the routing-bias parameter is named `gate.expert_bias` (vs DSv3's
+# `gate.e_score_correction_bias`).
+#
+# HF tensor naming this matches:
+#   <moe>.gate.weight                  → `gate.gate` (linear, primary inside router_noaux_tc_expert_bias)
+#   <moe>.gate.expert_bias             → `gate.gate.expert_bias`
+#   <moe>.experts.X.{gate,up,down}_proj.weight  → `expert.*` (×n_experts)
+#   <moe>.shared_experts.{gate,up,down}_proj.weight (n_shared_experts × d_ffn=d_ffn_expert)
+#
+# Required dims: d_model, d_ffn_expert, n_experts, n_experts_active
+# Optional dims: n_shared_experts (default 0), n_route_targets (the gate's width, derived). Required by its router: n_expert_groups, n_groups_active
+
+role: ffn_moe
+description: "MoE + noaux_tc routing (sigmoid + `gate.expert_bias`). Bailing-MoE V2.5 / Ling-2.6."
+graph:
+  gate:          { op: router_noaux_tc_expert_bias, in: x }
+  permute:       { op: permute, in: [x, gate] }
+  experts:        { op: gated_experts, role: ffn_moe, in: permute, dims: { d_model: d_model, d_ffn: d_ffn_expert }, expert_weight: unrolled }
+  combine:       { op: combine, in: [experts, gate] }
+  shared_experts: { op: swiglu_ffn, role: ffn_moe, in: x, dims: { d_model: d_model, d_ffn: d_ffn_expert }, repeat: n_shared_experts }
+  moe_out:       { op: add, in: [combine, shared_experts], dim: d_model }
+outputs: [moe_out]

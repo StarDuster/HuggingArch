@@ -1,0 +1,9 @@
+schema: huggingarch.claims/v1
+subject: gated_delta_net_attention
+axioms:
+  checks:
+  - kind: kv_growth
+    storage: constant_state
+    src: 'Gated DeltaNet — the recurrent (conv + delta) state is fixed per request
+      (no K/V appended per token); "KV per token" is the wrong frame. The fixed
+      state is declared by cache.entries[].state.'

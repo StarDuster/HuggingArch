@@ -1,0 +1,1667 @@
+# Dimension symbols — the one place a symbol is classified and explained.
+#
+# A model spec's `dims:` block says which config field BINDS a symbol; this
+# file says what the symbol IS. Three facts, and they must be here before a
+# spec may use the name:
+#
+#   kind     — what the number COUNTS, from the vocabulary the evaluator
+#              dispatches on: head_count / split_width / vocab / sequence /
+#              expert_copies / layer_count, or `whole` for an extent that
+#              counts nothing distributable, or `constant` for a real number
+#              a function takes that is no extent at all (a clamp bound —
+#              see the `function_constants` group). Architecture, not
+#              deployment: a head count is a head count whether or not
+#              anyone splits it.
+#   shardable_by — which rank groups MAY split an occurrence of it, named in
+#              `worlds:` below. This is capability, not placement: the tensor
+#              endpoint selects a group explicitly, while another occurrence
+#              of the same symbol may remain replicated. Empty means either
+#              that no group may split it (`whole`) or that its partition is
+#              not described by a degree (`layer_count`).
+#   meaning  — what the number counts, for the author of the next spec and
+#              for the Dim Bindings tooltip that reads this file.
+#
+# One engine fact rides beside them: `step_token_axis: true` on the axes whose
+# product is the tokens a step runs — the batch and the query length, under
+# each name it is bound by (`s_ctx`, `s_query`, `n_verify`). Not `kind`: the
+# batch is kind `batch`, `n_verify` is `whole`, and `s_kv` is a `sequence`
+# that counts the keys attended, not the tokens run. A cached tensor's row is
+# what is left once these axes are taken off; the ones that are not the batch
+# are the query axis (`dims.query_axes`: the axis a context-parallel rank
+# holds its share of the step's queries on). Not `call_tokens` either, which
+# names what a Kernel Bench curve is drawn along (`B`, `s_query`, a routed
+# `n_tokens`): `s_ctx` and `n_verify` are the step's tokens on a walked tensor
+# and on no curve.
+#
+# Why the split is two fields and not one: per-rank extent is the product of
+# three facts that belong to three different people. Which axes a tensor is
+# shaped on is the spec author's (`out: n_indexer_heads * d_indexer_head`);
+# which worlds may split it is this file's; which world actually does is the
+# occurrence endpoint's; and what degree that world runs at is the
+# DEPLOYMENT's. Explicit `replicated: true` at an endpoint is therefore an
+# audited placement choice, not an accidental absence of a capable symbol.
+#
+# This replaced three tables that had to agree by hand and had already
+# drifted: the divisible kinds in eval/transforms.py, the `whole` set in
+# tests/backend/arch/test_eval_axis_kinds.py, and the prose in dims_glossary.md — where
+# the three DSv4 compressor axes below were sharded by one and unknown to
+# the other two. `SpecLoader` rejects a spec that binds an unregistered
+# symbol, so a new axis is classified at birth or the spec does not load.
+
+# The rank groups an axis can live in. Open by construction: a world is one
+# entry here, and one more is what it costs to make a new kind of splitting
+# expressible.
+#
+#   mesh    — which mesh the group is a subgroup of, and therefore WHICH cut
+#             the split is. Every mesh divides a SHAPE: the tensor gets
+#             smaller along one axis. `tp` and `cp` and `ep` differ in which
+#             axis and in what the rank may then read across — `ep` divides
+#             an expert bank's leading axis, `cp` the positions of one
+#             sequence, `dp` whole requests. There is no `pp` mesh: pipeline
+#             parallelism partitions the layer index space and no degree
+#             describes the result — see `n_layers`.
+#   degree  — the `ParallelConfig` field carrying this world's degree. A world
+#             with no field is one no deployment knob has asked to split yet;
+#             it runs at 1 until a deployment names it in `world_degrees`, so
+#             adding the knob later changes no number that exists today.
+#   phases  — the serving phases the world actually splits in. Omitted means
+#             both, which is nearly always the answer: a weight split is a
+#             weight split whichever way the step runs. `sequence` is the
+#             exception and says so here rather than in prose, because
+#             `sharding.degree_in_phase` reads this field and knows no world
+#             by name — a second prefill-only world is this line and nothing
+#             else, and prose the code cannot reach is prose that drifts.
+worlds:
+- slug: attention
+  mesh: tp
+  degree: tp_attention
+  meaning: >-
+    The model's tensor-parallel group as attention names it — query/KV heads,
+    the grouped output-LoRA, the recurrent and SSM head axes, the vision
+    tower's heads, and the vocabulary. The vocabulary is here rather than in a
+    world of its own because vLLM splits it over this same group:
+    `VocabParallelEmbedding` divides `num_embeddings_padded` by `tp_size` and
+    `ParallelLMHead` subclasses it.
+- slug: dense_ffn
+  mesh: tp
+  degree: tp_dense_ffn
+  meaning: >-
+    The column-row split of a dense FFN's intermediate — the language stack's
+    and the vision tower's alike.
+- slug: moe_expert
+  mesh: tp
+  degree: tp_moe_expert
+  meaning: >-
+    The same split applied INSIDE one expert. A separate world from
+    `dense_ffn` because a deployment routinely runs them at different widths,
+    and the two axes are spelled apart (`d_ffn` vs `d_ffn_expert`) so that it
+    can.
+- slug: moe_copies
+  mesh: ep
+  degree: ep_moe
+  meaning: >-
+    Expert parallelism: it divides the leading axis of an expert bank's
+    tensors, so a rank holds a slice of `n_expert_copies`. Never the routing
+    denominator `n_route_targets` or the router's class count, which are
+    different symbols for exactly this reason — dividing one of those shrinks
+    `M` and the router with it.
+- slug: sequence
+  mesh: cp
+  degree: cp
+  phases: [prefill]
+  meaning: >-
+    PREFILL context parallelism over the QUERY token axes — vLLM's
+    `prefill_context_parallel_size`, which spans ranks of its own
+    (`config/parallel.py`: `world_size = pp * tp * pcp`). It splits the tokens
+    a rank PROCESSES, never the context it attends and never the cache it
+    keeps: `attention/pcp.py::_gather_prefill_cache_inputs` all_gathers the
+    prefill K/V across the PCP group before the cache write, so every PCP rank
+    writes — and holds — the whole thing. That is why `s_kv` is not in this
+    world, and why prefill CP buys throughput while decode reads no faster.
+- slug: attn_data
+  mesh: dp
+  degree: dp_attention
+  bound_per_rank: true
+  meaning: >-
+    DP-attention: each rank runs the whole attention stack, at full head width,
+    over its OWN requests. It is the partner of expert parallelism in every
+    MoE deployment that uses it — vLLM's `--enable-expert-parallel` with
+    `data_parallel_size`, sglang's `--enable-dp-attention` — and the reason
+    the pair exists is that the two halves of the block want opposite splits:
+    attention has no cross-request work and would waste ranks replicating
+    heads, while the expert bank is too large to replicate and has no
+    per-request structure to split on. The all_to_all between them is not an
+    overhead either side chose; it is the seam where one partitioning becomes
+    the other, and it derives from `permute`'s mode meeting this world's
+    request cut — see `ops.py::permute`.
+
+    Cutting REQUESTS is what makes this a different world from `sequence`,
+    which cuts the positions inside one. Attention is separable along this
+    axis and not along that one, so a single spelling for both made every
+    DP-attention deployment pay a context-parallel repair it never performs.
+- slug: kv_shard
+  mesh: cp
+  degree: dcp
+  subgroup_of: attention
+  meaning: >-
+    DECODE context parallelism — vLLM's `decode_context_parallel_size`, which
+    spreads the KV cache over a subgroup of the attention TP ranks and adds no
+    ranks of its own ("DCP does not expand the process world size. Without
+    PCP, DCP reuses TP ranks"). The ONLY world that divides the cache:
+    `worker/block_table.py` passes `TOTAL_CP_WORLD_SIZE=self.dcp_world_size`
+    to the slot-mapping kernel and `kv_cache_interface.max_memory_usage_bytes`
+    divides `max_model_len` by `dcp_world_size` alone. It splits that and
+    nothing else: the query and output projections stay `n_heads /
+    tp_attention` on every rank (`deepseek_v2.py` builds `o_proj` as a plain
+    `RowParallelLinear` over TP in every mode), and the head-axis all_gather /
+    reduce_scatter around the attention core is comm, not a weight split. It
+    holds in prefill too — vLLM's chunked-context planner gives each DCP rank
+    `1/dcp` of the context rows (`mla_attention.py`) — so unlike a `sequence`
+    split there is nothing to undo per phase.
+- slug: indexer
+  mesh: tp
+  meaning: >-
+    DSA's sparse indexer, which is a second attention beside the first and can
+    be split independently of it. No deployment field yet: for DeepSeek-style
+    indexers vLLM and sglang both build the whole indexer on every rank, so
+    the world runs at 1 and every indexer tensor comes out whole by
+    arithmetic. Step-5's indexer is the exception and does not use this
+    world: both frameworks shard its Q/W by provider group, which its spec
+    writes as `n_kv_heads * n_indexer_group_heads` on the `attention` world
+    (see `n_indexer_group_heads`).
+
+groups:
+- slug: backbone
+  title: Backbone
+- slug: parallelism
+  title: Parallelism (what a launch spans)
+  intro: >-
+    Degrees a kernel launch itself carries, as opposed to the mesh degrees
+    above, which say how a deployment is cut. A fused collective's group is
+    one: the same per-rank shape at two group sizes is two launches moving
+    different amounts over the fabric, so the group belongs to the
+    measurement's shape rather than to the deployment label beside it.
+- slug: moe_routing
+  title: MoE routing
+- slug: mla
+  title: MLA (Multi-head Latent Attention)
+- slug: dsa
+  title: DSA (DeepSeek Sparse Attention — DSv3.2 / GLM-MoE-DSA)
+- slug: relative_position_attention
+  title: Relative-position attention (Inkling)
+  intro: >-
+    Inkling replaces RoPE with a learned relative-position branch and adds depthwise short-convolutions
+    on the QKV path:
+- slug: partial_rope_split_head_dims
+  title: Partial-RoPE / split-head dims
+  intro: >-
+    Used by Qwen3.5-MoE and Step-3.5 where RoPE is applied to only the first `d_rope`
+    dims of each head:
+- slug: mtp_speculative
+  title: MTP / speculative
+- slug: hyper_connections
+  title: Hyper-Connections (V4-Pro / V4-Flash)
+  intro: >-
+    DSv4's residual stream maintains `n_hidden_copies` parallel hidden copies instead
+    of one. Each Block calls `hc_pre` (n_hidden_copies→1 reduce via Sinkhorn-mixed weights)
+    before attn/ffn and `hc_post` (1→n_hidden_copies re-spread) after. See `library/hc_pre.yaml`,
+    `library/hc_post.yaml`, and the V4-Pro `Block.hc_pre` / `hc_post` methods in `inference/model.py`.
+- slug: vision_tower
+  title: Vision tower (multimodal models — Gemma-4, Kimi-K2.5, Qwen3.5-MoE, Step-3.7)
+- slug: media_input
+  title: Media inputs (the axes a workload gives an image or audio input)
+  intro: >-
+    Not config dims: a media input's own axes (`model_inputs.<name>.axes`), the
+    item count per request and one item's processed extents, given by the
+    workload (`Workload.media`) and bound only in the encode phase. An
+    encoder's rows grow from these through its `patchify`, never from the
+    language model's `s_ctx`.
+- slug: conv2d
+  title: 2-D convolution (Step-3.7 ViT downsamplers)
+- slug: audio_encoder_speech_embedding
+  title: Audio encoder + speech embedding (multimodal audio models — MiMo-V2.5)
+- slug: linear_attention_hybrid_recurrence
+  title: Linear-attention / hybrid recurrence (Qwen3.5-MoE linear layers)
+- slug: mamba_2_selective_ssm
+  title: Mamba-2 selective SSM (Nemotron-H, Zamba2, IBM Granite-H, …)
+- slug: per_arch_one_offs
+  title: Per-arch one-offs
+- slug: function_constants
+  title: Function constants (real numbers a pointwise function takes)
+  intro: >-
+    Not extents: kind `constant`. A clamp's bound, an activation's beta. They
+    do not change what an op costs, only what function it computes, which is
+    what a measured kernel and its reference have to agree on. An op names
+    the ones it takes (`OpSpec.consts`) and reads them from the node's frame
+    like any other symbol, so a spec binds each where its config publishes
+    it, and a call site or node rebinds it with `dims:` where one part of
+    the model reads another config scope (a vision tower's own bound). A
+    config that does not publish one leaves it unbound — absent, never a
+    default — and a consumer that has to compute the function declines.
+- slug: engine_dims
+  title: Engine-supplied dims (threaded from the analyze request)
+  intro: >-
+    Not spec dims: no model's `dims:` block binds these and no call site passes them.
+    They arrive with the request and stand for the whole step, which is what separates
+    them from the phase binding below — those are engine-supplied too, but resolved
+    only once the phase is known.
+- slug: gemm_axes
+  title: GEMM axes (measured-row identity only)
+  intro: >-
+    Not model dims — the axes of a matrix multiply as the kernel sees it. A measured GEMM
+    row keys on these, so one row is reusable by any model whose projection happens to
+    have the same inner/outer widths.
+- slug: phase_binding
+  title: Phase binding (engine-supplied, resolved per phase)
+  intro: >-
+    Not spec dims: these are bound by `backend/inference/phases.py:phase_binding` once
+    the phase is known, and they are what the attention identity is keyed on. Previously
+    they lived in a parallel namespace (`PHASE_BINDING_EXTRAS`) outside this file, so
+    a contributor had no single place to look them up. The `s_kv` vs `s_cache` split is
+    the one the old `Lq` / `cache_len` names hid: they coincide only for plain autoregressive
+    decode, and differ in both other regimes (prefill: `s_cache = 0` while `s_kv = s_query`;
+    speculative decode: `s_kv` leads `s_cache` by `n_verify − 1`).
+- slug: dsv4_compressor
+  title: DSv4 compressor (indexer-internal)
+  intro: >-
+    The V4 indexer's internal compressor pools KV into a narrow head before the sparse-attention
+    scores. Its widths are bound at the component call site, not in any model's `dims:`
+    block.
+
+symbols:
+  d_model:
+    kind: whole
+    group: backbone
+    meaning: Hidden size of the main backbone.
+    config: hidden_size
+  n_heads:
+    kind: head_count
+    shardable_by: [attention]
+    group: backbone
+    meaning: Number of attention heads (query side).
+    config: num_attention_heads
+  n_heads_full:
+    kind: head_count
+    shardable_by: [attention]
+    group: backbone
+    meaning: >-
+      Query heads of the full-attention layers in a hybrid whose sliding-window
+      layers set the backbone `n_heads` (Step-3.7: 64 full against 96 sliding,
+      `attention_other_setting.num_attention_heads`).
+  n_kv_heads:
+    kind: head_count
+    shardable_by: [attention]
+    group: backbone
+    meaning: >-
+      Number of KV heads (GQA fan-out factor: `n_heads / n_kv_heads` queries share one
+      KV pair).
+    config: num_key_value_heads
+  n_kv_heads_swa:
+    kind: head_count
+    shardable_by: [attention]
+    group: backbone
+    meaning: >-
+      KV heads override for SWA layers in hybrid SWA-vs-full models (MiMo-V2.5 MTP head
+      physically stores `swa_num_key_value_heads`; defaults to `n_kv_heads` otherwise).
+    config: swa_num_key_value_heads
+  n_kv_heads_full:
+    kind: head_count
+    shardable_by: [attention]
+    group: backbone
+    meaning: >-
+      KV heads override for full-attention layers in Gemma-4-Unified's SWA-vs-full hybrid
+      (full layers use MQA-style `n_kv_heads_full=1` while sliding layers use `n_kv_heads=8`).
+    config: text_config.num_global_key_value_heads
+  d_head:
+    kind: whole
+    group: backbone
+    meaning: >-
+      Per-head dim for standard attention: `head_dim = d_model / n_heads`. Also the family-neutral
+      **formal parameter** name of the head-layout ops (`head_split` / `head_merge` /
+      `view_split` …) — an MLA caller binds `d_head: d_qk_nope`, a linear-attention caller
+      binds `d_head: d_lin_k_head`.
+    config: head_dim
+  d_head_full:
+    kind: whole
+    group: backbone
+    meaning: >-
+      Per-head dim override for full-attention layers in Gemma-4-Unified's SWA-vs-full
+      hybrid (full layers use `d_head_full=512` while sliding layers use `d_head=256`).
+    config: text_config.global_head_dim
+  d_v_head:
+    kind: whole
+    group: backbone
+    meaning: Per-head value dim (MLA only — value heads have a different dim than QK).
+  n_vocab:
+    kind: vocab
+    shardable_by: [attention]
+    group: backbone
+    meaning: Vocab size.
+    config: vocab_size
+  n_logit_softcap:
+    kind: whole
+    group: backbone
+    meaning: >-
+      Final-logit soft-cap count: 1 when the model returns `c · tanh(logits / c)`
+      instead of the raw logits, 0 when it does not. The implementation branches
+      on `final_logit_softcapping is not None`, so the binding is presence —
+      `present(config.final_logit_softcapping)` — never the cap's value: an
+      explicit 0 still builds the steps, and a fractional cap is a valid value
+      that no dim carries (`scale_const` prices per element, whatever its
+      constant). `logit_softcap`'s steps are `when: n_logit_softcap`.
+    binding: '`present(config.final_logit_softcapping) ?? "<config class default: 1 or 0>"`'
+  n_layers:
+    kind: layer_count
+    group: backbone
+    meaning: >-
+      Number of decoder layers in the main backbone. No world: pipeline
+      parallelism does split it, but as a partition of the layer index space
+      rather than by a degree — the stages of a 28-layer model at pp=8 hold
+      3,3,3,4,4,4,4,3, so no single number is what each rank divides by.
+      `backend.arch.layout.stages.StagePlacement` answers per stage, cutting the
+      iteration space with `stage_layer_ranges`.
+    config: num_hidden_layers
+    unit: layers
+  n_hash_layers:
+    kind: whole
+    group: backbone
+    meaning: >-
+      DeepSeek-V4: the first `n_hash_layers` backbone layers use hash MoE
+      routing; the rest use sigmoid routing. A per-layer routing boundary,
+      not a shardable extent — used only to select which layers a `per_layer`
+      generator claims, so nothing divides it.
+    config: num_hash_layers
+  Kar:
+    kind: whole
+    group: backbone
+    meaning: >-
+      Cross-block attention-residual STRIDE — one AttnRes checkpoint is written every
+      `Kar` layers (Kimi-K3: 12).
+    config: attn_res_block_size
+  Sar:
+    kind: whole
+    group: backbone
+    engine_supplied: true
+    meaning: >-
+      History length — how many entries of its stack's `read: all` stream a layer
+      sees (Kimi-K3's AttnRes `block_residual`: the entries of layers 0, Kar, 2·Kar, …
+      appended before this layer, `ceil(l / Kar)` at layer l). No model binds it: the
+      walk binds it per group of layers that see the same number
+      (`BlockMeta.visible`), and it is the history axis of `stack_init` /
+      `stack_append` / `attn_res_combine`. Nothing splits it.
+  d_ffn:
+    kind: split_width
+    shardable_by: [dense_ffn]
+    group: backbone
+    meaning: FFN intermediate size for **dense** FFN layers.
+    config: intermediate_size
+  d_ffn_expert:
+    kind: split_width
+    shardable_by: [moe_expert]
+    group: backbone
+    meaning: FFN intermediate size per **MoE expert**.
+    config: moe_intermediate_size
+  d_ffn_shared:
+    kind: split_width
+    shardable_by: [dense_ffn]
+    group: backbone
+    meaning: >-
+      Shared-expert intermediate size (DeepSeek-V4 and Moonlight: one wide
+      shared expert; Qwen3.5-MoE: same as `d_ffn_expert`).
+    config: shared_expert_intermediate_size (Qwen)
+    default: d_ffn_expert
+  d_moe_latent:
+    kind: whole
+    group: backbone
+    meaning: >-
+      MoE expert-bank latent dim (Nemotron-H Latent-MoE: routed experts work in a low-rank
+      latent space bracketed by `fc1_latent_proj` d_model→d_moe_latent and `fc2_latent_proj`
+      d_moe_latent→d_model).
+    config: moe_latent_size
+  s_window:
+    kind: whole
+    group: backbone
+    meaning: Sliding-window size for SWA layers.
+    config: sliding_window
+  is_causal:
+    kind: whole
+    group: backbone
+    meaning: >-
+      Attention mask flag on a score / softmax / apply node: `1` (the default when no node
+      states it) = causal, the frame's `s_pairs` are scored; `0` = bidirectional, every
+      query sees every key it is offered (HF `is_causal=False`; vLLM encoder attention
+      `causal=False`). Declared by the attention, never derived from where it sits.
+  is_chunked:
+    kind: whole
+    group: backbone
+    meaning: >-
+      Windowed-attention mask flag: `1` = the keys are cut into fixed chunks of `s_window`
+      positions and a query sees only its own chunk (chunked local attention — vLLM
+      `attention_chunk_size`; MiMo audio's groups of `group_size`); `0` (the default when no
+      node states it) = a sliding band around each query. A band of 4 and chunks of 4 attend
+      the same count per query and different pairs in total, so the window size alone does not
+      say which.
+  s_max:
+    kind: whole
+    group: backbone
+    meaning: >-
+      Published context length. Bound only by specs whose models publish one;
+      the pipeline-partition bound reads it and otherwise uses the request length.
+    config: max_position_embeddings
+  n_attn_sinks:
+    kind: whole
+    group: backbone
+    meaning: >-
+      Length of the per-head attention-sink vector FA takes as `s_aux`
+      (equals `n_heads` per rank). Present on a `gqa_attention` cell iff
+      the fused span absorbed `softmax_with_sink` or
+      `swa_softmax_with_sink`. Absence is plain softmax.
+  n_experts:
+    kind: whole
+    group: moe_routing
+    meaning: >-
+      Total experts that HOLD WEIGHTS. **Never sharded** by expert-parallelism.
+      Not the routing denominator: that is `n_route_targets`, which counts the
+      destinations the top-k draws from and exceeds this on LongCat-Flash.
+      In a routed Kernel Bench cell (`grouped_gemm` / `moe_permute` /
+      `moe_combine`) the same name counts the experts ONE LAUNCH runs: the
+      ones the step's rows reach on the rank, `min(E_local, ceil(E_local × M))`
+      (`eval.routed.RoutedLaunch.touched_experts`) — not the model's total.
+    config: n_routed_experts
+  n_comm_ranks:
+    kind: whole
+    group: parallelism
+    meaning: >-
+      Ranks the collective inside one kernel invocation reduces over — the
+      group the launch itself runs on, which decides how much it moves over
+      the fabric. A local kernel has none; a fused collective (an all-reduce
+      folded into an RMSNorm) has one, and the same per-rank shape at two
+      group sizes is two different launches. Already the launch's own group,
+      so nothing divides it again.
+  n_comm_elems:
+    kind: whole
+    group: parallelism
+    meaning: >-
+      Elements in the buffer one collective launch moves — NCCL's `count`.
+      A collective has no local math and no layout: its kernels take a
+      pointer, a count, a dtype and a communicator, so the same ring moves
+      a [8,1,7168] hidden state and a [56,1,1024] one identically and the
+      payload enters a measurement cell flattened. Elements and not bytes:
+      the width is the dtype's, and because a collective may move something
+      other than its row's activations (an fp32 log-sum-exp beside bf16
+      hidden states), a cell is only stated when the width the walk priced
+      the payload at is the width that row computes at — otherwise the row
+      is refused rather than counted at the wrong width. What flattening
+      does NOT say is how a ragged all-to-all-V splits one payload between
+      peers; the buffer is the busiest rank's rows
+      (`ExpectedRoutedLoad.busiest_rank_load_factor`), and how the rest of the
+      payload divides between peers is no extent of it.
+  n_comm_stride:
+    kind: whole
+    group: parallelism
+    meaning: >-
+      Ranks between consecutive members of this launch's group on the device
+      mesh (`comm_cost.collective_phases`' `base_stride`): 1 where the group
+      is adjacent ranks (TP, nested innermost), the inner degree where an
+      outer axis is composed over it (an EP collective over `tp_moe_expert`).
+      Part of the cell because it decides how many members share a node, and
+      therefore which fabric the launch runs on — an 8-rank all-reduce inside
+      one node is not the same measurement as one across eight.
+  n_tokens:
+    kind: whole
+    group: moe_routing
+    call_tokens: total
+    meaning: >-
+      Integer routed-token rows presented to one physical kernel invocation after
+      expert-parallel partitioning — the sum over the per-expert rows, which no tensor
+      carries as an axis. Already per-rank, so nothing divides it again.
+    used_by: kernel_bench grouped-GEMM identity
+  s_expert_rows:
+    kind: whole
+    group: moe_routing
+    call_tokens: factor
+    meaning: >-
+      The rows ONE expert's slice of the routed buffer holds — the `M` of the
+      `[n_expert_copies, M, d]` layout every tensor between `permute` and
+      `combine` carries, padded up to a whole row at the kernel boundary (the
+      per-expert mean is almost never whole and every expert that receives
+      rows is padded up alike, so `n_tokens = n_experts × s_expert_rows` at
+      the measured geometry — where a cell's `n_experts` is the experts the
+      step's rows reach, all the rank holds from a mean of one row up and
+      `ceil(E × M)` below it). A `factor` of that routed total: a Kernel Bench curve along
+      `n_tokens` takes the per-expert width with it. No spec binds it:
+      `benchmark_identity` reads it off the routed buffer's middle axis, and
+      it appears here because this table is the whitelist a benchmark row's
+      `shape_json` is validated against. Named apart from `s_query` — the
+      step's query length, which the dispatch's TOKEN side carries — so a
+      `moe_permute` cell can state both row counts of the boundary it moves.
+    used_by: kernel_bench routed-cell identity (grouped_gemm / moe_permute / moe_combine)
+  n_route_targets:
+    kind: whole
+    group: moe_routing
+    meaning: >-
+      How many destinations the top-k chooses among — the DISPATCH DENOMINATOR, and the
+      routed part of the gate's output width (the gate scores every destination the
+      top-k may pick, zero-compute ones included). `n_experts` of them hold weights and
+      `n_zero_experts` do nothing, so a token routed to `n_experts_active` targets lands
+      on `n_experts_active * n_experts / n_route_targets` weighted experts on average. A
+      gate that also scores other lanes writes that in its own component (Inkling's
+      `n_route_targets + n_shared_experts`).
+    derived: "n_experts + n_zero_experts"
+  n_expert_copies:
+    kind: expert_copies
+    shardable_by: [moe_copies]
+    group: moe_routing
+    meaning: >-
+      The expert AXIS: the leading `[n_expert_copies, …]` axis of every routed expert
+      bank's weights and of the `[n_expert_copies, M, d]` buffer `permute` writes. It is
+      the only axis expert parallelism divides, so a rank holds `n_expert_copies/ep` of
+      it. It is `n_experts` — the same experts — carried under its own name because this
+      one is divided per rank and the routing counts are not: the dispatch denominator
+      `n_route_targets` stays global on every rank, and so does the gate it sizes.
+      Read this one for a tensor's axis; `n_experts` for how many experts the model
+      has, `n_route_targets` for how many destinations the top-k draws from and the
+      gate scores. Derived, never a `dims:`
+      key: every component call and block assignment that rebinds `n_experts`
+      derives its own.
+    derived: n_experts
+  n_shared_experts:
+    kind: whole
+    group: moe_routing
+    meaning: Shared-expert count (always-on, doesn't go through routing).
+    config: n_shared_experts
+    default: "0"
+    unit: experts
+  n_experts_active:
+    kind: whole
+    group: moe_routing
+    meaning: Top-k experts picked per token.
+    config: num_experts_per_tok
+    at_most: n_route_targets
+  n_expert_groups:
+    kind: whole
+    group: moe_routing
+    meaning: >-
+      Number of expert groups for grouped routing (noaux_tc's `group_top2_sum`,
+      DeepSeek-V2's `group_max`). Required wherever a router reads it: a model
+      with no grouping binds the literal 1 with the source line that says so.
+    binding: '`config.n_group` for a group-limited router, `"1"` for one with no group limit'
+  n_groups_active:
+    kind: whole
+    group: moe_routing
+    meaning: >-
+      Top groups picked per token in grouped routing. Required wherever a
+      router reads it: a model with no group limit binds the literal 1.
+    binding: '`config.topk_group` for a group-limited router, `"1"` for one with no group limit'
+    at_most: n_expert_groups
+  n_dense_layers:
+    kind: whole
+    group: moe_routing
+    meaning: >-
+      Number of leading **dense-FFN** layers (DSv3 family: layers `[0, n_dense_layers)`
+      use dense FFN, the rest MoE).
+    config: first_k_dense_replace
+  n_q_head_norm:
+    kind: whole
+    group: backbone
+    meaning: >-
+      Per-head query RMS-norm switch in the DeepSeek-V4 attention family: 1 when
+      `Attention.forward` normalizes each query head over d_head with no gain
+      before RoPE (`q *= rsqrt(q.square().mean(-1) + eps)`, V4-Flash / V4-Pro), 0
+      when the query goes straight from `wq_b` to RoPE (V4.1). The
+      `q_head_norm` step of `dsv4_swa_only_attention` is `when: n_q_head_norm`.
+  n_topk_renorm:
+    kind: whole
+    group: moe_routing
+    meaning: >-
+      Top-k renormalization switch: 1 when the router divides the gathered top-k weights
+      by their sum before scaling, 0 when it uses the gathered scores as they are. A
+      router's `topk_norm` step is `when: n_topk_renorm`.
+    config: norm_topk_prob
+  n_routed_scale:
+    kind: whole
+    group: moe_routing
+    meaning: >-
+      Routed-weight scaling count for the plain softmax router: 1 when the
+      router's forward multiplies its top-k weights by `routed_scaling_factor`,
+      0 when it has no such step. A fact about the architecture, not the
+      factor's value: DeepseekV2TopkRouter multiplies unconditionally (V2: 16.0,
+      V2-Lite: 1.0; a 0 or a fractional factor is still one multiply), so the
+      V2 specs bind the literal 1. The factor itself is not a dim —
+      `scale_const` prices per element, whatever its constant.
+      `router_softmax_topk`'s `topk_scale` is `when: n_routed_scale`, and the
+      switch is required: a router with no such step binds the literal 0.
+    binding: '`"1"` when the router''s forward multiplies its top-k weights by routed_scaling_factor, `"0"` when it has no such step'
+  n_router_bias_params:
+    kind: whole
+    group: moe_routing
+    meaning: >-
+      Router-bias param count override. Always `0` for current models — gate linear has
+      **no** bias; the additive `e_score_correction_bias` lives in a separate `parameter_vector`
+      node.
+    default: "0"
+  n_zero_experts:
+    kind: whole
+    group: moe_routing
+    meaning: >-
+      Zero-computation experts: routing destinations that hold no weights and return their
+      input (LongCat-Flash's `nn.Identity()` load-balance reserve). Zero for every other
+      model, which is what makes `n_route_targets` collapse to `n_experts` there.
+    default: "0"
+  d_kv_lora:
+    kind: whole
+    group: mla
+    meaning: >-
+      KV compression rank — KV is projected `d_model → d_kv_lora` then expanded back,
+      dramatically shrinking the KV cache.
+    config: kv_lora_rank
+  d_q_lora:
+    kind: whole
+    group: mla
+    meaning: Q compression rank — Q is also low-rank-factored in DSv3 / Kimi-K2.5.
+    config: q_lora_rank
+  d_qk_rope:
+    kind: whole
+    group: mla
+    meaning: RoPE-applied dim per head (the "PE" half of MLA's nope/pe split).
+    config: qk_rope_head_dim
+  d_qk:
+    kind: whole
+    group: mla
+    meaning: >-
+      MLA's **full** per-head QK width, `d_qk_nope + d_qk_rope` (DSv3: 512 + 64 = 576).
+      This is what the attention kernel's Q and latent-K tensors are actually shaped on,
+      so it is the width measured rows key against — distinct from the `d_qk_nope` component
+      that the spec binds. Not bound in any `dims:` block; derived.
+  d_qk_nope:
+    kind: whole
+    group: mla
+    meaning: >-
+      Non-RoPE part of MLA's per-head dim (Ling-2.6-1T overrides `d_head` to this at the full-attention
+      call site, since the linear-attention layers reuse `d_head` for a different role).
+    config: qk_nope_head_dim
+  d_out_lora:
+    kind: whole
+    group: mla
+    meaning: >-
+      Output-projection LoRA rank (V4-Pro grouped o-LoRA: each of `n_out_lora_groups`
+      head groups has its own `[n_heads·d_head/n_out_lora_groups → d_out_lora]` down-proj +
+      `[d_out_lora → d_model]` up-proj).
+    config: o_lora_rank
+  d_out_lora_group_in:
+    kind: whole
+    group: mla
+    meaning: >-
+      Fixed input width of one grouped output-LoRA down projection. Kept
+      separate from `n_out_lora_groups`: the group bank is sharded by its
+      leading group axis, while every local group retains this whole width.
+  n_out_lora_groups:
+    kind: head_count
+    shardable_by: [attention]
+    group: mla
+    meaning: >-
+      Output-projection group count (V4-Pro splits the output projection into independent
+      grouped LoRA pairs).
+    config: o_groups
+  n_indexer_heads:
+    kind: head_count
+    shardable_by: [indexer]
+    group: dsa
+    meaning: >-
+      Indexer head count (separate from main attention's `n_heads`). A head
+      axis like any other, in a world of its own: the indexer is a second
+      attention beside the first, and a deployment splitting one is not
+      thereby splitting the other. For the DeepSeek-style DSA indexer both
+      shipped frameworks leave this world at
+      1 — vLLM `model_executor/models/deepseek_v2.py::Indexer.__init__` carries
+      `# no tensor parallel, just replicated` above `wq_b = ReplicatedLinear`
+      and builds the fused `wk_weights_proj` with `disable_tp=True`; sglang
+      `layers/attention/dsv4/indexer.py::C4Indexer.__init__` sets
+      `n_local_heads = n_heads` and builds `wq_b` / `weights_proj` as
+      `ReplicatedLinear` — so every rank holds the whole indexer. That is
+      those frameworks' choice, arrived at by arithmetic here, and a
+      deployment that splits the indexer says so and gets a different number.
+      Step-5's indexer is the different kind: its heads come in provider
+      groups that ARE the KV groups and both frameworks shard its Q/W by
+      group, which a spec writes not with this dim alone but as
+      `n_kv_heads * n_indexer_group_heads` on the `attention` world (see
+      `n_indexer_group_heads`).
+    config: index_n_heads
+  d_indexer_head:
+    kind: whole
+    group: dsa
+    meaning: >-
+      Per-indexer-head dim. `whole` for the reason every per-head width is:
+      a head's interior is not a rank group's to split — the count beside it
+      is. This is the axis that tells the indexer's `wq_b`
+      apart from the attention `wq_b` beside it — the spelling is shared and
+      the geometry is not, so the tensor the `attention` world splits is the
+      one shaped on `n_heads * d_head`, and the one the `indexer` world
+      splits is shaped on this.
+    config: index_head_dim
+  n_indexer_group_heads:
+    kind: whole
+    group: dsa
+    meaning: >-
+      Indexer heads in one KV group, for an indexer whose heads are grouped
+      by the KV heads they select for (Step-5: 16 heads = 4 groups x 4,
+      `sparse_indexer_num_heads / num_provider_groups`). Such a spec writes
+      its indexer head axis `n_kv_heads * n_indexer_group_heads`, so the
+      `attention` world splits it by KV group exactly as it splits `k_proj`,
+      and a group's own heads stay together on a rank. `whole` for the same
+      reason `d_out_lora_group_in` is: the group count beside it is what a
+      rank group splits.
+  n_indexer_rope_interleave:
+    kind: whole
+    group: dsa
+    meaning: >-
+      Indexer RoPE pairing switch: 1 when the indexer's rotation pairs
+      adjacent channels (interleaved, GPT-J style), 0 when it pairs channel i
+      with i + d/2 (NeoX rotate-half). Cost-neutral — the rotation's work is
+      the same either way — and read only by a framework binding: sglang's
+      DSA indexer runs its fused query / key preparation only for the
+      interleaved layout (srt/layers/attention/dsa/dsa_indexer.py:299-303,
+      `is_neox_style = not indexer_rope_interleave`,
+      srt/models/deepseek_v2.py:2086), so the binding asks this dim.
+    config: indexer_rope_interleave
+  d_indexer_rope:
+    kind: whole
+    group: dsa
+    meaning: >-
+      Rotated span of one indexer head: its leading `d_indexer_rope` channels
+      rotate NEOX-paired (channel i with `i + d_indexer_rope / 2`) after the
+      norm, the remaining `d_indexer_head - d_indexer_rope` pass through with
+      the plain normalized value (Step-5 inference/model.py:1512-1537 builds
+      the indexer's cos/sin at `rotary_span = sparse_indexer_rope_dim`,
+      tables half that wide; kernel.py:85-178 rotates `2 * rotary_dim` =
+      the span).
+    config: sparse_config.sparse_indexer_rope_dim
+  n_topk_keys:
+    kind: whole
+    group: dsa
+    meaning: >-
+      Top-k key positions selected by the indexer per query. For MiniMax-M3 MSA this is
+      block-granular: `n_topk_keys = n_topk_blocks · s_sparse_block`.
+    config: index_topk
+  n_topk_blocks:
+    kind: whole
+    group: dsa
+    meaning: 'MiniMax-M3 MSA: number of top-k KV blocks selected per query.'
+    config: sparse_attention_config.sparse_topk_blocks
+  s_sparse_block:
+    kind: whole
+    group: dsa
+    meaning: 'MiniMax-M3 MSA: KV positions per sparse block.'
+    config: sparse_attention_config.sparse_block_size
+  d_rel_proj:
+    kind: whole
+    group: relative_position_attention
+    meaning: >-
+      Relative-position projection width — output of Inkling's `wr_du` (d_model→d_rel_proj)
+      per attention layer (= `rel_extent`).
+    config: text_config.rel_extent
+  d_rel_logits:
+    kind: whole
+    group: relative_position_attention
+    meaning: Relative-logits channel count — output of Inkling's `rel_logits_proj.proj`
+      (= `d_rel`).
+    config: text_config.d_rel
+  d_rope:
+    kind: whole
+    group: partial_rope_split_head_dims
+    meaning: RoPE-applied portion of the head dim.
+  d_nope:
+    kind: whole
+    group: partial_rope_split_head_dims
+    meaning: 'Non-RoPE portion. Constraint: `d_rope + d_nope == d_head`.'
+  n_mtp_layers:
+    kind: whole
+    group: mtp_speculative
+    meaning: Number of Multi-Token-Prediction layers (auxiliary head). Default 0.
+    config: num_nextn_predict_layers
+    unit: layers
+  n_hidden_copies:
+    kind: whole
+    group: hyper_connections
+    meaning: >-
+      Number of parallel hidden copies in the residual stream (a.k.a. `hc_mult`). V4-Pro
+      default = 4.
+    config: hc_mult
+  d_hc_mix:
+    kind: whole
+    group: hyper_connections
+    meaning: >-
+      Mix-vector size produced by `hc_pre`'s internal Linear. Derived: `(2 + n_hidden_copies)
+      · n_hidden_copies` — sized to encode `pre[n_hidden_copies]` + `post[n_hidden_copies]`
+      + `comb[n_hidden_copies, n_hidden_copies]` (the three Sinkhorn outputs).
+  d_vis_model:
+    kind: whole
+    group: vision_tower
+    meaning: Vision-tower hidden size.
+  n_vis_heads:
+    kind: head_count
+    shardable_by: [attention]
+    group: vision_tower
+    meaning: Vision attention heads.
+  n_vis_kv_heads:
+    kind: head_count
+    shardable_by: [attention]
+    group: vision_tower
+    meaning: >-
+      Vision KV heads (vision tower with GQA — MiMo-V2.5 ViT uses fused biased GQA with
+      `n_vis_heads=32`, `n_vis_kv_heads=8`).
+  d_vis_head:
+    kind: whole
+    group: vision_tower
+    meaning: >-
+      Vision per-head dim (`= d_vis_model / n_vis_heads`; Kimi-K3 MoonViT uses `= d_vis_qkv
+      / n_vis_heads` since qkv_hidden differs from hidden).
+  s_vis_window:
+    kind: whole
+    group: vision_tower
+    meaning: >-
+      Vision local-attention radius: on a windowed block a patch attends the
+      patches within this distance on either side (`|i − j| ≤ s_vis_window`,
+      non-causal), so the attended extent is `2·s_vis_window + 1` — the
+      `s_window` a windowed attention core is bound to. `whole`: it bounds
+      which positions a query reads, and no rank group divides that.
+    config: visual_token_window_size
+  s_vis_window_reach:
+    kind: whole
+    group: vision_tower
+    meaning: >-
+      w, the keys each side of a query in a vision tower's bidirectional sliding window
+      (MiMo `vision_config.visual_token_window_size`); `s_vis_window = 2w + 1`.
+  d_vis_qkv:
+    kind: whole
+    group: vision_tower
+    meaning: >-
+      Vision fused-QKV hidden size when it differs from `d_vis_model` (Kimi-K3 MoonViT:
+      `qkv_hidden_size` 1536 vs `d_vis_model` 1024; `wqkv` is `d_vis_model → 3·d_vis_qkv`,
+      `wo` is `d_vis_qkv → d_vis_model`).
+  d_vis_ffn:
+    kind: split_width
+    shardable_by: [dense_ffn]
+    group: vision_tower
+    meaning: Vision MLP intermediate size.
+  d_vis_merge:
+    kind: split_width
+    shardable_by: [dense_ffn]
+    group: vision_tower
+    meaning: >-
+      Vision patch-merger MLP width (`n_spatial_merge² · d_vis_model`, the spatial-merge
+      output). Qwen3-VL / Qwen3.5 run the merger column/row over TP: vLLM
+      `qwen3_vl.py::Qwen3_VisionPatchMerger` builds `linear_fc1` as ColumnParallelLinear and
+      `linear_fc2` as RowParallelLinear over this width.
+  d_vis_proj:
+    kind: split_width
+    shardable_by: [dense_ffn]
+    group: vision_tower
+    meaning: >-
+      Output width of a vision-side projection that vLLM splits by columns over TP,
+      outside the ViT blocks' own attention and MLP: a
+      ColumnParallelLinear(gather_output=True) whose output is gathered back
+      (Gemma-4 `vision_embedder.patch_dense`), or the hidden of a column/row projector
+      pair (MiniMax-M3 `multi_modal_projector`, `patch_merge_mlp`).
+  d_vis_merge_proj:
+    kind: split_width
+    shardable_by: [dense_ffn]
+    group: vision_tower
+    meaning: >-
+      Square patch-merger projection width (GLM-5.3 `merger.proj`): numerically
+      `d_proj_out`, but vLLM builds it ColumnParallelLinear(gather_output=True)
+      (`glm5next.multimodal.Glm5NextPatchMerger`), so it column-splits over TP
+      where `d_proj_out` itself stays whole.
+  n_vis_layers:
+    kind: whole
+    group: vision_tower
+    meaning: Vision-tower depth (encoder block count).
+    unit: layers
+  n_deepstack:
+    kind: whole
+    group: vision_tower
+    meaning: >-
+      How many intermediate vision-block outputs a DeepStack model taps
+      (Qwen3-VL `len(deepstack_visual_indexes)`), each read by its own
+      merger.
+    unit: layers
+  n_vis_channels:
+    kind: whole
+    group: vision_tower
+    meaning: Input channel count for the patch embedding (RGB → 3, RGBA → 4).
+  s_patch:
+    kind: whole
+    group: vision_tower
+    meaning: Patch size (e.g. 14, 16).
+  s_vis_image:
+    kind: whole
+    group: vision_tower
+    meaning: >-
+      The side in pixels of the fixed-size view a processor resizes every
+      image to (Step-3.7's `vision_config.image_size`, 728).
+  s_vis_crop:
+    kind: whole
+    group: vision_tower
+    meaning: >-
+      The side in pixels of the crops a processor cuts beside an image's
+      fixed-size view (Step-3.7's `patch_size`, 504).
+  n_vis_soft_tokens:
+    kind: whole
+    group: vision_tower
+    meaning: >-
+      Rows a processor pads every image to (Gemma-4's `max_soft_tokens`,
+      `vision_config.num_soft_tokens`); the padding rows are computed and
+      then dropped.
+  n_vid_soft_tokens:
+    kind: whole
+    group: vision_tower
+    meaning: >-
+      Rows a processor pads every video frame to (Gemma-4's video
+      `max_soft_tokens`); the padding rows are computed and then dropped.
+  n_img:
+    kind: whole
+    group: media_input
+    engine_supplied: true
+    meaning: Images per request.
+  img_h:
+    kind: whole
+    group: media_input
+    engine_supplied: true
+    meaning: >-
+      An image's height in pixels as the processor hands it to the encoder,
+      after its resize (a multiple of the `patchify` `align`).
+  img_w:
+    kind: whole
+    group: media_input
+    engine_supplied: true
+    meaning: An image's processed width in pixels (see `img_h`).
+  n_crops:
+    kind: whole
+    group: media_input
+    engine_supplied: true
+    meaning: Crops per image (Step-3.7's `patch_pixel_values`).
+  crop_h:
+    kind: whole
+    group: media_input
+    engine_supplied: true
+    meaning: A crop's processed height in pixels.
+  crop_w:
+    kind: whole
+    group: media_input
+    engine_supplied: true
+    meaning: A crop's processed width in pixels.
+  n_aud:
+    kind: whole
+    group: media_input
+    engine_supplied: true
+    meaning: Audio clips per request.
+  s_audio:
+    kind: whole
+    group: media_input
+    engine_supplied: true
+    meaning: >-
+      An audio clip's length in the encoder's input frames (feature frames,
+      or codec frames for a model that reads codes).
+  s_patch_temporal:
+    kind: whole
+    group: vision_tower
+    meaning: Temporal patch size (Qwen3.5-MoE video patches).
+  n_spatial_merge:
+    kind: whole
+    group: vision_tower
+    meaning: >-
+      Spatial-merge factor for the vision merger (2×2 patch concat → `n_spatial_merge²
+      · d_vis_model` channels).
+  n_vis_pos_vocab:
+    kind: whole
+    group: vision_tower
+    meaning: Position-embedding vocab (number of position slots in the visual encoder).
+  n_vis_pos_per_axis:
+    kind: whole
+    group: vision_tower
+    meaning: >-
+      Entries per axis of a factorized vision position table stored as
+      `[n_vis_pos_per_axis, 2, d_vis_model]`: a patch's row and column each
+      look up one entry and the two are summed.
+    used_by: Gemma-4
+  d_patch_in:
+    kind: whole
+    group: vision_tower
+    meaning: >-
+      Width of one flattened patch fed to a linear patch projection:
+      `n_vis_channels · s_patch²` (an RGB patch of side 48 → 6912).
+    used_by: Gemma-4
+  PeH:
+    kind: whole
+    group: vision_tower
+    meaning: >-
+      Position-embedding grid (Kimi-K2.5: position embedding is `embedding(PeH·PeW, d_vis_model)`).
+  PeW:
+    kind: whole
+    group: vision_tower
+    meaning: >-
+      Position-embedding grid (Kimi-K2.5: position embedding is `embedding(PeH·PeW, d_vis_model)`).
+  d_proj_hidden:
+    kind: whole
+    group: vision_tower
+    meaning: Multi-modal projector hidden size.
+  d_proj_in:
+    kind: whole
+    group: vision_tower
+    meaning: Multi-modal projector input dim (= `d_proj_hidden · n_spatial_merge · n_spatial_merge`).
+  d_proj_out:
+    kind: whole
+    group: vision_tower
+    meaning: Multi-modal projector output dim (target hidden size for fusion with `d_model`).
+  n_vis_pos_slots:
+    kind: whole
+    group: vision_tower
+    meaning: >-
+      Vision positional-embedding slot count (`(image_size / s_patch)²`, Step-3.7 Perception
+      Encoder).
+  s_vis_ds_kernel:
+    kind: whole
+    group: vision_tower
+    meaning: 'Vision downsampler conv kernel size (Step-3.7: 3).'
+  s_vis_ds_stride:
+    kind: whole
+    group: vision_tower
+    meaning: >-
+      Vision downsampler conv stride (Step-3.7: 2). A stride-s conv on a square
+      patch grid shrinks the flattened grid s^2-fold (rows -> ceil(rows/s^2)).
+  d_vis_ds_out1:
+    kind: whole
+    group: vision_tower
+    meaning: 'First vision-downsampler output channels (Step-3.7: `2·d_vis_model`).'
+  d_vis_ds_out2:
+    kind: whole
+    group: vision_tower
+    meaning: >-
+      Second vision-downsampler output channels (Step-3.7: `4·d_vis_model`, feeds `vit_large_projector`).
+  d_audio_model:
+    kind: whole
+    group: audio_encoder_speech_embedding
+    meaning: Audio encoder hidden size (Qwen2-style local transformer).
+  n_audio_heads:
+    kind: whole
+    group: audio_encoder_speech_embedding
+    meaning: Audio attention heads.
+  d_audio_head:
+    kind: whole
+    group: audio_encoder_speech_embedding
+    meaning: Audio per-head dim.
+  s_audio_window:
+    kind: whole
+    group: audio_encoder_speech_embedding
+    meaning: >-
+      Frames per bidirectional attention group in the audio encoder's local
+      transformer (MiMo `audio_config.group_size`): each frame attends within
+      its group of this many frames.
+  d_audio_ffn:
+    kind: whole
+    group: audio_encoder_speech_embedding
+    meaning: Audio FFN intermediate size.
+  n_audio_layers:
+    kind: whole
+    group: audio_encoder_speech_embedding
+    meaning: Audio encoder layer count.
+    unit: layers
+  s_audio_group:
+    kind: whole
+    group: audio_encoder_speech_embedding
+    meaning: >-
+      Audio frames folded into one group before the projection: the frame
+      sequence is padded to a multiple of this and regrouped `[T, C] →
+      [T / s_audio_group, s_audio_group · C]` (sglang `models/mimo_audio.py`
+      `audio_group_size = config.group_size`, projection input
+      `audio_input_local_dim * audio_group_size`). The audio local
+      transformer attends within one group. `whole`: a group is the unit the
+      fold and the attention see, not a width any rank group splits.
+    config: group_size
+  n_speech_vocab:
+    kind: whole
+    group: audio_encoder_speech_embedding
+    meaning: >-
+      Speech token vocab size per embedding bank. `whole` rather than `vocab`
+      by verdict: vLLM's speech_embeddings are plain `nn.Embedding`, not
+      `VocabParallelEmbedding` (models/mimo_audio.py:1212).
+  n_speech_banks:
+    kind: whole
+    group: audio_encoder_speech_embedding
+    meaning: Number of speech embedding banks (parallel codec-channel speech codebooks).
+    unit: banks
+  n_mel_vocab:
+    kind: whole
+    group: audio_encoder_speech_embedding
+    meaning: >-
+      Inkling discrete-mel embedding vocab (dmel audio: `n_mel_bins · mel_vocab_size`).
+      `audio.encoder` embeds these into `d_model`.
+  n_lin_k_heads:
+    kind: head_count
+    shardable_by: [attention]
+    group: linear_attention_hybrid_recurrence
+    meaning: Linear-attention key heads.
+  d_lin_k_head:
+    kind: whole
+    group: linear_attention_hybrid_recurrence
+    meaning: Linear-attention key per-head dim.
+  n_lin_v_heads:
+    kind: head_count
+    shardable_by: [attention]
+    group: linear_attention_hybrid_recurrence
+    meaning: Linear-attention value heads.
+  d_lin_v_head:
+    kind: whole
+    group: linear_attention_hybrid_recurrence
+    meaning: Linear-attention value per-head dim.
+  s_conv_kernel:
+    kind: whole
+    group: linear_attention_hybrid_recurrence
+    meaning: Conv kernel for the gated-delta-net 1D conv stack.
+  C_in:
+    kind: whole
+    group: conv2d
+    meaning: >-
+      Input channels of a 2-D conv (`conv2d` op — Step-3.7 ViT downsamplers).
+      Read off the weight/activation channel axis by `benchmark_identity`, not
+      declared by a spec; appears here because this table is the whitelist a
+      benchmark row's `shape_json` is validated against.
+  C_out:
+    kind: whole
+    group: conv2d
+    meaning: Output channels of a 2-D conv (`conv2d`). The kernel's filter count.
+  kernel_size:
+    kind: whole
+    group: conv2d
+    meaning: >-
+      Square kernel side k of a 2-D conv (`conv2d`), read off the weight's
+      trailing axes `(C_out, C_in, k, k)`.
+  dilation:
+    kind: whole
+    group: linear_attention_hybrid_recurrence
+    meaning: >-
+      Spacing between the taps of a depthwise 1-D conv (`conv1d`'s own `dilation`, torch's
+      name): 1 for every mixer short conv, the n-gram size for Qwen PLE's. Not a tensor axis,
+      so the `causal_conv1d` measurement reads it off the conv as a structural axis: the
+      frameworks' `causal_conv1d_fn` / `causal_conv1d_update` take no dilation, so a dilated
+      conv is a different kernel and must not share the undilated conv's cell.
+  stride:
+    kind: whole
+    group: conv2d
+    meaning: >-
+      Stride of a 2-D conv (`conv2d`). No tensor carries it, so the identity
+      reads it from the spec — a structural axis of the measurement (two convs
+      that differ only in stride are different kernels).
+  s_conv_grid:
+    kind: whole
+    group: conv2d
+    meaning: >-
+      Flattened square patch grid a `conv2d` runs over — H·W with H=W: an
+      image's patch rows as the encode walk hands them (`patchify`), the grid
+      the kernel convolves.
+  full_attn_interval:
+    kind: whole
+    group: linear_attention_hybrid_recurrence
+    meaning: >-
+      Period of the linear/full attention schedule in a hybrid backbone: one in every
+      `full_attn_interval` layers is full attention, the last of each period. A layer-index
+      period, not a tensor axis — nothing shards it. Qwen3-Next declares it as
+      `full_attention_interval` and HF expands it into the per-layer `layer_types` list.
+  d_conv_channels:
+    kind: whole
+    group: linear_attention_hybrid_recurrence
+    meaning: >-
+      Channels the depthwise 1D conv carries — the width of the tensor it slides over,
+      which for a gated-delta-net stack is the concatenated q/k/v projection and for Mamba-2
+      is `n_ssm_heads·d_ssm_head + 2·n_ssm_groups·d_ssm_state`. Distinct from `d_model`:
+      the conv sits INSIDE the mixer, after the projection that widens it. NOT declared
+      by any spec — like `d_reduce`, `d_out` and `s_conv_kernel` it is read off a tensor
+      axis by `benchmark_identity`, and appears here because this table is also the whitelist
+      a benchmark row's `shape_json` is validated against.
+  d_gate_lowrank:
+    kind: whole
+    group: linear_attention_hybrid_recurrence
+    meaning: >-
+      Full-rank-gate low-rank dim in Kimi-K3 KDA: the channel-wise decay gate `g` (size
+      `n_lin_v_heads·d_lin_k_head`) is computed low-rank as `f_b_proj(f_a_proj(x))` with
+      inner width `d_gate_lowrank` (= `linear_attn_config.head_dim`, 128).
+  n_gate_lower_bound:
+    kind: whole
+    group: linear_attention_hybrid_recurrence
+    meaning: >-
+      KDA decay-gate form switch: 1 when the forget gate is the lower-bounded
+      `lower_bound · sigmoid(exp(A_log) · (f + dt_bias))`, 0 when it is
+      `−exp(A_log) · softplus(f + dt_bias)`. The implementation branches on
+      `linear_attn_config.gate_lower_bound is not None` (transformers
+      `KimiDeltaAttention`: `safe_gate=self.gate_lower_bound is not None`), so
+      the binding is presence — `present(config.….gate_lower_bound)` — never the
+      bound's value, which no dim carries (`scale_const` prices per element,
+      whatever its constant). `kimi_k3_kda_attention`'s gate steps are
+      `when: n_gate_lower_bound` / `when: "1 - n_gate_lower_bound"`.
+    config: linear_attn_config.gate_lower_bound
+  n_ssm_heads:
+    kind: head_count
+    shardable_by: [attention]
+    group: mamba_2_selective_ssm
+    meaning: Mamba num_heads (selective-state-space heads).
+  d_ssm_head:
+    kind: whole
+    group: mamba_2_selective_ssm
+    meaning: >-
+      Mamba head_dim — per-head channel count. Mamba intermediate = `n_ssm_heads · d_ssm_head`.
+  d_ssm_state:
+    kind: whole
+    group: mamba_2_selective_ssm
+    meaning: SSM state size per group (`config.ssm_state_size`).
+  n_ssm_groups:
+    kind: head_count
+    shardable_by: [attention]
+    group: mamba_2_selective_ssm
+    meaning: >-
+      Mamba group count for the selective B/C projections (`config.n_groups`). Conv channel
+      count = `n_ssm_heads·d_ssm_head + 2·n_ssm_groups·d_ssm_state`.
+  s_ssm_conv_kernel:
+    kind: whole
+    group: mamba_2_selective_ssm
+    meaning: Mamba depthwise causal conv1d kernel size (`config.conv_kernel`, typically
+      4).
+  d_engram_kv:
+    kind: split_width
+    shardable_by: [attention]
+    group: per_arch_one_offs
+    meaning: >-
+      Output width of the Engram key/value projection `wkv`,
+      `d_model · (n_hidden_copies + 1)`: one key per hidden copy and one
+      shared value. vLLM splits it column-wise over tensor parallelism.
+    used_by: DeepSeek-V4.1-Flash
+  n_norm_groups:
+    kind: head_count
+    shardable_by: [attention]
+    group: per_arch_one_offs
+    meaning: >-
+      Groups of a grouped RMSNorm over the merged attention heads
+      (`config.group_norm_size`): the statistic is taken per group, so a rank
+      holding whole groups normalizes locally with no collective.
+    config: group_norm_size
+    used_by: Ling-2.6-1T
+  n_ngram:
+    kind: whole
+    group: per_arch_one_offs
+    meaning: >-
+      PLE n-gram order (`ngram_size`): each token's n-gram context spans this
+      many tokens, so it hashes `n_ngram - 1` grams.
+    used_by: Qwen3.8-Flash-Next
+  n_ngram_heads:
+    kind: whole
+    group: per_arch_one_offs
+    meaning: >-
+      PLE hashed ids per token: `(n_ngram - 1) * heads_per_ngram`, the rows the
+      n-gram embedding gathers and flattens into one `d_ple` vector.
+    used_by: Qwen3.8-Flash-Next
+  n_ngram_heads_per_gram:
+    kind: whole
+    group: per_arch_one_offs
+    meaning: PLE hashed ids per gram (`heads_per_ngram`).
+    used_by: Qwen3.8-Flash-Next
+  n_ple_shards:
+    kind: whole
+    group: per_arch_one_offs
+    meaning: >-
+      Row blocks the PLE n-gram table is stored in (`split_ngram_parts`);
+      concatenated along rows at load.
+    used_by: Qwen3.8-Flash-Next
+  d_ple:
+    kind: whole
+    group: per_arch_one_offs
+    meaning: PLE embedding width (`ple_embed_dim`), `n_ngram_heads * d_ngram_head`.
+    used_by: Qwen3.8-Flash-Next
+  d_ngram_head:
+    kind: whole
+    group: per_arch_one_offs
+    meaning: Width of one PLE n-gram embedding row, `d_ple // n_ngram_heads`.
+    used_by: Qwen3.8-Flash-Next
+  n_ple_vocab:
+    kind: vocab
+    shardable_by: [attention]
+    group: per_arch_one_offs
+    meaning: >-
+      Rows of the PLE n-gram embedding table: the sum of the per-head prime
+      vocab sizes, padded to `make_ngram_vocab_size_divisible_by`, stored as
+      `split_ngram_parts` row blocks.
+      Split over the TP group like the token vocabulary (vLLM
+      `Qwen4ExpPLEEmbedding`, a `VocabParallelEmbedding` on the Engram TP
+      group, which is the TP group unless `embedding_across_dp`).
+    used_by: Qwen3.8-Flash-Next
+  n_ple_rows_per_shard:
+    kind: whole
+    group: per_arch_one_offs
+    meaning: >-
+      Rows of one stored block of the PLE n-gram table, as the checkpoint
+      header stores it (`ngram_embedding.shard_0.weight[0]`).
+    used_by: Qwen3.8-Flash-Next
+  s_ple_conv:
+    kind: whole
+    group: per_arch_one_offs
+    meaning: >-
+      Kernel of the PLE depthwise causal conv (`ple_conv_kernel_size`), dilated
+      by `n_ngram`; its decode state keeps `(s_ple_conv - 1) * n_ngram`
+      trailing columns.
+    used_by: Qwen3.8-Flash-Next
+  rope_inv_freq_len:
+    kind: whole
+    group: per_arch_one_offs
+    meaning: RoPE inverse-frequency buffer length.
+    used_by: GLM-4, Kimi-K2, Moonlight
+  flash_kv_shards:
+    kind: whole
+    group: per_arch_one_offs
+    meaning: Specialized KV-shard count for the flash-attention path.
+    used_by: MiMo-V2 Flash
+  Qb:
+    kind: whole
+    group: per_arch_one_offs
+    meaning: Q/K/V linear bias-presence flag (0 = no bias, 1 = bias).
+    used_by: OPT, Qwen2 (gqa_attention), GLM-4.5 / GLM-4.5-Air (partial-RoPE attention)
+    default: "0"
+  Fb:
+    kind: whole
+    group: per_arch_one_offs
+    meaning: Q/FFN bias-presence flags (OPT linear layers carry bias).
+    used_by: OPT
+  Dmi:
+    kind: whole
+    group: per_arch_one_offs
+    meaning: >-
+      Number of leading dense-FFN layers. `dense_mlp_idx` behaves like `first_k_dense_replace`:
+      layers `[0, Dmi)` use dense fused-SwiGLU FFN, the rest use MoE.
+    used_by: Inkling
+  Ob:
+    kind: whole
+    group: per_arch_one_offs
+    meaning: >-
+      Output-projection bias-presence flag. `0` = no bias (current); kept as a switch
+      so future variants can declare it.
+    used_by: GLM-4
+    default: "0"
+  B:
+    kind: batch
+    shardable_by: [attn_data]
+    group: engine_dims
+    engine_supplied: true
+    call_tokens: factor
+    step_token_axis: true
+    meaning: >-
+      Batch size — the number of independent requests ONE RANK runs in the step.
+      Threaded from the analyze request, and per rank because that is the
+      question capacity answers (`World.bound_per_rank`); the deployment's total
+      is this times the DP-attention degree. Sharded by DP-attention and by
+      nothing else: requests do not read each other, so every op in the model is
+      separable along this axis, which is exactly why the world exists and why
+      `s_ctx` must not stand in for it.
+  s_live:
+    kind: whole
+    group: engine_dims
+    meaning: >-
+      Rows of a step's own keys an attention reads without caching them — the
+      length a `step_kv` marker states (DSv4.1 DSpark: the rows that arrived,
+      capped at `s_dspark_block`). Read by every query of the step; stored
+      nowhere.
+  s_ctx:
+    kind: sequence
+    shardable_by: [sequence]
+    group: engine_dims
+    engine_supplied: true
+    step_token_axis: true
+    meaning: >-
+      Residual sequence axis as op templates write it (linear, rmsnorm, rope).
+      An op has no prefill/decode, so the slot is this name. The phase binds
+      the length as `s_query` (decode identity `n_verify`); a lookup of `s_ctx`
+      reads that bind. Not a second engine dim.
+  s_sampled:
+    kind: whole
+    group: phase_binding
+    engine_supplied: true
+    meaning: >-
+      Positions selected from the query stream for the output head. Serving
+      keeps this logical position owner through the vocab projection, gathers
+      the CP owners at the model output, then locally selects the sampled row.
+      Distinct from `s_ctx`: its bound extent is commonly one even when the
+      source query stream is context-parallel. Whole: no degree cuts it — the
+      sampled rows live on the rank that owns them.
+  d_reduce:
+    kind: whole
+    group: gemm_axes
+    meaning: >-
+      Contracted inner dim (the `K` of `M×K · K×N`). Previously spelled `K`, colliding
+      with top-k experts.
+  d_out:
+    kind: whole
+    group: gemm_axes
+    meaning: >-
+      Output width (the `N` of `M×K · K×N`). Previously spelled `N`, colliding with the
+      attention head count.
+  s_query:
+    kind: sequence
+    shardable_by: [sequence]
+    group: phase_binding
+    engine_supplied: true
+    call_tokens: factor
+    step_token_axis: true
+    meaning: >-
+      Query length — the Q tensor's seq axis, and the residual activation
+      length. Prefill `input_tokens − prefix`; decode `n_verify`
+      (1 for autoregressive, `n_verify` for speculative / MTP).
+  s_past:
+    kind: whole
+    group: phase_binding
+    engine_supplied: true
+    meaning: >-
+      Keys that precede the step's first query — the query at step offset `i` sits at
+      absolute position `s_past + i` and its causal context is `s_past + i + 1` keys. Prefill
+      `s_prefix` (0 without a prefix cache); decode `s_kv − n_verify`. Its identity is
+      `s_kv − s_query`, the phase's two lengths. HF `past_key_values_length`, vLLM
+      `num_computed_tokens`, sglang `extend_prefix_lens`.
+      Bound by the phase and never rebound: `s_kv` is narrowed per node (a window, a
+      top-k, a stream union), so inside an op `s_kv − s_query` is not this number.
+  s_kv:
+    kind: sequence
+    shardable_by: [kv_shard]
+    group: phase_binding
+    engine_supplied: true
+    call_tokens: context
+    meaning: >-
+      **Attended** key/cache length — the K tensor's seq axis. Prefill `s_query`; decode
+      `s_cache + (n_verify − 1)`. The one sequence axis PREFILL context
+      parallelism leaves whole: `s_query` is the tokens a rank
+      processes and `cp` divides them, but the context those tokens attend —
+      and the cache it lives in — is replicated across the PCP group and split
+      only by `dcp`. See the `sequence` and `kv_shard` worlds above.
+  s_attend:
+    kind: sequence
+    shardable_by: [kv_shard]
+    group: phase_binding
+    engine_supplied: true
+    meaning: >-
+      Keys one query attends — the key axis of a windowed score matrix. `Min(s_kv, s_window)`
+      for a sliding window (the op's `kv_positions_per_query_fn`). Distinct from `s_kv`, the
+      rows of the K / V operands: in prefill a step's queries together read more keys than
+      any one of them attends.
+  s_cache:
+    kind: whole
+    group: phase_binding
+    engine_supplied: true
+    meaning: >-
+      Tokens resident in the KV cache. Prefill `0` — prefill attends K/V computed by this
+      batch, not read from cache. Feeds the capacity model, **not** the identity.
+  n_verify:
+    kind: whole
+    group: phase_binding
+    engine_supplied: true
+    step_token_axis: true
+    meaning: Speculative / MTP verify window per decode step. `1` = plain autoregressive.
+  s_pairs:
+    kind: whole
+    group: phase_binding
+    engine_supplied: true
+    score_pairs: true
+    meaning: >-
+      Live (query, key) pairs of the matrix a node scores, per batch row and head; an
+      attention's pair-priced FLOPs are written in it. The phase binds the dense causal count
+      `s_query·s_past + s_query(s_query+1)/2` (`binding.STEP_LAWS`); a node whose op scores a
+      matrix of its own rebinds it, with its definition (`Analysis.node_rebinds`), to the
+      pairs the op declares (`kv_pairs_per_step_fn` — a top-k sees `min(c, k)` of a context
+      of `c`; `cost_pairs_fn` — a sliding band; a pooled cache's `⌊c / compress_ratio⌋`
+      blocks) or a union's streams' sum. A node that narrowed `s_kv` with no such
+      declaration binds none.
+  Cape:
+    kind: whole
+    group: dsv4_compressor
+    meaning: >-
+      DSv4 compressor absolute-position-embedding ratio — the `ape` parameter table is
+      `[Cape, Cdim_io]`, one row per position in a compression block: it equals the layer's
+      compress_ratio (V4: 4 on CSA layers and in the indexer, 128 on HCA layers).
+  Cdim_io:
+    kind: whole
+    group: dsv4_compressor
+    meaning: >-
+      DSv4 compressor I/O width — output width of the compressor's `wkv` / `wgate` projections
+      and of the `ape` position table. The compressor's head_dim in the no-overlap variant,
+      `2 * Cdim_norm` in the overlap one.
+      Whole, not `split_width`: the factor of two is the pair of pooling windows the
+      overlap variant carries, not a column split, and the axis is `2 ×` a `whole` one
+      (`Cdim_norm` / `d_indexer_head`) — an axis cannot be twice a whole axis and be
+      divisible itself. Classed `split_width` it was divided by TP while every symbol
+      it is defined against stayed put, and the compressor's own `slice` came out
+      widening: at TP=8 it read a 128-wide `pooled` and produced a 512-wide `reduced`.
+  Cdim_norm:
+    kind: whole
+    group: dsv4_compressor
+    meaning: >-
+      DSv4 compressor RMSNorm width — the LOGICAL head dim the compressor normalizes over,
+      which the overlap variant halves relative to `Cdim_io` (norm sees `Cdim_io / 2`).
+  compress_ratio:
+    kind: whole
+    group: dsv4_compressor
+    meaning: >-
+      KV positions pooled into one compressed slot — the config's `compress_ratios`
+      entry for the layer (V4-Pro: 128 on HCA layers, 4 on CSA, 0 on the SWA-only
+      tail and the MTP head). Bound per-assignment, never model-wide: it differs
+      by layer, and the layers that have no compressor have no ratio to state.
+      One binding serves both readers — the compressor STORES
+      `⌈s_kv / compress_ratio⌉` latents (the pending window's slot included)
+      and the indexer (CSA) SCANS the `⌊s_kv / compress_ratio⌋` complete ones
+      at the same ratio — so the two cannot drift. A compressing layer whose
+      assignment forgets to bind it leaves the storage law free in this symbol
+      and the first capacity question raises; there is no value to fall back to.
+      Whole: it is a pooling stride over the sequence, and no rank group
+      divides how many positions share a slot.
+  n_compressor_rotate:
+    kind: whole
+    group: dsv4_compressor
+    meaning: >-
+      Hadamard-rotation switch of the DeepSeek-V4 compressor: 1 when the
+      compressed entry is rotated (`rotate_activation`) after its RoPE and
+      before it is quantised and cached, 0 when it is not. The reference
+      `Compressor(args, ratio, head_dim, rotate)` takes it as an argument: the
+      indexer's own compressor passes True (inference/model.py:398,
+      `Compressor(args, compress_ratio, self.head_dim, True)`), the
+      attention's leaves it False (:467). The compressor's `rotated` step is
+      `when: n_compressor_rotate`; the calling component binds it.
+  n_engram_rows_a:
+    kind: vocab
+    shardable_by: [attention]
+    group: per_arch_one_offs
+    meaning: >-
+      Rows of the first n-gram hash table, `engram_num_embeddings[0]` — the table
+      height of the engram on `engram_layer_ids[0]` (the engram's own vocabulary, bound
+      over `n_vocab` at that layer).
+      Split over the TP group like the token vocabulary (vLLM `ParallelEngramEmbedding`: each rank holds ceil(n_ngram_heads / tp) hash columns and their bucket rows).
+    used_by: DeepSeek-V4.1-Flash
+  n_engram_rows_b:
+    kind: vocab
+    shardable_by: [attention]
+    group: per_arch_one_offs
+    meaning: >-
+      Rows of the second n-gram hash table, `engram_num_embeddings[1]` — the
+      table height of the engram on `engram_layer_ids[1]`.
+      Split over the TP group as `n_engram_rows_a` is.
+    used_by: DeepSeek-V4.1-Flash
+  compress_ratio_source:
+    kind: whole
+    group: dsv4_compressor
+    meaning: Compression ratio of the layers before the ratio split at layer 20 (`compress_ratios[2]
+      == 2`); the model-wide `compress_ratio` is the later layers' 1.
+    used_by: DeepSeek-V4.1-Flash
+  d_markov_rank:
+    kind: whole
+    group: mtp_speculative
+    meaning: Rank of the DSpark markov head — the width of `mtp.2.markov_head.embed/head`
+      (source/model.py:1077-1086 DSparkMarkovHead).
+    config: dspark_markov_rank
+    used_by: DeepSeek-V4.1-Flash
+  n_dspark_experts:
+    kind: whole
+    group: moe_routing
+    meaning: 'Routed-expert count of the DSpark MTP stages (128 vs the backbone''s 384).
+      Each stage''s `ffn` call rebinds `n_experts` to it, and the call''s frame derives
+      the stage''s own expert axis `n_expert_copies` and dispatch denominator
+      `n_route_targets` from it (source/model.py `get_moe_config`: layers >= n_layers
+      read the dspark counts).'
+    config: dspark_n_routed_experts
+    used_by: DeepSeek-V4.1-Flash
+  n_dspark_experts_active:
+    kind: whole
+    group: moe_routing
+    meaning: Top-k of the DSpark MTP stages' router (3 vs the backbone's 6) (source/model.py
+      `get_moe_config`).
+    config: dspark_num_experts_per_tok
+    used_by: DeepSeek-V4.1-Flash
+  s_dspark_block:
+    kind: whole
+    group: mtp_speculative
+    meaning: Draft-block length of a DSpark MTP step — the configured cap on the
+      queries one draft step scores and the live rows it attends after the
+      main-model window (source/model.py:1021-1029 get_dspark_topk_idxs).
+    config: dspark_block_size
+    used_by: DeepSeek-V4.1-Flash
+  clamp_limit:
+    kind: constant
+    group: function_constants
+    meaning: >-
+      The bound a `clamp` clamps to: the gate from above, the up branch on both
+      sides of a clamped SwiGLU (transformers DeepseekV4MLP; vLLM
+      SiluAndMulWithClamp). The language model's own; a vision tower reads its
+      config scope through `vis_clamp_limit`.
+    config: swiglu_limit
+  vis_clamp_limit:
+    kind: constant
+    group: function_constants
+    meaning: >-
+      The vision tower's `clamp_limit`, from the vision config scope (GLM-5.3
+      `vision_config.swiglu_limit`). A tower's clamp rebinds `clamp_limit` to it
+      with `dims:`, so it reads its own scope and not the backbone's.
+    config: vision_config.swiglu_limit
+  clamp_limit_shared:
+    kind: constant
+    group: function_constants
+    meaning: >-
+      A shared expert's own clamp bound, from its own config list (Step-5
+      `swiglu_limits_shared`, inference/model.py:2091-2093). The shared
+      expert's clamps rebind `clamp_limit` to it with `dims:`, so the routed
+      bank's `swiglu_limits` entry stays the routed bank's.
+    config: swiglu_limits_shared
+  situ_beta:
+    kind: constant
+    group: function_constants
+    meaning: >-
+      SiTU's gate beta: `situ(x) = beta·tanh(x/beta)·sigmoid(x)` (Kimi-K3
+      SituAndMul; vLLM refuses the launch without it).
+    config: activation_situ_beta
+  situ_linear_beta:
+    kind: constant
+    group: function_constants
+    meaning: >-
+      The beta the up branch of a SiTU-gated FFN is softly clipped by in the
+      same launch (`SituAndMul(beta, linear_beta)`). Optional in vLLM: unset
+      forwards the up branch.
+    config: activation_situ_linear_beta

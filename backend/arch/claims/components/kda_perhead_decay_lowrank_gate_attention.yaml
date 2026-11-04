@@ -1,0 +1,8 @@
+schema: huggingarch.claims/v1
+subject: kda_perhead_decay_lowrank_gate_attention
+axioms:
+  checks:
+  - kind: kv_growth
+    storage: constant_state
+    src: modeling_glm5_next.py::recurrent_kimi_delta_attention `last_recurrent_state = last_recurrent_state
+      + k_i.unsqueeze(-1) * delta.unsqueeze(-2)`

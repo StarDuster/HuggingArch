@@ -1,0 +1,27 @@
+# LongCat-Flash MTP head.
+#
+# Single-layer pre_norm transformer wrapped by enorm.m / hnorm.m parallel
+# norms, concat, eh_proj, then standard MLA + SwiGLU. MLP node name is
+# `transformer_layer.mlp` (matches HF checkpoint paths).
+#
+# Inputs: x = the previous hidden state (hnorm), emb = the MTP's own token
+# embedding (enorm). vLLM longcat_flash_mtp.py LongCatMultiTokenPredictor
+# .forward: `inputs_embeds = self.embed_tokens(input_ids)` with the MTP's own
+# table, passed beside `previous_hidden_states` to the layer, which
+# normalises each with its own norm before the concat.
+role: aux_block
+description: "LongCat-Flash MTP head: dual-norm + concat + eh_proj, then MLA + SwiGLU (transformer_layer.mlp namespace)."
+
+inputs: [x, emb]
+graph:
+  enorm.m:                  { op: rmsnorm, in: emb, dim: d_model, weight_axes: [{ replicated: true }] }
+  hnorm.m:                  { op: rmsnorm, in: x, dim: d_model, weight_axes: [{ replicated: true }] }
+  concat:                   { op: concat, in: [enorm.m, hnorm.m], dim: "2 * d_model" }
+  eh_proj:                  { op: linear, in: concat, dims: { in: "2 * d_model", out: d_model }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  input_layernorm:          { op: rmsnorm, in: eh_proj, dim: d_model, weight_axes: [{ replicated: true }] }
+  self_attn:                { op: mla_attention, in: input_layernorm }
+  attn_residual:            { op: add, in: [eh_proj, self_attn], dim: d_model }
+  post_attention_layernorm: { op: rmsnorm, in: attn_residual, dim: d_model, weight_axes: [{ replicated: true }] }
+  transformer_layer.mlp:    { op: swiglu_ffn, in: post_attention_layernorm, dims: { d_model: d_model, d_ffn: d_ffn } }
+  out:                      { op: add, in: [attn_residual, transformer_layer.mlp], dim: d_model }
+outputs: [out]

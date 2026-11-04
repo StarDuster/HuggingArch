@@ -1,0 +1,76 @@
+# LongCat-Flash-Omni (Meituan) — 560B total / 27B active omni MoE.
+#
+# The released checkpoint here is the LongCat-Flash text backbone (the
+# omni perception / speech modules are not in this shard set; the text-only
+# param total matches the safetensors total exactly). Architecture is the
+# LongCat-Flash decoder: per layer a 2-iteration loop with an MLA attention +
+# dense SwiGLU FFN per iteration, plus ONE routed-expert MoE that runs as a
+# parallel shortcut branch whose output merges at the tail of iteration 1
+# (see components/library/longcat_block.yaml, mirroring
+# LongcatFlashDecoderLayer.forward).
+#
+# Differences from the base LongCat-Flash spec:
+#   - No MTP head: the checkpoint contains no `mtp.*` tensors, so no aux group.
+#   - Omni dims: hidden_size 6144, 28 layers, 64 heads, 512 routed experts +
+#     256 zero (identity) experts (router classifier width 768), top-12.
+#
+# MoE router (LongcatFlashTopkRouter): `router.classifier.weight`
+# (d_model -> n_routed_experts + zero_expert_num) + `router.e_score_correction_bias`
+# used for top-k selection. Zero experts (`zero_expert_type: identity`) hold no
+# weights — they are load-balance reserve destinations, so the router's width
+# n_route_targets (= n_experts + n_zero_experts) is wider than the
+# weight-bearing expert bank (n_experts).
+match:
+  model_id: ["meituan-longcat/LongCat-Flash-Omni"]
+derived_from: longcat_flash
+
+components:
+  attention: mla_attention
+  ffn_dense: swiglu_ffn
+  ffn_moe: moe_ffn
+  norm: rmsnorm
+
+dims:
+  s_max: config.max_position_embeddings   # published context length
+  d_model:    config.hidden_size
+  n_heads:    config.num_attention_heads
+  d_qk_nope:    config.qk_nope_head_dim
+  d_qk_rope:    config.qk_rope_head_dim
+  d_v_head:   config.v_head_dim ?? d_qk_nope
+  d_kv_lora:    config.kv_lora_rank
+  d_q_lora:   config.q_lora_rank
+  d_ffn:    config.ffn_hidden_size
+  d_ffn_expert:   config.expert_ffn_hidden_size
+  n_vocab:    config.vocab_size
+  n_layers:    config.num_layers
+  n_experts:    config.n_routed_experts
+  n_zero_experts:   config.zero_expert_num ?? "0"
+  n_experts_active:    config.moe_topk
+  n_topk_renorm: config.norm_topk_prob ?? "0"   # LongcatFlashConfig default: False
+
+model_inputs:
+  input_ids: { kind: tokens }
+
+# The transformers base model's tensors sit under `model.`; the LM head
+# beside it declares its own path.
+checkpoint: { root: model }
+
+model:
+  - { name: embed_tokens, inputs: [input_ids], op: embedding, boundary_role: input_embedding, dims: { n_vocab: n_vocab, d_model: d_model }, weight_axes: [{ world: attention, parts: n_vocab, fit: pad }, { replicated: true }] }
+  - { name: layers, template: longcat_block, repeat: n_layers, inputs: [embed_tokens], streams: { hidden: { carries: true } }}
+  - { name: norm, op: rmsnorm, dim: d_model, weight_axes: [{ replicated: true }] , inputs: [layers]}
+  - { name: lm_head, op: linear, checkpoint: { path: lm_head }, boundary_role: output_head, dims: { in: d_model, out: n_vocab }, weight_axes: [{ world: attention, parts: n_vocab, fit: pad }, { replicated: true }] , inputs: [norm]}
+
+quant_context:
+  per_role:
+    attention: { method: none }
+    ffn_dense: { method: none }
+    ffn_moe:   { method: none }
+    router:    { method: none }
+    default:   { method: none }
+  overrides:
+    - tensors_re: 'mlp\.router\.classifier\.weight$'
+      dtype: F32
+    - tensors_re: 'e_score_correction_bias$'
+      dtype: F32
+  default_dtype: BF16

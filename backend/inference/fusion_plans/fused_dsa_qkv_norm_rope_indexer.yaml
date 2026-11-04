@@ -1,0 +1,58 @@
+# DSA attention (DeepSeek-V3.2 / GLM-5.x) input preparation, indexer layers —
+# vLLM's `fused_norm_rope`: the q-LoRA a-norm, the latent-KV a-norm, the
+# shared k_pe rotation, and the lightning indexer's key (LayerNorm, rotation
+# of its leading d_qk_rope dims, re-join), with both cache writes, in one
+# launch.
+#
+# Naive subgraph (mla_dsa_attention{,_absorbed}):
+#
+#   q_c  = rmsnorm(q_a)                                 # q_a_layernorm
+#   kv_c = rmsnorm(kv_latent)                           # kv_a_layernorm
+#   k_pe = rope_emb(k_pe)                               # k_pe_rope
+#   index_key = layernorm(wk(x))                        # indexer.k_norm
+#   index_key = concat(rope_emb(slice(index_key)),
+#                      slice(index_key))                 # indexer.key_concat
+#
+# vLLM (audited at v0.32.0): `fused_norm_rope`
+# (vllm/models/deepseek_v32/common/kernels.py:509, one
+# `_fused_norm_rope_kernel` launch :654 over (tokens, 4) programs), called
+# by `DeepseekV32Attention.forward` (models/deepseek_v32/attention.py:378)
+# on every layer in prefill and decode alike — `has_indexer` (:339-360) says
+# whether the indexer key is in the launch (the shared-indexer layers of
+# `fused_dsa_qkv_norm_rope`). The latent and k_pe go to the MLA cache and
+# the indexer key to the index-K cache in the same launch. The model classes
+# are `DeepseekV32ForCausalLM` and `GlmMoeDsaForCausalLM`
+# (model_executor/models/registry.py:92, :120 → vllm/models/deepseek_v32,
+# NVIDIA path nvidia/model.py:83). Other MLA classes norm and rotate in
+# separate launches; the pattern is the same shape there, so the binding
+# asks the class.
+#
+# The query rotations (main q_pe and the indexer's) are a second launch,
+# `fused_q` (kernels.py:953, from attention.py:433), which also packs the
+# MQA query and scales the indexer head weights; not planned here.
+#
+# sglang (audited at v0.5.22) runs the two a-norms as separate launches
+# (srt/models/deepseek_common/attention_forward_methods/forward_mla.py:359-365)
+# and rotates q_pe and k_pe together; it does not bind this.
+
+fused_op: fused_dsa_qkv_norm_rope_indexer
+
+naive_pattern:
+  nodes:
+    q_norm:                 { op: rmsnorm,   inputs: [external.q],  feeds: q }
+    kv_norm:                { op: rmsnorm,   inputs: [external.kv], feeds: k }
+    k_rope:                 { op: rope_emb,  inputs: [external.k_pe] }
+    index_key_norm:         { op: layernorm, inputs: [external.index_key] }
+    index_key_rope_slice:   { op: slice,     inputs: [index_key_norm.out] }
+    index_key_norope_slice: { op: slice,     inputs: [index_key_norm.out] }
+    index_key_rope:         { op: rope_emb,  inputs: [index_key_rope_slice.out] }
+    index_key_concat:       { op: concat,    inputs: [index_key_rope.out, index_key_norope_slice.out] }
+  io_mapping:
+    q:             external.q
+    kv:            external.kv
+    k_pe:          external.k_pe
+    index_key:     external.index_key
+    output:        q_norm.out
+    kv_out:        kv_norm.out
+    k_out:         k_rope.out
+    index_key_out: index_key_concat.out

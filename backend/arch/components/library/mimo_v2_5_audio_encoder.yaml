@@ -1,0 +1,36 @@
+# MiMo-V2.5 audio encoder (Qwen2-style transformer + projection to text hidden).
+#
+# Singleton aux_block wrapper — bare HF paths (audio_encoder.*), the indexed
+# transformer stack repeats INSIDE. Written as a component (not a flat model-
+# root list) so every edge carries a real inputs_obj and the checkpoint prefix
+# comes from the repeated node's own name rather than a group-level address.
+#
+# Input x: the n_speech_banks per-bank speech-code lookups (the model's
+# `speech_embeddings` group layer, kept outside so its bare HF path binds).
+#
+# Required dims: n_speech_banks, n_audio_layers, d_audio_model, d_model,
+# s_audio_window; reads the clip length `s_audio` the encode phase binds.
+role: aux_block
+description: "MiMo-V2.5 audio encoder: speech-bank sum + n_audio_layers transformer blocks + norm + 2-layer projection to text d_model. Singleton — bare HF paths (audio_encoder.*)."
+graph:
+  # vLLM mimo_audio.py MimoAudioEncoder.apply_speech_embeddings:
+  # `_audio_embeddings = torch.zeros(...)`, then
+  # `for i in range(self.config.audio_channels): _audio_embeddings.add_(self.speech_embeddings[i](audio_codes[:, :, i]))`
+  # — one elementwise add per bank into a running sum: copy c adds bank c.
+  speech_bank_sum: { op: accumulate, in: x, dim: d_audio_model, chain: n_speech_banks, formula: "acc += speech_embeddings[c](codes[g, t, c])   (once per bank c over n_speech_banks = audio_channels; acc starts at zero)" }
+  audio_encoder.input_local_transformer.layers: { op: mimo_v2_5_audio_block, in: speech_bank_sum, chain: n_audio_layers, checkpoint: { index: local }, role: aux_block }
+  audio_encoder.input_local_transformer.norm:   { op: rmsnorm, in: audio_encoder.input_local_transformer.layers, dim: d_audio_model, weight_axes: [{ replicated: true }] }
+  # vLLM mimo_audio.py:1303-1337 groups the (padded) frames by group_size
+  # (`s_audio_window`) and the projection reads each group's frames side by
+  # side: [N, T, D] → [N, T/g, g, D] → [N, T/g, g·D]; its hidden width is 4
+  # times that (mimo_audio.py:1229-1234 AudioProjection, the 4 the source's
+  # literal; checkpoint mlp.0 [4·g·D, g·D]). AudioProjection is
+  # `nn.Sequential(Linear(bias=False), GELU(), Linear(bias=False))`
+  # (modeling_mimo_v2.py:919-929, vLLM mimo_audio.py:1154-1169): `mlp.1` is
+  # the weightless GELU between the two stored linears.
+  group_split:                                  { op: view_split, in: audio_encoder.input_local_transformer.norm, axis: 1, dims: { s_slots: "ceiling(s_audio / s_audio_window)", window: s_audio_window } }
+  group_fold:                                   { op: view_merge, in: group_split }
+  audio_encoder.projection.mlp.0:               { op: linear, in: group_fold, dims: { in: "s_audio_window * d_audio_model", out: "4 * s_audio_window * d_audio_model", bias: "0" }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  audio_encoder.projection.mlp.1:               { op: gelu, in: audio_encoder.projection.mlp.0, dim: "4 * s_audio_window * d_audio_model" }
+  audio_encoder.projection.mlp.2:               { op: linear, in: audio_encoder.projection.mlp.1, dims: { in: "4 * s_audio_window * d_audio_model", out: d_model, bias: "0" }, weight_axes: [{ replicated: true }, { replicated: true }] }
+outputs: [audio_encoder.projection.mlp.2]

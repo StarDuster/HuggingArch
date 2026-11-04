@@ -1,0 +1,33 @@
+# The CSA2 indexer's index-key projection — the `owns_k` branch of
+# `Indexer.forward` (source/model.py:536-548):
+#
+#     k = self.k_norm(self.wk(latent))
+#     apply_rotary_emb(k[..., -rd:], freqs)
+#     fp4_act_quant(k, fp4_block_size, True)
+#     self.k_cache[:bsz, start_pos // ratio : …] = k
+#     shared_attn.index_k = self.k_cache
+#
+# `latent` is the main compressor's PRE-RoPE latent, which is the whole
+# reason `Attention._compress_kv` runs the indexer before it rotates the
+# latent (source/model.py:528-531, 750-756). Unlike `dsv4_indexer`, which
+# carries a compressor of its own at `index_head_dim`, a CSA2 indexer derives
+# its keys from the main compressor's rows — so its keys come in at
+# `compress_ratio` per row, not at a ratio of their own.
+#
+# Only the projection is here. The buffer, its publication and the score are
+# the indexer's (`csa2_indexer` / `csa2_indexer_candidate_source`), which is
+# also where they are declared; written once here because both of those own
+# `wk` and `k_norm` and a weight declared twice is a weight that can drift.
+#
+# Required dims: d_head (the latent's width), d_indexer_head, d_qk_rope.
+
+description: "CSA2 indexer key projection (the `owns_k` branch): wk + k_norm over the main compressor's pre-RoPE latent, with partial RoPE on the last d_qk_rope dims."
+inputs: [latent]
+graph:
+  wk:          { op: linear, role: attention_indexer, in: latent, dims: { in: d_head, out: d_indexer_head }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  k_norm:      { op: rmsnorm, role: attention_indexer, in: wk, dim: d_indexer_head, weight_axes: [{ replicated: true }] }
+  k_pe_slice:   { op: slice, in: k_norm, dims: { in: d_indexer_head, out: d_qk_rope, start: "d_indexer_head - d_qk_rope" } }
+  k_nope_slice: { op: slice, in: k_norm, dims: { in: d_indexer_head, out: "d_indexer_head - d_qk_rope", start: "0" } }
+  k_pe_rope:    { op: rope_emb, in: k_pe_slice, dim: d_qk_rope }
+  k_roped:      { op: concat, in: [k_nope_slice, k_pe_rope], dims: { in_a: "d_indexer_head - d_qk_rope", in_b: d_qk_rope, out: d_indexer_head } }
+outputs: [k_roped]

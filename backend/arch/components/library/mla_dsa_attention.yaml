@@ -1,0 +1,99 @@
+# MLA + DSA Attention (DeepSeek-V3.2 style)
+# Used by: DeepSeek-V3.2 / DeepSeek-V3.2-Exp, GLM-MoE-DSA (GLM-5 / 5.1 / 5.2)
+#
+# Extends MLA with an internal Indexer / DSA path that computes sparse top-k
+# routing / masking for attention scores.
+#
+# Required dims: d_model, n_heads, d_qk_nope, d_qk_rope, d_v_head, d_kv_lora, d_q_lora, n_topk_keys (index_topk),
+#                n_indexer_heads (index_n_heads), d_indexer_head (index_head_dim)
+
+role: attention
+description: "MLA + DSA sparse indexer (top-K KV positions per query). DSv3.2, GLM-MoE-DSA."
+cache:
+  family: MLA
+  entries:
+    - { node: kv_a_layernorm, kind: latent }
+    - { node: k_pe_rope, kind: rope_key }
+    # No format here: the stored format is the serving stack's, declared per
+    # model (`quant_context.cache_formats.index_key`) — FP8 with an F32
+    # scale per 128 channels for DeepSeek-V3.2 and GLM-MoE-DSA alike. HF's
+    # GlmMoeDsaIndexer keeps it BF16; serving does not.
+    - { node: indexer.key_concat, kind: index_key }
+
+attn_variant: DSA
+# At decode the KV is read in latent space rather than decompressed —
+# a different subgraph, not the same one at a shorter sequence.
+decode_variant: mla_dsa_attention_absorbed
+# A query reads its top-k rows of the cached latent, so serving prefills
+# it absorbed too, through the sparse MLA kernel decode uses.
+variant_phases: [prefill, decode]
+
+# Produces the DSA top-K selection. GLM-5.2's "shared"-indexer layers reuse it
+# via the `dsa_topk` stream (config.index_topk_freq=4). A model that declares
+# no such stream (DSv3.2, all-full) leaves this a dormant capability.
+stream_out: { dsa_topk: dsa_topk_mask }
+# MLA latent + the lightning indexer key (its format per model). The indexer key
+# is per-token and must be cached to score future queries against all
+# past positions — it adds to KV storage even though DSA's top-k makes
+# the read sparse — hence `attn_variant: DSA` over an MLA-shaped cache.
+graph:
+  q_a_proj:             { op: linear, in: x, dims: { in: d_model, out: d_q_lora }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  q_a_layernorm:        { op: rmsnorm, in: q_a_proj, dim: d_q_lora, weight_axes: [{ replicated: true }] }
+  q_b_proj:             { op: linear, in: q_a_layernorm, dims: { in: d_q_lora, out: "n_heads * (d_qk_nope + d_qk_rope)" }, weight_axes: [{ world: attention, parts: n_heads, fit: replica_cells }, { replicated: true }] }
+  q_split_heads:        { op: head_split, in: q_b_proj, dims: { n_heads: n_heads, d_head: "d_qk_nope + d_qk_rope" } }
+  q_nope_slice:         { op: slice, in: q_split_heads, dims: { in: "d_qk_nope + d_qk_rope", out: d_qk_nope } }
+  q_pe_slice:           { op: slice, in: q_split_heads, dims: { in: "d_qk_nope + d_qk_rope", out: d_qk_rope } }
+  kv_a_proj_with_mqa:   { op: linear, in: x, dims: { in: d_model, out: "d_kv_lora + d_qk_rope" }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  kv_latent_slice:      { op: slice, in: kv_a_proj_with_mqa, dims: { in: "d_kv_lora + d_qk_rope", out: d_kv_lora } }
+  k_pe_slice:           { op: slice, in: kv_a_proj_with_mqa, dims: { in: "d_kv_lora + d_qk_rope", out: d_qk_rope } }
+  kv_a_layernorm:       { op: rmsnorm, in: kv_latent_slice, dim: d_kv_lora, weight_axes: [{ replicated: true }] }
+  kv_b_proj:            { op: linear, in: kv_a_layernorm, dims: { in: d_kv_lora, out: "n_heads * (d_qk_nope + d_v_head)" }, weight_axes: [{ world: attention, parts: n_heads, fit: replica_cells }, { replicated: true }] }
+  kv_split_heads:       { op: head_split, in: kv_b_proj, dims: { n_heads: n_heads, d_head: "d_qk_nope + d_v_head" } }
+  k_nope_slice:         { op: slice, in: kv_split_heads, dims: { in: "d_qk_nope + d_v_head", out: d_qk_nope } }
+  value_slice:          { op: slice, in: kv_split_heads, dims: { in: "d_qk_nope + d_v_head", out: d_v_head } }
+  q_pe_rope:            { op: rope, in: q_pe_slice, dim: d_qk_rope }
+  k_pe_rope:            { op: rope_emb, in: k_pe_slice, dim: d_qk_rope }
+  query_concat:         { op: concat, in: [q_nope_slice, q_pe_rope], dims: { in_a: d_qk_nope, in_b: d_qk_rope, out: "d_qk_nope + d_qk_rope" } }
+  # K-nope splits to (B, n_heads, s_ctx, d_qk_nope); k_pe is shared across heads, so
+  # head_broadcast fans it out to (B, n_heads, s_ctx, d_qk_rope); 4-D concat last dim.
+  k_pe_split:           { op: head_broadcast, in: k_pe_rope, dims: { n_heads: n_heads } }
+  k_split_heads:        { op: concat, in: [k_nope_slice, k_pe_split], dims: { in_a: d_qk_nope, in_b: d_qk_rope, out: "d_qk_nope + d_qk_rope" } }
+  # The lightning indexer is built WHOLE on every tensor-parallel rank, so its
+  # 64 heads are 64 heads per rank and its logits are recomputed identically on
+  # each. Declared per node because nothing about the node says so: `wq_b` here
+  # is a `ReplicatedLinear`, and DeepSeek-V4's `wq_b` is a column-parallel
+  # q-LoRA up-projection, so neither the name nor the shape can be asked.
+  indexer.weights_proj: { op: linear, role: attention_indexer, in: x, dims: { in: d_model, out: n_indexer_heads }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  indexer.wk:           { op: linear, in: x, dims: { in: d_model, out: d_indexer_head }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  indexer.k_norm:       { op: layernorm, in: indexer.wk, dim: d_indexer_head, weight_axes: [{ replicated: true }] }
+  indexer.wq_b:         { op: linear, in: q_a_layernorm, dims: { in: d_q_lora, out: "n_indexer_heads * d_indexer_head" }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  # Indexer RoPE: rotate the first d_qk_rope dims of each indexer query head
+  # and of the single indexer key, then put the rotated half back in front
+  # (transformers DeepseekV32Indexer / GlmMoeDsaIndexer.forward:
+  # split [rope, pass] → apply_rotary_pos_emb → cat; vLLM deepseek_v2.py
+  # Indexer applies `indexer_rope_emb` to q[..., :rope_dim] / k[..., :rope_dim]).
+  # The key is cached after rotation.
+  indexer.q_split_heads: { op: head_split, in: indexer.wq_b, dims: { n_heads: n_indexer_heads, d_head: d_indexer_head } }
+  indexer.q_pe_slice:   { op: slice, in: indexer.q_split_heads, dims: { in: d_indexer_head, out: d_qk_rope } }
+  indexer.q_nope_slice: { op: slice, in: indexer.q_split_heads, dims: { in: d_indexer_head, out: "d_indexer_head - d_qk_rope" } }
+  indexer.q_pe_rope:    { op: rope, in: indexer.q_pe_slice, dim: d_qk_rope }
+  indexer.query_concat: { op: concat, in: [indexer.q_pe_rope, indexer.q_nope_slice], dims: { in_a: d_qk_rope, in_b: "d_indexer_head - d_qk_rope", out: d_indexer_head } }
+  indexer.k_pe_slice:   { op: slice, in: indexer.k_norm, dims: { in: d_indexer_head, out: d_qk_rope } }
+  indexer.k_nope_slice: { op: slice, in: indexer.k_norm, dims: { in: d_indexer_head, out: "d_indexer_head - d_qk_rope" } }
+  indexer.k_pe_rope:    { op: rope_emb, in: indexer.k_pe_slice, dim: d_qk_rope }
+  indexer.key_concat:   { op: concat, in: [indexer.k_pe_rope, indexer.k_nope_slice], dims: { in_a: d_qk_rope, in_b: "d_indexer_head - d_qk_rope", out: d_indexer_head } }
+  # Stage 1b — dense (B, s_query, s_kv) indexer logits. vLLM's
+  # `fp8_paged_mqa_logits` / sglang's `deep_gemm.fp8_mqa_logits` produces
+  # this tensor in HBM; stage 2 (dsa_topk_mask) reads it back. GLM-5.2's
+  # shared-indexer layers (mla_dsa_attention_shared) carry neither op, so
+  # the indexer compute is paid only on full-indexer layers.
+  indexer_logits:       { op: indexer_logits, in: [indexer.query_concat, indexer.key_concat, indexer.weights_proj], dims: { n_indexer_heads: n_indexer_heads, d_indexer_head: d_indexer_head } }
+  # Stage 2 — sparse top-K int32 indices. The bounded output is
+  # DSA's first KV-bandwidth advantage in the cost model.
+  dsa_topk_mask:        { op: dsa_topk_mask, in: indexer_logits, dims: { k: n_topk_keys } }
+  qk_score:             { op: dsa_attention_score, in: [query_concat, k_split_heads, dsa_topk_mask], dims: { n_heads: n_heads, d_head: "d_qk_nope + d_qk_rope", k: n_topk_keys } }
+  softmax:              { op: dsa_softmax, in: qk_score, dims: { n_heads: n_heads, k: n_topk_keys } }
+  attn_apply:           { op: dsa_attention_apply, in: [softmax, value_slice], dims: { n_heads: n_heads, d_head: d_v_head, k: n_topk_keys } }
+  o_merge_heads:        { op: head_merge, in: attn_apply, dims: { n_heads: n_heads, d_head: d_v_head } }
+  o_proj:               { op: linear, in: o_merge_heads, dims: { in: "n_heads * d_v_head", out: d_model }, weight_axes: [{ replicated: true }, { world: attention, parts: n_heads, fit: replica_cells }] }
+outputs: [o_proj]

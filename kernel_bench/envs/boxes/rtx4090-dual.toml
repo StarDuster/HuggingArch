@@ -1,0 +1,30 @@
+name = "dual-rtx4090-cu130"
+python = "3.12"
+
+# The CUDA toolkit is not on the default path here (no /usr/local/cuda), so
+# `CUDA_HOME` and `PATH` name it below — 13.0, the release this box's torch
+# is built against (2.9.0+cu130). Unset, FlashInfer's JIT found no nvcc and
+# every one of its cells failed with "Could not find nvcc"; fa2 still runs
+# on the prebuilt cu13 wheel, which is why that env pins its own torch.
+[env_requirements]
+fa2 = "kernel_bench/envs/boxes/rtx4090-dual.fa2.txt"
+
+[env]
+CUDA_DEVICE_ORDER = "PCI_BUS_ID"
+CUDA_HOME = "/scratch1/cuda-13.0"
+PATH = "/scratch1/cuda-13.0/bin:${PATH}"
+# The fa2 override pins torch to the +cu130 build, which PyPI does not
+# carry; the pytorch index is an EXTRA source so every other env still
+# resolves its plain PyPI torch.
+UV_EXTRA_INDEX_URL = "https://download.pytorch.org/whl/cu130"
+# That extra index also publishes a stale `packaging` (≤24.1). uv's default
+# first-index-wins then refuses packaging>=24.2, which vllm / flashinfer
+# need. Both indexes are trusted on this box.
+UV_INDEX_STRATEGY = "unsafe-best-match"
+# sglang 0.5.18 depends on cuda-tile==1.6.0rc5 (no final release yet).
+UV_PRERELEASE = "allow"
+OMP_NUM_THREADS = "8"
+MKL_NUM_THREADS = "8"
+OPENBLAS_NUM_THREADS = "8"
+NUMEXPR_NUM_THREADS = "8"
+TOKENIZERS_PARALLELISM = "false"

@@ -1,0 +1,39 @@
+name: "🧬 New-model request"
+description: Ask for a HuggingFace model to be supported (or report that it resolves as `cached`, not `built-in`).
+labels: ["model-request"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks! Any model whose config matches a known family already works and renders as `cached`.
+        Use this to request a **new architecture** or to get a checkpoint promoted to `built-in`.
+        If you'd like to add it yourself, see [CONTRIBUTING.md](https://github.com/shenh10/HuggingArch/blob/main/CONTRIBUTING.md#adding-a-model) — it's usually just a YAML.
+  - type: input
+    id: model_id
+    attributes:
+      label: HuggingFace model id
+      placeholder: org/Model-Name
+    validations:
+      required: true
+  - type: dropdown
+    id: state
+    attributes:
+      label: What happens today?
+      options:
+        - "Errors / won't analyze at all"
+        - "Analyzes but the numbers look wrong"
+        - "Works but renders as `cached` (I want it verified → built-in)"
+        - "Not sure"
+    validations:
+      required: true
+  - type: textarea
+    id: config
+    attributes:
+      label: config.json (or a link to it)
+      description: Paste the model's `config.json`. For a wrong-number report, include the safetensors index too.
+      render: json
+  - type: textarea
+    id: notes
+    attributes:
+      label: Anything notable about the architecture?
+      placeholder: e.g. new attention variant, MoE routing, sliding window, hybrid layers…

@@ -1,0 +1,119 @@
+# Qwen3.8-Flash-Next PLE (Per-Layer Embedding) n-gram module.
+#
+# Present ONLY on the PLE layers, config ple_layer_ids, which is 1-based
+# (modeling_qwen4_exp.py:1268 `layer_idx + 1 in config.ple_layer_ids`).
+# A parameter-scaling n-gram embedding
+# bank (split_ngram_parts vocab shards). Source: modeling_qwen4_exp.py
+# Qwen4ExpTextPLELayer.forward (:1235-1255). Input `x` is the WIDENED
+# hidden stream flattened to [B, s_ctx, n_hidden_copies*d_model]; the output
+# has the same width and is added to the widened stream BEFORE the attn
+# hyper-connection (decoder layer :1283-1286):
+#   emb    = ngram_embedding(ids).flatten(-2)                 # n_ngram_heads x d_ngram_head = d_ple
+#   key    = norm_key(key_proj(emb)).unflatten(hc, d)         # [B,S,hc,d]
+#   value  = value_proj(emb)                                  # [B,S,d]
+#   query  = norm_query(x).unflatten(hc, d)                   # [B,S,hc,d]
+#   gate   = sum_d(key*query) / sqrt(d);  gate = sign(gate)*sqrt(|gate|)
+#   gv     = sigmoid(gate) * value[..., None, :]              # [B,S,hc,d]
+#   out    = gv.flatten + silu(conv1d(norm_conv(gv.flatten)))  # depthwise, kernel s_ple_conv, dilation n_ngram
+#
+# Checkpoint tensors covered here (all under `<layer>.ple.`):
+#   key_proj.weight    [n_hidden_copies*d_model, d_ple]           (:1202)
+#   value_proj.weight  [d_model, d_ple]                           (:1203)
+#   conv1d.weight      [n_hidden_copies*d_model, 1, s_ple_conv]   (depthwise, :1207-1214)
+#   norm_conv/norm_key/norm_query.weight  [n_hidden_copies*d_model]
+#   ple_embedding.ngram_embedding.shard_{i}.weight  [n_ple_vocab / n_ple_shards, d_ngram_head]
+#   ple_embedding.layer_multipliers        [n_ngram]        (I64 index buffer)
+#   ple_embedding.ngram_heads_offsets      [n_ngram_heads]  (I64 index buffer)
+#   ple_embedding.ngram_heads_vocab_sizes  [n_ngram_heads]  (I64 index buffer)
+#
+# Decode-state cache (the PLE is stateful across decode steps):
+#   conv state — (s_ple_conv - 1) * n_ngram trailing columns of the
+#     hc*d-channel conv input (:1199-1201, updated at state_idx=1, :1219-1222)
+#   n-gram id context — the last n_ngram - 1 int64 token ids (:1146-1152, state_idx=2)
+#
+# Required dims: d_model, n_hidden_copies, d_ple, n_ngram, n_ngram_heads,
+# d_ngram_head, n_ple_vocab, n_ple_shards, s_ple_conv
+role: memory
+description: "Qwen3.8 PLE n-gram embedding bank (one hashed table, split_ngram_parts shards on disk) + conv/norm retrieval + key/value projections. On the ple_layer_ids layers (1-based)."
+cache:
+  entries:
+    # hc·d × (s_ple_conv − 1)·n_ngram trailing conv-input columns
+    - { state: ple_conv_state, kind: conv_state, carrier: conv1d, shape: ["n_hidden_copies * d_model", "(s_ple_conv - 1) * n_ngram"], dtype: BF16 }
+    # the last n_ngram − 1 int64 token ids
+    - { state: ple_ngram_ids, kind: token_window, carrier: ple_embedding.ngram_embedding, shape: ["n_ngram - 1"], dtype: I64 }
+# `x` is the widened hidden stream; `input_ids` the token ids the n-gram
+# hashes read (the decoder layer's `ple_ids`, hashed from them).
+inputs: [x, input_ids]
+graph:
+  # --- n-gram embedding bank: ONE table, 128 vocab shards on disk ---
+  # ONE nn.Embedding(padded_vocab, d_ngram_head) (modeling_qwen4_exp.py:1113).
+  # Each token hashes its n-gram context into (ngram_size - 1) * heads_per_ngram
+  # = n_ngram_heads ids of that table (:1087, :1160-1174), gathers them in one
+  # lookup and flattens them (:1180) to [B, s_ctx, n_ngram_heads * d_ngram_head = d_ple].
+  # The checkpoint stores the table as split_ngram_parts row blocks
+  # `ngram_embedding.shard_{i}.weight`, concatenated along dim 0 at load
+  # (transformers conversion_mapping.py:1826-1828).
+  ple_embedding.ngram_embedding:
+    op: hash_embedding
+    in: input_ids
+    dims: { n_vocab: n_ple_vocab, d_model: d_ngram_head, rows: n_ngram_heads }
+    # vLLM `Qwen4ExpPLEEmbedding` is a `VocabParallelEmbedding` on the Engram
+    # TP group (the TP group by default): each rank holds a contiguous,
+    # padded 1/tp of the rows, copied out of the overlapping `shard_{i}`
+    # blocks at load, and the partial lookups are all-reduced over the group
+    # (vllm/models/qwen4_exp/nvidia/ngram_embedding.py:52-78, common/ple.py:82-100).
+    weight_axes: [{ world: attention, parts: n_vocab, fit: pad }, { replicated: true }]
+    host_offload: >-
+      vLLM EngramConfig.cpu_offload, on by default (VLLM_PLE_CPU_OFFLOAD=1):
+      `Qwen4ExpPLEPinnedHostEmbedding`, the table in pinned host memory
+      gathered over UVA (vllm/config/engram.py:26-47,
+      models/qwen4_exp/nvidia/ngram_embedding.py:387-427, 702-707)
+    stored_split: { axis: 0, parts: n_ple_shards, segment: "shard_{i}" }
+  emb:         { op: view_merge, in: ple_embedding.ngram_embedding }
+  key_proj:    { op: linear, in: emb, dims: { in: d_ple, out: "n_hidden_copies * d_model" }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  # norm_key / norm_query / norm_conv are GROUPED Qwen4ExpTextRMSNorm
+  # (hc*d, group_size=d_model; modeling_qwen4_exp.py:1203-1205, class :152-170):
+  # RMS is taken per hc copy of width d_model, then × (1 + weight[hc*d]).
+  norm_key.split:  { op: view_split, in: key_proj, axis: -1, dims: { n_heads: n_hidden_copies, d_head: d_model } }
+  norm_key.rms:    { op: rmsnorm_unscaled, in: norm_key.split, dim: d_model }
+  norm_key.merge:  { op: view_merge, in: norm_key.rms }
+  norm_key.weight: { op: parameter_vector, dim: "n_hidden_copies * d_model", weight_axes: [{ replicated: true }] }
+  norm_key:        { op: mul, in: [norm_key.merge, norm_key.weight], dim: "n_hidden_copies * d_model", formula: "y = norm · (1 + w)" }
+  value_proj:  { op: linear, in: emb, dims: { in: d_ple, out: d_model }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  norm_query.split:  { op: view_split, in: x, axis: -1, dims: { n_heads: n_hidden_copies, d_head: d_model } }
+  norm_query.rms:    { op: rmsnorm_unscaled, in: norm_query.split, dim: d_model }
+  norm_query.merge:  { op: view_merge, in: norm_query.rms }
+  norm_query.weight: { op: parameter_vector, dim: "n_hidden_copies * d_model", weight_axes: [{ replicated: true }] }
+  norm_query:        { op: mul, in: [norm_query.merge, norm_query.weight], dim: "n_hidden_copies * d_model", formula: "y = norm · (1 + w)" }
+  # gate = Σ_d(key·query)/√d, signed sqrt, sigmoid  → one scalar per copy
+  kq:          { op: mul, in: [norm_key, norm_query], dim: "n_hidden_copies * d_model" }
+  kq_view:     { op: view_split, in: kq, axis: -1, dims: { n_heads: n_hidden_copies, d_head: d_model } }
+  gate_sum:    { op: sum_reduce, in: kq_view, dims: { in: d_model } }
+  gate_scale:  { op: scale_const, in: gate_sum, dims: { in: n_hidden_copies }, formula: "y = x / sqrt(d_model)" }
+  # :1247 `gate.abs().clamp_min(1e-6).sqrt() * gate.sign()` (registered `signed_sqrt`)
+  gate_sqrt:   { op: signed_sqrt, in: gate_scale, dim: n_hidden_copies }
+  gate_act:    { op: sigmoid, in: gate_sqrt, dim: n_hidden_copies }
+  # gated_value = sigmoid(gate)[..., None] * value[..., None, :]  → [B,S,hc,d]
+  gate_exp:    { op: broadcast, in: gate_act, axis: -1, dims: { width: d_model } }
+  value_bcast: { op: broadcast, in: value_proj, axis: -2, dims: { width: n_hidden_copies } }
+  gated_value: { op: mul, in: [value_bcast, gate_exp], dim: d_model }
+  gated_flat:  { op: view_merge, in: gated_value }
+  # grouped norm_conv: RMS over each copy's d_model on the [B,S,hc,d] view
+  norm_conv.rms:    { op: rmsnorm_unscaled, in: gated_value, dim: d_model }
+  norm_conv.merge:  { op: view_merge, in: norm_conv.rms }
+  norm_conv.weight: { op: parameter_vector, dim: "n_hidden_copies * d_model", weight_axes: [{ replicated: true }] }
+  norm_conv:        { op: mul, in: [norm_conv.merge, norm_conv.weight], dim: "n_hidden_copies * d_model", formula: "y = norm · (1 + w)" }
+  # depthwise causal conv, kernel ple_conv_kernel_size (s_ple_conv), dilation
+  # ngram_size (n_ngram) (:1207-1214)
+  conv1d:      { op: conv1d, in: norm_conv, dims: { C: "n_hidden_copies * d_model", C_in: "n_hidden_copies * d_model", C_out: "n_hidden_copies * d_model", kernel_size: s_ple_conv, groups: "n_hidden_copies * d_model", dilation: n_ngram, bias: "0" }, weight_axes: [{ replicated: true }, { replicated: true }, { replicated: true }] }
+  conv_act:    { op: silu, in: conv1d, dim: "n_hidden_copies * d_model" }
+  ple_out:     { op: add, in: [gated_flat, conv_act], dim: "n_hidden_copies * d_model" }
+  # --- I64 index buffers (bare nn.Parameters, no .weight; dtype override in model quant_context) ---
+  # Only the n-gram id hash reads these (`shifted_tokens[...] * self.layer_multipliers[...]`,
+  # `torch.remainder(mixed_ids, head_vocab_sizes)`, `+ head_offsets`); the graph models the
+  # lookup as reading the token ids (`input_ids`) and does not model that integer hash
+  # (kind unmodelled_reader), so no graph node reads them.
+  ple_embedding.layer_multipliers:       { op: parameter_vector, dim: n_ngram,  weight_axes: [{ replicated: true }], stored_without_graph_reader: { kind: unmodelled_reader, reason: "read only by the n-gram id hash, integer index math on the token ids that the graph does not model", source_anchor: "modeling_qwen4_exp.py:1163-1170" } }
+  ple_embedding.ngram_heads_offsets:     { op: parameter_vector, dim: n_ngram_heads, weight_axes: [{ replicated: true }], stored_without_graph_reader: { kind: unmodelled_reader, reason: "read only by the n-gram id hash, integer index math on the token ids that the graph does not model", source_anchor: "modeling_qwen4_exp.py:1163-1170" } }
+  ple_embedding.ngram_heads_vocab_sizes: { op: parameter_vector, dim: n_ngram_heads, weight_axes: [{ replicated: true }], stored_without_graph_reader: { kind: unmodelled_reader, reason: "read only by the n-gram id hash, integer index math on the token ids that the graph does not model", source_anchor: "modeling_qwen4_exp.py:1163-1170" } }
+outputs: [ple_out]

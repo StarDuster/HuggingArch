@@ -1,0 +1,4 @@
+# Identity file for meituan-longcat/LongCat-Flash-Thinking-2601
+base: longcat_flash
+match:
+  model_id: [meituan-longcat/LongCat-Flash-Thinking-2601]

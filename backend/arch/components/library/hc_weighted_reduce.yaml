@@ -1,0 +1,27 @@
+# Reduce a [B,s_ctx,n_hidden_copies,d_model] tensor over the n_hidden_copies axis using per-token n_hidden_copies-weights.
+#
+# Used by V4-Pro Hyper-Connections in two places:
+#   • Block.hc_pre  — final step that turns n_hidden_copies-many parallel hidden
+#     copies into a single `[B,s_ctx,d_model]` value to feed attn / ffn
+#   • ParallelHead.hc_head — same shape reduction at the network exit
+#     before lm_head
+#
+# Forward: y = sum(w.unsqueeze(-1) * x_hc, dim=2)
+#   x_hc: [B, s_ctx, n_hidden_copies, d_model]
+#   w:    [B, s_ctx, n_hidden_copies]
+#   y:    [B, s_ctx, d_model]
+#
+# Pure broadcast + mul + sum_reduce — no learnable params of its own.
+#
+# Required dims: d_model, n_hidden_copies.
+
+role: hyper_connection
+description: "Reduce [B,s_ctx,n_hidden_copies,d_model] over the n_hidden_copies axis using per-token [B,s_ctx,n_hidden_copies] weights → [B,s_ctx,d_model]. Used by HC pre-block and HC head."
+inputs: [x_hc, w]
+graph:
+  w_expanded: { op: broadcast, in: w, axis: -1, dims: { width: d_model } }       # [B,s_ctx,n_hidden_copies] → [B,s_ctx,n_hidden_copies,d_model]
+  weighted:   { op: mul, in: [x_hc, w_expanded], dim: d_model }              # [B,s_ctx,n_hidden_copies,d_model]
+  # sum_reduce FLOPs use `dims["in"]` for the reduced-axis size: here
+  # axis=2 collapses n_hidden_copies, so `in: n_hidden_copies`.
+  reduced:    { op: sum_reduce, in: weighted, axis: 2, dims: { in: n_hidden_copies } }   # [B,s_ctx,d_model]
+outputs: [reduced]

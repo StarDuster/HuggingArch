@@ -1,0 +1,15 @@
+# SwiGLU FFN
+# Used by: LLaMA, Mistral, Qwen2, DeepSeek, etc.
+#
+# Required dims: d_model, d_ffn
+# Module name pattern: {gate_proj, up_proj, down_proj}
+
+role: ffn_dense
+description: "Standard SwiGLU FFN (gate_proj + up_proj + silu + down_proj). Llama, Qwen, DSv* dense layers."
+graph:
+  gate_proj: { op: linear, in: x, dims: { in: d_model, out: d_ffn }, weight_axes: [{ placement_by_symbol: { d_ffn: { world: dense_ffn, parts: d_ffn, fit: exact }, d_ffn_expert: { world: moe_expert, parts: d_ffn, fit: exact }, d_ffn_shared: { world: dense_ffn, parts: d_ffn, fit: exact }, d_vis_ffn: { world: dense_ffn, parts: d_ffn, fit: exact }, d_audio_ffn: { replicated: true } } }, { replicated: true }] }
+  up_proj:   { op: linear, in: x, dims: { in: d_model, out: d_ffn }, weight_axes: [{ placement_by_symbol: { d_ffn: { world: dense_ffn, parts: d_ffn, fit: exact }, d_ffn_expert: { world: moe_expert, parts: d_ffn, fit: exact }, d_ffn_shared: { world: dense_ffn, parts: d_ffn, fit: exact }, d_vis_ffn: { world: dense_ffn, parts: d_ffn, fit: exact }, d_audio_ffn: { replicated: true } } }, { replicated: true }] }
+  silu:      { op: silu, in: gate_proj, dim: d_ffn }
+  gate_mul:  { op: mul, in: [silu, up_proj], dim: d_ffn }
+  down_proj: { op: linear, in: gate_mul, dims: { in: d_ffn, out: d_model }, weight_axes: [{ replicated: true }, { placement_by_symbol: { d_ffn: { world: dense_ffn, parts: d_ffn, fit: exact }, d_ffn_expert: { world: moe_expert, parts: d_ffn, fit: exact }, d_ffn_shared: { world: dense_ffn, parts: d_ffn, fit: exact }, d_vis_ffn: { world: dense_ffn, parts: d_ffn, fit: exact }, d_audio_ffn: { replicated: true } } }] }
+outputs: [down_proj]

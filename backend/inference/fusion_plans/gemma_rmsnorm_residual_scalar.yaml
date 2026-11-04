@@ -1,0 +1,39 @@
+# Gemma-4's block tail: post-FFN RMSNorm, the residual add after it, and the
+# per-layer scalar, in one launch.
+#
+# Naive subgraph (gemma4_4norm_scaled_block):
+#
+#   y = (rmsnorm(mlp_out) * w + residual) * layer_scalar
+#
+# `fused_add_rmsnorm` cannot take it: the norm comes BEFORE the add here
+# (post-norm), and the scalar multiply follows.
+#
+#   sglang (audited at v0.5.22): `Gemma4DecoderLayer._next_stream`
+#     (srt/models/gemma4_causal.py:804-818) calls
+#     `gemma_rmsnorm_residual_scalar` (kernels/ops/layernorm/gemma4_fused_ops.py:56,
+#     Triton kernel :17) when the layer has no per-layer input (PLE) and no
+#     MoE block, on CUDA/XPU, for 2-D hidden states. A PLE layer puts its
+#     gate between the add and the scalar, which this pattern does not match.
+#     A layer WITH the MoE block (`enable_moe_block`, :638-666) does not leave
+#     this tail unfused: it returns early through
+#     `gemma_dual_rmsnorm_residual_scalar` (:771-791, kernel
+#     gemma4_fused_ops.py:322), which also takes the two branch norms and
+#     their sum — `gemma_dual_rmsnorm_residual_scalar.yaml`, six nodes, so it
+#     is tried first and its graph (the tail norm reading the sum of two
+#     normed branches) is what tells the two layers apart. The same in
+#     prefill and decode.
+#   vLLM (audited at v0.32.0): the norm, add and multiply run separately —
+#     not bound.
+
+fused_op: gemma_rmsnorm_residual_scalar
+
+naive_pattern:
+  nodes:
+    norm:  { op: rmsnorm, inputs: [external.x] }
+    add:   { op: add,     inputs: [external.residual, norm.out] }
+    scale: { op: mul,     inputs: [add.out, external.scalar] }
+  io_mapping:
+    x:        external.x
+    residual: external.residual
+    scalar:   external.scalar
+    output:   scale.out

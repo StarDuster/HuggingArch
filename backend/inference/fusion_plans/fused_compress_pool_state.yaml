@@ -1,0 +1,28 @@
+# DeepInfer's CSA2 compressor pool and state update — the first of its two
+# compressor launches. The second (`fused_compress_norm_rope_store`) norms,
+# rotates, quantises and stores the row this launch writes.
+#
+# Naive subgraph (`csa2_compressor_gated{,_decode}`, through `pooled`):
+#
+#   weights = softmax(score window)
+#   latent  = Σ window(kv · weights)
+#
+# DeepInfer runs `compress_and_update_state_prefill` / `_decode` as one
+# launch and also saves the open group's fp32 [kv, score] rows. That state
+# write is beside the pooled row the graph consumes; the cache declaration
+# already carries the state, so the plan exposes the pool's output rather
+# than inventing a second output port for it.
+
+fused_op: fused_compress_pool_state
+
+naive_pattern:
+  nodes:
+    kv_window:  { op: view_split,  inputs: [external.kv] }
+    gate_window: { op: view_split, inputs: [external.score] }
+    weights:    { op: softmax_act, inputs: [gate_window.out] }
+    weighted:   { op: mul,         inputs: [kv_window.out, weights.out] }
+    pooled_row: { op: sum_reduce,  inputs: [weighted.out] }
+  io_mapping:
+    kv:     external.kv
+    score:  external.score
+    output: pooled_row.out

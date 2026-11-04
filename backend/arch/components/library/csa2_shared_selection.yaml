@@ -1,0 +1,23 @@
+# `Attention._compress_topk_idxs` on a layer that is not an index source —
+# the whole method is its first line (source/model.py:722-726):
+#
+#     def _compress_topk_idxs(self, x, qr, latent, start_pos, offset, …):
+#         if not self.is_index_source:
+#             return shared_attn.topk_idxs
+#
+# The layer still pays for the sparse attention over `window + top-K
+# compressed` positions, and still loads that list of positions from HBM; it
+# pays no projection and keeps no buffer for choosing them. So this is one
+# read of the `csa_topk` stream, stated as the node the score reads under.
+#
+# `x`, `q_norm` and `latent` are the formals every `indexer` slot binding
+# takes, and this branch returns without looking at any of them — the source
+# method's own signature (`_compress_topk_idxs(self, x, qr, latent, …)`)
+# with its first line taken.
+
+description: "CSA2 selection, consumer form: the top-K compressed positions the nearest index source published, read as the shared list it is. No weights, no cache."
+inputs: [x, q_norm, latent]
+reads: [csa_topk]
+graph:
+  topk_idxs: { op: identity, in: csa_topk, formula: "return shared_attn.topk_idxs   (source/model.py:726)" }
+outputs: [topk_idxs]

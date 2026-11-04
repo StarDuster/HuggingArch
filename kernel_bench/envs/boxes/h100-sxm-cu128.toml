@@ -1,0 +1,156 @@
+name = "h100-sxm-cu128"
+python = "3.12"
+# Where the queue keeps jobs/ and results/ — the MACHINE's local disk, so
+# the path is $KERNEL_BENCH_WORK_DIR rather than a literal: this profile
+# describes a hardware + wheel stack, and every machine with that stack has
+# its own disk under its own name. Local to its node either way: a
+# reallocation wipes it, so nothing that RUNS there may live only there
+# (`hbench queue`, `hbench keepalive`).
+work_dir = "${KERNEL_BENCH_WORK_DIR}"
+constraints = "kernel_bench/envs/boxes/h100-sxm-cu128.constraints.txt"
+
+# NVIDIA H100 80GB HBM3 (SXM), kernel driver 575.57.08, CUDA 12.9 + nvcc.
+# torch wheels for that driver's own CUDA come from the cu128 index; the
+# CUDA-13 envs below reach past it, see [library_env].
+[env_requirements]
+fa2 = "kernel_bench/envs/boxes/h100-sxm-cu128.fa2.txt"
+vllm = "kernel_bench/envs/boxes/h100-sxm-cu128.vllm.txt"
+marlin = "kernel_bench/envs/boxes/h100-sxm-cu128.marlin.txt"
+sglang = "kernel_bench/envs/boxes/h100-sxm-cu128.sglang.txt"
+
+# The CUDA-13 envs, and the one thing they need that the others must not get.
+#
+# vLLM from 0.27 and sglang from 0.5.18 ship their compiled extensions linked
+# against libcudart.so.13, and sglang from 0.5.11 requires cuda-python>=13 —
+# which no CUDA-12 torch build can satisfy, because every one of them requires
+# cuda-bindings<13. So these envs run CUDA-13 wheels or they do not run the
+# release their framework binding was audited at.
+#
+# This kernel driver reports CUDA 12.9, and a CUDA-13 runtime on it fails at
+# the first call ("CUDA driver version is insufficient for CUDA runtime
+# version"; the extension still IMPORTS, which is what made this look like a
+# missing symbol for a while). NVIDIA's forward-compatibility package is the
+# mechanism for that: a newer USER-mode driver beside the existing kernel-mode
+# one, no reboot, nothing else on the box affected. Unpacked on the machine's
+# local disk, like the source-built venvs:
+#
+#   V=13.0 D=cuda-compat-13-0_580.95.05-0ubuntu1_amd64.deb
+#   curl -fLO https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64/$D
+#   dpkg-deb -x $D /tmp/c && mv /tmp/c/usr/local/cuda-$V $KERNEL_BENCH_WORK_DIR/cuda-compat-$V
+#
+# 13-0 (user-mode driver 580.95.05) is the ceiling this kernel driver carries:
+# measured here, 13-4 (UMD 615.71.10) fails with CUDA error 803, which is
+# NVIDIA's own documented signal for this mismatch
+# (CUDA_ERROR_SYSTEM_DRIVER_MISMATCH).
+#
+# Read this part before trusting a number measured in one of these envs.
+#
+# THIS CONFIGURATION IS OUTSIDE NVIDIA'S SUPPORTED MATRIX. Their
+# forward-compatibility page states the base install the `cuda-compat-13-x`
+# family requires as r580 or newer, and this box's kernel driver is r575; the
+# same page says New Feature Branches are not supported compat targets. What
+# stands behind the numbers measured here is therefore verification, not
+# support: 18 rows on the first night, every one of them cross-checked against
+# its oracle and passing (`sglang_fused_gdn_gating` at 4e-3 relative error,
+# `vllm_rms_norm` / `vllm_silu_and_mul` / `vllm_fused_add_rms_norm` likewise).
+# "Works, and agrees with the reference" is not "supported". Both halves of
+# that sentence are load-bearing, and the comment this replaced asserted its
+# half as fact — which is why these pins sat three releases behind the
+# bindings — so neither half gets dropped here.
+#
+# Documented limitations from the same page that could reach a measurement:
+# anything requiring newer kernel-mode support does not work, CUDA↔OpenGL and
+# CUDA↔Vulkan interop are unsupported, and `cuMemMap*` is only CONDITIONALLY
+# supported. That last one is the one to watch and the reason to re-measure
+# elsewhere rather than argue: expandable-segment allocators go through it, and
+# so do NVSHMEM and DeepEP — DeepEP being the MoE all-to-all path this repo
+# models, so a kernel on it is precisely a kernel whose number from this box
+# should not be trusted. Measure those on a box whose KERNEL driver is r580 or
+# newer.
+#
+# Error 803 (`CUDA_ERROR_SYSTEM_DRIVER_MISMATCH`) is NVIDIA's own signal for
+# this mismatch class, and compat-13-4 above is the instance that produced it
+# here — stated so the next person reads the ceiling instead of walking it.
+#
+# One more thing, because it has already misled two readers: WITHOUT the compat
+# driver these envs still IMPORT. Measured here, same env, same script, only
+# LD_LIBRARY_PATH differing:
+#
+#   without:  import vllm._C_stable_libtorch OK | torch.ops._C.rms_norm
+#             registered True | device_count 1, is_available True |
+#             CALL FAILS, "The NVIDIA driver on your system is too old
+#             (found version 12090)"
+#   with:     the same four, and the CALL RETURNS
+#
+# So the import gate `hbench up` runs is a FALSE GREEN for these three envs,
+# and so is `torch.cuda.is_available()`. Only a call discriminates, which is
+# what a measured row is. Do not conclude from `up` saying ok, or from a
+# provider's `import_name` resolving, that this box can run a CUDA-13 kernel.
+#
+# Per library and not in [env] on purpose. A CUDA-12 env runs fine against the
+# forward-compat user-mode driver too — which is the problem: it would be a
+# DIFFERENT user-mode driver from the one every existing cu128 row was
+# measured against, so putting it box-wide would silently re-time every row
+# those envs go on to measure. That reason stands on its own.
+#
+# What this no longer has to do is let someone WORK OUT which driver a row
+# ran under. Since schema 14 the row says so itself: `kmd_version` is this
+# machine's kernel-mode driver and `umd_version` is the user-mode driver the
+# measuring process actually had mapped, both read from /proc at measure
+# time (`kernel_bench/env.py`). So do not infer a row's driver from which
+# env it came from and what this file says today — the file gets edited, an
+# $LD_LIBRARY_PATH can fail to take effect, and the row is the only thing
+# that was there. Rows written BEFORE schema 14 carry neither, and that
+# reads as unknown, which is the truthful answer for them: nothing recorded
+# it, so nothing can recover it.
+#
+# The second line undoes the cu128 index for these envs, and it is not
+# cosmetic. The pytorch index publishes LOCAL-version builds of torch's
+# companions (`torchaudio-2.11.0+cu128`), and a local version sorts ABOVE the
+# plain one, so `unsafe-best-match` satisfies sglang's `torchaudio==2.11.0`
+# from cu128 while torch itself comes from PyPI as CUDA 13. The env installs
+# and then dies on first import: "PyTorch and TorchAudio were compiled with
+# different CUDA versions. PyTorch has CUDA version 13.0 whereas TorchAudio
+# has CUDA version 12.8." PyPI is where a CUDA-13 env's wheels live, so these
+# envs are pointed back at it — naming it as the extra index rather than
+# unsetting the variable, because an empty index URL is not a declaration.
+[library_env.vllm]
+LD_LIBRARY_PATH = "${KERNEL_BENCH_WORK_DIR}/cuda-compat-13.0/compat"
+UV_EXTRA_INDEX_URL = "https://pypi.org/simple"
+
+[library_env.marlin]
+LD_LIBRARY_PATH = "${KERNEL_BENCH_WORK_DIR}/cuda-compat-13.0/compat"
+UV_EXTRA_INDEX_URL = "https://pypi.org/simple"
+
+[library_env.sglang]
+LD_LIBRARY_PATH = "${KERNEL_BENCH_WORK_DIR}/cuda-compat-13.0/compat"
+UV_EXTRA_INDEX_URL = "https://pypi.org/simple"
+
+[env]
+CUDA_DEVICE_ORDER = "PCI_BUS_ID"
+CUDA_HOME = "/usr/local/cuda"
+PATH = "/usr/local/cuda/bin:${PATH}"
+UV_EXTRA_INDEX_URL = "https://download.pytorch.org/whl/cu128"
+# The extra index also publishes a stale `packaging` (≤24.1). uv's default
+# first-index-wins then refuses packaging>=24.2, which vllm / flashinfer
+# need. Both indexes are trusted on this box.
+UV_INDEX_STRATEGY = "unsafe-best-match"
+# sglang 0.5.18 depends on cuda-tile==1.6.0rc5 (no final release yet).
+UV_PRERELEASE = "allow"
+OMP_NUM_THREADS = "8"
+MKL_NUM_THREADS = "8"
+OPENBLAS_NUM_THREADS = "8"
+NUMEXPR_NUM_THREADS = "8"
+TOKENIZERS_PARALLELISM = "false"
+
+# Source builds (no PyPI release), each in its own venv on the machine's
+# local disk under $KERNEL_BENCH_WORK_DIR (built by build_src.sh against
+# torch 2.8.0+cu128 for sm90). Same reason as `work_dir`: which machine
+# holds them is not a property of the hardware stack.
+[providers]
+flash_kda = "${KERNEL_BENCH_WORK_DIR}/venvs/flash_kda/bin/python"
+flashmla = "${KERNEL_BENCH_WORK_DIR}/venvs/flashmla/bin/python"
+deepgemm = "${KERNEL_BENCH_WORK_DIR}/venvs/deepgemm/bin/python"
+fa3 = "${KERNEL_BENCH_WORK_DIR}/venvs/fa3/bin/python"
+fa4 = "${KERNEL_BENCH_WORK_DIR}/venvs/fa4/bin/python"
+mamba_ssm = "${KERNEL_BENCH_WORK_DIR}/venvs/mamba_ssm/bin/python"

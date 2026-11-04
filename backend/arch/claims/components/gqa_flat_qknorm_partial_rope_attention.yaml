@@ -1,0 +1,9 @@
+schema: huggingarch.claims/v1
+subject: gqa_flat_qknorm_partial_rope_attention
+axioms:
+  checks:
+  - kind: kv_growth
+    storage: per_token
+    expect: 2 * n_kv_heads * d_head
+    src: 'GQA cache contract: K and V each retain n_kv_heads * d_head elements per
+      position; full-attention storage grows with context.'

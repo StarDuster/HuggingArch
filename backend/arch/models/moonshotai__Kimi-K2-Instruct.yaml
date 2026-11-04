@@ -1,0 +1,4 @@
+# Identity file for moonshotai/Kimi-K2-Instruct
+base: kimi_k2
+match:
+  model_id: [moonshotai/Kimi-K2-Instruct]

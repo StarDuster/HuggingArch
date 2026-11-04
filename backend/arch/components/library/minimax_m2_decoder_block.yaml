@@ -1,0 +1,68 @@
+# MiniMax-M2 decoder block.
+#
+# Custom inline wiring is required because HF's checkpoint uses unusual
+# tensor names: the MoE lives under `block_sparse_moe` (not `mlp`), expert
+# projections are `w1 / w2 / w3` (not gate_proj / up_proj / down_proj), and
+# the load-balance bias sits at block level
+# (`block_sparse_moe.e_score_correction_bias`, not under `gate`). None of the
+# standard `moe_ffn_*` library components match this naming, so the router and
+# the dispatch bracket are wired here as primitives, and the bank is the shared
+# `gated_experts` with w1 / w3 / w2 as its module names.
+#
+# Topology:
+#   input_layernorm → self_attn(GQA + flat QK-RMSNorm + partial RoPE)
+#                  → +residual → post_attention_layernorm
+#                  → block_sparse_moe.gate (router: sigmoid, +bias for
+#                    selection, top-k, gather un-biased, renormalize)
+#                  → permute → expert bank (`gated_experts`: w1/w3 → silu
+#                    → mul → w2, every weight [n_expert_copies, ·, ·]) → combine
+#                  → +residual.
+role: block
+description: "MiniMax-M2 decoder block: GQA + custom inline MoE with HF-specific tensor names (block_sparse_moe.experts.w1/w2/w3)."
+
+# The attention sub-component declares its own head symbols; the MoE is
+# inlined HERE (for the HF tensor names), so the block carries the FFN
+# declaration its standard siblings (gated_ffn and friends) carry — without
+# it the expert intermediate is invisible to tensor parallelism, and vLLM's
+# FusedMoE partitions exactly that axis (w13/w3 column, w2 row).
+
+graph:
+  input_layernorm:           { op: rmsnorm, in: x, dim: d_model, weight_axes: [{ replicated: true }] }
+  self_attn:                 { op: gqa_flat_qknorm_partial_rope_attention,
+                               in: input_layernorm,
+                               dims: { d_model: d_model, n_heads: n_heads, n_kv_heads: n_kv_heads, d_head: d_head, d_rope: d_rope } }
+  attn_residual:             { op: add, in: [x, self_attn], dim: d_model }
+  post_attention_layernorm:  { op: rmsnorm, in: attn_residual, dim: d_model, weight_axes: [{ replicated: true }] }
+  # FFN (unrolled) — call-site role tags so the engine attributes these
+  # primitive nodes to their MoE roles (`router` for the gate chain,
+  # `ffn_moe` for the bank) even though no roled sub-component wraps them
+  # (HF checkpoint's `block_sparse_moe.experts.w1/w2/w3` naming blocks
+  # reuse of the standard `moe_ffn_*` components; the bank itself is
+  # `gated_experts`).
+  block_sparse_moe.gate:                  { op: linear, role: router, in: post_attention_layernorm, dims: { in: d_model, out: n_route_targets }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  block_sparse_moe.e_score_correction_bias: { op: parameter_vector, role: router, dim: n_route_targets, weight_axes: [{ replicated: true }] }
+  # Router (transformers MiniMaxM2TopKRouter.forward; vLLM minimax_m2.py
+  # FusedMoE with scoring_func sigmoid, e_score_correction_bias and
+  # renormalize=True):
+  #   routing_weights   = sigmoid(gate(x))
+  #   scores_for_choice = routing_weights + e_score_correction_bias   # selection only
+  #   top_k_index       = topk(scores_for_choice, n_experts_active)
+  #   top_k_weights     = routing_weights.gather(top_k_index)         # un-biased
+  #   top_k_weights    /= top_k_weights.sum()
+  # Zero-param; the normalized weights are handed to `permute`, which lays the
+  # tokens out per expert for the bank, and `combine` returns them — the
+  # standard MoE dispatch bracket.
+  moe_router_score:                  { op: sigmoid, role: router, in: block_sparse_moe.gate, dim: n_route_targets }
+  moe_router_scores_biased:          { op: add, role: router, in: [moe_router_score, block_sparse_moe.e_score_correction_bias], dim: n_route_targets }
+  moe_router_topk_indices:           { op: topk, role: router, in: moe_router_scores_biased, dims: { in: n_route_targets, k: n_experts_active } }
+  moe_router_topk_gather:            { op: gather, role: router, in: [moe_router_score, moe_router_topk_indices], dims: { in: n_route_targets, k: n_experts_active } }
+  moe_router_topk_norm:              { op: normalize_sum_one, role: router, in: moe_router_topk_gather, dims: { in: n_experts_active } }
+  # permute / combine bracket the dispatch zone — the same three-stage shape
+  # the standard `moe_ffn.yaml` (permute → bank → combine) carries. `permute`
+  # writes `[n_expert_copies, M, d_model]`, M the mean rows per expert, and
+  # the expert-parallel all-to-all is grafted onto the zone boundary.
+  permute:                           { op: permute, role: ffn_moe, in: [post_attention_layernorm, moe_router_topk_norm] }
+  block_sparse_moe.experts:          { op: gated_experts, role: ffn_moe, in: permute, dims: { d_model: d_model, d_ffn: d_ffn_expert }, expert_weight: unrolled, inner_modules: { gate_proj: w1, up_proj: w3, down_proj: w2 } }
+  combine:                           { op: combine, role: ffn_moe, in: [block_sparse_moe.experts, moe_router_topk_norm] }
+  ffn_residual:                      { op: add, in: [attn_residual, combine], dim: d_model }
+outputs: [ffn_residual]

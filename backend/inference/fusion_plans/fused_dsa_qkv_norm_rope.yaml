@@ -1,0 +1,31 @@
+# DSA attention (DeepSeek-V3.2 / GLM-5.x) input preparation without an
+# indexer — the q-LoRA a-norm, the latent-KV a-norm and the shared k_pe
+# rotation in one launch; vLLM's `fused_norm_rope` with `has_indexer=False`.
+#
+# Naive subgraph (mla_dsa_attention_shared{,_absorbed}: GLM-5.2's
+# shared-indexer layers, which read another layer's top-k):
+#
+#   q_c  = rmsnorm(q_a)             # q_a_layernorm
+#   kv_c = rmsnorm(kv_latent)       # kv_a_layernorm
+#   k_pe = rope_emb(k_pe)           # k_pe_rope, shared by every head
+#
+# The indexer layers' form, which also prepares the indexer key, is
+# `fused_dsa_qkv_norm_rope_indexer.yaml`; it describes the kernel.
+#
+# `feeds` tells the two norms apart: the same op on unrelated inputs; the
+# query side becomes the score's q, the latent its k and v.
+
+fused_op: fused_dsa_qkv_norm_rope
+
+naive_pattern:
+  nodes:
+    q_norm:  { op: rmsnorm,  inputs: [external.q],    feeds: q }
+    kv_norm: { op: rmsnorm,  inputs: [external.kv],   feeds: k }
+    k_rope:  { op: rope_emb, inputs: [external.k_pe] }
+  io_mapping:
+    q:         external.q
+    kv:        external.kv
+    k_pe:      external.k_pe
+    output: q_norm.out
+    kv_out: kv_norm.out
+    k_out:  k_rope.out

@@ -1,0 +1,126 @@
+{
+  "silent_except": {
+    "start": 156,
+    "baseline": 81
+  },
+  "name_lists": {
+    "start": 136,
+    "baseline": 49
+  },
+  "width_defaults": {
+    "start": 46,
+    "baseline": 10
+  },
+  "import_cycles": {
+    "start": 3,
+    "baseline": 0
+  },
+  "lazy_edges": {
+    "start": 269,
+    "baseline": 146
+  },
+  "defensive_access": {
+    "start": 465,
+    "baseline": 104
+  },
+  "repeat_sites": {
+    "start": 91,
+    "baseline": 17
+  },
+  "downstream_derivation": {
+    "start": 145,
+    "baseline": 5
+  },
+  "undecided_decisions": {
+    "start": 204,
+    "baseline": 103
+  },
+  "symbol_skipping_gates": {
+    "start": 11,
+    "baseline": 11
+  },
+  "fact:op_has_weight": {
+    "start": 3,
+    "baseline": 0
+  },
+  "fact:op_arity": {
+    "start": 2,
+    "baseline": 0
+  },
+  "fact:op_stored_tensors": {
+    "start": 2,
+    "baseline": 0
+  },
+  "fact:op_is_collective": {
+    "start": 3,
+    "baseline": 0
+  },
+  "fact:op_gemm_family": {
+    "start": 3,
+    "baseline": 0
+  },
+  "fact:role_vocabulary": {
+    "start": 5,
+    "baseline": 0
+  },
+  "fact:dim_kinds": {
+    "start": 1,
+    "baseline": 0
+  },
+  "fact:dtype_names_and_widths": {
+    "start": 9,
+    "baseline": 0
+  },
+  "fact:weight_bytes": {
+    "start": 5,
+    "baseline": 0
+  },
+  "fact:hbm_access": {
+    "start": 1,
+    "baseline": 0
+  },
+  "fact:tied_weight": {
+    "start": 3,
+    "baseline": 0
+  },
+  "fact:expert_bank": {
+    "start": 1,
+    "baseline": 0
+  },
+  "fact:hybrid_attention": {
+    "start": 2,
+    "baseline": 0
+  },
+  "fact:moe_identity": {
+    "start": 4,
+    "baseline": 0
+  },
+  "fact:quant_scheme_identity": {
+    "start": 2,
+    "baseline": 0
+  },
+  "fact:supabase_mode": {
+    "start": 5,
+    "baseline": 0
+  },
+  "fact:cache_family": {
+    "start": 1,
+    "baseline": 0
+  },
+  "fact:custom_op_layout_family": {
+    "start": 4,
+    "baseline": 0
+  },
+  "fact:component_is_adapter": {
+    "start": 1,
+    "baseline": 0
+  },
+  "fact:gpus_per_node": {
+    "start": 5,
+    "baseline": 0
+  },
+  "fact:config_field_optionality": {
+    "start": 2,
+    "baseline": 0
+  }
+}

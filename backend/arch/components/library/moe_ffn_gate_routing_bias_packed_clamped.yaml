@@ -1,0 +1,75 @@
+# Hy4 routed MoE FFN: noaux_tc sigmoid routing + PACKED clamped SwiGLU
+# expert bank + one plain (unclamped) shared expert.
+#
+# Topology is library `moe_ffn_gate_routing_bias` with two Hy4 twists, both
+# from modeling_hy_v4.py:
+#
+#   1. Routed experts are PACKED 3D nn.Parameters (HYV4Experts), not per-expert
+#      modules. The safetensors headers are
+#        model.layers.X.mlp.experts.gate_up_proj  [256, 4096, 6144] BF16
+#        model.layers.X.mlp.experts.down_proj     [256, 6144, 2048] BF16
+#      i.e. [n_experts, 2*d_ffn_expert, d_model] and [n_experts, d_model,
+#      d_ffn_expert] — expert count on the leading axis (each weight's
+#      `shape:`), payload already in the op's (out, in) order, so NO stored_axes (unlike Qwen3-VL's packed
+#      MoE, which stores [in, out]). The gate half of gate_up_proj is rows
+#      [0, d_ffn_expert), the up half rows [d_ffn_expert, 2*d_ffn_expert)
+#      (HYV4Experts.forward chunk order, modeling_hy_v4.py:590-596).
+#   2. The clamp (swiglu_limit = 10) applies to the ROUTED experts only:
+#      HYV4Experts.forward does gate.clamp(max=limit) /
+#      up.clamp(min=-limit, max=limit) before silu-and-mul
+#      (modeling_hy_v4.py:597-602), while the shared expert is a plain
+#      HYV4MLP SwiGLU with no clamp. So the clamp is inlined into the packed
+#      expert subgraph here and the shared expert stays `swiglu_ffn`.
+#
+# Routing is the DeepSeek-V3 noaux_tc pipeline exactly: sigmoid scores,
+# e_score_correction_bias, n_group=topk_group=1 (degenerate group stage),
+# norm_topk_prob=true, routed_scaling_factor=2.827.
+#
+# Required dims: d_model, d_ffn_expert, n_experts, n_experts_active,
+#                n_route_targets (derived), n_expert_groups (n_group),
+#                n_groups_active (topk_group)
+# Optional dims: n_shared_experts
+
+role: ffn_moe
+description: "MoE + noaux_tc routing (sigmoid + e_score_correction_bias), packed 3D-Parameter expert bank with clamped SwiGLU routed experts (swiglu_limit), one unclamped shared SwiGLU. Hy4."
+graph:
+  gate:    { op: router_noaux_tc, in: x }
+  permute: { op: permute, in: [x, gate] }
+  experts.gate_up_proj:
+    op: linear_param
+    role: ffn_moe
+    in: permute
+    dims: { in: d_model, out: "2 * d_ffn_expert" }
+    shape: [n_expert_copies, "2 * d_ffn_expert", d_model]
+    weight_axes:
+      - { world: moe_copies, parts: n_expert_copies, fit: exact }
+      - segments:
+          - { segment: gate, extent: d_ffn_expert, world: moe_expert, parts: d_ffn_expert, fit: exact }
+          - { segment: up,   extent: d_ffn_expert, world: moe_expert, parts: d_ffn_expert, fit: exact }
+      - { replicated: true }
+    expert_weight: leading_axis
+  experts.gate_slice: { op: slice, in: experts.gate_up_proj, dims: { in: "2 * d_ffn_expert", out: d_ffn_expert, start: "0" } }
+  experts.up_slice:   { op: slice, in: experts.gate_up_proj, dims: { in: "2 * d_ffn_expert", out: d_ffn_expert, start: d_ffn_expert } }
+  # Routed-expert clamp only (modeling_hy_v4.py:597-602); the shared expert
+  # below is unclamped.
+  experts.gate_clamp: { op: clamp, in: experts.gate_slice, dim: d_ffn_expert, formula: "y = min(gate, swiglu_limit)" }
+  experts.up_clamp:   { op: clamp, in: experts.up_slice, dim: d_ffn_expert, formula: "y = min(max(up, −swiglu_limit), swiglu_limit)" }
+  experts.silu:       { op: silu, in: experts.gate_clamp, dim: d_ffn_expert }
+  experts.gate_mul:   { op: mul, in: [experts.silu, experts.up_clamp], dim: d_ffn_expert }
+  experts.down_proj:
+    op: linear_param
+    role: ffn_moe
+    in: experts.gate_mul
+    dims: { in: d_ffn_expert, out: d_model }
+    shape: [n_expert_copies, d_model, d_ffn_expert]
+    weight_axes:
+      - { world: moe_copies, parts: n_expert_copies, fit: exact }
+      - { replicated: true }
+      - { world: moe_expert, parts: d_ffn_expert, fit: exact }
+    expert_weight: leading_axis
+  combine: { op: combine, in: [experts.down_proj, gate] }
+  # Shared expert: plain unclamped SwiGLU of width d_ffn_expert
+  # (mlp.shared_experts.{gate,up,down}_proj.weight).
+  shared_experts: { op: swiglu_ffn, role: ffn_moe, in: x, dims: { d_model: d_model, d_ffn: d_ffn_expert }, repeat: n_shared_experts }
+  moe_out: { op: add, in: [combine, shared_experts], dim: d_model }
+outputs: [moe_out]

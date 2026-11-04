@@ -1,0 +1,51 @@
+# FlashAttention v3 / FA2 — tiled attention kernel that streams Q·K^T
+# and softmax through SRAM without materializing the
+# [B, n_heads, s_query, s_kv]
+# intermediate. The fused virtual node exposes only the {q, k, v} ->
+# output boundary; the [B, n_heads, s_query, s_kv] score and softmax
+# intermediates do
+# not appear in the rewritten graph.
+#
+# Naive subgraph: attention_score(q, k) -> softmax -> attention_apply(., v).
+#
+# Sliding-window and attention-sink variants are the SAME kernel in
+# serving (FA / FlashInfer with `window_size`, plus an optional per-head
+# sink tensor). The spec spells them as `swa_*` primitives so FLOPs and
+# KV storage stay windowed; the matcher collapses them here via
+# `op_choices` and an optional trailing `sinks` input on softmax. Mixing
+# a dense score with an SWA softmax cannot fire: the graph never wires
+# those ops together, and arity still has to match.
+#
+# Cost preservation: tautological — the fused kernel computes the same
+# Q·K^T -> softmax -> attn·V chain via online softmax tiling without
+# changing analytical FLOPs. The rewrite rebases each analysis layer with
+# that layer's combine law.
+
+fused_op: flash_attention
+
+naive_pattern:
+  nodes:
+    score:
+      op_choices: [attention_score, swa_attention_score]
+      inputs: [external.q, external.k]
+      # DSv4's CSA layer scores densely over a union whose compressed half
+      # its indexer already narrowed, and passes that selection as a third
+      # operand — the same shape `flash_dsa` allows on its own score. The
+      # indices are read inside the kernel like q/k/v are; what stays out of
+      # HBM is the score matrix, which this plan is about either way.
+      optional_inputs: [external.mask]
+    softmax:
+      # `swa_softmax_key0_bias` is MiMo's vision window: vLLM runs it inside
+      # one tiled kernel (triton_prefill_attention.context_attention_fwd with
+      # sinks_bias_key0=True), so the score matrix stays out of HBM here too.
+      op_choices: [softmax, softmax_with_sink, swa_softmax, swa_softmax_with_sink, swa_softmax_key0_bias]
+      inputs: [score.out]
+      optional_inputs: [external.sinks]
+    apply:
+      op_choices: [attention_apply, swa_attention_apply]
+      inputs: [softmax.out, external.v]
+  io_mapping:
+    q:      external.q
+    k:      external.k
+    v:      external.v
+    output: apply.out

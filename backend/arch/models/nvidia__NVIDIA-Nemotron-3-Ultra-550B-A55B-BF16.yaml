@@ -1,0 +1,4 @@
+# Identity file for nvidia/NVIDIA-Nemotron-3-Ultra-550B-A55B-BF16
+base: nemotron_h_3_ultra
+match:
+  model_id: [nvidia/NVIDIA-Nemotron-3-Ultra-550B-A55B-BF16]

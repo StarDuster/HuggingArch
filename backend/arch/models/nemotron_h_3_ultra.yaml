@@ -1,0 +1,182 @@
+# NVIDIA Nemotron-3-Ultra-550B-A55B-BF16
+#
+# Hybrid Mamba-2 + Transformer + Latent-MoE architecture (NemotronHForCausalLM
+# family). 108 backbone layers split into three mixer types per
+# `config.layers_block_type`:
+#   - 12 attention layers   → plain GQA (n_heads=64, n_kv_heads=2, d_head=128, no QK-norm)
+#                             with NO positional encoding (gqa_nope_attention); config.rope_theta
+#                             is present but no forward path reads it
+#   - 48 mamba   layers     → NemotronHMamba2Mixer (n_ssm_heads=256, d_ssm_head=64, n_ssm_groups=8, d_ssm_state=128)
+#   - 48 moe     layers     → Latent-MoE (n_experts=512, n_experts_active=22, d_moe_latent=2048, d_ffn_expert=5120, d_ffn_shared=10240)
+#
+# All backbone layers share the same single-norm wrapper:
+#   residual = x;  x = norm(x);  x = mixer(x);  x = residual + x
+# Different from the standard pre_norm block (which has two norms).
+#
+# Auxiliary MTP head: 2 sub-layers (mtp_layers_block_type = [attention, moe]),
+# each fully wrapped with enorm/hnorm/concat/eh_proj + norm + mixer
+# + final_layernorm. Shares the main backbone's embedding and lm_head.
+#
+# Innovations (per HF model card):
+#   - Latent-MoE: routed experts work in a low-rank latent space (d_moe_latent=2048),
+#     bracketed by fc1_latent_proj (d_model→d_moe_latent) and fc2_latent_proj (d_moe_latent→d_model).
+#   - Non-gated relu² experts (up_proj + relu² + down_proj, no gate_proj).
+#   - Wide non-gated shared expert (d_ffn_shared=10240) parallel to the routed bank.
+
+match:
+  model_type: [nemotron_h]
+
+dims:
+  # --- Backbone ---
+  d_model:    config.hidden_size                                # 8192
+  n_heads:    config.num_attention_heads                        # 64
+  n_kv_heads:   config.num_key_value_heads                        # 2
+  d_head:    config.head_dim                                   # 128
+  n_vocab:    config.vocab_size                                 # 131072
+  n_layers:    len(config.layers_block_type)                     # 108
+
+  # --- Mamba-2 ---
+  n_ssm_heads:  config.mamba_num_heads                            # 256
+  d_ssm_head:  config.mamba_head_dim                             # 64
+  n_ssm_groups:  config.n_groups                                   # 8
+  d_ssm_state:  config.ssm_state_size                             # 128
+  s_ssm_conv_kernel:  config.conv_kernel                                # 4
+
+  # --- MoE ---
+  n_experts:    config.n_routed_experts                           # 512
+  n_experts_active:    config.num_experts_per_tok                        # 22
+  # Fallbacks are the config class's own defaults (NemotronHConfig: n_group = topk_group = 1).
+  n_expert_groups:   config.n_group ?? "1"                             # 1
+  n_groups_active:   config.topk_group ?? "1"                           # 1
+  d_ffn_expert:   config.moe_intermediate_size                      # 5120 (per-expert intermediate in latent space)
+  d_ffn_shared:   config.moe_shared_expert_intermediate_size        # 10240 (wide shared expert intermediate in hidden space)
+  d_moe_latent: config.moe_latent_size                            # 2048 (MoE expert-bank latent dim)
+  s_max: config.max_position_embeddings
+  n_mtp_layers: config.num_nextn_predict_layers ?? "1"            # 1 MTP head (attn + moe sub-layers)
+
+view:
+  norm.eps: config.norm_eps
+
+# Each NemotronHBlock is a SINGLE-norm wrapper: norm → mixer → +residual.
+# This differs from the standard pre_norm pattern, so we declare inline
+# blocks rather than the auto-generated pre_norm templates.
+blocks:
+  nemotron_attention_block:
+    graph:
+      norm:  { op: rmsnorm, in: x, dim: d_model, weight_axes: [{ replicated: true }] }
+      mixer: { op: gqa_nope_attention, in: norm }
+      out:   { op: add, in: [x, mixer], dim: d_model }
+    outputs: [out]
+
+  nemotron_mamba_block:
+    graph:
+      norm:  { op: rmsnorm, in: x, dim: d_model, weight_axes: [{ replicated: true }] }
+      mixer: { op: nemotron_h_mamba_mixer, in: norm }
+      out:   { op: add, in: [x, mixer], dim: d_model }
+    outputs: [out]
+
+  nemotron_moe_block:
+    graph:
+      norm:  { op: rmsnorm, in: x, dim: d_model, weight_axes: [{ replicated: true }] }
+      mixer: { op: nemotron_h_latent_moe, in: norm }
+      out:   { op: add, in: [x, mixer], dim: d_model }
+    outputs: [out]
+
+  # One MTP step is `mtp_layers_block_type = [attention, moe]`: two
+  # sub-layers sharing one entry and one exit (vLLM nemotron_h_mtp.py
+  # NemotronHMTPAttentionDecoderLayer / NemotronHMTPMoEDecoderLayer, sglang
+  # nemotron_h_mtp.py). The first sub-layer (`has_start_projections`) holds
+  # the entry: eh_proj(cat[enorm(inputs_embeds), hnorm(hidden_states)]),
+  # `inputs_embeds` the shared embedding of the next token, `hidden_states`
+  # the backbone's. The last (`has_end_norm`) holds `final_layernorm`. The
+  # checkpoint agrees: enorm / hnorm / eh_proj at `mtp.layers.0.*`,
+  # final_layernorm at `mtp.layers.1.*`.
+  #
+  # Not the library `mtp_block_shared_head`: its entry and its trailing norm
+  # are one layer's, and here they sit at two indices of the stack. Every
+  # MTP sub-layer is handed the next-token embedding, as vLLM hands it to
+  # each (`self.layers[str(i)](inputs_embeds=..., ...)`); only the first
+  # reads it.
+  nemotron_mtp_attn_layer:
+    inputs: [x, inputs_embeds]
+    graph:
+      enorm:           { op: rmsnorm, in: inputs_embeds, dim: d_model, weight_axes: [{ replicated: true }] }
+      hnorm:           { op: rmsnorm, in: x, dim: d_model, weight_axes: [{ replicated: true }] }
+      concat:          { op: concat, in: [enorm, hnorm], dim: "2 * d_model" }
+      eh_proj:         { op: linear, in: concat, dims: { in: "2 * d_model", out: d_model, bias: "0" }, weight_axes: [{ replicated: true }, { replicated: true }] }
+      norm:            { op: rmsnorm, in: eh_proj, dim: d_model, weight_axes: [{ replicated: true }] }
+      mixer:           { op: gqa_nope_attention, in: norm }
+      out:             { op: add, in: [eh_proj, mixer], dim: d_model }
+    outputs: [out]
+
+  nemotron_mtp_moe_layer:
+    inputs: [x, inputs_embeds]
+    graph:
+      norm:            { op: rmsnorm, in: x, dim: d_model, weight_axes: [{ replicated: true }] }
+      mixer:           { op: nemotron_h_latent_moe, in: norm }
+      out:             { op: add, in: [x, mixer], dim: d_model }
+      final_layernorm: { op: rmsnorm, in: out, dim: d_model, weight_axes: [{ replicated: true }] }
+    outputs: [final_layernorm]
+
+model_inputs:
+  input_ids: { kind: tokens }
+
+model:
+  - { name: backbone.embeddings, inputs: [input_ids], op: embedding, boundary_role: input_embedding, dims: { n_vocab: n_vocab, d_model: d_model }, weight_axes: [{ world: attention, parts: n_vocab, fit: pad }, { replicated: true }] }
+  - name: backbone.layers
+    inputs: [backbone.embeddings]
+    repeat: n_layers
+    streams:
+      hidden: { carries: true }
+    per_layer:
+      assign:
+        # Each layer's mixer is its entry in layers_block_type.
+        - { type: attn,  from: config.layers_block_type, is: attention }
+        - { type: mamba, from: config.layers_block_type, is: mamba }
+        - { type: moe,   from: config.layers_block_type, is: moe }
+      map:
+        attn:  { template: nemotron_attention_block }
+        mamba: { template: nemotron_mamba_block }
+        moe:   { template: nemotron_moe_block }
+  - { name: backbone.norm_f, op: rmsnorm, dim: d_model, weight_axes: [{ replicated: true }] , inputs: [backbone.layers]}
+  - { name: lm_head, op: linear, boundary_role: output_head, dims: { in: d_model, out: n_vocab, bias: "0" }, weight_axes: [{ world: attention, parts: n_vocab, fit: pad }, { replicated: true }] , inputs: [backbone.norm_f]}
+
+  # MTP head: 2 sub-layers per `mtp_layers_block_type = [attention, moe]`.
+  # Index 0 = attention sub-layer; index 1 = moe sub-layer. Shares the
+  # backbone embed + lm_head (no private copies).
+  - name: mtp
+    group: true
+    aux_kind: mtp
+    # One head per `num_nextn_predict_layers`; each head is the 2 sub-layers
+    # of `mtp_layers_block_type = [attention, moe]` (inner `repeat: "2"`).
+    repeat: n_mtp_layers
+    # MTP tensors ship under the stack's own nested layer index space
+    # (`mtp.layers.X.*`).
+    checkpoint: { prefix: mtp.layers, index: local }
+    inputs: [backbone.norm_f]
+    layers:
+      - name: layers
+        inputs: [backbone.norm_f, backbone.embeddings]
+        repeat: "2"
+        streams:
+          hidden: { carries: true }
+        per_layer:
+          assign:
+            - { type: attn, layers: ["0"] }
+            - { type: moe,  layers: ["1"] }
+          map:
+            attn: { template: nemotron_mtp_attn_layer }
+            moe:  { template: nemotron_mtp_moe_layer }
+      # MTP logits use the target lm_head (vLLM nemotron_h_mtp.py compute_logits).
+      - { name: mtp_logits, op: linear, boundary_role: output_head, dims: { in: d_model, out: n_vocab, bias: "0" }, weight_axes: [{ world: attention, parts: n_vocab, fit: pad }, { replicated: true }], tied_weight: { to: lm_head } , inputs: [layers]}
+
+# All weights are BF16 (dtype: bfloat16). The router's correction bias
+# (`*.gate.e_score_correction_bias`) is kept in F32 per
+# `_keep_in_fp32_modules_strict` in modeling_nemotron_h.py.
+quant_context:
+  per_role:
+    default: { method: none }
+  default_dtype: BF16
+  overrides:
+    - tensors_re: '\.gate\.e_score_correction_bias$'
+      dtype: F32

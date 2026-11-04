@@ -1,0 +1,33 @@
+# Hyper-Connections "post" mixing — re-spread the [B,s_ctx,d_model] result of
+# attn / ffn back into n_hidden_copies parallel hidden copies, mixing the residual
+# `[B,s_ctx,n_hidden_copies,d_model]` via a learned n_hidden_copies×n_hidden_copies combination matrix.
+#
+# Source mirror: `Block.hc_post(self, x, residual, post, comb)` in
+# `inference/model.py` of V4-Pro / V4-Flash.
+#
+# Forward:
+#   y_hc[b, s, hc, h] = post[b,s,hc] · x[b,s,h]
+#                     + Σⱼ comb[b,s,hc,j] · residual[b,s,j,h]
+#
+# This component owns NO learnable parameters of its own — the post /
+# comb tensors are computed by `hc_pre` and passed in. Pure compute.
+#
+# Required dims at call site: d_model, n_hidden_copies.
+#
+# Inputs:
+#   x        — attention/FFN output `[B, s_ctx, d_model]`
+#   residual — n_hidden_copies-copy residual stream from before this attn/ffn `[B, s_ctx, n_hidden_copies, d_model]`
+#   post     — n_hidden_copies-vector of post-mix weights `[B, s_ctx, n_hidden_copies]`
+#   comb     — n_hidden_copies×n_hidden_copies cross-mix matrix `[B, s_ctx, n_hidden_copies, n_hidden_copies]`
+
+role: hyper_connection
+description: "Hyper-Connections post-mix: scatter [B,s_ctx,d_model] back into n_hidden_copies copies + cross-mix residual via comb matrix → [B,s_ctx,n_hidden_copies,d_model]. Mirror of V4-Pro Block.hc_post."
+inputs: [x, residual, post, comb]
+
+graph:
+  out:
+    op: hc_combine
+    in: [x, residual, post, comb]
+    dims: { n_hidden_copies: n_hidden_copies, d_model: d_model }
+
+outputs: [out]

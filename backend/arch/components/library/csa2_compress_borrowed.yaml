@@ -1,0 +1,33 @@
+# `Attention._compress_kv`'s own body on a layer that is NOT a kv source —
+# the method's last line and nothing else (source/model.py:763):
+#
+#     return shared_attn.compress_kv[:bsz, :compress_len], idxs
+#
+# The class docstring states the invariant this form exists for
+# (source/model.py:617-619):
+#
+#     compress_ratio > 0 does not mean the layer compresses its own KV: only
+#     kv_source_layers do, the rest read that same cache.
+#
+# So there is no rotation and no store: the rows arrive already pooled and
+# rotated from the kv source that wrote them (`csa2_shared_latent` is what
+# the `compressor` slot binds there, and its output is this component's
+# input). No cache entry either — the buffer belongs to that layer and is
+# counted once there (source/model.py:668-679 allocates `compress_kv_cache`
+# only `if self.is_kv_source`).
+#
+# Required dims: none of its own.
+
+description: "CSA2 compressed-KV read: the rows an earlier kv-source layer published, under the read law the score applies. Stores nothing."
+inputs: [latent]
+graph:
+  # The published buffer, as it arrives: the stream carries the read law
+  # the kv source's cached node states — `min(index_topk, end_pos // ratio)`
+  # rows live per query (source/model.py:578), and their live pairs — over
+  # rows already on the pooled position axis. Nothing is pooled or bounded
+  # again here.
+  rows:
+    op: identity
+    in: latent
+    formula: "shared_attn.compress_kv[:bsz, :compress_len],  compress_len = (start_pos + seqlen) // compress_ratio   (source/model.py:763; read-only — the storage is the kv_source layer's, and Min(n_topk_keys, \u230as_kv/ratio\u230b) rows are live per query)"
+outputs: [rows]

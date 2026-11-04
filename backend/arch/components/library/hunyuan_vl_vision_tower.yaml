@@ -1,0 +1,66 @@
+# HunYuanVL vision tower (HunYuanVLVisionTransformer) + patch merger (perceive).
+# Singleton aux_block wrapper — leaves land at bare HF paths (vit.*).
+#
+# forward:
+#   x = embeddings.patch_embedding(pixel_values)          # Conv2d 16x16 -> d_vis_model, biased
+#   x = x + interpolate(embeddings.position_embedding)    # learned patch grid PE
+#   for blk in layers: x = blk(x)                         # n_vis_layers ViT blocks
+#   x = perceive(x)                                       # PatchMerger -> text d_model
+#
+# PatchMerger (HunYuanVLVisionPatchMerger).forward:
+#   x = before_rms(x)                                     # RMSNorm(d_vis_model)
+#   x = proj.0(reshape2x2(x))                             # Conv2d(d_vis_model -> 2*d_vis_model, k=2,s=2)
+#   x = proj.1(x) = gelu; x = proj.2(x)                   # Conv2d(2*d_vis_model -> 4*d_vis_model, k=1)
+#   x = cat([x, image_newline]); x = mlp(x)              # Linear(4*d_vis_model -> d_model), biased
+#   x = cat([image_begin, x, image_end]); x = after_rms(x) # RMSNorm(d_model)
+#
+# The proj.0 Conv2d (kernel=stride=2) folds a 2x2 spatial patch into channels,
+# so it is modelled as spatial_merge (d_vis_model -> 4*d_vis_model) + linear.
+#
+# Required dims: n_vis_channels, s_patch, d_vis_model, n_vis_heads, d_vis_head,
+#                d_vis_ffn, n_vis_layers, n_spatial_merge, d_model, n_vis_pos_slots
+role: aux_block
+description: "HunYuanVL vision tower: patch embed + learned PE + n_vis_layers ViT blocks + PatchMerger projector to text d_model. Singleton wrapper (bare vit.* HF paths)."
+graph:
+  vit.embeddings.patch_embedding:  { op: linear, in: x, dims: { in: "n_vis_channels * s_patch * s_patch", out: d_vis_model, bias: "1" }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  # nn.Embedding(num_positions, embed_dim) used only as a weight table
+  # (modeling_hunyuan_vl.py:195-199); never indexed by token ids. Named for
+  # the tensor the checkpoint stores, `vit.embeddings.position_embedding.weight`.
+  vit.embeddings.position_embedding.weight: { op: parameter_tensor, shape: [n_vis_pos_slots, d_vis_model], weight_axes: [{ replicated: true }, { replicated: true }] }
+  # modeling_hunyuan_vl.py:230-231 interpolate_pos_encoding + add.
+  vit.embeddings.add_pe:
+    op: position_table_add
+    in: [vit.embeddings.patch_embedding, vit.embeddings.position_embedding.weight]
+    dim: d_vis_model
+    formula: "y[(t,i,j), :] = x[(t,i,j), :] + bilinear_resize(table[1:].reshape(E, E, D), (h, w))[i, j, :]   (row 0 = CLS slot dropped; E = max_image_size // patch_size; repeated over t frames)"
+  vit.layers:                      { op: hunyuan_vit_block, in: vit.embeddings.add_pe, chain: n_vis_layers, checkpoint: { index: local }, role: aux_block }
+  vit.perceive.before_rms:         { op: rmsnorm, in: vit.layers, dim: d_vis_model, weight_axes: [{ replicated: true }] }
+  vit.perceive.spatial_merge:      { op: spatial_merge, in: vit.perceive.before_rms, dims: { n_spatial_merge: n_spatial_merge } }
+  vit.perceive.proj.0:             { op: linear, in: vit.perceive.spatial_merge, dims: { in: "n_spatial_merge * n_spatial_merge * d_vis_model", out: "2 * d_vis_model", bias: "1" }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  vit.perceive.proj.act:           { op: gelu, in: vit.perceive.proj.0, dim: "2 * d_vis_model" }
+  vit.perceive.proj.2:             { op: linear, in: vit.perceive.proj.act, dims: { in: "2 * d_vis_model", out: "n_spatial_merge * n_spatial_merge * d_vis_model", bias: "1" }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  vit.perceive.image_newline:      { op: parameter_vector, dim: "n_spatial_merge * n_spatial_merge * d_vis_model", weight_axes: [{ replicated: true }] }
+  # modeling_hunyuan_vl.py:268-271 — image_newline expanded to one column per
+  # merged-grid row, then concatenated on the width axis; after flattening
+  # (h/2)*(w/2) tokens become (h/2)*(w/2 + 1) tokens. The newline count is the
+  # merged-grid row count: the image's processed height over
+  # patch_size * spatial_merge_size, one per image (`B * n_img` segments).
+  vit.perceive.newline_row:        { op: broadcast, in: vit.perceive.image_newline, axis: 0, dims: { width: "img_h // (s_patch * n_spatial_merge)" }, formula: "nl[R, C] = image_newline.reshape(1, C).expand(R, C)   (C = 4*d_vis_model; R = img_h / (patch_size * spatial_merge) = merged rows)" }
+  vit.perceive.newline_expand:     { op: broadcast, in: vit.perceive.newline_row, axis: 0, dims: { width: "B * n_img" }, formula: "nl[N, R, C] = nl.expand(N, R, C)   (N = B * n_img images; source: expand(B, C, h/2, 1) — one column per merged row)" }
+  vit.perceive.newline_concat:     { op: concat, in: [vit.perceive.proj.2, vit.perceive.newline_expand], axis: 1, formula: "y = cat([x.view(B, C, h/2, w/2), nl.expand(B, C, h/2, 1)], dim=-1).flatten(2).T   (one newline token appended after each merged row, sequence axis)" }
+  vit.perceive.mlp:                { op: linear, in: vit.perceive.newline_concat, dims: { in: "n_spatial_merge * n_spatial_merge * d_vis_model", out: d_model, bias: "1" }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  vit.perceive.image_begin:        { op: parameter_vector, dim: d_model, weight_axes: [{ replicated: true }] }
+  vit.perceive.image_end:          { op: parameter_vector, dim: d_model, weight_axes: [{ replicated: true }] }
+  # Declared and stored (`self.image_sep = nn.Parameter(...)`); the merger's
+  # forward reads image_newline, image_begin and image_end, never image_sep.
+  vit.perceive.image_sep:          { op: parameter_vector, dim: d_model, weight_axes: [{ replicated: true }], stored_without_graph_reader: { kind: forward_unread, reason: "the PatchMerger forward reads image_newline, image_begin and image_end, never image_sep", source_anchor: "modeling_hunyuan_vl.py:255 and vllm model_executor/models/hunyuan_vision.py:404 declare it; HunYuanVisionPatchMerger.forward (vllm :406-433) reads image_newline, image_begin and image_end only" } }
+  # modeling_hunyuan_vl.py:279-290 — begin/end reshaped (1,1,D), expanded to
+  # (B,1,D) and concatenated around the mlp output on the sequence axis (dim=1).
+  # One begin and one end row per image.
+  vit.perceive.begin_row:          { op: broadcast, in: vit.perceive.image_begin, axis: 0, dims: { width: "1" }, formula: "begin[1, d_model] = image_begin.reshape(1, d_model)" }
+  vit.perceive.begin_expand:       { op: broadcast, in: vit.perceive.begin_row, axis: 0, dims: { width: "B * n_img" }, formula: "begin[N, 1, d_model] = begin.expand(N, 1, d_model)   (N = B * n_img images)" }
+  vit.perceive.end_row:            { op: broadcast, in: vit.perceive.image_end, axis: 0, dims: { width: "1" }, formula: "end[1, d_model] = image_end.reshape(1, d_model)" }
+  vit.perceive.end_expand:         { op: broadcast, in: vit.perceive.end_row, axis: 0, dims: { width: "B * n_img" }, formula: "end[N, 1, d_model] = end.expand(N, 1, d_model)   (N = B * n_img images)" }
+  vit.perceive.begin_end_concat:   { op: concat, in: [vit.perceive.begin_expand, vit.perceive.mlp, vit.perceive.end_expand], axis: 1, formula: "y = cat([begin, x, end], dim=1)   (sequence axis: N tokens -> N + 2)" }
+  vit.perceive.after_rms:          { op: rmsnorm, in: vit.perceive.begin_end_concat, dim: d_model, weight_axes: [{ replicated: true }] }
+outputs: [vit.perceive.after_rms]

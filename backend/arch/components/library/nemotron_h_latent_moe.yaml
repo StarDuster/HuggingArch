@@ -1,0 +1,58 @@
+# NemotronH-3 "Latent-MoE" FFN.
+#
+# Distinguishes itself from `moe_ffn_with_scaled_shared` in three ways:
+#   1. The routed experts work in a low-rank LATENT space (d_moe_latent = 2048,
+#      from config.moe_latent_size), not in the model's hidden dim d_model. A
+#      pair of (fc1_latent_proj, fc2_latent_proj) Linears brackets the
+#      expert bank: x → fc1 → permute → expert bank → combine → fc2 → out.
+#   2. Each expert is NON-GATED with a squared-ReLU activation
+#      (NemotronHExperts uses up_proj + act + down_proj — no gate_proj).
+#   3. The shared expert is ONE wide non-gated relu² MLP with
+#      intermediate = d_ffn_shared = 10240 (from moe_shared_expert_intermediate_size).
+#
+# Forward (NemotronHMoE.forward):
+#   residuals      = x
+#   router_logits  = self.gate(x)                       # F.linear, no bias
+#   topk_idx, topk_w = self.route_tokens_to_experts(router_logits)
+#                                                       # noaux_tc routing
+#   x              = x.view(-1, d_model)
+#   x              = self.fc1_latent_proj(x)            # d_model -> d_moe_latent
+#   x              = self.experts(x, topk_idx, topk_w)  # bank of n_experts relu²-MLPs
+#   x              = self.fc2_latent_proj(x)            # d_moe_latent -> d_model
+#   x              = x.view(orig_shape)
+#   return x + self.shared_experts(residuals)
+#
+# Required dims: d_model, d_moe_latent, d_ffn_expert, d_ffn_shared, n_experts, n_experts_active.
+# Optional dims: n_route_targets (the gate's width, derived). Required by its router: n_expert_groups, n_groups_active.
+role: ffn_moe
+description: "Latent-MoE: noaux_tc router → fc1_latent_proj → non-gated relu² expert bank → fc2_latent_proj, plus wide non-gated relu² shared expert. NemotronH-3."
+graph:
+  # Routing pipeline lives in `router_noaux_tc`: linear(d_model→n_route_targets) +
+  # e_score_correction_bias parameter + sigmoid + group selection +
+  # token top-K + gather + norm + scale. The router's `linear` has
+  # `module: null`, so it produces `mixer.gate.weight` directly
+  # (not `mixer.gate.gate.weight`).
+  gate: { op: router_noaux_tc, in: x }
+
+  # Latent down-projection: d_model → d_moe_latent. Routed experts work in this
+  # smaller space, which is the architecture's distinguishing trick.
+  fc1_latent_proj: { op: linear, in: x, dims: { in: d_model, out: d_moe_latent, bias: "0" }, weight_axes: [{ replicated: true }, { replicated: true }] }
+
+  # Routed-expert bank. Each expert is a non-gated relu² MLP in latent
+  # space (d_moe_latent -> d_ffn_expert -> d_moe_latent). `permute` writes the
+  # [n_expert_copies, M, d_moe_latent] buffer, M rows per expert; `combine`
+  # weights and sums back.
+  permute:  { op: permute, in: [fc1_latent_proj, gate] }
+  experts:  { op: relu2_experts, role: ffn_moe, in: permute, dims: { d_model: d_moe_latent, d_ffn: d_ffn_expert }, expert_weight: unrolled }
+  combine:  { op: combine, in: [experts, gate], dims: { d_model: d_moe_latent } }
+
+  # Latent up-projection: d_moe_latent → d_model.
+  fc2_latent_proj: { op: linear, in: combine, dims: { in: d_moe_latent, out: d_model, bias: "0" }, weight_axes: [{ replicated: true }, { replicated: true }] }
+
+  # Wide shared expert, parallel branch from original x (operates in
+  # hidden space d_model, not latent d_moe_latent).
+  shared_experts: { op: nemotron_h_relu2_mlp, in: x, dims: { d_model: d_model, d_ffn: d_ffn_shared } }
+
+  # Sum the routed-latent and shared-expert outputs.
+  moe_out: { op: add, in: [fc2_latent_proj, shared_experts], dim: d_model }
+outputs: [moe_out]

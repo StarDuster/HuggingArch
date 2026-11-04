@@ -1,0 +1,38 @@
+# GLM-5.3 family — the GLM-5.1/5.2 architecture stored in FP8.
+#
+# GLM-5.3's config.json is field-for-field identical to GLM-5.2's except for
+# `quantization_config` (fp8, e4m3, 128x128 weight blocks), so the two are told
+# apart by model_id: an FP8 repo's identity file inherits this spec, a BF16
+# repo's inherits glm_moe_dsa. Everything but `quant_context` is inherited from
+# glm_moe_dsa, so the topology has one home.
+base: glm_moe_dsa
+
+quant_context:
+  # Restated: this file's quant_context replaces glm_moe_dsa's whole.
+  # The indexer key cache as sglang's default CUDA path stores it (caches
+  # follow serving): FP8 E4M3 with one F32 scale per 128 channels, 132 B a
+  # key, the scale `fmaxf(1e-4, amax) / 448` — NOT rounded to a power of
+  # two (`FusedKIndexerNormRopeStoreKernel`, kernels/jit/csrc/deepseek_v32/
+  # indexer_k.cuh:330,344). sglang's `scale_fmt="ue8m0"` constructor
+  # argument (models/deepseek_v2.py:2099) reaches only the unfused
+  # fallback and the query side; the fused store kernel takes no scale
+  # format. vLLM's GLM-MoE-DSA path rounds to ue8m0
+  # (models/deepseek_v32/attention.py:90-98) — a writer-side rounding
+  # difference on one layout. HF's forward keeps it BF16.
+  cache_formats:
+    index_key: fp8_group128
+  per_role:
+    attention: { method: fp8, block_h: 128, block_w: 128 }
+    # The DSA indexer's low-rank weights_proj stays BF16; its wk / wq_b are
+    # FP8 like the main attention and stay under `attention`.
+    attention_indexer: { method: none }
+    ffn_dense: { method: fp8, block_h: 128, block_w: 128 }
+    ffn_moe:   { method: fp8, block_h: 128, block_w: 128 }
+    # The router gate weight stays BF16 (the checkpoint's
+    # modules_to_not_convert lists every mlp.gate).
+    router:    { method: none }
+    default:   { method: none }
+  default_dtype: BF16
+  overrides:
+    - tensors_re: 'mlp\.gate\.e_score_correction_bias$'
+      dtype: F32

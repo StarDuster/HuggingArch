@@ -1,0 +1,1239 @@
+[
+  {
+    "identifiers": [
+      "Qwen/Qwen3-30B-A3B",
+      "XiaomiMiMo/MiMo-7B-RL",
+      "meta-llama/Llama-3.2-1B"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/api/test_gallery_frontier_class_walk.py",
+    "name": "CASES"
+  },
+  {
+    "identifiers": [
+      "deepseek-ai/DeepSeek-V4-Flash",
+      "meta-llama/Llama-3.2-3B"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/api/test_gallery_frontier_class_walk.py",
+    "name": "LAW_CASES"
+  },
+  {
+    "identifiers": [
+      "deepseek-ai/DeepSeek-V3",
+      "deepseek-ai/DeepSeek-V3.2",
+      "zai-org/GLM-5.1"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/arch/eval/test_absorbed_latent_read.py",
+    "name": "CASES"
+  },
+  {
+    "identifiers": [
+      "XiaomiMiMo__MiMo-V2-Flash",
+      "XiaomiMiMo__MiMo-V2.5",
+      "XiaomiMiMo__MiMo-V2.5-Pro",
+      "XiaomiMiMo__MiMo-V2.6-Pro-RL"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/arch/eval/test_attention_mask.py",
+    "name": "VALUE_SCALE_MODELS"
+  },
+  {
+    "identifiers": [
+      "deepseek-ai__DeepSeek-V3",
+      "openai__gpt-oss-20b"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/arch/eval/test_borrowed_weight_reads.py",
+    "name": "TestFusionKeepsTheBorrowedWeight.MODELS"
+  },
+  {
+    "identifiers": [
+      "XiaomiMiMo__MiMo-V2.5",
+      "deepseek-ai__DeepSeek-V4.1-Flash",
+      "moonshotai__Kimi-K2.5",
+      "stepfun-ai__Step-3.7-Flash"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/arch/eval/test_copy_factors.py",
+    "name": "_REPLACED"
+  },
+  {
+    "identifiers": [
+      "MiniMaxAI__MiniMax-M2.7",
+      "Qwen__Qwen2.5-72B",
+      "Qwen__Qwen2.5-7B",
+      "Qwen__Qwen3-235B-A22B",
+      "Qwen__Qwen3-30B-A3B",
+      "Qwen__Qwen3-32B",
+      "Qwen__Qwen3-8B",
+      "Qwen__Qwen3-Coder-Next",
+      "THUDM__glm-4-9b",
+      "THUDM__glm-4-9b-chat",
+      "XiaomiMiMo__MiMo-V2-Flash",
+      "XiaomiMiMo__MiMo-V2.5",
+      "XiaomiMiMo__MiMo-V2.5-Pro",
+      "deepseek-ai__DeepSeek-V2",
+      "deepseek-ai__DeepSeek-V2-Lite",
+      "deepseek-ai__DeepSeek-V3",
+      "deepseek-ai__DeepSeek-V3.1",
+      "deepseek-ai__DeepSeek-V3.2",
+      "deepseek-ai__DeepSeek-V3.2-Exp",
+      "deepseek-ai__DeepSeek-V4-Pro",
+      "google__gemma-2-27b",
+      "google__gemma-2-9b",
+      "google__gemma-4-12B-it",
+      "inclusionAI__Ling-2.6-1T",
+      "meta-llama__Llama-2-7b-hf",
+      "meta-llama__Llama-3.2-1B",
+      "meta-llama__Llama-3.2-3B",
+      "mistralai__Mistral-7B-v0.1",
+      "mistralai__Mistral-Nemo-Base-2407",
+      "moonshotai__Kimi-K2-Base",
+      "moonshotai__Kimi-K2-Instruct",
+      "moonshotai__Kimi-K2-Thinking",
+      "moonshotai__Kimi-K2.5",
+      "moonshotai__Kimi-K3",
+      "nvidia__NVIDIA-Nemotron-3-Ultra-550B-A55B-BF16",
+      "openai__gpt-oss-20b",
+      "stepfun-ai__Step-3.7-Flash",
+      "zai-org__GLM-5.1",
+      "zai-org__GLM-5.2"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/arch/eval/test_eval_cache.py",
+    "name": "AGREES"
+  },
+  {
+    "identifiers": [
+      "Qwen__Qwen3-30B-A3B",
+      "deepseek-ai__DeepSeek-V3",
+      "meta-llama__Llama-3.2-1B",
+      "moonshotai__Kimi-K3"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/arch/eval/test_eval_fusion.py",
+    "name": "MODELS"
+  },
+  {
+    "identifiers": [
+      "MiniMaxAI__MiniMax-M2.7",
+      "Qwen__Qwen3-30B-A3B",
+      "deepseek-ai__DeepSeek-V2-Lite",
+      "openai__gpt-oss-20b"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/arch/eval/test_eval_instances.py",
+    "name": "TestPerRank.MOE"
+  },
+  {
+    "identifiers": [
+      "Qwen/Qwen3-30B-A3B",
+      "deepseek-ai/DeepSeek-V3",
+      "deepseek-ai/DeepSeek-V4-Flash",
+      "meta-llama/Llama-3.2-1B",
+      "moonshotai/Kimi-K3"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/arch/eval/test_eval_symbolic_workload.py",
+    "name": "TestOneWalkIsEveryWalkAcrossTheCorpus.CASES"
+  },
+  {
+    "identifiers": [
+      "meta-llama/Llama-3.2-1B"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/arch/eval/test_eval_symbolic_workload.py",
+    "name": "TestTheCacheReadIsAFormula.CASE"
+  },
+  {
+    "identifiers": [
+      "deepseek-ai__DeepSeek-V3",
+      "deepseek-ai__DeepSeek-V4-Flash",
+      "deepseek-ai__DeepSeek-V4.1-Flash",
+      "meta-llama__Llama-3.2-1B"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/arch/eval/test_eval_traffic.py",
+    "name": "TestFusionShowsUpInBytesAndOnlyThere.MODELS"
+  },
+  {
+    "identifiers": [
+      "Qwen__Qwen3-30B-A3B",
+      "deepseek-ai__DeepSeek-V3",
+      "meta-llama__Llama-3.2-3B",
+      "zai-org__GLM-5.1"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/arch/eval/test_flops_closure.py",
+    "name": "CLOSURE_MODELS"
+  },
+  {
+    "identifiers": [
+      "deepseek-ai__DeepSeek-V3",
+      "zai-org__GLM-5.1"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/arch/eval/test_flops_closure.py",
+    "name": "_HELD"
+  },
+  {
+    "identifiers": [
+      "deepseek-ai__DeepSeek-V3",
+      "zai-org__GLM-5.1"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/arch/eval/test_flops_closure.py",
+    "name": "_STAGED"
+  },
+  {
+    "identifiers": [
+      "Qwen/Qwen3-8B",
+      "Qwen/Qwen3.5-35B-A3B",
+      "XiaomiMiMo/MiMo-V2.5",
+      "deepseek-ai/DeepSeek-V3",
+      "deepseek-ai/DeepSeek-V3.2",
+      "mistralai/Mistral-7B-v0.1",
+      "stepfun-ai/Step-3.7-Flash"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/arch/eval/test_isolated_cache.py",
+    "name": "MODELS"
+  },
+  {
+    "identifiers": [
+      "Qwen__Qwen3-30B-A3B",
+      "deepseek-ai__DeepSeek-V2-Lite",
+      "deepseek-ai__DeepSeek-V3",
+      "moonshotai__Kimi-K2.5"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/arch/eval/test_moe_variant_conservation.py",
+    "name": "_BOUNDARY"
+  },
+  {
+    "identifiers": [
+      "MiniMaxAI__MiniMax-M2.7",
+      "Qwen__Qwen3-235B-A22B",
+      "Qwen__Qwen3-30B-A3B",
+      "Qwen__Qwen3-Coder-Next",
+      "Qwen__Qwen3-VL-235B-A22B-Instruct",
+      "Qwen__Qwen3.5-35B-A3B",
+      "XiaomiMiMo__MiMo-V2-Flash",
+      "deepseek-ai__DeepSeek-V2-Lite",
+      "deepseek-ai__DeepSeek-V3",
+      "deepseek-ai__DeepSeek-V4-Flash",
+      "deepseek-ai__DeepSeek-V4.1-Flash",
+      "inclusionAI__Ling-2.6-1T",
+      "meituan-longcat__LongCat-Flash-Omni",
+      "moonshotai__Kimi-K2.5",
+      "moonshotai__Kimi-K3",
+      "nvidia__NVIDIA-Nemotron-3-Nano-30B-A3B-BF16",
+      "nvidia__NVIDIA-Nemotron-3-Ultra-550B-A55B-BF16",
+      "openai__gpt-oss-20b",
+      "stepfun-ai__Step-3.7-Flash",
+      "stepfun-ai__Step-5-Preview",
+      "tencent__Hy3",
+      "tencent__Hy4-preview",
+      "zai-org__GLM-5.3-Flash"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/arch/eval/test_moe_variant_conservation.py",
+    "name": "_VARIANTS"
+  },
+  {
+    "identifiers": [
+      "Qwen/Qwen3.8-Flash-Next",
+      "zai-org/GLM-5.3-Flash"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/arch/eval/test_pooled_index_cache.py",
+    "name": "MODELS"
+  },
+  {
+    "identifiers": [
+      "Qwen/Qwen3-30B-A3B",
+      "deepseek-ai/DeepSeek-V2-Lite",
+      "deepseek-ai/DeepSeek-V3"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/arch/eval/test_replica_cost.py",
+    "name": "MODELS"
+  },
+  {
+    "identifiers": [
+      "deepseek-ai__DeepSeek-V3",
+      "meta-llama__Llama-3.2-1B",
+      "openai__gpt-oss-20b"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/arch/eval/test_storage_bytes_closure.py",
+    "name": "TestBlockStorageClosesOnTheCheckpoint.MODELS"
+  },
+  {
+    "identifiers": [
+      "Qwen/Qwen3.8-Flash-Next",
+      "deepseek-ai/DeepSeek-V4-Flash",
+      "deepseek-ai/DeepSeek-V4.1-Flash",
+      "zai-org/GLM-5.3-Flash"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/arch/eval/test_view_fanout_bytes.py",
+    "name": "MODELS"
+  },
+  {
+    "identifiers": [
+      "deepseek-ai/DeepSeek-V3",
+      "deepseek-ai/DeepSeek-V4-Flash",
+      "meta-llama/Llama-3.2-1B",
+      "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-BF16",
+      "openai/gpt-oss-20b"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/arch/eval/test_walk_decides_nothing.py",
+    "name": "MODELS"
+  },
+  {
+    "identifiers": [
+      "Qwen/Qwen3-Coder-Next",
+      "XiaomiMiMo/MiMo-V2.5",
+      "deepseek-ai/DeepSeek-V3",
+      "inclusionAI/Ling-2.6-1T",
+      "moonshotai/Kimi-K2-Base",
+      "moonshotai/Kimi-K3",
+      "nvidia/NVIDIA-Nemotron-3-Ultra-550B-A55B-BF16"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/arch/layout/test_cp_prefill_coverage.py",
+    "name": "CASES"
+  },
+  {
+    "identifiers": [
+      "XiaomiMiMo/MiMo-V2.5",
+      "stepfun-ai/Step-3.7-Flash"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/arch/layout/test_encoder_parallelism.py",
+    "name": "_ENCODERS"
+  },
+  {
+    "identifiers": [
+      "Qwen__Qwen3-30B-A3B",
+      "deepseek-ai__DeepSeek-V2-Lite",
+      "google__gemma-2-9b",
+      "meta-llama__Llama-3.2-1B"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/arch/layout/test_eval_placement_diff.py",
+    "name": "PINNED"
+  },
+  {
+    "identifiers": [
+      "Qwen__Qwen3-30B-A3B.json",
+      "deepseek-ai__DeepSeek-V3.json"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/arch/layout/test_layout_propagation_corpus.py",
+    "name": "MODELS"
+  },
+  {
+    "identifiers": [
+      "google__gemma-2-9b",
+      "meta-llama__Llama-3.2-1B"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/arch/spec_tree/test_tied_weight_declaration.py",
+    "name": "TestTheHeadNamesItsEmbedding.TIED"
+  },
+  {
+    "identifiers": [
+      "Qwen__Qwen3-30B-A3B",
+      "XiaomiMiMo__MiMo-V2.5",
+      "deepseek-ai__DeepSeek-V3",
+      "deepseek-ai__DeepSeek-V3.2",
+      "deepseek-ai__DeepSeek-V4-Pro",
+      "google__gemma-4-12B-it",
+      "meta-llama__Llama-3.2-3B",
+      "openai__gpt-oss-20b"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/arch/test_axis_propagation.py",
+    "name": "TestIRCarriesPermutation.MODELS"
+  },
+  {
+    "identifiers": [
+      "THUDM/glm-4-9b",
+      "deepseek-ai/DeepSeek-V3",
+      "deepseek-ai/DeepSeek-V4-Pro",
+      "deepseek-ai/DeepSeek-V4.1-Flash",
+      "meituan-longcat/LongCat-Flash-Thinking-2601",
+      "moonshotai/Kimi-K3",
+      "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-BF16",
+      "zai-org/GLM-5.3"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/arch/test_block_label.py",
+    "name": "_MODELS"
+  },
+  {
+    "identifiers": [
+      "Qwen__Qwen3-VL-235B-A22B-Instruct",
+      "Qwen__Qwen3.5-35B-A3B",
+      "Qwen__Qwen3.8-27B",
+      "deepseek-ai__DeepSeek-R1",
+      "deepseek-ai__DeepSeek-V3",
+      "deepseek-ai__DeepSeek-V3.1",
+      "deepseek-ai__DeepSeek-V3.2",
+      "deepseek-ai__DeepSeek-V3.2-Exp",
+      "zai-org__GLM-4.5",
+      "zai-org__GLM-4.5-Air",
+      "zai-org__GLM-5",
+      "zai-org__GLM-5.1",
+      "zai-org__GLM-5.2",
+      "zai-org__GLM-5.3-Flash"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/arch/test_declared_identities.py",
+    "name": "_BOUND_ROLE_SNAPSHOTS"
+  },
+  {
+    "identifiers": [
+      "Qwen__Qwen3-VL-235B-A22B-Instruct",
+      "Qwen__Qwen3.5-35B-A3B",
+      "Qwen__Qwen3.8-27B"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/arch/test_declared_identities.py",
+    "name": "_MROPE_ATTENTION"
+  },
+  {
+    "identifiers": [
+      "Qwen/Qwen3-Coder-Next",
+      "Qwen/Qwen3.5-35B-A3B"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/arch/test_forward_nonlinearities.py",
+    "name": "QWEN_HYBRIDS"
+  },
+  {
+    "identifiers": [
+      "Qwen/Qwen3-VL-235B-A22B-Instruct",
+      "Qwen/Qwen3.5-35B-A3B",
+      "Qwen/Qwen3.8-27B",
+      "Qwen/Qwen3.8-Flash-Next",
+      "XiaomiMiMo/MiMo-V2.5",
+      "XiaomiMiMo/MiMo-V2.6-Pro-RL",
+      "google/gemma-4-12B-it",
+      "moonshotai/Kimi-K2.5",
+      "moonshotai/Kimi-K3",
+      "tencent/HunyuanOCR",
+      "zai-org/GLM-5.3-Flash"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/arch/test_media_processor.py",
+    "name": "ENCODER_IMAGES"
+  },
+  {
+    "identifiers": [
+      "Qwen/Qwen3-Coder-Next",
+      "Qwen/Qwen3.5-35B-A3B",
+      "Qwen/Qwen3.8-2.4T-A95B",
+      "Qwen/Qwen3.8-Flash-Next",
+      "Qwen__Qwen3.8-2.4T-A95B",
+      "Qwen__Qwen3.8-Flash-Next",
+      "stepfun-ai/Step-3.7-Flash"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/arch/test_moe_unbound_defaults.py",
+    "name": "SHARED_WIDTH"
+  },
+  {
+    "identifiers": [
+      "deepseek-ai__DeepSeek-V3",
+      "deepseek-ai__DeepSeek-V4-Pro",
+      "meta-llama__Llama-3.2-1B"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/arch/test_spec_ir_node_refs.py",
+    "name": "MODELS"
+  },
+  {
+    "identifiers": [
+      "Qwen__Qwen3-Coder-Next",
+      "deepseek-ai__DeepSeek-V3",
+      "deepseek-ai__DeepSeek-V4-Pro",
+      "google__gemma-2-9b"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/arch/validate/test_curve_axioms.py",
+    "name": "_COHORT"
+  },
+  {
+    "identifiers": [
+      "Qwen__Qwen3-VL-235B-A22B-Instruct",
+      "Qwen__Qwen3.5-35B-A3B",
+      "Qwen__Qwen3.8-27B"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/arch/validate/test_rotary_positions.py",
+    "name": "MROPE_MODELS"
+  },
+  {
+    "identifiers": [
+      "Qwen/Qwen3-30B-A3B",
+      "deepseek-ai/DeepSeek-V3",
+      "deepseek-ai/DeepSeek-V4-Pro",
+      "meta-llama/Llama-3.2-1B"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/arch/validate/test_validator_binding.py",
+    "name": "TestHFBindingJoinInvariants._MODELS"
+  },
+  {
+    "identifiers": [
+      "MiniMaxAI/MiniMax-M2.7",
+      "Qwen/Qwen2.5-72B",
+      "Qwen/Qwen2.5-7B",
+      "Qwen/Qwen3-235B-A22B",
+      "Qwen/Qwen3-30B-A3B",
+      "Qwen/Qwen3-32B",
+      "Qwen/Qwen3-8B",
+      "Qwen/Qwen3-Coder-Next",
+      "THUDM/glm-4-9b",
+      "THUDM/glm-4-9b-chat",
+      "XiaomiMiMo/MiMo-V2-Flash",
+      "XiaomiMiMo/MiMo-V2.5",
+      "XiaomiMiMo/MiMo-V2.5-Pro",
+      "deepseek-ai/DeepSeek-V2",
+      "deepseek-ai/DeepSeek-V2-Lite",
+      "deepseek-ai/DeepSeek-V3",
+      "deepseek-ai/DeepSeek-V3.1",
+      "deepseek-ai/DeepSeek-V3.2",
+      "deepseek-ai/DeepSeek-V3.2-Exp",
+      "deepseek-ai/DeepSeek-V4-Flash",
+      "deepseek-ai/DeepSeek-V4-Pro",
+      "google/gemma-4-12B-it",
+      "inclusionAI/Ling-2.6-1T",
+      "meta-llama/Llama-2-7b-hf",
+      "meta-llama/Llama-3.2-1B",
+      "meta-llama/Llama-3.2-3B",
+      "mistralai/Mistral-7B-v0.1",
+      "mistralai/Mistral-Nemo-Base-2407",
+      "moonshotai/Kimi-K2-Base",
+      "moonshotai/Kimi-K2-Instruct",
+      "moonshotai/Kimi-K2-Thinking",
+      "moonshotai/Kimi-K2.5",
+      "moonshotai/Kimi-K3",
+      "nvidia/NVIDIA-Nemotron-3-Ultra-550B-A55B-BF16",
+      "openai/gpt-oss-20b",
+      "stepfun-ai/Step-3.7-Flash",
+      "zai-org/GLM-5.1",
+      "zai-org/GLM-5.2"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/arch/validate/test_validator_golden.py",
+    "name": "_STRICT_MODELS"
+  },
+  {
+    "identifiers": [
+      "meituan-longcat/LongCat-Flash-Thinking-2601"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/arch/validate/test_validator_golden.py",
+    "name": "_WATERMARK_MODELS"
+  },
+  {
+    "identifiers": [
+      "Qwen/Qwen3-Coder-Next",
+      "Qwen/Qwen3.5-35B-A3B",
+      "deepseek-ai/DeepSeek-R1",
+      "meituan-longcat/LongCat-Flash-Thinking-2601",
+      "moonshotai/Kimi-K2-Thinking",
+      "zai-org/GLM-5"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/hf/test_hf_models.py",
+    "name": "DEFAULT_MODELS"
+  },
+  {
+    "identifiers": [
+      "Qwen/Qwen3-8B",
+      "Qwen/Qwen3.8-Flash-Next",
+      "deepseek-ai/DeepSeek-V4-Flash",
+      "deepseek-ai/DeepSeek-V4.1-Flash",
+      "zai-org/GLM-5.3-Flash"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/inference/test_access_formula_states_the_charge.py",
+    "name": "MODELS"
+  },
+  {
+    "identifiers": [
+      "deepseek-ai/DeepSeek-V2-Lite",
+      "deepseek-ai/DeepSeek-V3.1",
+      "meta-llama/Llama-3.2-1B"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/inference/test_activation_peak_physical.py",
+    "name": "_REFERENCE_MODELS"
+  },
+  {
+    "identifiers": [
+      "Qwen/Qwen3-30B-A3B",
+      "deepseek-ai/DeepSeek-V3",
+      "meta-llama/Llama-2-7b-hf"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/inference/test_allreduce_fused_rmsnorm.py",
+    "name": "TestTPSwitchesBetweenNormFusions.MODELS"
+  },
+  {
+    "identifiers": [
+      "Qwen/Qwen3-8B",
+      "deepseek-ai/DeepSeek-V2-Lite",
+      "deepseek-ai/DeepSeek-V3.2",
+      "moonshotai/Kimi-K3"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/inference/test_attention_kernel_from_cache.py",
+    "name": "CASES"
+  },
+  {
+    "identifiers": [
+      "Qwen/Qwen3-30B-A3B",
+      "deepseek-ai/DeepSeek-V4-Flash",
+      "moonshotai/Kimi-K3"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/inference/test_batch_sweep_named_dims.py",
+    "name": "CASES"
+  },
+  {
+    "identifiers": [
+      "XiaomiMiMo__MiMo-V2.5.json",
+      "deepseek-ai__DeepSeek-V3.json",
+      "meta-llama__Llama-3.2-3B.json",
+      "moonshotai__Kimi-K2.5.json",
+      "openai__gpt-oss-20b.json",
+      "stepfun-ai__Step-3.7-Flash.json"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/inference/test_capacity_golden.py",
+    "name": "_CASES"
+  },
+  {
+    "identifiers": [
+      "deepseek-ai__DeepSeek-V3.json",
+      "meta-llama__Llama-3.2-3B.json",
+      "moonshotai__Kimi-K2.5.json"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/inference/test_consistency_invariants.py",
+    "name": "_CASES"
+  },
+  {
+    "identifiers": [
+      "Qwen__Qwen3-30B-A3B",
+      "deepseek-ai__DeepSeek-V3"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/inference/test_decode_context_parallel.py",
+    "name": "MODELS"
+  },
+  {
+    "identifiers": [
+      "meta-llama__Llama-3.2-3B"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/inference/test_dispatch_zone_membership.py",
+    "name": "DENSE"
+  },
+  {
+    "identifiers": [
+      "Qwen__Qwen3-30B-A3B",
+      "deepseek-ai__DeepSeek-V3",
+      "openai__gpt-oss-20b"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/inference/test_dispatch_zone_membership.py",
+    "name": "ROUTED"
+  },
+  {
+    "identifiers": [
+      "deepseek-ai__DeepSeek-V3",
+      "deepseek-ai__DeepSeek-V3.2",
+      "deepseek-ai__DeepSeek-V4-Pro"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/inference/test_inference_invariants.py",
+    "name": "_CASES"
+  },
+  {
+    "identifiers": [
+      "Qwen/Qwen3-8B"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/inference/test_kv_stored_size.py",
+    "name": "FAST"
+  },
+  {
+    "identifiers": [
+      "Qwen/Qwen3-Coder-Next",
+      "deepseek-ai/DeepSeek-V3.1",
+      "deepseek-ai/DeepSeek-V3.2",
+      "deepseek-ai/DeepSeek-V4.1-Flash",
+      "openai/gpt-oss-20b",
+      "zai-org/GLM-5.3-Flash"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/inference/test_kv_stored_size.py",
+    "name": "SWEEP"
+  },
+  {
+    "identifiers": [
+      "deepseek-ai__DeepSeek-V3.json",
+      "meta-llama__Llama-3.2-3B.json"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/inference/test_parallelism_combinations.py",
+    "name": "_MODELS"
+  },
+  {
+    "identifiers": [
+      "Qwen/Qwen3-30B-A3B",
+      "deepseek-ai/DeepSeek-V3",
+      "meta-llama/Llama-2-7b-hf"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/inference/test_parallelism_comm_volume.py",
+    "name": "TestCommVolumeInvariantSweep.MODELS"
+  },
+  {
+    "identifiers": [
+      "meta-llama/Llama-2-7b-hf"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/inference/test_parallelism_comm_volume.py",
+    "name": "TestContextParallelDenseIsDataParallel.MODELS"
+  },
+  {
+    "identifiers": [
+      "Qwen/Qwen3-30B-A3B",
+      "meta-llama/Llama-2-7b-hf"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/inference/test_parallelism_comm_volume.py",
+    "name": "TestContextParallelVolume.MODELS"
+  },
+  {
+    "identifiers": [
+      "deepseek-ai/DeepSeek-V3"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/inference/test_parallelism_comm_volume.py",
+    "name": "TestExpertParallelVolume.MODELS"
+  },
+  {
+    "identifiers": [
+      "deepseek-ai/DeepSeek-V3"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/inference/test_parallelism_comm_volume.py",
+    "name": "TestExpertXTensorParallelVolume.MODELS"
+  },
+  {
+    "identifiers": [
+      "meta-llama/Llama-2-7b-hf"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/inference/test_parallelism_comm_volume.py",
+    "name": "TestSequenceParallelVolume.MODELS"
+  },
+  {
+    "identifiers": [
+      "meta-llama/Llama-2-7b-hf"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/inference/test_parallelism_comm_volume.py",
+    "name": "TestTensorParallelVolume.MODELS"
+  },
+  {
+    "identifiers": [
+      "deepseek-ai/DeepSeek-V4-Flash",
+      "meta-llama/Llama-3.2-3B"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/inference/test_payload_fields.py",
+    "name": "CASES"
+  },
+  {
+    "identifiers": [
+      "Qwen__Qwen3-30B-A3B",
+      "deepseek-ai__DeepSeek-V2-Lite",
+      "meta-llama__Llama-3.2-1B"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/inference/test_per_rank_flops_rows.py",
+    "name": "MODELS"
+  },
+  {
+    "identifiers": [
+      "deepseek-ai__DeepSeek-V3",
+      "deepseek-ai__DeepSeek-V3.2",
+      "deepseek-ai__DeepSeek-V4-Pro"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/inference/test_perturbation_invariants.py",
+    "name": "_CASES"
+  },
+  {
+    "identifiers": [
+      "Qwen__Qwen3-30B-A3B",
+      "meta-llama__Llama-3.2-3B"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/inference/test_phase_traffic_split.py",
+    "name": "TestTrafficSplit.MODELS"
+  },
+  {
+    "identifiers": [
+      "deepseek-ai__DeepSeek-V2-Lite",
+      "deepseek-ai__DeepSeek-V3",
+      "meta-llama__Llama-3.2-1B"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/inference/test_pipeline.py",
+    "name": "TestIdentityEquivalence.MODELS"
+  },
+  {
+    "identifiers": [
+      "XiaomiMiMo__MiMo-V2.5",
+      "deepseek-ai__DeepSeek-V3",
+      "meta-llama__Llama-3.2-3B",
+      "openai__gpt-oss-20b",
+      "zai-org__GLM-5.1"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/inference/test_pipeline_parallel_cache.py",
+    "name": "_MODELS"
+  },
+  {
+    "identifiers": [
+      "Qwen__Qwen3-Coder-Next",
+      "meta-llama__Llama-3.2-3B",
+      "openai__gpt-oss-20b",
+      "zai-org__GLM-5.1"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/inference/test_pipeline_parallel_compute.py",
+    "name": "_MODELS"
+  },
+  {
+    "identifiers": [
+      "zai-org__GLM-5.1"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/inference/test_pipeline_parallel_compute.py",
+    "name": "_PP_EXTRA_TP"
+  },
+  {
+    "identifiers": [
+      "XiaomiMiMo__MiMo-V2-Flash",
+      "deepseek-ai__DeepSeek-V3",
+      "google__gemma-2-9b",
+      "meta-llama__Llama-3.2-3B",
+      "stepfun-ai__Step-3.7-Flash"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/inference/test_pp_stage_coherence.py",
+    "name": "CASES"
+  },
+  {
+    "identifiers": [
+      "XiaomiMiMo__MiMo-V2-Flash",
+      "google__gemma-2-9b",
+      "stepfun-ai__Step-3.7-Flash"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/inference/test_pp_stage_coherence.py",
+    "name": "DISAGREEING"
+  },
+  {
+    "identifiers": [
+      "deepseek-ai__DeepSeek-V4-Flash",
+      "deepseek-ai__DeepSeek-V4-Pro",
+      "deepseek-ai__DeepSeek-V4.1-Flash"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/inference/test_precision_launch_selection.py",
+    "name": "_DOT_STEMS"
+  },
+  {
+    "identifiers": [
+      "XiaomiMiMo__MiMo-V2.6-Pro-RL",
+      "moonshotai__Kimi-K3"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/inference/test_precision_launch_selection.py",
+    "name": "_PACK_STEMS"
+  },
+  {
+    "identifiers": [
+      "Qwen__Qwen3-30B-A3B",
+      "XiaomiMiMo__MiMo-7B-RL"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/inference/test_row_roofline.py",
+    "name": "TestAPipelineStepReadElsewhere.CASES"
+  },
+  {
+    "identifiers": [
+      "moonshotai/Kimi-K2-Instruct",
+      "moonshotai/Kimi-K2-Thinking",
+      "openai/gpt-oss-20b"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/inference/test_scales_follow_weights.py",
+    "name": "_QUANTIZED_MOE"
+  },
+  {
+    "identifiers": [
+      "deepseek-ai__DeepSeek-V2-Lite",
+      "deepseek-ai__DeepSeek-V3",
+      "google__gemma-4-12B-it",
+      "meta-llama__Llama-3.2-1B"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/inference/test_sharding.py",
+    "name": "TestClassIsDeploymentIndependent.MODELS"
+  },
+  {
+    "identifiers": [
+      "THUDM__glm-4-9b",
+      "XiaomiMiMo__MiMo-V2.5",
+      "google__gemma-4-12B-it",
+      "moonshotai__Kimi-K3"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/inference/test_sharding.py",
+    "name": "TestVocabEndpointsAskBoundaryRole.CASES"
+  },
+  {
+    "identifiers": [
+      "Qwen/Qwen3-30B-A3B",
+      "meta-llama/Llama-3.2-3B"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/inference/test_step_sum.py",
+    "name": "_CASES"
+  },
+  {
+    "identifiers": [
+      "deepseek-ai/DeepSeek-V4-Flash"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/inference/test_sweep_parity.py",
+    "name": "_POINT_CASES"
+  },
+  {
+    "identifiers": [
+      "Qwen__Qwen3-Coder-Next",
+      "deepseek-ai__DeepSeek-V3",
+      "google__gemma-4-12B-it",
+      "moonshotai__Kimi-K3",
+      "nvidia__NVIDIA-Nemotron-3-Ultra-550B-A55B-BF16",
+      "openai__gpt-oss-20b"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/playground/test_compose_corpus.py",
+    "name": "_SWAPS"
+  },
+  {
+    "identifiers": [
+      "MiniMaxAI__MiniMax-M2.7",
+      "Qwen__Qwen2.5-72B",
+      "Qwen__Qwen2.5-7B",
+      "Qwen__Qwen3-235B-A22B",
+      "Qwen__Qwen3-30B-A3B",
+      "Qwen__Qwen3-32B",
+      "Qwen__Qwen3-8B",
+      "Qwen__Qwen3-Coder-Next",
+      "THUDM__glm-4-9b",
+      "THUDM__glm-4-9b-chat",
+      "XiaomiMiMo__MiMo-V2-Flash",
+      "XiaomiMiMo__MiMo-V2.5",
+      "XiaomiMiMo__MiMo-V2.5-Pro",
+      "deepseek-ai__DeepSeek-V2",
+      "deepseek-ai__DeepSeek-V2-Lite",
+      "deepseek-ai__DeepSeek-V3",
+      "deepseek-ai__DeepSeek-V3.1",
+      "deepseek-ai__DeepSeek-V3.2",
+      "deepseek-ai__DeepSeek-V3.2-Exp",
+      "deepseek-ai__DeepSeek-V4-Pro",
+      "google__gemma-2-27b",
+      "google__gemma-2-9b",
+      "google__gemma-4-12B-it",
+      "inclusionAI__Ling-2.6-1T",
+      "meituan-longcat__LongCat-Flash-Thinking-2601",
+      "meta-llama__Llama-2-7b-hf",
+      "meta-llama__Llama-3.2-1B",
+      "meta-llama__Llama-3.2-3B",
+      "mistralai__Mistral-7B-v0.1",
+      "mistralai__Mistral-Nemo-Base-2407",
+      "moonshotai__Kimi-K2-Base",
+      "moonshotai__Kimi-K2-Instruct",
+      "moonshotai__Kimi-K2.5",
+      "moonshotai__Kimi-K3",
+      "nvidia__NVIDIA-Nemotron-3-Ultra-550B-A55B-BF16",
+      "openai__gpt-oss-20b",
+      "stepfun-ai__Step-3.7-Flash",
+      "zai-org__GLM-5.1",
+      "zai-org__GLM-5.2"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/rendering/test_compute_graph_renderable.py",
+    "name": "_FUSED_AT_LEAST"
+  },
+  {
+    "identifiers": [
+      "deepseek-ai/DeepSeek-V3.2"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/service/test_module_variants_routes.py",
+    "name": "_ROW"
+  },
+  {
+    "identifiers": [
+      "Qwen/Qwen3-8B",
+      "deepseek-ai/DeepSeek-V3",
+      "moonshotai/Kimi-K2-Thinking"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/test_analyzer.py",
+    "name": "_HEADLINE_MODELS"
+  },
+  {
+    "identifiers": [
+      "deepseek-ai/DeepSeek-V3",
+      "deepseek-ai/DeepSeek-V3.2"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/test_prefill_costs_agree.py",
+    "name": "MODELS"
+  },
+  {
+    "identifiers": [
+      "Qwen/Qwen2.5-7B",
+      "deepseek-ai/DeepSeek-V3",
+      "deepseek-ai/DeepSeek-V3.2",
+      "zai-org/GLM-5.2"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/views/test_diff.py",
+    "name": "_ATTENTION"
+  },
+  {
+    "identifiers": [
+      "Qwen/Qwen3.5-35B-A3B",
+      "moonshotai/Kimi-K3",
+      "nvidia/NVIDIA-Nemotron-3-Ultra-550B-A55B-BF16"
+    ],
+    "kind": "curated",
+    "module": "tests/backend/views/test_diff.py",
+    "name": "_LINEAR"
+  },
+  {
+    "identifiers": [
+      "deepseek-ai/DeepSeek-V3"
+    ],
+    "kind": "curated",
+    "module": "tests/corpus_row.py",
+    "name": "_BASE"
+  },
+  {
+    "identifiers": [
+      "deepseek-ai/DeepSeek-V3",
+      "deepseek-ai/DeepSeek-V3.2",
+      "deepseek-ai/DeepSeek-V4-Pro"
+    ],
+    "kind": "curated",
+    "module": "tests/frontend/test_compare_frontend.py",
+    "name": "_MODELS"
+  },
+  {
+    "identifiers": [
+      "Qwen/Qwen3-8B",
+      "Qwen/Qwen3-Coder-Next",
+      "Qwen/Qwen3.5-35B-A3B",
+      "deepseek-ai/DeepSeek-V3",
+      "deepseek-ai/DeepSeek-V3.2",
+      "moonshotai/Kimi-K3",
+      "nvidia/NVIDIA-Nemotron-3-Ultra-550B-A55B-BF16",
+      "zai-org/GLM-5"
+    ],
+    "kind": "curated",
+    "module": "tests/frontend/test_graph_diff_frontend.py",
+    "name": "_CASES"
+  },
+  {
+    "identifiers": [
+      "deepseek-ai/DeepSeek-V3.2"
+    ],
+    "kind": "curated",
+    "module": "tests/frontend/test_pages_smoke.py",
+    "name": "_CORPUS"
+  },
+  {
+    "identifiers": [
+      "deepseek-ai/DeepSeek-V3"
+    ],
+    "kind": "curated",
+    "module": "tests/frontend/test_pages_smoke.py",
+    "name": "_CORPUS_ROW"
+  },
+  {
+    "identifiers": [
+      "deepseek-ai/DeepSeek-V3",
+      "deepseek-ai/DeepSeek-V3.2"
+    ],
+    "kind": "curated",
+    "module": "tests/frontend/test_pages_smoke.py",
+    "name": "_FRONTIER"
+  },
+  {
+    "identifiers": [
+      "deepseek-ai/DeepSeek-V3",
+      "deepseek-ai/DeepSeek-V3.2"
+    ],
+    "kind": "curated",
+    "module": "tests/frontend/test_pages_smoke.py",
+    "name": "_GALLERY"
+  },
+  {
+    "identifiers": [
+      "deepseek-ai/DeepSeek-V3"
+    ],
+    "kind": "curated",
+    "module": "tests/frontend/test_pages_smoke.py",
+    "name": "_GRAPH"
+  },
+  {
+    "identifiers": [
+      "deepseek-ai/DeepSeek-V3",
+      "deepseek-ai/DeepSeek-V3.2"
+    ],
+    "kind": "curated",
+    "module": "tests/frontend/test_pages_smoke.py",
+    "name": "_MODELS"
+  },
+  {
+    "identifiers": [
+      "deepseek-ai/DeepSeek-V3",
+      "deepseek-ai/DeepSeek-V3.2",
+      "zai-org/GLM-5.1",
+      "zai-org/GLM-5.2"
+    ],
+    "kind": "curated",
+    "module": "tests/frontend/test_playground_frontend.py",
+    "name": "_BENCH_RESULTS"
+  },
+  {
+    "identifiers": [
+      "deepseek-ai/DeepSeek-V3",
+      "deepseek-ai/DeepSeek-V3.1",
+      "deepseek-ai/DeepSeek-V3.2",
+      "zai-org/GLM-5.2"
+    ],
+    "kind": "curated",
+    "module": "tests/frontend/test_playground_frontend.py",
+    "name": "_BINDINGS_BY_COMPONENT"
+  },
+  {
+    "identifiers": [
+      "deepseek-ai/DeepSeek-V3",
+      "deepseek-ai/DeepSeek-V3.2",
+      "zai-org/GLM-5.1",
+      "zai-org/GLM-5.2"
+    ],
+    "kind": "curated",
+    "module": "tests/frontend/test_playground_frontend.py",
+    "name": "_COMPONENTS"
+  },
+  {
+    "identifiers": [
+      "deepseek-ai/DeepSeek-V3.2"
+    ],
+    "kind": "curated",
+    "module": "tests/frontend/test_playground_frontend.py",
+    "name": "_MODELS"
+  },
+  {
+    "identifiers": [
+      "Qwen/Qwen3.5-35B-A3B",
+      "Qwen/Qwen3.8-Flash-Next",
+      "deepseek-ai/DeepSeek-V3",
+      "deepseek-ai/DeepSeek-V4-Flash",
+      "deepseek-ai/DeepSeek-V4.1-Flash",
+      "inclusionAI/Ling-2.6-1T",
+      "meituan-longcat/LongCat-Flash-Thinking-2601",
+      "tencent/Hy3",
+      "zai-org/GLM-4.5-Air",
+      "zai-org/GLM-5.3-Flash"
+    ],
+    "kind": "curated",
+    "module": "tests/kernel_bench/test_fused_span_providers.py",
+    "name": "_PLANNED"
+  },
+  {
+    "identifiers": [
+      "deepseek-ai/DeepSeek-V3.2",
+      "deepseek-ai/DeepSeek-V4-Flash",
+      "meta-llama/Llama-3.2-3B",
+      "moonshotai/Kimi-K2-Thinking",
+      "moonshotai/Kimi-K3",
+      "openai/gpt-oss-20b"
+    ],
+    "kind": "curated",
+    "module": "tests/kernel_bench/test_kernel_bench_plan_key.py",
+    "name": "MODELS"
+  },
+  {
+    "identifiers": [
+      "XiaomiMiMo/MiMo-V2.6-Pro-RL"
+    ],
+    "kind": "curated",
+    "module": "tests/kernel_bench/test_mxfp4_moe_keying.py",
+    "name": "BLACKWELL_UNRESOLVED"
+  },
+  {
+    "identifiers": [
+      "XiaomiMiMo/MiMo-V2.6-Pro-RL",
+      "deepseek-ai/DeepSeek-V4-Flash",
+      "deepseek-ai/DeepSeek-V4.1-Flash"
+    ],
+    "kind": "curated",
+    "module": "tests/kernel_bench/test_mxfp4_moe_keying.py",
+    "name": "QUANTISING"
+  },
+  {
+    "identifiers": [
+      "deepseek-ai/DeepSeek-V3",
+      "meta-llama/Llama-3.2-3B",
+      "openai/gpt-oss-20b"
+    ],
+    "kind": "curated",
+    "module": "tests/kernel_bench/test_plan_keys_are_the_estimates.py",
+    "name": "TestTheTwoSidesAskOneKey.MODELS"
+  },
+  {
+    "identifiers": [
+      "XiaomiMiMo/MiMo-V2-Flash",
+      "deepseek-ai/DeepSeek-V3",
+      "zai-org/GLM-5.3"
+    ],
+    "kind": "curated",
+    "module": "tests/kernel_bench/test_rekey_lake.py",
+    "name": "H100_MASKED_ROWS"
+  }
+]

@@ -1,0 +1,20 @@
+# Identity file for moonshotai/Kimi-K2-Thinking
+base: kimi_k2
+match:
+  model_id: [moonshotai/Kimi-K2-Thinking]
+
+# Same K2 text backbone; the checkpoint is not the FP8 one the base describes.
+# config.quantization_config is compressed-tensors pack-quantized INT4
+# (group_size 32, symmetric) on routed experts only; its `ignore` list keeps
+# lm_head, every self_attn tensor, the shared experts and the layer-0 dense
+# MLP in BF16 (same convention as Kimi-K2.5's text backbone).
+quant_context:
+  per_role:
+    ffn_moe: { method: compressed-tensors, num_bits: 4, group_size: 32, type: int, symmetric: true, strategy: group, format: pack-quantized }
+    ffn_moe_shared: { method: none }
+    router: { method: none }
+    default: { method: none }
+  overrides:
+    - tensors_re: 'mlp\.gate\.e_score_correction_bias$'
+      dtype: F32
+  default_dtype: BF16

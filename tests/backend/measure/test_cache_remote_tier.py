@@ -1,0 +1,125 @@
+"""A result cache's local tiers + gated durable remote tier.
+
+Pins that a shareable request promotes/writes the durable remote tier, that a
+NON-shareable request (`remote_ok=False`) is confined to the local tiers (the
+remote is neither read nor written — a measured/user-calibrated result must not
+land in a global table), and that an unconfigured Supabase degrades to
+local-only with no error.
+"""
+from __future__ import annotations
+
+from backend.measure.cache import DiskBackend, KeyedCache, MemoryBackend, TieredBackend
+
+
+class FakeRemote:
+    """A durable remote backend stand-in (dict) with get/put/clear."""
+
+    def __init__(self):
+        self.store = {}
+
+    def get(self, key):
+        return self.store.get(key)
+
+    def put(self, key, value):
+        self.store[key] = value
+
+    def clear(self):
+        self.store.clear()
+
+
+def _cache(tmp_path):
+    local = TieredBackend(MemoryBackend(max_entries=8), DiskBackend(tmp_path, max_files=100))
+    remote = FakeRemote()
+    return KeyedCache("sweep", local, single_flight=True, remote=remote), remote
+
+
+def test_shareable_remote_hit_is_promoted_to_local(tmp_path):
+    cache, remote = _cache(tmp_path)
+    remote.store["k"] = {"v": 1}  # value only in the durable remote tier
+    got = cache.get_or_compute("k", lambda: {"v": "COMPUTED"}, remote_ok=True)
+    assert got == {"v": 1}                      # served from remote, not recomputed
+    assert cache.get("k") == {"v": 1}           # promoted into local
+
+
+def test_shareable_put_writes_local_and_remote(tmp_path):
+    cache, remote = _cache(tmp_path)
+    cache.get_or_compute("k", lambda: {"v": 2}, remote_ok=True)
+    assert cache.get("k") == {"v": 2}           # local
+    assert remote.store["k"] == {"v": 2}        # remote
+
+
+def test_non_shareable_does_not_read_or_write_remote(tmp_path):
+    """A measured result (`remote_ok=False`) stays local-only: a value sitting
+    in the remote tier is NOT served, and a freshly computed one is NOT written
+    there — so one user's calibrated numbers never reach the global table."""
+    cache, remote = _cache(tmp_path)
+    remote.store["k"] = {"v": "REMOTE"}         # someone else's shareable entry
+    # remote_ok=False: ignore the remote hit, compute locally.
+    got = cache.get_or_compute("k2", lambda: {"v": "LOCAL"}, remote_ok=False)
+    assert got == {"v": "LOCAL"}
+    assert "k2" not in remote.store             # not written to the global table
+    # and even for the same key, a non-shareable read skips the remote tier
+    miss = cache.get_or_compute("k", lambda: {"v": "FRESH"}, remote_ok=False)
+    assert miss == {"v": "FRESH"}               # remote "REMOTE" ignored, recomputed local
+
+
+def test_unconfigured_supabase_degrades_to_local(tmp_path, monkeypatch):
+    monkeypatch.delenv("SUPABASE_URL", raising=False)
+    monkeypatch.delenv("SUPABASE_SERVICE_ROLE_KEY", raising=False)
+    from backend.service.sweep_cache import SupabaseBackend
+
+    local = TieredBackend(MemoryBackend(max_entries=8), DiskBackend(tmp_path, max_files=100))
+    cache = KeyedCache("sweep", local, single_flight=True, remote=SupabaseBackend())
+    cache.get_or_compute("k", lambda: {"v": 3}, remote_ok=True)  # remote put is a no-op
+    assert cache.get("k") == {"v": 3}           # served from local
+
+
+def test_remote_if_gates_only_the_remote_write(tmp_path):
+    """`remote_if` confines a value to the local tiers while still caching it
+    locally — the gallery uses this so one box's transient error entry never
+    reaches the global table but still caches (and serves) locally."""
+    cache, remote = _cache(tmp_path)
+    err = {"model_id": "m", "error": "boom"}
+    got = cache.get_or_compute(
+        "k", lambda: err, remote_ok=True, remote_if=lambda v: not v.get("error"))
+    assert got == err
+    assert cache.get("k") == err                # local store happened
+    assert "k" not in remote.store              # remote write gated off
+    # A clean value under another key writes both tiers.
+    cache.get_or_compute(
+        "ok", lambda: {"v": 1}, remote_ok=True, remote_if=lambda v: not v.get("error"))
+    assert remote.store["ok"] == {"v": 1}
+
+
+def test_get_put_remote_ok_roundtrip(tmp_path):
+    """The manual get/put pair honours the same gates (gallery facts and
+    frontier entries cache through them, outside get_or_compute)."""
+    cache, remote = _cache(tmp_path)
+    cache.put("k", {"v": 1})                    # default: local-only
+    assert "k" not in remote.store
+    cache.put("k2", {"v": 2}, remote_ok=True)
+    assert remote.store["k2"] == {"v": 2}
+    cache.put("k3", {"v": 3}, remote_ok=True, remote_if=lambda v: False)
+    assert "k3" not in remote.store
+    assert cache.get("k3") == {"v": 3}
+    # A remote-only value is visible through get(remote_ok=True) and
+    # promoted; a plain get() stays local-only.
+    remote.store["k4"] = {"v": 4}
+    assert cache.get("k4") is None
+    assert cache.get("k4", remote_ok=True) == {"v": 4}
+    assert cache.get("k4") == {"v": 4}          # promoted into local
+
+
+def test_service_import_injects_the_durable_remote():
+    """The service layer wires the Supabase remote into the core sweep + gallery
+    caches — they are built remote-less so `backend.api` stays service-clean
+    (see backend/service/__init__.py). If that injection is dropped, prod
+    silently loses the durable cross-VM tier, so pin it here."""
+    import backend.api  # noqa: F401  — imports backend.service, running the injection
+    from backend.api.sweep_runtime import _SWEEP
+    from backend.api.gallery_overview import _FRONTIER, _GALLERY
+    from backend.measure.cache import WriteBehindBackend
+    # Write-behind: a request never blocks on the remote upsert.
+    assert isinstance(_SWEEP._remote, WriteBehindBackend)
+    assert isinstance(_GALLERY._remote, WriteBehindBackend)
+    assert isinstance(_FRONTIER._remote, WriteBehindBackend)

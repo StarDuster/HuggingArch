@@ -1,0 +1,1107 @@
+{
+  "schema_version": 4,
+  "model_id": "moonshotai/Kimi-K3",
+  "config": {
+    "architectures": [
+      "KimiK3ForConditionalGeneration"
+    ],
+    "auto_map": {
+      "AutoConfig": "configuration_kimi_k3.KimiK3Config",
+      "AutoModel": "modeling_kimi_k3.KimiK3ForConditionalGeneration",
+      "AutoModelForCausalLM": "modeling_kimi_k3.KimiK3ForConditionalGeneration"
+    },
+    "bos_token_id": 163584,
+    "dtype": "bfloat16",
+    "eos_token_id": 163586,
+    "ignore_index": -100,
+    "image_placeholder": "<|kimi_image_placeholder|>",
+    "media_placeholder_token_id": 163605,
+    "model_type": "kimi_k3",
+    "pad_token_id": 163839,
+    "text_config": {
+      "_name_or_path": "",
+      "activation_situ_beta": 4.0,
+      "activation_situ_linear_beta": 25.0,
+      "add_cross_attention": false,
+      "architectures": [
+        "KimiLinearForCausalLM"
+      ],
+      "attn_res_block_size": 12,
+      "auto_map": {
+        "AutoConfig": "configuration_kimi_k3.KimiLinearConfig",
+        "AutoModel": "modeling_kimi_linear.KimiLinearModel",
+        "AutoModelForCausalLM": "modeling_kimi_linear.KimiLinearForCausalLM"
+      },
+      "bad_words_ids": null,
+      "begin_suppress_tokens": null,
+      "bos_token_id": 163584,
+      "chunk_size_feed_forward": 0,
+      "cross_attention_hidden_size": null,
+      "decoder_start_token_id": null,
+      "diversity_penalty": 0.0,
+      "do_sample": false,
+      "dtype": "bfloat16",
+      "early_stopping": false,
+      "encoder_no_repeat_ngram_size": 0,
+      "eos_token_id": 163586,
+      "exponential_decay_length_penalty": null,
+      "finetuning_task": null,
+      "first_k_dense_replace": 1,
+      "forced_bos_token_id": null,
+      "forced_eos_token_id": null,
+      "hidden_act": "situ",
+      "hidden_size": 7168,
+      "id2label": {
+        "0": "LABEL_0",
+        "1": "LABEL_1"
+      },
+      "initializer_range": 0.02,
+      "intermediate_size": 33792,
+      "is_decoder": false,
+      "is_encoder_decoder": false,
+      "kv_lora_rank": 512,
+      "label2id": {
+        "LABEL_0": 0,
+        "LABEL_1": 1
+      },
+      "latent_moe_use_norm": true,
+      "length_penalty": 1.0,
+      "linear_attn_config": {
+        "full_attn_layers": [
+          4,
+          8,
+          12,
+          16,
+          20,
+          24,
+          28,
+          32,
+          36,
+          40,
+          44,
+          48,
+          52,
+          56,
+          60,
+          64,
+          68,
+          72,
+          76,
+          80,
+          84,
+          88,
+          92,
+          93
+        ],
+        "gate_lower_bound": -5.0,
+        "head_dim": 128,
+        "kda_layers": [
+          1,
+          2,
+          3,
+          5,
+          6,
+          7,
+          9,
+          10,
+          11,
+          13,
+          14,
+          15,
+          17,
+          18,
+          19,
+          21,
+          22,
+          23,
+          25,
+          26,
+          27,
+          29,
+          30,
+          31,
+          33,
+          34,
+          35,
+          37,
+          38,
+          39,
+          41,
+          42,
+          43,
+          45,
+          46,
+          47,
+          49,
+          50,
+          51,
+          53,
+          54,
+          55,
+          57,
+          58,
+          59,
+          61,
+          62,
+          63,
+          65,
+          66,
+          67,
+          69,
+          70,
+          71,
+          73,
+          74,
+          75,
+          77,
+          78,
+          79,
+          81,
+          82,
+          83,
+          85,
+          86,
+          87,
+          89,
+          90,
+          91
+        ],
+        "num_heads": 96,
+        "short_conv_kernel_size": 4,
+        "use_full_rank_gate": true
+      },
+      "max_length": 20,
+      "max_position_embeddings": 1048576,
+      "min_length": 0,
+      "mla_use_nope": true,
+      "mla_use_output_gate": true,
+      "model_type": "kimi_linear",
+      "moe_intermediate_size": 3072,
+      "moe_layer_freq": 1,
+      "moe_renormalize": true,
+      "moe_router_activation_func": "sigmoid",
+      "no_repeat_ngram_size": 0,
+      "num_attention_heads": 96,
+      "num_beam_groups": 1,
+      "num_beams": 1,
+      "num_expert_group": 1,
+      "num_experts": 896,
+      "num_experts_per_token": 16,
+      "num_hidden_layers": 93,
+      "num_key_value_heads": 96,
+      "num_nextn_predict_layers": 0,
+      "num_return_sequences": 1,
+      "num_shared_experts": 2,
+      "output_attentions": false,
+      "output_hidden_states": false,
+      "output_scores": false,
+      "pad_token_id": 163839,
+      "prefix": null,
+      "problem_type": null,
+      "pruned_heads": {},
+      "q_lora_rank": 1536,
+      "qk_nope_head_dim": 128,
+      "qk_rope_head_dim": 64,
+      "quantization_config": {
+        "config_groups": {
+          "group_0": {
+            "format": "mxfp4-pack-quantized",
+            "input_activations": null,
+            "output_activations": null,
+            "targets": [
+              "Linear"
+            ],
+            "weights": {
+              "actorder": null,
+              "block_structure": null,
+              "dynamic": false,
+              "group_size": 32,
+              "num_bits": 4,
+              "observer": "minmax",
+              "observer_kwargs": {},
+              "scale_dtype": "torch.uint8",
+              "strategy": "group",
+              "symmetric": true,
+              "type": "float",
+              "zp_dtype": null
+            }
+          }
+        },
+        "format": "mxfp4-pack-quantized",
+        "global_compression_ratio": null,
+        "ignore": [
+          "re:.*self_attn.*",
+          "re:.*shared_experts.*",
+          "re:.*mlp\\.(gate|up|gate_up|down)_proj.*",
+          "re:.*lm_head.*",
+          "re:.*vision_tower.*",
+          "re:.*mm_projector.*"
+        ],
+        "kv_cache_scheme": null,
+        "quant_method": "compressed-tensors",
+        "quantization_status": "compressed"
+      },
+      "remove_invalid_values": false,
+      "repetition_penalty": 1.0,
+      "return_dict": true,
+      "return_dict_in_generate": false,
+      "rms_norm_eps": 1e-05,
+      "routed_expert_hidden_size": 3584,
+      "routed_scaling_factor": 1.0,
+      "sep_token_id": null,
+      "suppress_tokens": null,
+      "task_specific_params": null,
+      "temperature": 1.0,
+      "tf_legacy_loss": false,
+      "tie_encoder_decoder": false,
+      "tie_word_embeddings": false,
+      "tokenizer_class": null,
+      "top_k": 50,
+      "top_p": 1.0,
+      "topk_group": 1,
+      "topk_method": "noaux_tc",
+      "torchscript": false,
+      "transformers_version": "4.56.2",
+      "typical_p": 1.0,
+      "use_bfloat16": false,
+      "use_cache": true,
+      "use_grouped_topk": true,
+      "v_head_dim": 128,
+      "vocab_size": 163840
+    },
+    "tie_word_embeddings": false,
+    "vision_config": {
+      "_attn_implementation": "flash_attention_2",
+      "activation_func": "gelu_pytorch_tanh",
+      "attn_bias": false,
+      "init_pos_emb_height": 64,
+      "init_pos_emb_time": 4,
+      "init_pos_emb_width": 64,
+      "linear_bias": false,
+      "merge_kernel_size": [
+        2,
+        2
+      ],
+      "merge_type": "sd2_tpool",
+      "mlp_type": "mlp2",
+      "mm_hidden_size": 1024,
+      "mm_projector_type": "patchmergerv2",
+      "norm_type": "rmsnorm",
+      "patch_embed_proj_bias": false,
+      "patch_size": 14,
+      "pos_emb_interpolation_mode": "bilinear",
+      "pos_emb_type": "divided_fixed",
+      "projector_hidden_act": "gelu",
+      "projector_ln_eps": 1e-05,
+      "qkv_hidden_size": 1536,
+      "text_hidden_size": 7168,
+      "vt_hidden_size": 1024,
+      "vt_intermediate_size": 4096,
+      "vt_num_attention_heads": 12,
+      "vt_num_hidden_layers": 27
+    }
+  },
+  "metadata": {
+    "header": {
+      "revision": "9f62e4e9fffbd0a83ddd60e1c209d828994b3569",
+      "total_size": 1560860324864,
+      "tensors": [
+        {
+          "name": "language_model.lm_head.weight",
+          "dtype": "BF16",
+          "shape": [
+            163840,
+            7168
+          ]
+        },
+        {
+          "name": "language_model.model.embed_tokens.weight",
+          "dtype": "BF16",
+          "shape": [
+            163840,
+            7168
+          ]
+        },
+        {
+          "name": "language_model.model.layers.{}.block_sparse_moe.experts.{}.w1.weight_packed",
+          "dtype": "U8",
+          "shape": [
+            3072,
+            1792
+          ],
+          "index": [
+            [
+              "1-92",
+              "0-895"
+            ]
+          ]
+        },
+        {
+          "name": "language_model.model.layers.{}.block_sparse_moe.experts.{}.w1.weight_scale",
+          "dtype": "U8",
+          "shape": [
+            3072,
+            112
+          ],
+          "index": [
+            [
+              "1-92",
+              "0-895"
+            ]
+          ]
+        },
+        {
+          "name": "language_model.model.layers.{}.block_sparse_moe.experts.{}.w2.weight_packed",
+          "dtype": "U8",
+          "shape": [
+            3584,
+            1536
+          ],
+          "index": [
+            [
+              "1-92",
+              "0-895"
+            ]
+          ]
+        },
+        {
+          "name": "language_model.model.layers.{}.block_sparse_moe.experts.{}.w2.weight_scale",
+          "dtype": "U8",
+          "shape": [
+            3584,
+            96
+          ],
+          "index": [
+            [
+              "1-92",
+              "0-895"
+            ]
+          ]
+        },
+        {
+          "name": "language_model.model.layers.{}.block_sparse_moe.experts.{}.w3.weight_packed",
+          "dtype": "U8",
+          "shape": [
+            3072,
+            1792
+          ],
+          "index": [
+            [
+              "1-92",
+              "0-895"
+            ]
+          ]
+        },
+        {
+          "name": "language_model.model.layers.{}.block_sparse_moe.experts.{}.w3.weight_scale",
+          "dtype": "U8",
+          "shape": [
+            3072,
+            112
+          ],
+          "index": [
+            [
+              "1-92",
+              "0-895"
+            ]
+          ]
+        },
+        {
+          "name": "language_model.model.layers.{}.block_sparse_moe.gate.e_score_correction_bias",
+          "dtype": "F32",
+          "shape": [
+            896
+          ],
+          "index": [
+            [
+              "1-92"
+            ]
+          ]
+        },
+        {
+          "name": "language_model.model.layers.{}.block_sparse_moe.gate.weight",
+          "dtype": "BF16",
+          "shape": [
+            896,
+            7168
+          ],
+          "index": [
+            [
+              "1-92"
+            ]
+          ]
+        },
+        {
+          "name": "language_model.model.layers.{}.block_sparse_moe.routed_expert_down_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            3584,
+            7168
+          ],
+          "index": [
+            [
+              "1-92"
+            ]
+          ]
+        },
+        {
+          "name": "language_model.model.layers.{}.block_sparse_moe.routed_expert_norm.weight",
+          "dtype": "BF16",
+          "shape": [
+            3584
+          ],
+          "index": [
+            [
+              "1-92"
+            ]
+          ]
+        },
+        {
+          "name": "language_model.model.layers.{}.block_sparse_moe.routed_expert_up_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            7168,
+            3584
+          ],
+          "index": [
+            [
+              "1-92"
+            ]
+          ]
+        },
+        {
+          "name": "language_model.model.layers.{}.block_sparse_moe.shared_experts.down_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            7168,
+            6144
+          ],
+          "index": [
+            [
+              "1-92"
+            ]
+          ]
+        },
+        {
+          "name": "language_model.model.layers.{}.block_sparse_moe.shared_experts.gate_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            6144,
+            7168
+          ],
+          "index": [
+            [
+              "1-92"
+            ]
+          ]
+        },
+        {
+          "name": "language_model.model.layers.{}.block_sparse_moe.shared_experts.up_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            6144,
+            7168
+          ],
+          "index": [
+            [
+              "1-92"
+            ]
+          ]
+        },
+        {
+          "name": "language_model.model.layers.{}.input_layernorm.weight",
+          "dtype": "BF16",
+          "shape": [
+            7168
+          ],
+          "index": [
+            [
+              "0-92"
+            ]
+          ]
+        },
+        {
+          "name": "language_model.model.layers.{}.mlp.down_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            7168,
+            33792
+          ],
+          "index": [
+            [
+              "0"
+            ]
+          ]
+        },
+        {
+          "name": "language_model.model.layers.{}.mlp.gate_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            33792,
+            7168
+          ],
+          "index": [
+            [
+              "0"
+            ]
+          ]
+        },
+        {
+          "name": "language_model.model.layers.{}.mlp.up_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            33792,
+            7168
+          ],
+          "index": [
+            [
+              "0"
+            ]
+          ]
+        },
+        {
+          "name": "language_model.model.layers.{}.mlp_res_norm.weight",
+          "dtype": "BF16",
+          "shape": [
+            7168
+          ],
+          "index": [
+            [
+              "0-92"
+            ]
+          ]
+        },
+        {
+          "name": "language_model.model.layers.{}.mlp_res_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            1,
+            7168
+          ],
+          "index": [
+            [
+              "0-92"
+            ]
+          ]
+        },
+        {
+          "name": "language_model.model.layers.{}.post_attention_layernorm.weight",
+          "dtype": "BF16",
+          "shape": [
+            7168
+          ],
+          "index": [
+            [
+              "0-92"
+            ]
+          ]
+        },
+        {
+          "name": "language_model.model.layers.{}.self_attention_res_norm.weight",
+          "dtype": "BF16",
+          "shape": [
+            7168
+          ],
+          "index": [
+            [
+              "0-92"
+            ]
+          ]
+        },
+        {
+          "name": "language_model.model.layers.{}.self_attention_res_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            1,
+            7168
+          ],
+          "index": [
+            [
+              "0-92"
+            ]
+          ]
+        },
+        {
+          "name": "language_model.model.layers.{}.self_attn.A_log",
+          "dtype": "F32",
+          "shape": [
+            128
+          ],
+          "index": [
+            [
+              "0-2,4-6,8-10,12-14,16-18,20-22,24-26,28-30,32-34,36-38,40-42,44-46,48-50,52-54,56-58,60-62,64-66,68-70,72-74,76-78,80-82,84-86,88-90"
+            ]
+          ]
+        },
+        {
+          "name": "language_model.model.layers.{}.self_attn.b_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            96,
+            7168
+          ],
+          "index": [
+            [
+              "0-2,4-6,8-10,12-14,16-18,20-22,24-26,28-30,32-34,36-38,40-42,44-46,48-50,52-54,56-58,60-62,64-66,68-70,72-74,76-78,80-82,84-86,88-90"
+            ]
+          ]
+        },
+        {
+          "name": "language_model.model.layers.{}.self_attn.dt_bias",
+          "dtype": "F32",
+          "shape": [
+            12288
+          ],
+          "index": [
+            [
+              "0-2,4-6,8-10,12-14,16-18,20-22,24-26,28-30,32-34,36-38,40-42,44-46,48-50,52-54,56-58,60-62,64-66,68-70,72-74,76-78,80-82,84-86,88-90"
+            ]
+          ]
+        },
+        {
+          "name": "language_model.model.layers.{}.self_attn.f_a_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            128,
+            7168
+          ],
+          "index": [
+            [
+              "0-2,4-6,8-10,12-14,16-18,20-22,24-26,28-30,32-34,36-38,40-42,44-46,48-50,52-54,56-58,60-62,64-66,68-70,72-74,76-78,80-82,84-86,88-90"
+            ]
+          ]
+        },
+        {
+          "name": "language_model.model.layers.{}.self_attn.f_b_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            12288,
+            128
+          ],
+          "index": [
+            [
+              "0-2,4-6,8-10,12-14,16-18,20-22,24-26,28-30,32-34,36-38,40-42,44-46,48-50,52-54,56-58,60-62,64-66,68-70,72-74,76-78,80-82,84-86,88-90"
+            ]
+          ]
+        },
+        {
+          "name": "language_model.model.layers.{}.self_attn.g_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            12288,
+            7168
+          ],
+          "index": [
+            [
+              "0-92"
+            ]
+          ]
+        },
+        {
+          "name": "language_model.model.layers.{}.self_attn.k_conv1d.weight",
+          "dtype": "F32",
+          "shape": [
+            12288,
+            1,
+            4
+          ],
+          "index": [
+            [
+              "0-2,4-6,8-10,12-14,16-18,20-22,24-26,28-30,32-34,36-38,40-42,44-46,48-50,52-54,56-58,60-62,64-66,68-70,72-74,76-78,80-82,84-86,88-90"
+            ]
+          ]
+        },
+        {
+          "name": "language_model.model.layers.{}.self_attn.k_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            12288,
+            7168
+          ],
+          "index": [
+            [
+              "0-2,4-6,8-10,12-14,16-18,20-22,24-26,28-30,32-34,36-38,40-42,44-46,48-50,52-54,56-58,60-62,64-66,68-70,72-74,76-78,80-82,84-86,88-90"
+            ]
+          ]
+        },
+        {
+          "name": "language_model.model.layers.{}.self_attn.kv_a_layernorm.weight",
+          "dtype": "BF16",
+          "shape": [
+            512
+          ],
+          "index": [
+            [
+              "3,7,11,15,19,23,27,31,35,39,43,47,51,55,59,63,67,71,75,79,83,87,91-92"
+            ]
+          ]
+        },
+        {
+          "name": "language_model.model.layers.{}.self_attn.kv_a_proj_with_mqa.weight",
+          "dtype": "BF16",
+          "shape": [
+            576,
+            7168
+          ],
+          "index": [
+            [
+              "3,7,11,15,19,23,27,31,35,39,43,47,51,55,59,63,67,71,75,79,83,87,91-92"
+            ]
+          ]
+        },
+        {
+          "name": "language_model.model.layers.{}.self_attn.kv_b_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            24576,
+            512
+          ],
+          "index": [
+            [
+              "3,7,11,15,19,23,27,31,35,39,43,47,51,55,59,63,67,71,75,79,83,87,91-92"
+            ]
+          ]
+        },
+        {
+          "name": "language_model.model.layers.{}.self_attn.o_norm.weight",
+          "dtype": "F32",
+          "shape": [
+            128
+          ],
+          "index": [
+            [
+              "0-2,4-6,8-10,12-14,16-18,20-22,24-26,28-30,32-34,36-38,40-42,44-46,48-50,52-54,56-58,60-62,64-66,68-70,72-74,76-78,80-82,84-86,88-90"
+            ]
+          ]
+        },
+        {
+          "name": "language_model.model.layers.{}.self_attn.o_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            7168,
+            12288
+          ],
+          "index": [
+            [
+              "0-92"
+            ]
+          ]
+        },
+        {
+          "name": "language_model.model.layers.{}.self_attn.q_a_layernorm.weight",
+          "dtype": "BF16",
+          "shape": [
+            1536
+          ],
+          "index": [
+            [
+              "3,7,11,15,19,23,27,31,35,39,43,47,51,55,59,63,67,71,75,79,83,87,91-92"
+            ]
+          ]
+        },
+        {
+          "name": "language_model.model.layers.{}.self_attn.q_a_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            1536,
+            7168
+          ],
+          "index": [
+            [
+              "3,7,11,15,19,23,27,31,35,39,43,47,51,55,59,63,67,71,75,79,83,87,91-92"
+            ]
+          ]
+        },
+        {
+          "name": "language_model.model.layers.{}.self_attn.q_b_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            18432,
+            1536
+          ],
+          "index": [
+            [
+              "3,7,11,15,19,23,27,31,35,39,43,47,51,55,59,63,67,71,75,79,83,87,91-92"
+            ]
+          ]
+        },
+        {
+          "name": "language_model.model.layers.{}.self_attn.q_conv1d.weight",
+          "dtype": "F32",
+          "shape": [
+            12288,
+            1,
+            4
+          ],
+          "index": [
+            [
+              "0-2,4-6,8-10,12-14,16-18,20-22,24-26,28-30,32-34,36-38,40-42,44-46,48-50,52-54,56-58,60-62,64-66,68-70,72-74,76-78,80-82,84-86,88-90"
+            ]
+          ]
+        },
+        {
+          "name": "language_model.model.layers.{}.self_attn.q_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            12288,
+            7168
+          ],
+          "index": [
+            [
+              "0-2,4-6,8-10,12-14,16-18,20-22,24-26,28-30,32-34,36-38,40-42,44-46,48-50,52-54,56-58,60-62,64-66,68-70,72-74,76-78,80-82,84-86,88-90"
+            ]
+          ]
+        },
+        {
+          "name": "language_model.model.layers.{}.self_attn.v_conv1d.weight",
+          "dtype": "F32",
+          "shape": [
+            12288,
+            1,
+            4
+          ],
+          "index": [
+            [
+              "0-2,4-6,8-10,12-14,16-18,20-22,24-26,28-30,32-34,36-38,40-42,44-46,48-50,52-54,56-58,60-62,64-66,68-70,72-74,76-78,80-82,84-86,88-90"
+            ]
+          ]
+        },
+        {
+          "name": "language_model.model.layers.{}.self_attn.v_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            12288,
+            7168
+          ],
+          "index": [
+            [
+              "0-2,4-6,8-10,12-14,16-18,20-22,24-26,28-30,32-34,36-38,40-42,44-46,48-50,52-54,56-58,60-62,64-66,68-70,72-74,76-78,80-82,84-86,88-90"
+            ]
+          ]
+        },
+        {
+          "name": "language_model.model.norm.weight",
+          "dtype": "BF16",
+          "shape": [
+            7168
+          ]
+        },
+        {
+          "name": "language_model.model.output_attn_res_norm.weight",
+          "dtype": "BF16",
+          "shape": [
+            7168
+          ]
+        },
+        {
+          "name": "language_model.model.output_attn_res_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            1,
+            7168
+          ]
+        },
+        {
+          "name": "mm_projector.post_norm.weight",
+          "dtype": "BF16",
+          "shape": [
+            7168
+          ]
+        },
+        {
+          "name": "mm_projector.proj.{}.weight",
+          "dtype": "BF16",
+          "shape": [
+            4096,
+            4096
+          ],
+          "index": [
+            [
+              "0"
+            ]
+          ]
+        },
+        {
+          "name": "mm_projector.proj.{}.weight",
+          "dtype": "BF16",
+          "shape": [
+            7168,
+            4096
+          ],
+          "index": [
+            [
+              "2"
+            ]
+          ]
+        },
+        {
+          "name": "vision_tower.encoder.blocks.{}.mlp.fc0.weight",
+          "dtype": "BF16",
+          "shape": [
+            4096,
+            1024
+          ],
+          "index": [
+            [
+              "0-26"
+            ]
+          ]
+        },
+        {
+          "name": "vision_tower.encoder.blocks.{}.mlp.fc1.weight",
+          "dtype": "BF16",
+          "shape": [
+            1024,
+            4096
+          ],
+          "index": [
+            [
+              "0-26"
+            ]
+          ]
+        },
+        {
+          "name": "vision_tower.encoder.blocks.{}.norm0.weight",
+          "dtype": "BF16",
+          "shape": [
+            1024
+          ],
+          "index": [
+            [
+              "0-26"
+            ]
+          ]
+        },
+        {
+          "name": "vision_tower.encoder.blocks.{}.norm1.weight",
+          "dtype": "BF16",
+          "shape": [
+            1024
+          ],
+          "index": [
+            [
+              "0-26"
+            ]
+          ]
+        },
+        {
+          "name": "vision_tower.encoder.blocks.{}.wo.weight",
+          "dtype": "BF16",
+          "shape": [
+            1024,
+            1536
+          ],
+          "index": [
+            [
+              "0-26"
+            ]
+          ]
+        },
+        {
+          "name": "vision_tower.encoder.blocks.{}.wqkv.weight",
+          "dtype": "BF16",
+          "shape": [
+            4608,
+            1024
+          ],
+          "index": [
+            [
+              "0-26"
+            ]
+          ]
+        },
+        {
+          "name": "vision_tower.encoder.final_layernorm.weight",
+          "dtype": "BF16",
+          "shape": [
+            1024
+          ]
+        },
+        {
+          "name": "vision_tower.patch_embed.pos_emb.weight",
+          "dtype": "BF16",
+          "shape": [
+            64,
+            64,
+            1024
+          ]
+        },
+        {
+          "name": "vision_tower.patch_embed.proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            1024,
+            3,
+            14,
+            14
+          ]
+        }
+      ]
+    },
+    "quant_scheme": "compressed-tensors",
+    "num_bits": 4
+  },
+  "forward_source": {
+    "source": "hf_modeling_files",
+    "paths": [
+      "hf-cache/moonshotai/Kimi-K3/configuration_kimi_k3.py",
+      "hf-cache/moonshotai/Kimi-K3/modeling_kimi_k3.py",
+      "hf-cache/moonshotai/Kimi-K3/modeling_kimi_linear.py"
+    ],
+    "files": [
+      {
+        "path": "hf-cache/moonshotai/Kimi-K3/configuration_kimi_k3.py",
+        "text": "from typing import Optional\n\nfrom transformers.configuration_utils import PretrainedConfig\n\n\nclass KimiLinearConfig(PretrainedConfig):\n    model_type = \"kimi_linear\"\n    keys_to_ignore_at_inference = [\"past_key_values\"]\n\n    def __init__(\n        self,\n        model_type=\"kimi_linear\",\n        vocab_size=163840,\n        hidden_size=4096,\n        head_dim=None,\n        intermediate_size=11008,\n        num_hidden_layers=32,\n        num_attention_heads=32,\n        num_key_value_heads=None,\n        hidden_act=\"silu\",\n        initializer_range=0.02,\n        rms_norm_eps=1e-6,\n        use_cache=True,\n        pad_token_id=0,\n        bos_token_id=1,\n        eos_token_id=2,\n        rope_theta=10000.0,\n        rope_scaling=None,\n        tie_word_embeddings=False,\n        moe_intermediate_size: Optional[int] = None,\n        moe_renormalize: bool = True,\n        moe_router_activation_func: str = \"sigmoid\",\n        num_experts: Optional[int] = None,\n        num_experts_per_token: Optional[int] = None,\n        num_shared_experts: int = 0,\n        routed_scaling_factor: float = 1.0,\n        first_k_dense_replace: int = 0,\n        moe_layer_freq: int = 1,\n        use_grouped_topk: bool = True,\n        num_expert_group: int = 1,\n        topk_group: int = 1,\n        q_lora_rank: Optional[int] = None,\n        kv_lora_rank: Optional[int] = None,\n        qk_nope_head_dim: Optional[int] = None,\n        qk_rope_head_dim: Optional[int] = None,\n        v_head_dim: Optional[int] = None,\n        mla_use_nope: Optional[bool] = False,\n        mla_use_output_gate: Optional[bool] = False,\n        num_nextn_predict_layers: int = 0,\n        linear_attn_config: Optional[dict] = None,\n        attn_res_block_size: Optional[int] = None,\n        latent_moe_use_norm: bool = False,\n        activation_situ_beta: Optional[float] = None,\n        activation_situ_linear_beta: Optional[float] = None,\n        max_position_embeddings: int = 4096,\n        routed_expert_hidden_size: Optional[int] = None,\n        topk_method: str = \"noaux_tc\",\n        **kwargs,\n    ):\n        self.model_type = model_type\n        self.vocab_size = vocab_size\n        self.hidden_size = hidden_size\n        self.head_dim = (\n            head_dim if head_dim is not None else hidden_size // num_attention_heads\n        )\n        self.intermediate_size = intermediate_size\n        self.num_hidden_layers = num_hidden_layers\n        self.num_attention_heads = num_attention_heads\n\n        # for backward compatibility\n        if num_key_value_heads is None:\n            num_key_value_heads = num_attention_heads\n\n        self.num_key_value_heads = num_key_value_heads\n        self.hidden_act = hidden_act\n        self.initializer_range = initializer_range\n        self.rms_norm_eps = rms_norm_eps\n        self.use_cache = use_cache\n        self.rope_theta = rope_theta\n        self.rope_scaling = rope_scaling\n\n        self.q_lora_rank = q_lora_rank\n        self.kv_lora_rank = kv_lora_rank\n        self.qk_nope_head_dim = qk_nope_head_dim\n        self.qk_rope_head_dim = qk_rope_head_dim\n        self.v_head_dim = v_head_dim\n        self.mla_use_nope = mla_use_nope\n        self.mla_use_output_gate = mla_use_output_gate\n        # moe config\n        self.num_experts = num_experts\n        self.num_experts_per_token = num_experts_per_token\n        self.moe_renormalize = moe_renormalize\n        self.num_shared_experts = num_shared_experts\n        self.routed_scaling_factor = routed_scaling_factor\n        self.moe_router_activation_func = moe_router_activation_func\n        assert self.moe_router_activation_func in (\"softmax\", \"sigmoid\")\n        self.moe_intermediate_size = moe_intermediate_size\n        self.first_k_dense_replace = first_k_dense_replace\n        self.moe_layer_freq = moe_layer_freq\n        self.use_grouped_topk = use_grouped_topk\n        self.num_expert_group = num_expert_group\n        self.topk_group = topk_group\n        self.num_nextn_predict_layers = num_nextn_predict_layers\n\n        self.attn_res_block_size = attn_res_block_size\n        self.latent_moe_use_norm = latent_moe_use_norm\n        self.activation_situ_beta = activation_situ_beta\n        self.activation_situ_linear_beta = activation_situ_linear_beta\n        self.max_position_embeddings = max_position_embeddings\n        self.routed_expert_hidden_size = routed_expert_hidden_size\n        self.topk_method = topk_method\n\n        if linear_attn_config is not None:\n            assert linear_attn_config[\"kda_layers\"] is not None\n            assert linear_attn_config[\"full_attn_layers\"] is not None\n        self.linear_attn_config = linear_attn_config\n\n        super().__init__(\n            pad_token_id=pad_token_id,\n            bos_token_id=bos_token_id,\n            eos_token_id=eos_token_id,\n            tie_word_embeddings=tie_word_embeddings,\n            **kwargs,\n        )\n\n    @property\n    def is_mla(self):\n        return (\n            self.q_lora_rank is not None\n            or self.kv_lora_rank is not None\n            or self.qk_nope_head_dim is not None\n            or self.qk_rope_head_dim is not None\n            or self.v_head_dim is not None\n            or self.mla_use_nope is True\n        )\n\n    @property\n    def is_moe(self):\n        return self.num_experts is not None\n\n    @property\n    def is_linear_attn(self) -> bool:\n        return not (\n            self.linear_attn_config is None\n            or (\n                isinstance(self.linear_attn_config, dict)\n                and self.linear_attn_config[\"kda_layers\"] is not None\n                and len(self.linear_attn_config[\"kda_layers\"]) == 0\n            )\n        )\n\n    def is_kda_layer(self, layer_idx: int):\n        return (\n            self.linear_attn_config is not None\n            and (layer_idx + 1) in self.linear_attn_config[\"kda_layers\"]\n        )\n\n\nclass KimiK3VisionConfig(PretrainedConfig):\n\n    def __init__(\n            self,\n            patch_size: int = 14,\n            init_pos_emb_height: int = 64,\n            init_pos_emb_width: int = 64,\n            init_pos_emb_time: int = 4,\n            pos_emb_type: str = 'divided_fixed',\n            vt_num_attention_heads: int = 12,\n            vt_num_hidden_layers: int = 27,\n            vt_hidden_size: int = 1024,\n            vt_intermediate_size: int = 4096,\n            merge_kernel_size: tuple = (2, 2),\n            merge_type: str = 'sd2_tpool',\n            _attn_implementation: str = 'flash_attention_2',\n            # MM Projector parameters\n            mm_projector_type: str = 'patchmergerv2',\n            mm_hidden_size: int | None = None,\n            projector_hidden_act: str = \"gelu\",\n            projector_ln_eps: float = 1e-5,\n            # vision tower parameters\n            qkv_hidden_size: int = 1536,\n            norm_type: str = 'rmsnorm',\n            attn_bias: bool = False,\n            patch_embed_proj_bias: bool = False,\n            mlp_type: str = 'mlp2',\n            linear_bias: bool = False,\n            activation_func: str = 'gelu_pytorch_tanh',\n            pos_emb_interpolation_mode: str = 'bilinear',\n            # Other parameters\n            ignore_index: int = -100,\n            media_placeholder_token_id: int = 163605,\n            pad_token_id: int = 0,\n            text_hidden_size=7168,\n            **kwargs):\n\n        self.patch_size = patch_size\n        self.init_pos_emb_height = init_pos_emb_height\n        self.init_pos_emb_width = init_pos_emb_width\n        self.init_pos_emb_time = init_pos_emb_time\n        self.pos_emb_type = pos_emb_type\n        self.vt_num_attention_heads = vt_num_attention_heads\n        self.vt_num_hidden_layers = vt_num_hidden_layers\n        self.vt_hidden_size = vt_hidden_size\n        self.vt_intermediate_size = vt_intermediate_size\n        self.merge_kernel_size = merge_kernel_size\n        self.merge_type = merge_type\n        self._attn_implementation = _attn_implementation\n\n        # MM Projector config\n        self.mm_projector_type = mm_projector_type\n        self.mm_hidden_size = mm_hidden_size if mm_hidden_size is not None else vt_hidden_size\n        self.projector_hidden_act = projector_hidden_act\n        self.projector_ln_eps = projector_ln_eps\n        self.text_hidden_size = text_hidden_size\n\n        # vision tower parameters\n        self.qkv_hidden_size = qkv_hidden_size\n        self.norm_type = norm_type\n        self.attn_bias = attn_bias\n        self.patch_embed_proj_bias = patch_embed_proj_bias\n        self.mlp_type = mlp_type\n        self.linear_bias = linear_bias\n        self.activation_func = activation_func\n        self.pos_emb_interpolation_mode = pos_emb_interpolation_mode\n\n        super().__init__(**kwargs)\n\n\nclass KimiK3Config(PretrainedConfig):\n    \"\"\"Kimi-K3 model configuration.\n\n    Args:\n        text_config (dict | KimiLinearConfig): Configuration for the text model.\n        \n        Vision Tower Parameters (from MoonViT3dConfig):\n            patch_size (int): Patch size for vision tower.\n            init_pos_emb_height (int): Initial position embedding height.\n            init_pos_emb_width (int): Initial position embedding width.\n            init_pos_emb_time (int): Initial position embedding time dimension.\n            pos_emb_type (str): Type of position embedding.\n            vt_num_attention_heads (int): Number of attention heads in vision tower.\n            vt_num_hidden_layers (int): Number of hidden layers in vision tower.\n            vt_hidden_size (int): Hidden size of vision tower.\n            vt_intermediate_size (int): Intermediate size in vision tower FFN.\n            merge_kernel_size (tuple): Kernel size for patch merging.\n            merge_type (str): Type of merge operation.\n            _attn_implementation (str): Attention implementation type.\n        \n        MM Projector Parameters (from MultiModalProjectorConfig):\n            mm_projector_type (str): Type of multimodal projector.\n            mm_hidden_size (int): Hidden size from vision tower (should match vt_hidden_size).\n            projector_hidden_act (str): Activation function for projector.\n            projector_ln_eps (float): Layer norm epsilon for projector.\n        \n        Other Parameters:\n            ignore_index (int): The ignore index for the loss function.\n            media_placeholder_token_id (int): The token ID to use for media placeholders.\n            pad_token_id (int): The token ID to use for padding.\n    \"\"\"\n\n    model_type = \"kimi_k3\"\n\n    def __init__(\n        self,\n        text_config: dict | KimiLinearConfig = None,\n        vision_config: dict | KimiK3VisionConfig = None,\n        # Other parameters\n        ignore_index: int = -100,\n        media_placeholder_token_id: int = 163605,\n        pad_token_id: int = 0,\n        **kwargs,\n    ):\n        if isinstance(text_config, dict):\n            text_config = KimiLinearConfig(**text_config)\n        if isinstance(vision_config, dict):\n            vision_config = KimiK3VisionConfig(**vision_config)\n        self.text_config = text_config\n        self.vision_config = vision_config\n        # Other config\n        self.ignore_index = ignore_index\n        self.media_placeholder_token_id = media_placeholder_token_id\n        if getattr(self.text_config, \"quantization_config\", None) is not None:\n            self.quantization_config = self.text_config.quantization_config\n\n        super().__init__(pad_token_id=pad_token_id, **kwargs)\n"
+      },
+      {
+        "path": "hf-cache/moonshotai/Kimi-K3/modeling_kimi_k3.py",
+        "text": "# coding=utf-8\n# Copyright 2025-2026 The Moonshot AI Team and HuggingFace Inc. team. All rights reserved.\n#\n# The code is based on llava (llava/modeling_llava.py), but modified for Kimi-K3.\n#\n# Licensing Information:\n# - Code derived from llava (llava/modeling_llava.py) is licensed under the Apache License, Version 2.0.\n# - Other parts of the code are licensed under the Kimi K3 License (see the LICENSE file in this repository).\n#\n# Apache License, Version 2.0:\n# Licensed under the Apache License, Version 2.0 (the \"License\");\n# you may not use this file except in compliance with the License.\n# You may obtain a copy of the License at\n#\n#     http://www.apache.org/licenses/LICENSE-2.0\n#\n# Unless required by applicable law or agreed to in writing, software\n# distributed under the License is distributed on an \"AS IS\" BASIS,\n# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n# See the License for the specific language governing permissions and\n# limitations under the License.\n\n\n# NOTE: Reference implementation for model architecture; see the model card for production deployment.\nimport math\nfrom collections.abc import Sequence\nfrom copy import deepcopy\nfrom typing import Optional\n\nimport numpy as np\nimport torch\nimport torch.nn as nn\nimport torch.nn.functional as F\nfrom transformers import activations\n\ntry:\n    from transformers.activations import PytorchGELUTanh\nexcept ImportError:\n    from transformers.activations import GELUTanh\n    activations.PytorchGELUTanh = GELUTanh\n    PytorchGELUTanh = GELUTanh\nfrom transformers.activations import PytorchGELUTanh\nfrom transformers.configuration_utils import PretrainedConfig\nfrom transformers.modeling_utils import PreTrainedModel\nfrom transformers.models.llava.modeling_llava import \\\n    LlavaCausalLMOutputWithPast\nfrom transformers.utils import is_flash_attn_2_available\n\nfrom .configuration_kimi_k3 import KimiK3Config\nfrom .modeling_kimi_linear import KimiLinearForCausalLM\n\n# Flash attention imports\nif is_flash_attn_2_available():\n    from flash_attn import flash_attn_varlen_func\nelse:\n    flash_attn_varlen_func = None\n\n\ndef multihead_attention(\n    q: torch.Tensor,\n    k: torch.Tensor,\n    v: torch.Tensor,\n    q_cu_seqlens: torch.Tensor | None = None,\n    k_cu_seqlens: torch.Tensor | None = None,\n    max_seqlen_q: int | None = None,\n    max_seqlen_k: int | None = None,\n    deterministic: bool = False,\n):\n    \"\"\"Multi-head attention using flash attention 2.\n\n    Args:\n        q, k, v: tensor of shape (batch_size, seqlen, num_heads, head_dim),\n            or (tot_seqlens, num_heads, head_dim) if packing.\n        q_cu_seqlens (torch.Tensor): cumulative sequence lengths of q.\n            The first element should be 0 and the last element should be q.shape[0].\n        k_cu_seqlens (torch.Tensor): cumulative sequence lengths of k.\n            The first element should be 0 and the last element should be k.shape[0].\n\n    Returns:\n        output: shape (batch_size, seqlen, dim) or (tot_seqlens, dim) if packing,\n            where dim = num_heads * head_dim\n    \"\"\"\n    attn_out = flash_attn_varlen_func(\n        q,\n        k,\n        v,\n        q_cu_seqlens,\n        k_cu_seqlens,\n        max_seqlen_q,\n        max_seqlen_k,\n        causal=False,\n        deterministic=deterministic,\n    )\n    if isinstance(attn_out, tuple):\n        attn_out = attn_out[0]\n\n    attn_out = attn_out.flatten(start_dim=-2)\n\n    return attn_out\n\n\ndef eager_attention(\n    q: torch.Tensor,\n    k: torch.Tensor,\n    v: torch.Tensor,\n    q_cu_seqlens: Optional[torch.Tensor] = None,\n    k_cu_seqlens: Optional[torch.Tensor] = None,\n    **kwargs,\n) -> torch.Tensor:\n    seq_length = q.shape[0]\n    attention_mask = torch.zeros([1, seq_length, seq_length],\n                                 device=q.device,\n                                 dtype=torch.bool)\n    for i in range(1, len(q_cu_seqlens)):\n        attention_mask[\n            ...,\n            q_cu_seqlens[i - 1]:q_cu_seqlens[i],\n            q_cu_seqlens[i - 1]:q_cu_seqlens[i],\n        ] = True\n    q = q.transpose(0, 1)\n    k = k.transpose(0, 1)\n    v = v.transpose(0, 1)\n\n    attn_weight = q @ k.transpose(-2, -1) / math.sqrt(q.shape[-1])\n    attn_weight = attn_weight.masked_fill(\n        ~attention_mask, torch.finfo(attn_weight.dtype).min)\n    attn_weight = torch.softmax(attn_weight, dim=-1,\n                                dtype=torch.float32).to(q.dtype)\n\n    attn_output = attn_weight @ v\n    attn_output = attn_output.transpose(0, 1)\n    attn_output = attn_output.reshape(seq_length, -1)\n    return attn_output\n\n\nVL_VISION_ATTENTION_FUNCTIONS = {\n    \"flash_attention_2\": multihead_attention,\n    \"eager\": eager_attention,\n}\n\n\ndef _apply_rope_input_validation(x, freqs_cis):\n    assert x.ndim == freqs_cis.ndim + 1, (x.shape, freqs_cis.shape)\n    assert x.shape[:-2] == freqs_cis.shape[:-1], (x.shape, freqs_cis.shape)\n    assert x.shape[-1] == 2 * freqs_cis.shape[-1], (x.shape, freqs_cis.shape)\n    assert freqs_cis.dtype == torch.complex64, freqs_cis.dtype\n\n\ndef get_rope_shape_decorate(func):\n    _get_rope_shape_first_call_flag = set()\n\n    def wrapper(org, interpolation_mode, shape):\n        key = (org.requires_grad, torch.is_grad_enabled(), interpolation_mode)\n        if key not in _get_rope_shape_first_call_flag:\n            _get_rope_shape_first_call_flag.add(key)\n            _ = func(org, interpolation_mode, shape=(64, 64))\n        return func(org, interpolation_mode, shape)\n\n    return wrapper\n\n\n@get_rope_shape_decorate\n@torch.compile(dynamic=True)\ndef get_rope_shape(org, interpolation_mode, shape):\n    return (F.interpolate(\n        org.permute((2, 0, 1)).unsqueeze(0),\n        size=shape,\n        mode=interpolation_mode,\n    ).squeeze(0).permute((1, 2, 0)).flatten(end_dim=1))\n\n\ndef apply_rope(xq: torch.Tensor, xk: torch.Tensor,\n               freqs_cis: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:\n    \"\"\"\n    Args: (The leading dimensions of all inputs should be the same)\n        xq: query, tensor of shape (..., num_heads, head_dim)\n        xk: key, tensor of shape (..., num_heads, head_dim)\n        freqs_cis: tensor of shape (..., head_dim/2), dtype=torch.complex64. It contains the precomputed cis(freqs) for each position in the 2D grid.\n    Returns:\n        xq_out, xk_out: tensors of shape (..., num_heads, head_dim)\n    \"\"\"\n    _apply_rope_input_validation(xq, freqs_cis)\n    _apply_rope_input_validation(xk, freqs_cis)\n\n    freqs_cis = freqs_cis.unsqueeze(-2)  # ..., 1, head_dim/2\n    # ..., num_heads, head_dim/2\n    xq_ = torch.view_as_complex(xq.float().view(*xq.shape[:-1], -1, 2))\n    xk_ = torch.view_as_complex(xk.float().view(*xq.shape[:-1], -1, 2))\n    xq_out = torch.view_as_real(xq_ * freqs_cis).flatten(\n        -2)  # ..., num_heads, head_dim\n    xk_out = torch.view_as_real(xk_ * freqs_cis).flatten(\n        -2)  # ..., num_heads, head_dim\n    return xq_out.type_as(xq), xk_out.type_as(xk)\n\n\ndef get_1d_sincos_pos_embed_from_grid(embed_dim, pos):\n    \"\"\"\n    From:\n    https://github.com/OpenGVLab/InternVideo/blob/421f6d2361fc8f61a3394244571f2601a4e99e29/InternVideo2/multi_modality/models/backbones/internvideo2/pos_embed.py#L86\n    embed_dim: output dimension for each position\n    pos: a list of positions to be encoded: size (M,)\n    out: (M, D)\n    \"\"\"\n    assert embed_dim % 2 == 0\n    omega = np.arange(embed_dim // 2, dtype=np.float32)\n    omega /= embed_dim / 2.0\n    omega = 1.0 / 10000**omega  # (D/2,)\n\n    pos = pos.reshape(-1)  # (M,)\n    out = np.einsum('m,d->md', pos, omega)  # (M, D/2), outer product\n\n    emb_sin = np.sin(out)  # (M, D/2)\n    emb_cos = np.cos(out)  # (M, D/2)\n\n    emb = np.concatenate([emb_sin, emb_cos], axis=1)  # (M, D)\n    return emb\n\n\ndef get_1d_sincos_pos_embed(embed_dim, t_size, cls_token=False):\n    \"\"\"\n    t_size: int of the temporal size\n    return:\n    pos_embed: [t_size, embed_dim] or [1+t_size, embed_dim] (w/ or w/o cls_token)\n    \"\"\"\n    grid_t = np.arange(t_size, dtype=np.float32)\n    pos_embed = get_1d_sincos_pos_embed_from_grid(embed_dim, grid_t)\n    if cls_token:\n        pos_embed = np.concatenate([np.zeros([1, embed_dim]), pos_embed],\n                                   axis=0)\n    return pos_embed\n\n\nclass Learnable2DInterpPosEmbDivided_fixed(nn.Module):\n\n    def __init__(self,\n                 height: int,\n                 width: int,\n                 num_frames: int,\n                 dim: int,\n                 interpolation_mode: str = 'bicubic') -> None:\n        super().__init__()\n        self.height = height\n        self.width = width\n        self.num_frames = num_frames\n        self.dim = dim\n        self.interpolation_mode = interpolation_mode\n        self.weight = nn.Parameter(torch.empty(height, width, dim))\n        self.register_buffer('time_weight',\n                             torch.from_numpy(\n                                 get_1d_sincos_pos_embed(\n                                     self.dim,\n                                     self.num_frames)).float().unsqueeze(1),\n                             persistent=False)\n\n        self.reset_parameters()\n\n    def reset_parameters(self):\n        nn.init.normal_(self.weight)\n\n    def forward(self, x: torch.Tensor,\n                grid_thws: torch.Tensor) -> torch.Tensor:\n        pos_embs = []\n        for t, h, w in grid_thws.tolist():\n            assert t <= self.num_frames, f't:{t} > self.num_frames:{self.num_frames}'\n            if (h, w) == self.weight.shape[:-1]:\n                pos_emb_2d = self.weight.flatten(end_dim=1)\n            else:\n                pos_emb_2d = get_rope_shape(\n                    self.weight,\n                    interpolation_mode=self.interpolation_mode,\n                    shape=(h, w),\n                )\n\n            if t == 1:\n                pos_emb_3d = pos_emb_2d\n            else:\n                pos_emb_3d = pos_emb_2d.unsqueeze(0).repeat(\n                    t, 1, 1) + self.time_weight[0:t]\n\n            pos_embs.append(pos_emb_3d.reshape(-1, pos_emb_3d.shape[-1]))\n\n        out = x + torch.cat(pos_embs)\n        return out\n\n\nclass MoonVision3dPatchEmbed(nn.Module):\n\n    def __init__(self,\n                 out_dim: int,\n                 in_dim: int = 3,\n                 patch_size: int | tuple[int, int] = (14, 14),\n                 pos_emb_height: int = 14,\n                 pos_emb_width: int = 14,\n                 pos_emb_time: int = 4,\n                 pos_emb_type: str = 'divided_fixed',\n                 patch_embed_proj_bias: bool = True,\n                 pos_emb_interpolation_mode: str = 'bicubic'):\n        super().__init__()\n        assert isinstance(\n            patch_size,\n            int | Sequence), f'Invalid patch_size type: {type(patch_size)}'\n        if isinstance(patch_size, int):\n            patch_size = (patch_size, patch_size)\n        assert (len(patch_size) == 2\n                ), f'Expected patch_size to be a tuple of 2, got {patch_size}'\n        self.patch_size = patch_size\n\n        self.proj = nn.Conv2d(in_dim,\n                              out_dim,\n                              kernel_size=patch_size,\n                              stride=patch_size,\n                              bias=patch_embed_proj_bias)\n\n        if pos_emb_type == 'divided_fixed':\n            self.pos_emb = Learnable2DInterpPosEmbDivided_fixed(\n                height=pos_emb_height,\n                width=pos_emb_width,\n                num_frames=pos_emb_time,\n                dim=out_dim,\n                interpolation_mode=pos_emb_interpolation_mode)\n        else:\n            raise NotImplementedError(\n                f'Not support pos_emb_type: {pos_emb_type}')\n\n    def forward(self, x: torch.Tensor,\n                grid_thws: torch.Tensor) -> torch.Tensor:\n        \"\"\"\n        Args:\n            x (L, Channels): input tensor\n            grid_hws (N, 3): temporal, height and width\n\n        Returns:\n            (L, Cout) tensor\n        \"\"\"\n        x = self.proj(x).view(x.size(0), -1)\n        # apply positional embedding\n        x = self.pos_emb(x, grid_thws)\n        return x\n\n\nclass Rope2DPosEmbRepeated(nn.Module):\n    \"\"\"2D rotary position embedding with multi-resolution support.\n\n    This class is intended to be used in the following way:\n    1. Before training, create an instance of Rope2DPosEmb. This instance will hold the precomputed cis.\n    2. Before each forward pass, call `get_freqs_cis_by_*` to get the `freqs_cis` tensor for this iteration.\n    3. During the forward pass, pass the `freqs_cis` tensor to each attention layer, and call `apply` just before each attention operation.\n        The rope is shared across all attention layers and all heads.\n\n    Refs:\n    - RoFormer: https://arxiv.org/abs/2104.09864\n    - VisionLLaMA: https://arxiv.org/abs/2403.00522\n    - https://github.com/Meituan-AutoML/VisionLLaMA/blob/main/dit/models.py\n\n    Args:\n        dim (int): usually the multi-head attention dimension, should be divisible by 4 (TODO: relax this constraint if needed)\n        max_height (int): the maximum height of the 2D grid\n        max_width (int): the maximum width of the 2D grid\n        theta_base (float): the base of the theta\n        device (str): the device to store the precomputed cis\n    \"\"\"\n\n    def __init__(self,\n                 dim: int,\n                 max_height: int,\n                 max_width: int,\n                 theta_base=10000):\n        super().__init__()\n        self.dim = dim\n        assert self.dim % 4 == 0, 'dim must be divisible by 4'\n        self.max_height = max_height\n        self.max_width = max_width\n        self.theta_base = theta_base\n\n    def extra_repr(self):\n        return f'dim={self.dim}, max_height={self.max_height}, max_width={self.max_width}, theta_base={self.theta_base}'\n\n    def _precompute_freqs_cis(self, device: torch.device) -> torch.Tensor:\n        \"\"\"Calculate the cis(freqs) for each position in the 2D grid.\n\n        Return: complex tensor of shape (max_height, max_width, dim//2) and value:\n            height axis: ret[h, w, 2*i] = cis(h * theta_base**(-4*i/dim))\n            weight axis: ret[h, w, 2*i+1] = cis(w * theta_base**(-4*i/dim))   with (i in [0, dim//4))\n            note: `cis` is a mathematical notation defined by cis x = cos x + i sin x,\n        \"\"\"\n        N = self.max_height * self.max_width\n        flat_pos = torch.arange(0, N).float().to(device)\n        x_pos = flat_pos % self.max_width\n        y_pos = flat_pos // self.max_width\n        dim_range = (torch.arange(0, self.dim,\n                                  4)[:(self.dim // 4)].float().to(device)\n                     )  # C/4\n        freqs = 1.0 / (self.theta_base**(dim_range / self.dim))\n        x_freqs = torch.outer(x_pos, freqs).float()  # N, C/4\n        y_freqs = torch.outer(y_pos, freqs).float()  # N, C/4\n        x_cis = torch.polar(torch.ones_like(x_freqs), x_freqs)  # N, C/4\n        y_cis = torch.polar(torch.ones_like(y_freqs), y_freqs)  # N, C/4\n        # N, C/4, 2\n        freqs_cis = torch.cat(\n            [x_cis.unsqueeze(dim=-1),\n             y_cis.unsqueeze(dim=-1)], dim=-1)\n        # max_height, max_width, C/2\n        freqs_cis = freqs_cis.reshape(self.max_height, self.max_width, -1)\n        return freqs_cis\n\n    def get_freqs_cis(self, grid_thws: torch.Tensor,\n                      device: torch.device) -> torch.Tensor:\n        \"\"\"\n        Args:\n            grid_thws (torch.Tensor): grid time, height and width\n\n        Returns:\n            freqs_cis: tensor of shape (sum(t * height * width), dim//2)\n        \"\"\"\n        if not hasattr(self, 'freqs_cis'):\n            self.register_buffer('freqs_cis',\n                                 self._precompute_freqs_cis(device),\n                                 persistent=False)\n\n        shapes = grid_thws.tolist()\n        assert all(1 <= h <= self.max_height and 1 <= w <= self.max_width\n                   for t, h, w in shapes), (\n                       shapes,\n                       self.max_height,\n                       self.max_width,\n                   )\n        freqs_cis = torch.cat(\n            [\n                self.freqs_cis[:h, :w].reshape(-1, self.dim // 2).repeat(t, 1)\n                for t, h, w in shapes\n            ],\n            dim=0,\n        )\n        return freqs_cis\n\n\nclass MLP2(nn.Module):\n    \"\"\"\n    Args:\n        dims: [in_dim, hidden_dim, out_dim]\n        bias: whether to use bias in linear layer.\n    \"\"\"\n\n    def __init__(self, dims: list[int], activation, bias=True):\n        super().__init__()\n        assert len(dims) == 3\n        self.fc0 = nn.Linear(dims[0], dims[1], bias=bias)\n        self.fc1 = nn.Linear(dims[1], dims[2], bias=bias)\n        self.activation = activation\n        for m in [self.fc0, self.fc1]:\n            nn.init.trunc_normal_(m.weight, std=math.sqrt(2 / m.in_features))\n            if m.bias is not None:\n                nn.init.zeros_(m.bias)\n\n    def forward(self, x: torch.Tensor) -> torch.Tensor:\n        x = self.fc0(x)\n        x = self.activation(x)\n        return self.fc1(x)\n\n\nclass MoonViTEncoderLayer(nn.Module):\n\n    def __init__(\n        self,\n        num_heads: int,\n        hidden_dim: int,\n        mlp_dim: int,\n        qkv_hidden_size: int | None = None,\n        norm_type: str = 'layernorm',\n        mlp_type: str = 'mlp2',\n        *,\n        attn_implementation: str = 'flash_attention_2',\n        activation=F.gelu,\n        attn_bias: bool = False,\n        linear_bias: bool = True,\n        use_deterministic_attn: bool = False,\n    ):\n        super().__init__()\n        self.num_heads = num_heads\n        self.hidden_dim = hidden_dim\n        self.qkv_hidden_size = hidden_dim if qkv_hidden_size is None else qkv_hidden_size\n        self.hidden_size_per_attention_head = self.qkv_hidden_size // self.num_heads\n        self.attn_implementation = attn_implementation\n        self.use_deterministic_attn = use_deterministic_attn\n\n        if norm_type == \"layernorm\":\n            self.norm0 = nn.LayerNorm(hidden_dim)\n            self.norm1 = nn.LayerNorm(hidden_dim)\n        elif norm_type == \"rmsnorm\":\n            self.norm0 = nn.RMSNorm(hidden_dim)\n            self.norm1 = nn.RMSNorm(hidden_dim)\n        else:\n            raise NotImplementedError(f\"Not support norm_type: {norm_type}\")\n\n        if mlp_type == \"mlp2\":\n            self.mlp = MLP2([hidden_dim, mlp_dim, hidden_dim],\n                            activation,\n                            bias=linear_bias)\n        else:\n            raise NotImplementedError(f\"Not support mlp_type: {mlp_type}\")\n\n        self.wqkv = nn.Linear(hidden_dim,\n                              self.qkv_hidden_size * 3,\n                              bias=attn_bias)\n        self.wo = nn.Linear(self.qkv_hidden_size, hidden_dim, bias=attn_bias)\n\n    def attention_qkvpacked(\n        self,\n        x: torch.Tensor,\n        cu_seqlens: torch.Tensor,\n        max_seqlen: torch.Tensor,\n        rope_freqs_cis: torch.Tensor | None = None,\n    ):\n        \"\"\"\n        Args:\n            x (torch.Tensor): (batch_size, seqlen, hidden_dim)\n            cu_seqlens (torch.Tensor):\n        \"\"\"\n        xqkv = self.wqkv(x)\n\n        qkv_shape = xqkv.size()[:-1] + (\n            3,\n            self.num_heads,\n            self.hidden_size_per_attention_head,\n        )\n        # xqkv: (batch_size, seqlen, 3, nheads, headdim)\n        xqkv = xqkv.view(*qkv_shape)\n        xq, xk, xv = torch.unbind(xqkv, dim=-3)\n\n        xq, xk = apply_rope(xq, xk, rope_freqs_cis)\n\n        attn_func = VL_VISION_ATTENTION_FUNCTIONS[self.attn_implementation]\n        attn_out = attn_func(xq,\n                             xk,\n                             xv,\n                             q_cu_seqlens=cu_seqlens,\n                             k_cu_seqlens=cu_seqlens,\n                             max_seqlen_k=max_seqlen,\n                             max_seqlen_q=max_seqlen,\n                             deterministic=self.use_deterministic_attn)\n\n        attn_out = self.wo(attn_out)\n        return attn_out\n\n    def forward(\n        self,\n        hidden_states: torch.Tensor,\n        cu_seqlens: torch.Tensor,\n        max_seqlen: int,\n        rope_freqs_cis: torch.Tensor | None = None,\n    ):\n        residual = hidden_states\n        hidden_states = self.norm0(hidden_states)\n\n        hidden_states = self.attention_qkvpacked(hidden_states, cu_seqlens,\n                                                 max_seqlen, rope_freqs_cis)\n        hidden_states = residual + hidden_states\n\n        residual = hidden_states\n        hidden_states = self.norm1(hidden_states)\n        hidden_states = self.mlp(hidden_states)\n        hidden_states = residual + hidden_states\n\n        return hidden_states\n\n\nclass MoonViT3dEncoder(nn.Module):\n\n    def __init__(self,\n                 hidden_dim: int,\n                 num_layers: int,\n                 block_cfg: dict,\n                 use_deterministic_attn: bool = False) -> None:\n        super().__init__()\n        self.use_deterministic_attn = use_deterministic_attn\n\n        qkv_hidden_size = block_cfg['hidden_dim'] if block_cfg.get(\n            'qkv_hidden_size') is None else block_cfg['qkv_hidden_size']\n        self.rope_2d = Rope2DPosEmbRepeated(\n            qkv_hidden_size // block_cfg['num_heads'], 512, 512)\n        self.blocks = nn.ModuleList([\n            MoonViTEncoderLayer(\n                **block_cfg,\n                use_deterministic_attn=self.use_deterministic_attn)\n            for _ in range(num_layers)\n        ])\n        norm_type = block_cfg.get('norm_type', 'layernorm')\n        if norm_type == \"layernorm\":\n            self.final_layernorm = nn.LayerNorm(hidden_dim)\n        elif norm_type == \"rmsnorm\":\n            self.final_layernorm = nn.RMSNorm(hidden_dim)\n        else:\n            raise NotImplementedError(f\"Not support norm_type: {norm_type}\")\n\n    def forward(\n        self,\n        hidden_states: torch.Tensor,\n        grid_thws: torch.Tensor,\n    ) -> torch.Tensor:\n        rope_freqs_cis = self.rope_2d.get_freqs_cis(\n            grid_thws=grid_thws, device=hidden_states.device)\n\n        lengths = torch.cat((\n            torch.zeros(1, dtype=grid_thws.dtype, device=grid_thws.device),\n            grid_thws[:, 0] * grid_thws[:, 1] * grid_thws[:, 2],\n        ))\n\n        max_seqlen = lengths.max()\n        cu_seqlens = lengths.to(hidden_states.device).cumsum(dim=0,\n                                                             dtype=torch.int32)\n        for block in self.blocks:\n            hidden_states = block(hidden_states,\n                                  cu_seqlens,\n                                  max_seqlen,\n                                  rope_freqs_cis=rope_freqs_cis)\n\n        hidden_states = self.final_layernorm(hidden_states)\n        return hidden_states\n\n\ndef tpool_patch_merger(\n        x: torch.Tensor,\n        grid_thws: torch.Tensor,\n        merge_kernel_size: tuple[int, int] = (2, 2),\n) -> list[torch.Tensor]:\n    d_model = x.size(-1)\n\n    outputs = []\n    pre_sum = 0\n    for t, h, w in grid_thws.tolist():\n        # Get the current sequence\n        seq = x[pre_sum:pre_sum + t * h * w]\n        # Reshape along self.merge_kernel_size and concat to the last dimension\n        kernel_height, kernel_width = merge_kernel_size\n        new_height, new_width = h // kernel_height, w // kernel_width\n        reshaped_seq = seq.view(t, new_height, kernel_height, new_width,\n                                kernel_width, d_model)\n        reshaped_seq = reshaped_seq.permute(0, 1,\n                                            3, 2, 4, 5).contiguous().mean(\n                                                dim=0)  # temporal pooling\n        padded_seq = reshaped_seq.view(new_height * new_width,\n                                       kernel_height * kernel_width, -1)\n        outputs.append(padded_seq)\n        pre_sum += t * h * w\n\n    return outputs\n\n\nclass MoonViT3dPretrainedModel(PreTrainedModel):\n    config_class = None\n    model_type = 'moonvit3d'\n    _no_split_modules = ['MoonViTEncoderLayer']\n    _supports_flash_attn_2 = True\n    _supports_sdpa = True\n\n    def __init__(self, config, *inputs, **kwargs):\n        super().__init__(config, *inputs, **kwargs)\n        config = deepcopy(config)\n        self.merge_kernel_size = config.merge_kernel_size\n        self.patch_size = config.patch_size\n        self.merge_type = config.merge_type\n\n        self.patch_embed = MoonVision3dPatchEmbed(\n            out_dim=config.hidden_size,\n            patch_size=config.patch_size,\n            pos_emb_height=config.init_pos_emb_height,\n            pos_emb_width=config.init_pos_emb_width,\n            pos_emb_time=config.init_pos_emb_time,\n            pos_emb_type=config.pos_emb_type,\n            patch_embed_proj_bias=getattr(config, 'patch_embed_proj_bias',\n                                          True),\n            pos_emb_interpolation_mode=getattr(\n                config, 'pos_emb_interpolation_mode', 'bicubic'),\n        )\n\n        self.encoder = MoonViT3dEncoder(\n            hidden_dim=config.hidden_size,\n            num_layers=config.num_hidden_layers,\n            block_cfg={\n                'num_heads': config.num_attention_heads,\n                'hidden_dim': config.hidden_size,\n                'qkv_hidden_size': getattr(config, 'qkv_hidden_size', None),\n                'mlp_dim': config.intermediate_size,\n                'norm_type': getattr(config, 'norm_type', 'layernorm'),\n                'mlp_type': getattr(config, 'mlp_type', 'mlp2'),\n                'activation': PytorchGELUTanh(),\n                'attn_bias': getattr(config, 'attn_bias', True),\n                'linear_bias': getattr(config, 'linear_bias', True),\n                'attn_implementation': config._attn_implementation,\n            },\n            use_deterministic_attn=getattr(self, 'use_deterministic_attn',\n                                           False))\n\n    def forward(self, pixel_values: torch.Tensor,\n                grid_thws: torch.Tensor) -> torch.Tensor:\n        \"\"\"\n        Args:\n            pixel_values (torch.Tensor): The input pixel values.\n            grid_thws (torch.Tensor): Temporal, height and width.\n\n        Returns:\n            torch.Tensor: The output tokens.\n        \"\"\"\n        # grid_thws = grid_thws.to('cpu')\n        assert grid_thws.ndim == 2, f'grid_thws should be 2D, got {grid_thws.ndim}'\n        assert grid_thws.size(1) == 3, f'No support for thw: {grid_thws}'\n        hidden_states = self.patch_embed(pixel_values, grid_thws)\n        hidden_states = self.encoder(hidden_states, grid_thws)\n        if self.merge_type == 'sd2_tpool':  # spatial downsampling 2x with temporal pooling all\n            hidden_states = tpool_patch_merger(\n                hidden_states,\n                grid_thws,\n                merge_kernel_size=self.merge_kernel_size)\n        else:\n            raise NotImplementedError(f'Not support {self.merge_type}')\n\n        return hidden_states\n\n\n# ============================================================================\n# MM Projector Helper Classes (from mm_projector/modeling_mm_projectors.py)\n# ============================================================================\n\n\nclass IdentityMap(nn.Module):\n\n    def __init__(self):\n        super().__init__()\n\n    def forward(self, x, *args, **kwargs):\n        return x\n\n\nclass MLP(nn.Module):\n\n    def __init__(self, config):\n        super().__init__()\n        # TODO, use faster LayerNorm\n        self.pre_norm = nn.LayerNorm(config.mm_hidden_size)\n        self.proj = nn.Sequential(\n            nn.Linear(config.mm_hidden_size, config.hidden_size), nn.GELU(),\n            nn.Linear(config.hidden_size, config.hidden_size))\n\n    def forward(self, x, *args, **kwargs):\n        assert isinstance(x,\n                          list | tuple), f'x is not a list or tuple: {type(x)}'\n        lengths = [item.shape[0] for item in x]\n        x = torch.cat(x, dim=0)\n        x = self.pre_norm(x)\n        x = self.proj(x)\n        x = torch.split(x, lengths, dim=0)\n\n        return x\n\n\nclass PatchMergerMLP(nn.Module):\n\n    def __init__(self, config):\n        super().__init__()\n        eps = config.projector_ln_eps\n        self.hidden_size = config.mm_hidden_size * (\n            config.merge_kernel_size[0] * config.merge_kernel_size[1])\n        self.pre_norm = nn.LayerNorm(config.mm_hidden_size, eps=eps)\n        self.proj = nn.Sequential(\n            nn.Linear(self.hidden_size, self.hidden_size),\n            nn.GELU(),\n            nn.Linear(self.hidden_size, config.hidden_size),\n        )\n\n    def forward(self, x, *args, **kwargs):\n        if isinstance(x, list) or isinstance(x, tuple):\n            x = [\n                self.proj(self.pre_norm(item).view(item.shape[0], -1))\n                for item in x\n            ]\n        else:\n            # B, N, N_k, C = x.shape\n            B = x.shape[0]\n            x = self.proj(self.pre_norm(x).view(B, -1, self.hidden_size))\n        return x\n\n\nclass PatchMergerMLPV2(nn.Module):\n\n    def __init__(self, config):\n        super().__init__()\n        eps = config.projector_ln_eps\n        self.hidden_size = config.mm_hidden_size * (\n            config.merge_kernel_size[0] * config.merge_kernel_size[1])\n        self.proj = nn.Sequential(\n            nn.Linear(self.hidden_size, self.hidden_size, bias=False),\n            nn.GELU(),\n            nn.Linear(self.hidden_size, config.hidden_size, bias=False),\n        )\n        self.post_norm = nn.RMSNorm(config.hidden_size, eps=eps)\n        for m in self.proj.modules():\n            if isinstance(m, nn.Linear):\n                nn.init.trunc_normal_(m.weight,\n                                      std=math.sqrt(2 / m.in_features))\n                if m.bias is not None:\n                    nn.init.zeros_(m.bias)\n\n    def forward(self, x, *args, **kwargs):\n        if isinstance(x, list) or isinstance(x, tuple):\n            lengths = [item.shape[0] for item in x]\n            x = torch.concat([item.view(item.shape[0], -1) for item in x],\n                             dim=0)\n            x = self.post_norm(self.proj(x))\n            x = torch.split(x, lengths, dim=0)\n        else:\n            # B, N, N_k, C = x.shape\n            B = x.shape[0]\n            x = self.proj(x.view(B, -1, self.hidden_size))\n            x = self.post_norm(x)\n        return x\n\n\nclass KimiK3PreTrainedModel(PreTrainedModel):\n    config_class = KimiK3Config\n    base_model_prefix = \"model\"\n    _no_split_modules = [\n        \"MoonViT3dPretrainedModel\",\n        \"MoonViTEncoderLayer\",\n        \"KimiDecoderLayer\",\n        \"PatchMergerMLP\",\n        \"PatchMergerMLPV2\",\n    ]\n    _skip_keys_device_placement = \"past_key_values\"\n    _supports_flash_attn_2 = True\n    _supports_sdpa = False\n\n    def _init_weights(self, module):\n        # important: this ported version of Llava isn't meant for training from scratch - only\n        # inference and fine-tuning - so the proper init weights code has been removed - the original codebase\n        # https://github.com/haotian-liu/LLaVA/tree/main/llava should serve for that purpose\n        std = (self.config.initializer_range if hasattr(\n            self.config, \"initializer_range\") else\n               self.config.text_config.initializer_range)\n\n        if hasattr(module, \"class_embedding\"):\n            module.class_embedding.data.normal_(mean=0.0, std=std)\n\n        if isinstance(module, (nn.Linear, nn.Conv2d)):\n            module.weight.data.normal_(mean=0.0, std=std)\n            if module.bias is not None:\n                module.bias.data.zero_()\n        elif isinstance(module, nn.Embedding):\n            module.weight.data.normal_(mean=0.0, std=std)\n            if module.padding_idx is not None:\n                module.weight.data[module.padding_idx].zero_()\n\n\nclass VisionTowerConfig(PretrainedConfig):\n    model_type = 'moonvit3d'\n\n    def __init__(self, config: KimiK3Config, **kwargs):\n        super().__init__(**kwargs)\n        self.patch_size = config.patch_size\n        self.init_pos_emb_height = config.init_pos_emb_height\n        self.init_pos_emb_width = config.init_pos_emb_width\n        self.init_pos_emb_time = config.init_pos_emb_time\n        self.pos_emb_type = config.pos_emb_type\n        self.num_attention_heads = config.vt_num_attention_heads\n        self.num_hidden_layers = config.vt_num_hidden_layers\n        self.hidden_size = config.vt_hidden_size\n        self.intermediate_size = config.vt_intermediate_size\n        self.merge_kernel_size = config.merge_kernel_size\n        self.merge_type = config.merge_type\n        self._attn_implementation = config._attn_implementation\n        self.qkv_hidden_size = getattr(config, 'qkv_hidden_size', None)\n        self.norm_type = getattr(config, 'norm_type', 'layernorm')\n        self.attn_bias = getattr(config, 'attn_bias', True)\n        self.patch_embed_proj_bias = getattr(config, 'patch_embed_proj_bias',\n                                             True)\n        self.mlp_type = getattr(config, 'mlp_type', 'mlp2')\n        self.linear_bias = getattr(config, 'linear_bias', True)\n        self.pos_emb_interpolation_mode = getattr(\n            config, 'pos_emb_interpolation_mode', 'bilinear')\n\n\nclass ProjectorConfig:\n\n    def __init__(self, config: KimiK3Config):\n        self.mm_projector_type = config.mm_projector_type\n        self.mm_hidden_size = config.mm_hidden_size\n        self.hidden_size = config.text_hidden_size\n        self.merge_kernel_size = config.merge_kernel_size\n        self.projector_hidden_act = config.projector_hidden_act\n        self.projector_ln_eps = config.projector_ln_eps\n\n\n# ref https://github.com/huggingface/transformers/blob/78b2929c0554b79e0489b451ce4ece14d265ead2/src/transformers/models/llava/modeling_llava.py#L240\nclass KimiK3ForConditionalGeneration(KimiK3PreTrainedModel):\n\n    @classmethod\n    def _supports_default_dynamic_cache(cls) -> bool:\n        return False\n\n    def __init__(self, config: KimiK3Config):\n        super().__init__(config)\n\n        vt_config = VisionTowerConfig(config.vision_config)\n        self.vision_tower = MoonViT3dPretrainedModel(vt_config)\n\n        proj_config = ProjectorConfig(config.vision_config)\n        if proj_config.mm_projector_type == 'identity':\n            self.mm_projector = IdentityMap()\n        elif proj_config.mm_projector_type == 'mlp':\n            self.mm_projector = MLP(proj_config)\n        elif proj_config.mm_projector_type == 'patchmerger':\n            self.mm_projector = PatchMergerMLP(proj_config)\n        elif proj_config.mm_projector_type == 'patchmergerv2':\n            self.mm_projector = PatchMergerMLPV2(proj_config)\n        else:\n            raise ValueError(\n                f\"Unsupported mm_projector_type: {proj_config.mm_projector_type}\"\n            )\n\n        self.language_model = KimiLinearForCausalLM(config.text_config)\n        self.post_init()\n\n        if hasattr(self.language_model, 'dtype'):\n            target_dtype = self.language_model.dtype\n            self.vision_tower = self.vision_tower.to(dtype=target_dtype)\n            self.mm_projector = self.mm_projector.to(dtype=target_dtype)\n\n    def get_input_embeddings(self):\n        return self.language_model.get_input_embeddings()\n\n    def set_input_embeddings(self, value):\n        self.language_model.set_input_embeddings(value)\n\n    def get_output_embeddings(self):\n        return self.language_model.get_output_embeddings()\n\n    def set_output_embeddings(self, new_embeddings):\n        self.language_model.set_output_embeddings(new_embeddings)\n\n    def set_decoder(self, decoder):\n        self.language_model.set_decoder(decoder)\n\n    def get_decoder(self):\n        return self.language_model.get_decoder()\n\n    def tie_weights(self):\n        return self.language_model.tie_weights()\n\n    def resize_token_embeddings(self,\n                                new_num_tokens: int | None = None,\n                                pad_to_multiple_of=None) -> nn.Embedding:\n        model_embeds = self.language_model.resize_token_embeddings(\n            new_num_tokens, pad_to_multiple_of)\n        # update vocab size\n        self.config.text_config.vocab_size = model_embeds.num_embeddings\n        self.vocab_size = model_embeds.num_embeddings\n        return model_embeds\n\n    def _merge_input_ids_with_image_features(\n        self,\n        image_features: list[torch.Tensor],\n        inputs_embeds: torch.Tensor,\n        input_ids: torch.Tensor,\n        attention_mask: torch.Tensor,\n        labels: torch.Tensor | None = None,\n    ):\n        \"\"\"\n        Args:\n            image_features (:obj:`torch.Tensor` of shape :obj:`(num_image_tokens, embed_dim)`):\n                The image features to merge with the input embeddings.\n            inputs_embeds (:obj:`torch.Tensor` of shape :obj:`(batch_size, sequence_length, embed_dim)`):\n                The input embeddings.\n            input_ids (:obj:`torch.Tensor` of shape :obj:`(batch_size, sequence_length)`):\n                The input ids.\n            attention_mask (:obj:`torch.Tensor` of shape :obj:`(batch_size, sequence_length)`):\n                The attention mask.\n            labels (:obj:`torch.Tensor` of shape :obj:`(batch_size, sequence_length)`, *optional*):\n                The labels.\n        \"\"\"\n        _, embed_dim = image_features[0].shape\n        feature_lengths = [x.shape[0] for x in image_features]\n        image_features = torch.cat(image_features, dim=0)\n\n        image_token_index: int = self.config.media_placeholder_token_id\n        pad_token_id: int = self.config.pad_token_id\n        ignore_index: int = self.config.ignore_index\n\n        batch_size, sequence_length = input_ids.shape\n        left_padding = not torch.sum(\n            input_ids[:, -1] == torch.tensor(pad_token_id))\n\n        # 1. Create a mask to know where special image tokens are\n        _token_occupation_table = torch.ones_like(input_ids.flatten())\n        _token_occupation_table[input_ids.flatten() ==\n                                image_token_index] = torch.tensor(\n                                    feature_lengths,\n                                    dtype=torch.long,\n                                    device=input_ids.device)\n        _token_occupation_table = _token_occupation_table.reshape(\n            input_ids.shape)\n\n        max_embed_dim = _token_occupation_table.sum(-1).max().item()\n        assert (\n            max_embed_dim >= sequence_length\n        ), f\"The maximum embedding dimension ({max_embed_dim}) is less than the sequence length ({sequence_length})\"\n        batch_indices, non_image_indices = torch.where(\n            input_ids != image_token_index)\n\n        # 2. Compute the positions where text should be written\n        # Calculate new positions for text tokens in merged image-text sequence.\n        new_token_positions = torch.cumsum(_token_occupation_table, -1) - 1\n        nb_image_pad = max_embed_dim - 1 - new_token_positions[:, -1]\n        if left_padding:\n            new_token_positions += nb_image_pad[:,\n                                                None]  # offset for left padding\n        text_to_overwrite = new_token_positions[batch_indices,\n                                                non_image_indices]\n\n        # 3. Create the full embedding, already padded to the maximum position\n        final_embedding = torch.zeros(\n            batch_size,\n            max_embed_dim,\n            embed_dim,\n            dtype=inputs_embeds.dtype,\n            device=inputs_embeds.device,\n        )\n        final_attention_mask = torch.zeros(batch_size,\n                                           max_embed_dim,\n                                           dtype=attention_mask.dtype,\n                                           device=inputs_embeds.device)\n        if labels is not None:\n            final_labels = torch.full(\n                (batch_size, max_embed_dim),\n                ignore_index,\n                dtype=input_ids.dtype,\n                device=input_ids.device,\n            )\n        # In case the Vision model or the Language model has been offloaded to CPU, we need to manually\n        # set the corresponding tensors into their correct target device.\n        target_device = inputs_embeds.device\n        batch_indices, non_image_indices, text_to_overwrite = (\n            batch_indices.to(target_device),\n            non_image_indices.to(target_device),\n            text_to_overwrite.to(target_device),\n        )\n        attention_mask = attention_mask.to(target_device)\n\n        # 4. Fill the embeddings based on the mask.\n        final_embedding[batch_indices,\n                        text_to_overwrite] = inputs_embeds[batch_indices,\n                                                           non_image_indices]\n        final_attention_mask[batch_indices,\n                             text_to_overwrite] = attention_mask[\n                                 batch_indices, non_image_indices]\n        if labels is not None:\n            final_labels[batch_indices,\n                         text_to_overwrite] = labels[batch_indices,\n                                                     non_image_indices]\n\n        # 5. Fill the embeddings corresponding to the images. Anything that is not `text_positions` needs filling (#29835)\n        image_to_overwrite = torch.full((batch_size, max_embed_dim),\n                                        True,\n                                        dtype=torch.bool,\n                                        device=inputs_embeds.device)\n        image_to_overwrite[batch_indices, text_to_overwrite] = False\n        image_to_overwrite &= image_to_overwrite.cumsum(\n            -1) - 1 >= nb_image_pad[:, None].to(target_device)\n\n        if image_to_overwrite.sum() != image_features.shape[:-1].numel():\n            raise ValueError(\n                f\"The input provided to the model are wrong. The number of image tokens is {image_to_overwrite.sum()} while\"\n                f\" the number of image features given to the model is {image_features.shape[:-1].numel()}. \"\n                \"This prevents correct indexing and breaks batch generation.\")\n\n        final_embedding[image_to_overwrite] = (\n            image_features.contiguous().reshape(-1,\n                                                embed_dim).to(target_device))\n        final_attention_mask |= image_to_overwrite\n        position_ids = (final_attention_mask.cumsum(-1) - 1).masked_fill_(\n            (final_attention_mask == 0), 1)\n\n        # 6. Mask out the embedding at padding positions, as we later use the past_key_value value to determine the non-attended tokens.\n        batch_indices, pad_indices = torch.where(input_ids == pad_token_id)\n        indices_to_mask = new_token_positions[batch_indices, pad_indices]\n\n        final_embedding[batch_indices, indices_to_mask] = 0\n\n        if labels is None:\n            final_labels = None\n\n        return final_embedding, final_attention_mask, final_labels, position_ids\n\n    def _extract_image_features(self, pixel_values: torch.Tensor,\n                                grid_thws: torch.Tensor) -> list[torch.Tensor]:\n        \"\"\"\n        Args:\n            pixel_values (:obj:`torch.FloatTensor` of shape :obj:`(batch_size, num_channels, height, width)`):\n                The pixel values of the images processed by image processor.\n            grid_thws (:obj:`torch.Tensor` of shape :obj:`(batch_size, 3)`):\n                The grid, height, width of the images.\n\n        Returns:\n            selected_image_feature (:obj:`torch.FloatTensor` of shape :obj:`(num_image_tokens, embed_dim)`):\n                The selected image features to use as input to the projector head.\n\n        \"\"\"\n\n        target_dtype = self.vision_tower.patch_embed.proj.weight.dtype\n        pixel_values = pixel_values.to(target_dtype)\n\n        image_features = self.vision_tower(pixel_values, grid_thws)\n        return image_features\n\n    def forward(\n        self,\n        input_ids: torch.LongTensor | None = None,\n        pixel_values: torch.FloatTensor | list[torch.FloatTensor]\n        | None = None,\n        grid_thws: torch.Tensor | None = None,\n        attention_mask: torch.Tensor | None = None,\n        position_ids: torch.LongTensor | None = None,\n        past_key_values: list[torch.FloatTensor] | None = None,\n        inputs_embeds: torch.FloatTensor | None = None,\n        labels: torch.LongTensor | None = None,\n        use_cache: bool | None = None,\n        output_attentions: bool | None = None,\n        output_hidden_states: bool | None = None,\n        return_dict: bool | None = None,\n    ) -> tuple | LlavaCausalLMOutputWithPast:\n        r\"\"\"\n        Args:\n            labels (`torch.LongTensor` of shape `(batch_size, sequence_length)`, *optional*):\n                Labels for computing the masked language modeling loss. Indices should either be in `[0, ...,\n                config.vocab_size]` or -100 (see `input_ids` docstring). Tokens with indices set to `-100` are ignored\n                (masked), the loss is only computed for the tokens with labels in `[0, ..., config.vocab_size]`.\n\n        ```\"\"\"\n        assert self.vision_tower is not None, \"vision_tower is not loaded\"\n        output_attentions = (output_attentions if output_attentions is not None\n                             else self.config.output_attentions)\n        output_hidden_states = (output_hidden_states\n                                if output_hidden_states is not None else\n                                self.config.output_hidden_states)\n        return_dict = return_dict if return_dict is not None else self.config.use_return_dict\n\n        if inputs_embeds is None:\n            # 1. Extra the input embeddings\n            inputs_embeds = self.get_input_embeddings()(input_ids)\n\n            # 2. Merge text and images\n            if pixel_values is not None and len(\n                    pixel_values) > 0 and input_ids.shape[1] != 1:\n                image_features = self._extract_image_features(\n                    pixel_values, grid_thws)\n                if self.mm_projector:\n                    image_features = self.mm_projector(image_features)\n\n                inputs_embeds = inputs_embeds.to(\n                    image_features[0].dtype)  # num_tokens, embed_dim\n                inputs_embeds, attention_mask, labels, position_ids = (\n                    self._merge_input_ids_with_image_features(\n                        image_features,\n                        inputs_embeds,\n                        input_ids,\n                        attention_mask,\n                        labels,\n                    ))\n\n            # In case input_ids.shape[1] == 1 & pixel_values==None & past_key_values != None, we are in the case of\n            # generation with cache\n            elif (past_key_values is not None and pixel_values is not None\n                  and input_ids.shape[1] == 1):\n                # Retrieve the first layer to inspect the logits and mask out the hidden states\n                # that are set to 0\n                first_layer_past_key_value = past_key_values[0][0][:, :, :, 0]\n\n                # Sum all dimensions of head_dim (-2) to avoid random errors such as: https://github.com/huggingface/transformers/pull/28032#issuecomment-1863691941\n                batch_index, non_attended_tokens = torch.where(\n                    first_layer_past_key_value.float().sum(-2) == 0)\n\n                # Get the target length\n                target_length = input_ids.shape[1]\n                past_length = first_layer_past_key_value.shape[-1]\n\n                extended_attention_mask = torch.ones(\n                    (attention_mask.shape[0], past_length),\n                    dtype=attention_mask.dtype,\n                    device=attention_mask.device,\n                )\n\n                # Filter out only the tokens that can be un-attended, this can happen\n                # if one uses Llava + Fused modules where the cache on the\n                # first iteration is already big enough, or if one passes custom cache\n                valid_indices = non_attended_tokens < extended_attention_mask.size(\n                    -1)\n                new_batch_index = batch_index[valid_indices]\n                new_non_attended_tokens = non_attended_tokens[valid_indices]\n\n                # Zero-out the places where we don't need to attend\n                extended_attention_mask[new_batch_index,\n                                        new_non_attended_tokens] = 0\n\n                attention_mask = torch.cat(\n                    (extended_attention_mask, attention_mask[:,\n                                                             -target_length:]),\n                    dim=1)\n                position_ids = torch.sum(attention_mask,\n                                         dim=1).unsqueeze(-1) - 1\n\n        outputs = self.language_model(\n            attention_mask=attention_mask,\n            position_ids=position_ids,\n            past_key_values=past_key_values,\n            inputs_embeds=inputs_embeds,\n            use_cache=use_cache,\n            output_attentions=output_attentions,\n            output_hidden_states=output_hidden_states,\n            return_dict=return_dict,\n        )\n\n        logits = outputs[0]\n\n        loss = None\n        if labels is not None:\n            # Shift so that tokens < n predict n\n            if attention_mask is not None:\n                shift_attention_mask = attention_mask[..., 1:]\n                shift_logits = logits[..., :-1, :][shift_attention_mask.to(\n                    logits.device) != 0].contiguous()\n                shift_labels = labels[..., 1:][shift_attention_mask.to(\n                    labels.device) != 0].contiguous()\n            else:\n                shift_logits = logits[..., :-1, :].contiguous()\n                shift_labels = labels[..., 1:].contiguous()\n            # Flatten the tokens\n            loss_fct = nn.CrossEntropyLoss()\n            loss = loss_fct(\n                shift_logits.view(-1, shift_logits.size(-1)),\n                shift_labels.view(-1).to(shift_logits.device),\n            )\n\n        if not return_dict:\n            output = (logits, ) + outputs[1:]\n            return (loss, ) + output if loss is not None else output\n\n        return LlavaCausalLMOutputWithPast(\n            loss=loss,\n            logits=logits,\n            past_key_values=outputs.past_key_values,\n            hidden_states=outputs.hidden_states,\n            attentions=outputs.attentions,\n        )\n\n    def prepare_inputs_for_generation(\n        self,\n        input_ids,\n        past_key_values=None,\n        inputs_embeds=None,\n        pixel_values=None,\n        grid_thws=None,\n        attention_mask=None,\n        **kwargs,\n    ):\n        if past_key_values is not None:\n            if hasattr(past_key_values, \"get_seq_length\"):\n                cache_length = past_key_values.get_seq_length()\n                past_length = getattr(past_key_values, 'seen_tokens',\n                                      cache_length)\n            else:\n                cache_length = past_length = past_key_values[0][0].shape[2]\n\n            # Keep only the unprocessed tokens:\n            # 1 - If the length of the attention_mask exceeds the length of input_ids, then we are in a setting where\n            # some of the inputs are exclusively passed as part of the cache (e.g. when passing input_embeds as\n            # input)\n            if attention_mask is not None and attention_mask.shape[\n                    1] > input_ids.shape[1]:\n                input_ids = input_ids[:, -(attention_mask.shape[1] -\n                                           past_length):]\n            # 2 - If the past_length is smaller than input_ids', then input_ids holds all input tokens. We can discard\n            # input_ids based on the past_length.\n            elif past_length < input_ids.shape[1]:\n                input_ids = input_ids[:, past_length:]\n            # 3 - Otherwise (past_length >= input_ids.shape[1]), let's assume input_ids only has unprocessed tokens.\n            elif self.config.media_placeholder_token_id in input_ids:\n                input_ids = input_ids[:, input_ids.shape[1] - 1:]\n            # If the cache has seen more tokens than it can hold, then the cache has a size limit. Let's discard the\n            # older attention values, as their corresponding values are not part of the input.\n            if cache_length < past_length and attention_mask is not None:\n                attention_mask = attention_mask[:, -(cache_length +\n                                                     input_ids.shape[1]):]\n\n        position_ids = kwargs.get(\"position_ids\", None)\n        if attention_mask is not None and position_ids is None:\n            # create position_ids on the fly for batch generation\n            position_ids = attention_mask.long().cumsum(-1) - 1\n            position_ids.masked_fill_(attention_mask == 0, 1)\n            if past_key_values:\n                position_ids = position_ids[:, -input_ids.shape[1]:]\n\n        # if `inputs_embeds` are passed, we only want to use them in the 1st generation step\n        if inputs_embeds is not None and past_key_values is None:\n            model_inputs = {\"inputs_embeds\": inputs_embeds}\n        else:\n            model_inputs = {\"input_ids\": input_ids}\n\n        model_inputs.update({\n            \"position_ids\": position_ids,\n            \"past_key_values\": past_key_values,\n            \"use_cache\": kwargs.get(\"use_cache\"),\n            \"attention_mask\": attention_mask,\n            \"pixel_values\": pixel_values,\n            \"grid_thws\": grid_thws,\n        })\n        return model_inputs\n\n    def _reorder_cache(self, *args, **kwargs):\n        return self.language_model._reorder_cache(*args, **kwargs)\n"
+      },
+      {
+        "path": "hf-cache/moonshotai/Kimi-K3/modeling_kimi_linear.py",
+        "text": "# coding=utf-8\n# Copyright 2025-2026 The Moonshot AI Team, DeepSeek-AI, and HuggingFace Inc. team. All rights reserved.\n#\n# The multi-head latent attention, MoE gating and sparse MoE block in this file are\n# adapted from DeepSeek-V3 (DeepSeek-V3/modeling_deepseek.py). They have been\n# extensively modified and extended for the Kimi-Linear architecture.\n#\n# Licensing Information:\n# - Code adapted from DeepSeek-V3 (DeepSeek-V3/modeling_deepseek.py) is licensed under the Apache License, Version 2.0.\n# - Other parts of the code are licensed under the Kimi K3 License (see the LICENSE file in this repository).\n#\n# Apache License, Version 2.0:\n# Licensed under the Apache License, Version 2.0 (the \"License\");\n# you may not use this file except in compliance with the License.\n# You may obtain a copy of the License at\n#\n#     http://www.apache.org/licenses/LICENSE-2.0\n#\n# Unless required by applicable law or agreed to in writing, software\n# distributed under the License is distributed on an \"AS IS\" BASIS,\n# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n# See the License for the specific language governing permissions and\n# limitations under the License.\nimport math\nfrom collections.abc import Callable\nfrom typing import Any\n\nimport torch\nimport torch.nn.functional as F\nimport transformers\nfrom einops import rearrange\nfrom packaging import version\nfrom torch import nn\nfrom transformers.activations import ACT2FN\nfrom transformers.cache_utils import Cache\nfrom transformers.generation import GenerationMixin\nfrom transformers.masking_utils import create_causal_mask\nfrom transformers.modeling_flash_attention_utils import FlashAttentionKwargs\nfrom transformers.modeling_outputs import BaseModelOutputWithPast, CausalLMOutputWithPast\nfrom transformers.modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel\nfrom transformers.processing_utils import Unpack\nfrom transformers.pytorch_utils import ALL_LAYERNORM_LAYERS\nfrom transformers.utils import TransformersKwargs, auto_docstring, can_return_tuple, logging\nfrom transformers.utils.generic import OutputRecorder, check_model_inputs\n\ntry:\n    from fla.modules import FusedRMSNormGated, ShortConvolution\n    from fla.ops.kda import chunk_kda, fused_recurrent_kda\n    # from fla.ops.kda.gate import fused_kda_gate  # deprecated, gate is now computed inside chunk_kda/fused_recurrent_kda\n    from fla.ops.utils.index import prepare_cu_seqlens_from_mask, prepare_lens_from_mask\n    from fla.utils import tensor_cache\nexcept ImportError:\n    raise ImportError(\"Plese run `pip install -U fla-core`\")\n\nfrom .configuration_kimi_k3 import KimiLinearConfig\n\nassert version.parse(transformers.__version__) >= version.parse(\"4.56.0\"), \\\n    \"Please upgrade transformers to >= 4.56.0\"\n\nlogger = logging.get_logger(__name__)\n\n\n# Register Moonshot-specific activation functions\nclass SituAndMul(nn.Module):\n    \"\"\"\n    SituAndMul activation: beta * tanh(gate / beta) * sigmoid(gate) * up\n    When linear_beta is set, up is also transformed by linear_beta * tanh(up / linear_beta).\n    \"\"\"\n\n    def __init__(self, beta: float = 1.0, linear_beta: float | None = None):\n        super().__init__()\n        self.beta = beta\n        self.linear_beta = linear_beta\n\n    def forward(self, x: torch.Tensor) -> torch.Tensor:\n        d = x.shape[-1] // 2\n        gate = x[..., :d].to(torch.float32)\n        up = x[..., d:].to(torch.float32)\n        situ_a = self.beta * torch.tanh(gate / self.beta) * torch.sigmoid(gate)\n        if self.linear_beta is not None:\n            up = self.linear_beta * torch.tanh(up / self.linear_beta)\n        return (situ_a * up).to(x.dtype)\n\n\nACT2FN[\"situ\"] = SituAndMul\n\n\ndef _get_situ_activation_params(config: KimiLinearConfig):\n    beta = getattr(config, \"activation_situ_beta\", None)\n    linear_beta = getattr(config, \"activation_situ_linear_beta\", None)\n    return beta or 1.0, linear_beta\n\n\ndef index_first_axis(x, indices):\n    return x[indices]\n\n\n@tensor_cache\ndef get_unpad_data(\n    attention_mask: torch.Tensor,\n) -> tuple[torch.Tensor, torch.Tensor, int]:\n    lens = prepare_lens_from_mask(attention_mask)\n    indices = torch.nonzero(attention_mask.flatten(), as_tuple=False).flatten()\n    max_seqlen_in_batch = lens.max().item()\n    cu_seqlens = prepare_cu_seqlens_from_mask(attention_mask)\n    return indices, cu_seqlens, max_seqlen_in_batch\n\n\ndef pad_input(\n    hidden_states: torch.Tensor,\n    indices: torch.LongTensor,\n    batch_size: int,\n    seq_len: int,\n) -> torch.Tensor:\n    out = hidden_states.new_zeros((batch_size * seq_len, *hidden_states.shape[1:]))\n    out[indices] = hidden_states\n    return out.view(batch_size, seq_len, *hidden_states.shape[1:])\n\n\nclass KimiDynamicCache:\n    \"\"\"\n    Dynamic cache for Kimi model.\n    Inspired by Qwen3-Next\n    \"\"\"\n    is_compileable = False\n\n    def __init__(self, config: KimiLinearConfig):\n        super().__init__()\n        self.config = config\n\n        if config.linear_attn_config is not None:\n            self.layer_types = []\n            for i in range(config.num_hidden_layers):\n                if config.is_kda_layer(i):\n                    self.layer_types.append(\"linear_attention\")\n                else:\n                    self.layer_types.append(\"full_attention\")\n        else:\n            self.layer_types = [\"full_attention\"] * config.num_hidden_layers\n\n        self.transformer_layers = [\n            i for i in range(config.num_hidden_layers) if self.layer_types[i] == \"full_attention\"\n        ]\n\n        linear_layers = [i for i in range(\n            config.num_hidden_layers) if self.layer_types[i] == \"linear_attention\"]\n        self.last_linear_layer = linear_layers[-1] if linear_layers else -1\n\n        self.conv_states = [None for _ in range(config.num_hidden_layers)]\n        self.recurrent_states = [None for _ in range(config.num_hidden_layers)]\n        self.key_cache = [None for _ in range(config.num_hidden_layers)]\n        self.value_cache = [None for _ in range(config.num_hidden_layers)]\n\n    def __len__(self):\n        return len(self.layer_types)\n\n    def update(\n        self,\n        key_states: torch.Tensor,\n        value_states: torch.Tensor,\n        layer_idx: int,\n        cache_kwargs: dict[str, Any] | None = None,\n    ) -> tuple[torch.Tensor, torch.Tensor]:\n        if self.key_cache[layer_idx] is None:\n            self.key_cache[layer_idx] = key_states\n            self.value_cache[layer_idx] = value_states\n        else:\n            self.key_cache[layer_idx] = torch.cat(\n                [self.key_cache[layer_idx], key_states], dim=2)\n            self.value_cache[layer_idx] = torch.cat(\n                [self.value_cache[layer_idx], value_states], dim=2)\n\n        return self.key_cache[layer_idx], self.value_cache[layer_idx]\n\n    def reorder_cache(self, beam_idx: torch.LongTensor):\n        \"\"\"Reorders the cache for beam search, given the selected beam indices.\"\"\"\n        for layer_idx in range(len(self.key_cache)):\n            if self.key_cache[layer_idx] is not None:\n                device = self.key_cache[layer_idx].device\n                beam_idx = beam_idx.to(device)\n                self.key_cache[layer_idx] = self.key_cache[layer_idx].index_select(\n                    0, beam_idx)\n                self.value_cache[layer_idx] = self.value_cache[layer_idx].index_select(\n                    0, beam_idx)\n\n            if self.conv_states[layer_idx] is not None:\n                device = self.conv_states[layer_idx][0].device\n                beam_idx = beam_idx.to(device)\n                q_conv, k_conv, v_conv = self.conv_states[layer_idx]\n                self.conv_states[layer_idx] = (\n                    q_conv.index_select(0, beam_idx),\n                    k_conv.index_select(0, beam_idx),\n                    v_conv.index_select(0, beam_idx),\n                )\n                self.recurrent_states[layer_idx] = self.recurrent_states[layer_idx].index_select(\n                    0, beam_idx)\n\n    def get_seq_length(self, layer_idx: int | None = 0) -> int:\n        \"\"\"Returns the sequence length of the cached states. A layer index can be optionally passed.\"\"\"\n        # take any layer that contains cache and not empty tensor\n        layer_idx = self.transformer_layers[0] if layer_idx not in self.transformer_layers else layer_idx\n        if len(self.key_cache) <= layer_idx or self.key_cache[layer_idx] is None:\n            return 0\n        return self.key_cache[layer_idx].shape[-2]\n\n    def get_mask_sizes(self, cache_position: torch.Tensor, layer_idx: int) -> tuple[int, int]:\n        \"\"\"\n        Return a tuple (kv_length, kv_offset) corresponding to the length and offset that will be returned for\n        the given layer at `layer_idx`.\n        The masks are then prepared according to the given lengths (kv_length, kv_offset) and patterns for each layer.\n        \"\"\"\n        kv_offset = 0\n        query_length = cache_position.shape[0]\n        past_seen_tokens = self.get_seq_length(layer_idx)\n        kv_length = query_length + past_seen_tokens\n        return kv_length, kv_offset\n\n    @property\n    def has_previous_state(self):\n        \"\"\"We have a previous state if the last linear (conv) layer was already updated.\"\"\"\n        if self.last_linear_layer == -1:\n            return False\n        return self.conv_states[self.last_linear_layer] is not None\n\n\nclass KimiRMSNorm(nn.Module):\n    def __init__(self, hidden_size, eps=1e-6):\n        super().__init__()\n        self.weight = nn.Parameter(torch.ones(hidden_size))\n        self.variance_epsilon = eps\n\n    def forward(self, hidden_states):\n        dtype = hidden_states.dtype\n        x = hidden_states.float()\n        x = x * torch.rsqrt(x.pow(2).mean(-1, keepdim=True) + self.variance_epsilon)\n        return self.weight * x.to(dtype)\n\n\nALL_LAYERNORM_LAYERS.append(KimiRMSNorm)\n\n\nclass KimiBlockSparseMLP(nn.Module):\n    def __init__(self, config: KimiLinearConfig, hidden_size=None, intermediate_size=None):\n        super().__init__()\n        self.config = config\n        self.ffn_dim = config.intermediate_size if intermediate_size is None else intermediate_size\n        self.hidden_dim = config.hidden_size if hidden_size is None else hidden_size\n\n        self.w1 = nn.Linear(self.hidden_dim, self.ffn_dim, bias=False)   # gate\n        self.w2 = nn.Linear(self.ffn_dim, self.hidden_dim, bias=False)   # down\n        self.w3 = nn.Linear(self.hidden_dim, self.ffn_dim, bias=False)   # up\n\n        if config.hidden_act == \"situ\":\n            beta, linear_beta = _get_situ_activation_params(config)\n            self.act_fn = SituAndMul(\n                beta=beta,\n                linear_beta=linear_beta,\n            )\n        else:\n            self.act_fn = ACT2FN[config.hidden_act]\n\n    def forward(self, hidden_states):\n        if self.config.hidden_act == \"situ\":\n            gate_up = torch.cat([self.w1(hidden_states), self.w3(hidden_states)], dim=-1)\n            current_hidden_states = self.act_fn(gate_up)\n        else:\n            current_hidden_states = self.act_fn(\n                self.w1(hidden_states)) * self.w3(hidden_states)\n        current_hidden_states = self.w2(current_hidden_states)\n        return current_hidden_states\n\n\nclass KimiMLP(nn.Module):\n    def __init__(self, config: KimiLinearConfig, hidden_size=None, intermediate_size=None):\n        super().__init__()\n        self.config = config\n        self.hidden_size = config.hidden_size if hidden_size is None else hidden_size\n        self.intermediate_size = config.intermediate_size if intermediate_size is None else intermediate_size\n        self.gate_proj = nn.Linear(\n            self.hidden_size, self.intermediate_size, bias=False)\n        self.up_proj = nn.Linear(\n            self.hidden_size, self.intermediate_size, bias=False)\n        self.down_proj = nn.Linear(\n            self.intermediate_size, self.hidden_size, bias=False)\n        if config.hidden_act == \"situ\":\n            beta, linear_beta = _get_situ_activation_params(config)\n            self.act_fn = SituAndMul(\n                beta=beta,\n                linear_beta=linear_beta,\n            )\n        else:\n            self.act_fn = ACT2FN[config.hidden_act]\n\n    def forward(self, x):\n        if self.config.hidden_act == \"situ\":\n            gate_up = torch.cat([self.gate_proj(x), self.up_proj(x)], dim=-1)\n            down_proj = self.down_proj(self.act_fn(gate_up))\n        else:\n            down_proj = self.down_proj(self.act_fn(\n                self.gate_proj(x)) * self.up_proj(x))\n        return down_proj\n\n\ndef repeat_kv(hidden_states: torch.Tensor, n_rep: int) -> torch.Tensor:\n    \"\"\"Expand the key/value heads from `num_key_value_heads` to `num_attention_heads`.\"\"\"\n    if n_rep == 1:\n        return hidden_states\n    return torch.repeat_interleave(hidden_states, dim=1, repeats=n_rep)\n\n\ndef eager_attention_forward(\n    module: nn.Module,\n    query: torch.Tensor,\n    key: torch.Tensor,\n    value: torch.Tensor,\n    attention_mask: torch.Tensor | None,\n    scaling: float,\n    dropout: float = 0.0,\n    **kwargs: Unpack[TransformersKwargs],\n):\n    key = repeat_kv(key, module.num_key_value_groups)\n    value = repeat_kv(value, module.num_key_value_groups)\n\n    scores = torch.einsum(\"bhqd,bhkd->bhqk\", query, key) * scaling\n    if attention_mask is not None:\n        scores = scores + attention_mask[:, :, :, : key.shape[-2]]\n\n    probs = F.softmax(scores, dim=-1, dtype=torch.float32).to(query.dtype)\n    probs = F.dropout(probs, p=dropout, training=module.training)\n    out = torch.einsum(\"bhqk,bhkd->bhqd\", probs, value).transpose(1, 2).contiguous()\n\n    return out, probs\n\n\nclass KimiMLAAttention(nn.Module):\n    \"\"\"\n    Multi-Latent Attention adapted from deepseek-v3\n    \"\"\"\n\n    def __init__(self, config: KimiLinearConfig, layer_idx: int):\n        nn.Module.__init__(self)\n        self.config = config\n        self.layer_idx = layer_idx\n        self.hidden_size = config.hidden_size\n        self.num_heads = config.num_attention_heads\n        self.num_key_value_heads = config.num_key_value_heads\n        self.num_key_value_groups = self.num_heads // self.num_key_value_heads\n\n        self.attention_dropout = getattr(config, \"attention_dropout\", 0.0)\n\n        try:\n            self.q_lora_rank = config.q_lora_rank\n            self.qk_rope_head_dim = config.qk_rope_head_dim\n            self.kv_lora_rank = config.kv_lora_rank\n            self.v_head_dim = config.v_head_dim\n            self.qk_nope_head_dim = config.qk_nope_head_dim\n            self.q_head_dim = self.qk_nope_head_dim + self.qk_rope_head_dim\n            self.use_nope = config.mla_use_nope\n            self.scaling = self.q_head_dim ** (-0.5)\n        except Exception as e:\n            raise ValueError(\n                f\"Kimi MLA config is not found or not properly formatted: {e}\")\n\n        if self.q_lora_rank is not None:\n            self.q_a_proj = nn.Linear(\n                self.hidden_size, self.q_lora_rank, bias=False,\n            )\n            self.q_a_layernorm = KimiRMSNorm(self.q_lora_rank)\n            self.q_b_proj = nn.Linear(\n                self.q_lora_rank,\n                self.num_heads * self.q_head_dim,\n                bias=False,\n            )\n        else:\n            self.q_proj = nn.Linear(\n                self.hidden_size, self.num_heads * self.q_head_dim, bias=False,\n            )\n        self.kv_a_proj_with_mqa = nn.Linear(\n            self.hidden_size,\n            self.kv_lora_rank + self.qk_rope_head_dim,\n            bias=False,\n        )\n        self.kv_a_layernorm = KimiRMSNorm(self.kv_lora_rank)\n        self.kv_b_proj = nn.Linear(\n            self.kv_lora_rank,\n            self.num_heads\n            * (self.q_head_dim - self.qk_rope_head_dim + self.v_head_dim),\n            bias=False,\n        )\n        self.o_proj = nn.Linear(\n            self.num_heads * self.v_head_dim,\n            self.hidden_size,\n            bias=False,\n        )\n        self.is_causal = True\n        assert self.use_nope\n\n        self.use_output_gate = getattr(config, \"mla_use_output_gate\", False)\n        if self.use_output_gate:\n            projection_size = self.num_heads * self.v_head_dim\n            self.g_proj = nn.Linear(self.hidden_size, projection_size, bias=False)\n\n        self.rotary_emb = None\n\n    def forward(\n        self,\n        hidden_states: torch.Tensor,\n        attention_mask: torch.Tensor | None = None,\n        position_ids: torch.LongTensor | None = None,\n        past_key_values: Cache | None = None,\n        **kwargs,\n    ) -> tuple[torch.Tensor, torch.Tensor | None, tuple[torch.Tensor] | None]:\n        batch_size, seq_length = hidden_states.shape[:-1]\n        query_shape = (batch_size, seq_length, -1, self.q_head_dim)\n        key_shape = (batch_size, seq_length, -1,\n                     self.qk_nope_head_dim + self.v_head_dim)\n\n        if self.q_lora_rank is not None:\n            q_states = self.q_b_proj(self.q_a_layernorm(self.q_a_proj(hidden_states)))\n        else:\n            q_states = self.q_proj(hidden_states)\n        q_states = q_states.view(query_shape).transpose(1, 2)\n        q_pass, q_rot = torch.split(\n            q_states, [self.qk_nope_head_dim, self.qk_rope_head_dim], dim=-1)\n\n        compressed_kv = self.kv_a_proj_with_mqa(hidden_states)\n        k_pass, k_rot = torch.split(\n            compressed_kv, [self.kv_lora_rank, self.qk_rope_head_dim], dim=-1)\n\n        k_pass = self.kv_b_proj(self.kv_a_layernorm(\n            k_pass)).view(key_shape).transpose(1, 2)\n        k_pass, value_states = torch.split(\n            k_pass, [self.qk_nope_head_dim, self.v_head_dim], dim=-1)\n\n        k_rot = k_rot.view(batch_size, 1, seq_length, self.qk_rope_head_dim)\n\n        k_rot = k_rot.expand(*k_pass.shape[:-1], -1)\n\n        query_states = torch.cat((q_pass, q_rot), dim=-1)\n        key_states = torch.cat((k_pass, k_rot), dim=-1)\n\n        if past_key_values is not None:\n            key_states, value_states = past_key_values.update(\n                key_states, value_states, self.layer_idx)\n\n        if self.config._attn_implementation == \"flash_attention_2\" and self.q_head_dim != self.v_head_dim:\n            value_states = F.pad(\n                value_states, [0, self.q_head_dim - self.v_head_dim])\n\n        attention_interface: Callable = eager_attention_forward\n        if self.config._attn_implementation != \"eager\":\n            attention_interface = ALL_ATTENTION_FUNCTIONS[self.config._attn_implementation]\n\n        attn_output, _ = attention_interface(\n            self,\n            query_states,\n            key_states,\n            value_states,\n            attention_mask,\n            dropout=0.0 if not self.training else self.attention_dropout,\n            scaling=self.scaling,\n            **kwargs,\n        )\n\n        if self.config._attn_implementation == \"flash_attention_2\" and self.q_head_dim != self.v_head_dim:\n            attn_output = attn_output[:, :, :, : self.v_head_dim]\n\n        attn_output = attn_output.reshape(\n            batch_size, seq_length, -1).contiguous()\n        if self.use_output_gate:\n            g = self.g_proj(hidden_states).sigmoid()\n            attn_output = attn_output * g\n        attn_output = self.o_proj(attn_output)\n        return attn_output\n\n\nclass KimiDeltaAttention(nn.Module):\n    def __init__(self, config: KimiLinearConfig, layer_idx: int):\n        super().__init__()\n        self.config = config\n        self.mode = \"chunk\"\n\n        self.hidden_size = config.hidden_size\n        self.conv_size = config.linear_attn_config[\"short_conv_kernel_size\"]\n        self.head_dim = config.linear_attn_config[\"head_dim\"]\n        self.num_heads = config.linear_attn_config[\"num_heads\"]\n        self.head_k_dim = self.head_dim\n        self.num_k_heads = self.num_heads\n\n        self.layer_idx = layer_idx\n\n        assert self.mode in [\n            'chunk', 'fused_recurrent'], f\"Not supported mode `{self.mode}`.\"\n\n        projection_k_size = self.head_k_dim * self.num_k_heads\n        projection_size = self.head_dim * self.num_heads\n\n        self.q_proj = nn.Linear(\n            self.hidden_size, projection_k_size, bias=False)\n        self.k_proj = nn.Linear(\n            self.hidden_size, projection_k_size, bias=False)\n        self.v_proj = nn.Linear(self.hidden_size, projection_size, bias=False)\n\n        self.q_conv1d = ShortConvolution(\n            hidden_size=projection_k_size,\n            kernel_size=self.conv_size,\n            activation='silu',\n        )\n        self.k_conv1d = ShortConvolution(\n            hidden_size=projection_k_size,\n            kernel_size=self.conv_size,\n            activation='silu',\n        )\n        self.v_conv1d = ShortConvolution(\n            hidden_size=projection_size,\n            kernel_size=self.conv_size,\n            activation='silu',\n        )\n\n        self.A_log = torch.nn.Parameter(torch.log(torch.empty(\n            self.num_heads, dtype=torch.float32).uniform_(1, 16)))\n\n        self.f_a_proj = nn.Linear(self.hidden_size, self.head_dim, bias=False)\n        self.f_b_proj = nn.Linear(self.head_dim, projection_size, bias=False)\n\n        self.dt_bias = nn.Parameter(\n            torch.empty(projection_size, dtype=torch.float32))\n\n        self.b_proj = nn.Linear(self.hidden_size, self.num_heads, bias=False)\n\n        self.use_full_rank_gate = config.linear_attn_config.get(\"use_full_rank_gate\", False)\n        self.gate_lower_bound = config.linear_attn_config.get(\"gate_lower_bound\", None)\n        if self.use_full_rank_gate:\n            self.g_proj = nn.Linear(self.hidden_size, projection_size, bias=False)\n        else:\n            self.g_a_proj = nn.Linear(self.hidden_size, self.head_dim, bias=False)\n            self.g_b_proj = nn.Linear(self.head_dim, projection_size, bias=False)\n\n        self.o_norm = FusedRMSNormGated(\n            self.head_dim, eps=config.rms_norm_eps, activation='sigmoid')\n        self.o_proj = nn.Linear(projection_size, self.hidden_size, bias=False)\n\n    def forward(\n        self,\n        hidden_states: torch.Tensor,\n        attention_mask: torch.Tensor | None = None,\n        cache_params: KimiDynamicCache | None = None,\n        **kwargs: Unpack[dict],\n    ) -> tuple[torch.Tensor, torch.Tensor | None, Cache | None]:\n        if attention_mask is not None:\n            if attention_mask.dim() != 2:\n                attention_mask = kwargs.get(\"padding_mask\")\n\n            if attention_mask is not None and attention_mask.dim() != 2:\n                raise ValueError(\n                    \"attention_mask must be a 0-1 matrix of shape [batch_size, seq_len] \"\n                    \"(0 = padding). 3D masks are not supported here.\",\n                )\n        use_cache = cache_params is not None\n        batch_size, q_len, _ = hidden_states.shape\n        mode = 'fused_recurrent' if use_cache and q_len == 1 else self.mode\n        if self.training:\n            assert mode == 'chunk', \"Only chunk mode is supported in training.\"\n\n        cu_seqlens = kwargs.get('cu_seqlens')\n        indices = None\n        if attention_mask is not None:\n            indices, cu_seqlens, _ = get_unpad_data(attention_mask[:, -q_len:])\n            hidden_states = index_first_axis(\n                rearrange(hidden_states, \"b s ... -> (b s) ...\"), indices).unsqueeze(0)\n\n        conv_state_q, conv_state_k, conv_state_v = None, None, None\n        recurrent_state = None\n        if cache_params is not None:\n            if cache_params.conv_states[self.layer_idx] is not None:\n                conv_state_q, conv_state_k, conv_state_v = cache_params.conv_states[\n                    self.layer_idx]\n            recurrent_state = cache_params.recurrent_states[self.layer_idx]\n\n        q_proj_states = self.q_proj(hidden_states)\n        k_proj_states = self.k_proj(hidden_states)\n        v_proj_states = self.v_proj(hidden_states)\n        q, conv_state_q = self.q_conv1d(\n            x=q_proj_states,\n            cache=conv_state_q,\n            output_final_state=use_cache,\n            cu_seqlens=cu_seqlens,\n        )\n        k, conv_state_k = self.k_conv1d(\n            x=k_proj_states,\n            cache=conv_state_k,\n            output_final_state=use_cache,\n            cu_seqlens=cu_seqlens,\n        )\n        v, conv_state_v = self.v_conv1d(\n            x=v_proj_states,\n            cache=conv_state_v,\n            output_final_state=use_cache,\n            cu_seqlens=cu_seqlens,\n        )\n        g = self.f_b_proj(self.f_a_proj(hidden_states))\n        g = rearrange(g, '... (h d) -> ... h d', d=self.head_dim)\n        beta = self.b_proj(hidden_states).float()\n\n        q, k = map(lambda x: rearrange(\n            x, '... (h d) -> ... h d', d=self.head_k_dim), (q, k))\n        v = rearrange(v, '... (h d) -> ... h d', d=self.head_dim)\n\n        if mode == 'chunk':\n            o, recurrent_state = chunk_kda(\n                q=q,\n                k=k,\n                v=v,\n                g=g,\n                beta=beta,\n                A_log=self.A_log,\n                dt_bias=self.dt_bias,\n                initial_state=recurrent_state,\n                output_final_state=True,\n                use_qk_l2norm_in_kernel=True,\n                use_gate_in_kernel=True,\n                use_beta_sigmoid_in_kernel=True,\n                safe_gate=self.gate_lower_bound is not None,\n                lower_bound=self.gate_lower_bound,\n                transpose_state_layout=True,\n                cu_seqlens=cu_seqlens,\n            )\n        else:\n            o, recurrent_state = fused_recurrent_kda(\n                q=q,\n                k=k,\n                v=v,\n                g=g,\n                beta=beta,\n                A_log=self.A_log,\n                dt_bias=self.dt_bias,\n                initial_state=recurrent_state,\n                output_final_state=True,\n                use_qk_l2norm_in_kernel=True,\n                use_gate_in_kernel=True,\n                use_beta_sigmoid_in_kernel=True,\n                lower_bound=self.gate_lower_bound,\n                transpose_state_layout=True,\n                cu_seqlens=cu_seqlens,\n            )\n        if cache_params is not None:\n            cache_params.recurrent_states[self.layer_idx] = recurrent_state\n            cache_params.conv_states[self.layer_idx] = (\n                conv_state_q, conv_state_k, conv_state_v)\n\n        if self.use_full_rank_gate:\n            g = self.g_proj(hidden_states)\n        else:\n            g = self.g_b_proj(self.g_a_proj(hidden_states))\n        g = rearrange(g, '... (h d) -> ... h d', d=self.head_dim)\n        o = self.o_norm(o, g)\n\n        o = rearrange(o, 'b t h d -> b t (h d)')\n        o = self.o_proj(o)\n        if attention_mask is not None:\n            o = pad_input(o.squeeze(0), indices, batch_size, q_len)\n\n        return o\n\n\nclass KimiMoEGate(nn.Module):\n    \"\"\"\n    MoEGate adapted from Deepseek-V3.\n    Parameter correspondences:\n        num_experts -> n_routed_experts\n        num_experts_per_token -> num_experts_per_tok\n        num_expert_group -> n_group\n        moe_router_activation_func -> scoring_func\n    \"\"\"\n\n    def __init__(self, config: KimiLinearConfig):\n        super().__init__()\n        self.config = config\n        self.top_k = config.num_experts_per_token\n        self.num_experts = config.num_experts\n        self.routed_scaling_factor = config.routed_scaling_factor\n        self.moe_router_activation_func = config.moe_router_activation_func\n        self.num_expert_group = getattr(config, \"num_expert_group\", 1)\n        self.topk_group = getattr(config, \"topk_group\", 1)\n\n        # topk selection algorithm\n        self.moe_renormalize = config.moe_renormalize\n        self.gating_dim = config.hidden_size\n        self.weight = nn.Parameter(\n            torch.empty((self.num_experts, self.gating_dim)),\n        )\n\n        self.e_score_correction_bias = nn.Parameter(\n            torch.empty(self.num_experts),\n        )\n        self.reset_parameters()\n\n    def reset_parameters(self) -> None:\n        import torch.nn.init as init\n\n        init.kaiming_uniform_(self.weight, a=math.sqrt(5))\n\n    def forward(self, hidden_states):\n        bsz, seq_len, h = hidden_states.shape\n        # compute gating score\n        hidden_states = hidden_states.view(-1, h)\n        logits = F.linear(\n            hidden_states.type(torch.float32), self.weight.type(\n                torch.float32), None,\n        )\n        if self.moe_router_activation_func == \"sigmoid\":\n            scores = logits.sigmoid()\n        elif self.moe_router_activation_func == \"softmax\":\n            scores = logits.softmax(dim=1)\n        else:\n            raise NotImplementedError(\n                f\"insupportable scoring function for MoE gating: {self.moe_router_activation_func}\",\n            )\n\n        # select top-k experts\n        assert not self.training\n        scores = scores.view(bsz * seq_len, -1)\n        scores_for_choice = scores + self.e_score_correction_bias.unsqueeze(0)\n        if self.num_expert_group > 1 and self.num_expert_group > self.topk_group:\n            group_scores = (\n                scores_for_choice.view(\n                    bsz * seq_len, self.num_expert_group, -1).topk(2, dim=-1)[0].sum(dim=-1)\n            )  # [n, num_expert_group]\n            group_idx = torch.topk(\n                group_scores, k=self.topk_group, dim=-1, sorted=False,\n            )[\n                1\n            ]  # [n, top_k_group]\n            group_mask = torch.zeros_like(group_scores)  # [n, num_expert_group]\n            group_mask.scatter_(1, group_idx, 1)  # [n, num_expert_group]\n            score_mask = (\n                group_mask.unsqueeze(-1)\n                .expand(\n                    bsz * seq_len, self.num_expert_group, self.num_experts // self.num_expert_group,\n                )\n                .reshape(bsz * seq_len, -1)\n            )  # [n, e]\n            tmp_scores = scores_for_choice.masked_fill(\n                ~score_mask.bool(), float(\"-inf\"))  # [n, e]\n        else:\n            tmp_scores = scores_for_choice\n        _, topk_idx = torch.topk(\n            tmp_scores, k=self.top_k, dim=-1, sorted=False,\n        )\n        topk_weight = scores.gather(1, topk_idx)\n\n        # norm gate to sum 1\n        if self.top_k > 1 and self.moe_renormalize:\n            denominator = topk_weight.sum(dim=-1, keepdim=True) + 1e-20\n            topk_weight = topk_weight / denominator\n        # must multiply the scaling factor\n        topk_weight = topk_weight * self.routed_scaling_factor\n\n        return topk_idx, topk_weight\n\n\nclass KimiSparseMoeBlock(nn.Module):\n    \"\"\"\n    Adapted from Deepseek-V3's MOE implementation\n    The namings are consistent with Kimi's version.\n    \"\"\"\n\n    def __init__(self, config: KimiLinearConfig):\n        super().__init__()\n        self.config = config\n        self.hidden_dim = config.hidden_size\n        self.num_experts = config.num_experts\n        self.top_k = config.num_experts_per_token\n        self.moe_renormalize = config.moe_renormalize\n\n        self.use_latent_moe = getattr(config, \"routed_expert_hidden_size\", None) is not None\n        self.moe_hidden_size = (\n            config.routed_expert_hidden_size\n            if self.use_latent_moe else config.hidden_size\n        )\n        self.latent_moe_use_norm = getattr(config, \"latent_moe_use_norm\", False)\n\n        self.ep_size = 1\n        self.experts_per_rank = config.num_experts\n        self.ep_rank = 0\n        self.experts = nn.ModuleList(\n            [\n                KimiBlockSparseMLP(\n                    config,\n                    hidden_size=self.moe_hidden_size,\n                    intermediate_size=config.moe_intermediate_size,\n                )\n                for _ in range(config.num_experts)\n            ],\n        )\n        self.gate = KimiMoEGate(config)\n        if config.num_shared_experts is not None:\n            intermediate_size = config.moe_intermediate_size * config.num_shared_experts\n            self.shared_experts = KimiMLP(\n                config=config, intermediate_size=intermediate_size,\n            )\n\n        if self.use_latent_moe:\n            self.routed_expert_down_proj = nn.Linear(\n                config.hidden_size, self.moe_hidden_size, bias=False,\n            )\n            self.routed_expert_up_proj = nn.Linear(\n                self.moe_hidden_size, config.hidden_size, bias=False,\n            )\n            if self.latent_moe_use_norm:\n                self.routed_expert_norm = KimiRMSNorm(\n                    self.moe_hidden_size, eps=config.rms_norm_eps,\n                )\n\n    def forward(self, hidden_states):\n        identity = hidden_states\n        orig_shape = hidden_states.shape\n        topk_idx, topk_weight = self.gate(hidden_states)\n        hidden_states = hidden_states.view(-1, hidden_states.shape[-1])\n\n        if self.use_latent_moe:\n            hidden_states = self.routed_expert_down_proj(hidden_states)\n\n        if not self.training:\n            y = self.moe_infer(hidden_states, topk_idx, topk_weight)\n        else:\n            raise NotImplementedError(\"Training mode is not supported in KimiSparseMoeBlock\")\n\n        if self.use_latent_moe:\n            if self.latent_moe_use_norm:\n                y = self.routed_expert_norm(y)\n            y = self.routed_expert_up_proj(y)\n\n        y = y.view(*orig_shape)\n\n        if self.config.num_shared_experts is not None:\n            y = y + self.shared_experts(identity)\n        return y\n\n    @torch.no_grad()\n    def moe_infer(self, x, topk_ids, topk_weight):\n        cnts = topk_ids.new_zeros((topk_ids.shape[0], len(self.experts)))\n        cnts.scatter_(1, topk_ids, 1)\n        tokens_per_expert = cnts.sum(dim=0)\n        idxs = topk_ids.view(-1).argsort()\n        sorted_tokens = x[idxs // topk_ids.shape[1]]\n\n        tokens_per_expert = tokens_per_expert.cpu().numpy()\n\n        outputs = []\n        start_idx = 0\n        for i, num_tokens in enumerate(tokens_per_expert):\n            end_idx = start_idx + num_tokens\n            if num_tokens == 0:\n                continue\n            expert = self.experts[i + self.ep_rank * self.experts_per_rank]\n            tokens_for_this_expert = sorted_tokens[start_idx:end_idx]\n            expert_out = expert(tokens_for_this_expert)\n            outputs.append(expert_out)\n            start_idx = end_idx\n\n        outs = torch.cat(outputs, dim=0) if len(\n            outputs) else sorted_tokens.new_empty(0)\n\n        new_x = torch.empty_like(outs)\n        new_x[idxs] = outs\n        final_out = (\n            new_x.view(*topk_ids.shape, -1)\n            .type(topk_weight.dtype)\n            .mul_(topk_weight.unsqueeze(dim=-1))\n            .sum(dim=1)\n            .type(new_x.dtype)\n        )\n        return final_out\n\n\nclass KimiDecoderLayer(nn.Module):\n    def __init__(self, config: KimiLinearConfig, layer_idx: int):\n        super().__init__()\n        self.hidden_size = config.hidden_size\n        self.config = config\n        self.layer_idx = layer_idx\n        if config.is_kda_layer(layer_idx):\n            self.is_linear_attn = True\n            self.self_attn = KimiDeltaAttention(\n                config=config, layer_idx=layer_idx)\n        elif config.is_mla:\n            self.is_linear_attn = False\n            self.self_attn = KimiMLAAttention(\n                config=config, layer_idx=layer_idx)\n        else:\n            raise NotImplementedError\n        if (\n            config.num_experts is not None\n            and layer_idx >= config.first_k_dense_replace\n            and layer_idx % getattr(config, \"moe_layer_freq\", 1) == 0\n        ):\n            self.block_sparse_moe = KimiSparseMoeBlock(config)\n        else:\n            self.mlp = KimiMLP(config)\n        self.input_layernorm = KimiRMSNorm(\n            config.hidden_size, eps=config.rms_norm_eps)\n        self.post_attention_layernorm = KimiRMSNorm(\n            config.hidden_size, eps=config.rms_norm_eps)\n\n        # Attention residual\n        self.use_attn_residuals = getattr(config, \"attn_res_block_size\", None) is not None\n        if self.use_attn_residuals:\n            self.attn_res_block_size = config.attn_res_block_size\n            self.self_attention_res_norm = KimiRMSNorm(\n                config.hidden_size, eps=config.rms_norm_eps)\n            self.mlp_res_norm = KimiRMSNorm(\n                config.hidden_size, eps=config.rms_norm_eps)\n            self.self_attention_res_proj = nn.Linear(\n                config.hidden_size, 1, bias=False)\n            self.mlp_res_proj = nn.Linear(\n                config.hidden_size, 1, bias=False)\n\n    def forward(\n        self,\n        hidden_states: torch.Tensor,\n        attention_mask: torch.Tensor | None = None,\n        position_ids: torch.LongTensor | None = None,\n        past_key_values: tuple[torch.Tensor] | None = None,\n        output_attentions: bool | None = False,\n        use_cache: bool | None = False,\n        block_residual: torch.Tensor | None = None,\n        **kwargs: Unpack[FlashAttentionKwargs],\n    ):\n        if self.use_attn_residuals:\n            return self._forward_attn_residual(\n                hidden_states, attention_mask, position_ids,\n                past_key_values, output_attentions, use_cache,\n                block_residual, **kwargs)\n\n        residual = hidden_states\n\n        hidden_states = self.input_layernorm(hidden_states)\n\n        # Self Attention\n        if self.is_linear_attn is False:\n            hidden_states = self.self_attn(\n                hidden_states=hidden_states,\n                attention_mask=attention_mask,\n                position_ids=position_ids,\n                past_key_values=past_key_values,\n                output_attentions=output_attentions,\n                use_cache=use_cache,\n                **kwargs,\n            )\n        else:\n            hidden_states = self.self_attn(\n                hidden_states=hidden_states,\n                attention_mask=attention_mask,\n                cache_params=past_key_values,\n                output_attentions=output_attentions,\n                use_cache=use_cache,\n                **kwargs,\n            )\n        hidden_states = residual + hidden_states\n\n        # Fully Connected\n        residual = hidden_states\n        hidden_states = self.post_attention_layernorm(hidden_states)\n        if hasattr(self, \"block_sparse_moe\"):\n            hidden_states = self.block_sparse_moe(hidden_states)\n        else:\n            hidden_states = self.mlp(hidden_states)\n        hidden_states = residual + hidden_states\n\n        return hidden_states\n\n    def _forward_attn_residual(\n        self,\n        hidden_states: torch.Tensor,\n        attention_mask: torch.Tensor | None = None,\n        position_ids: torch.LongTensor | None = None,\n        past_key_values: tuple[torch.Tensor] | None = None,\n        output_attentions: bool | None = False,\n        use_cache: bool | None = False,\n        block_residual: torch.Tensor | None = None,\n        **kwargs: Unpack[FlashAttentionKwargs],\n    ):\n        batch_size, seq_len, hidden_size = hidden_states.shape\n        prefix_sum = hidden_states\n\n        if block_residual is not None and block_residual.shape[1] > 0:\n            hidden_states = _apply_attn_res(\n                prefix_sum.view(-1, hidden_size),\n                block_residual,\n                self.self_attention_res_proj,\n                self.self_attention_res_norm,\n            ).view(batch_size, seq_len, hidden_size)\n\n        if self.layer_idx % self.attn_res_block_size == 0:\n            block_residual = torch.cat(\n                [block_residual, prefix_sum.view(-1, hidden_size).unsqueeze(1)], dim=1)\n            prefix_sum = None\n\n        hidden_states = self.input_layernorm(hidden_states)\n\n        # Self Attention\n        if self.is_linear_attn is False:\n            hidden_states = self.self_attn(\n                hidden_states=hidden_states,\n                attention_mask=attention_mask,\n                position_ids=position_ids,\n                past_key_values=past_key_values,\n                output_attentions=output_attentions,\n                use_cache=use_cache,\n                **kwargs,\n            )\n        else:\n            hidden_states = self.self_attn(\n                hidden_states=hidden_states,\n                attention_mask=attention_mask,\n                cache_params=past_key_values,\n                output_attentions=output_attentions,\n                use_cache=use_cache,\n                **kwargs,\n            )\n\n        if prefix_sum is not None:\n            prefix_sum = prefix_sum + hidden_states\n        else:\n            prefix_sum = hidden_states\n\n        hidden_states = _apply_attn_res(\n            prefix_sum.view(-1, hidden_size),\n            block_residual,\n            self.mlp_res_proj,\n            self.mlp_res_norm,\n        ).view(batch_size, seq_len, hidden_size)\n\n        hidden_states = self.post_attention_layernorm(hidden_states)\n        if hasattr(self, \"block_sparse_moe\"):\n            hidden_states = self.block_sparse_moe(hidden_states)\n        else:\n            hidden_states = self.mlp(hidden_states)\n\n        if prefix_sum is None:\n            prefix_sum = hidden_states\n        else:\n            prefix_sum = prefix_sum + hidden_states\n\n        return prefix_sum, block_residual\n\n\nclass KimiPreTrainedModel(PreTrainedModel):\n    config_class = KimiLinearConfig\n    base_model_prefix = \"model\"\n    supports_gradient_checkpointing = True\n    _no_split_modules = [\"KimiDecoderLayer\"]\n    _skip_keys_device_placement = \"past_key_values\"\n    _supports_flash_attn_2 = True\n    _can_record_outputs = {\n        \"router_logits\": OutputRecorder(KimiBlockSparseMLP, index=1),\n        \"hidden_states\": KimiDecoderLayer,\n        \"attentions\": KimiMLAAttention,\n    }\n    _is_stateful = True\n\n    def _init_weights(self, module):\n        std = self.config.initializer_range\n        if isinstance(module, nn.Linear):\n            module.weight.data.normal_(mean=0.0, std=std)\n            if module.bias is not None:\n                module.bias.data.zero_()\n        elif isinstance(module, nn.Embedding):\n            module.weight.data.normal_(mean=0.0, std=std)\n            if module.padding_idx is not None:\n                module.weight.data[module.padding_idx].zero_()\n\n\ndef _apply_attn_res(prefix_sum, block_residual, proj, norm):\n    \"\"\"\n    prefix_sum:     (num_tokens, hidden_size)\n    block_residual: (num_tokens, num_blocks, hidden_size)\n    \"\"\"\n    v = torch.cat((block_residual, prefix_sum.unsqueeze(1)), dim=1)\n    v_float = v.float()\n    variance = v_float.pow(2).mean(-1, keepdim=True)\n    k = v_float * torch.rsqrt(variance + norm.variance_epsilon)\n    score_weight = norm.weight.float() * proj.weight.squeeze(0).float()\n    scores = (k * score_weight).sum(-1)\n    probs = scores.softmax(-1).unsqueeze(1)\n    hidden_states = torch.matmul(probs, v_float).squeeze(1)\n    return hidden_states.to(v.dtype)\n\nclass KimiLinearModel(KimiPreTrainedModel):\n    def __init__(self, config: KimiLinearConfig):\n        super().__init__(config)\n        self.padding_idx = config.pad_token_id\n        self.vocab_size = config.vocab_size\n\n        self.embed_tokens = nn.Embedding(\n            config.vocab_size, config.hidden_size, self.padding_idx)\n        self.layers = nn.ModuleList([KimiDecoderLayer(\n            config, layer_idx) for layer_idx in range(config.num_hidden_layers)])\n        self.norm = KimiRMSNorm(\n            config.hidden_size, eps=config.rms_norm_eps)\n\n        self.use_attn_residuals = getattr(config, \"attn_res_block_size\", None) is not None\n        if self.use_attn_residuals:\n            self.output_attn_res_norm = KimiRMSNorm(\n                config.hidden_size, eps=config.rms_norm_eps)\n            self.output_attn_res_proj = nn.Linear(\n                config.hidden_size, 1, bias=False)\n\n        if getattr(config, \"_attn_implementation\", None) is not None:\n            if config._attn_implementation != \"flash_attention_2\":\n                logger.warning_once(\n                    f\"Ignoring the provided attention implementation {config._attn_implementation}\")\n                logger.warning_once(\"Using flash_attention_2 backend instead.\")\n                config._attn_implementation = \"flash_attention_2\"\n        else:\n            config._attn_implementation = \"flash_attention_2\"\n\n        self._use_flash_attention_2 = config._attn_implementation == \"flash_attention_2\"\n        self.gradient_checkpointing = False\n        # Initialize weights and apply final processing\n        self.post_init()\n\n    def _update_linear_attn_mask(self, attention_mask, cache_position):\n        \"\"\"\n        NOTE: Left-padding is used for linear attention mask.\n        No need for zeroing states when\n            1. Cached forward\n            2. Attending to all inputs\n        \"\"\"\n        linear_attn_mask = attention_mask\n        if cache_position[0] > 0 or (attention_mask is not None and torch.all(attention_mask == 1)):\n            linear_attn_mask = None\n        return linear_attn_mask\n\n    @check_model_inputs\n    # @auto_docstring\n    def forward(\n        self,\n        input_ids: torch.LongTensor = None,\n        attention_mask: torch.Tensor | None = None,\n        position_ids: torch.LongTensor | None = None,\n        past_key_values: Cache | None = None,\n        inputs_embeds: torch.FloatTensor | None = None,\n        cache_position: torch.LongTensor | None = None,\n        use_cache: bool | None = None,\n        **kwargs: Unpack[TransformersKwargs],\n    ) -> tuple | BaseModelOutputWithPast:\n\n        use_cache = use_cache if use_cache is not None else self.config.use_cache\n\n        if (input_ids is None) and (inputs_embeds is None):\n            raise ValueError(\n                \"You must specify exactly one of input_ids or inputs_embeds\")\n\n        # Get inputs_embeds\n        if inputs_embeds is None:\n            inputs_embeds = self.embed_tokens(input_ids)\n\n        if use_cache and past_key_values is None:\n            past_key_values = KimiDynamicCache(config=self.config)\n\n        if cache_position is None:\n            past_seen_tokens = past_key_values.get_seq_length(\n            ) if past_key_values is not None else 0\n            cache_position: torch.Tensor = torch.arange(\n                past_seen_tokens, past_seen_tokens + inputs_embeds.shape[1], device=inputs_embeds.device,\n            )\n\n        if position_ids is None:\n            position_ids = cache_position.unsqueeze(0)\n\n        causal_mask = create_causal_mask(\n            config=self.config,\n            input_embeds=inputs_embeds,\n            attention_mask=attention_mask,\n            cache_position=cache_position,\n            past_key_values=past_key_values,\n            position_ids=position_ids,\n        )\n        linear_attn_mask = self._update_linear_attn_mask(\n            attention_mask, cache_position)\n\n        hidden_states = inputs_embeds\n        if past_key_values is not None:\n            assert isinstance(past_key_values, KimiDynamicCache)\n\n        block_residual = None\n        if self.use_attn_residuals:\n            block_residual = hidden_states.new_zeros(\n                hidden_states.shape[0] * hidden_states.shape[1], 0,\n                hidden_states.shape[2])\n\n        for decoder_layer in self.layers:\n            layer_mask = linear_attn_mask if decoder_layer.is_linear_attn else causal_mask\n\n            if self.use_attn_residuals:\n                hidden_states, block_residual = decoder_layer(\n                    hidden_states,\n                    attention_mask=layer_mask,\n                    past_key_values=past_key_values,\n                    cache_position=cache_position,\n                    block_residual=block_residual,\n                    **kwargs,\n                )\n            else:\n                hidden_states = decoder_layer(\n                    hidden_states,\n                    attention_mask=layer_mask,\n                    past_key_values=past_key_values,\n                    cache_position=cache_position,\n                    **kwargs,\n                )\n\n        if self.use_attn_residuals:\n            hidden_states = self._apply_output_attn_res(\n                hidden_states, block_residual)\n\n        hidden_states = self.norm(hidden_states)\n\n        return BaseModelOutputWithPast(\n            last_hidden_state=hidden_states,\n            past_key_values=past_key_values,\n        )\n\n    def _apply_output_attn_res(self, hidden_states, block_residual):\n        batch_size, seq_len, hidden_size = hidden_states.shape\n        return _apply_attn_res(\n            hidden_states.view(-1, hidden_size),\n            block_residual,\n            self.output_attn_res_proj,\n            self.output_attn_res_norm,\n        ).view(batch_size, seq_len, hidden_size)\n\n\nclass KimiLinearForCausalLM(KimiPreTrainedModel, GenerationMixin):\n    @classmethod\n    def _supports_default_dynamic_cache(cls) -> bool:\n        return False\n\n    _tied_weights_keys = [\"lm_head.weight\"]\n\n    def __init__(self, config):\n        super().__init__(config)\n        self.model = KimiLinearModel(config)\n        self.vocab_size = config.vocab_size\n        self.lm_head = nn.Linear(\n            config.hidden_size, config.vocab_size, bias=False)\n\n        # Initialize weights and apply final processing\n        self.post_init()\n\n    @can_return_tuple\n    # @auto_docstring\n    def forward(\n        self,\n        input_ids: torch.LongTensor = None,\n        attention_mask: torch.Tensor | None = None,\n        position_ids: torch.LongTensor | None = None,\n        past_key_values: list[torch.FloatTensor] | None = None,\n        inputs_embeds: torch.FloatTensor | None = None,\n        labels: torch.LongTensor | None = None,\n        use_cache: bool | None = None,\n        output_attentions: bool | None = None,\n        output_hidden_states: bool | None = None,\n        generation_mode: bool | None = None,\n        return_dict: bool | None = None,\n        cache_position: torch.LongTensor | None = None,\n        **kwargs: Unpack[TransformersKwargs],\n    ) -> tuple | CausalLMOutputWithPast:\n        r\"\"\"\n        Args:\n            labels (`torch.LongTensor` of shape `(batch_size, sequence_length)`, *optional*):\n                Labels for computing the masked language modeling loss. Indices should either be in `[0, ...,\n                config.vocab_size]` or -100 (see `input_ids` docstring). Tokens with indices set to `-100` are ignored\n                (masked), the loss is only computed for the tokens with labels in `[0, ..., config.vocab_size]`.\n        \"\"\"\n\n        output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions\n        output_hidden_states = (\n            output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states\n        )\n        return_dict = return_dict if return_dict is not None else self.config.use_return_dict\n\n        outputs = self.model(\n            input_ids=input_ids,\n            attention_mask=attention_mask,\n            position_ids=position_ids,\n            past_key_values=past_key_values,\n            inputs_embeds=inputs_embeds,\n            use_cache=use_cache,\n            output_attentions=output_attentions,\n            output_hidden_states=output_hidden_states,\n            return_dict=return_dict,\n            cache_position=cache_position,\n        )\n\n        logits = outputs[0]\n        if generation_mode:\n            logits = logits[:, -1:]\n        logits = self.lm_head(logits)\n\n        loss = None\n        if labels is not None:\n            loss = self.loss_function(\n                logits, labels, self.vocab_size, **kwargs)\n\n        return CausalLMOutputWithPast(\n            loss=loss,\n            logits=logits,\n            past_key_values=outputs.past_key_values,\n            hidden_states=outputs.hidden_states,\n            attentions=outputs.attentions,\n        )\n"
+      }
+    ]
+  },
+  "processor": {
+    "preprocessor_config.json": {
+      "media_proc_cfg": {
+        "in_patch_limit": 65536,
+        "patch_size": 14,
+        "image_mean": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "image_std": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "merge_kernel_size": 2,
+        "fixed_output_tokens": null,
+        "patch_limit_on_one_side": 512,
+        "in_patch_limit_each_frame": 16384,
+        "in_patch_limit_video": 655360,
+        "sample_fps": 8.0,
+        "max_num_frames_each_video": null,
+        "temporal_merge_kernel_size": 4,
+        "timestamp_mode": "hh:mm:ss.fff",
+        "transparent_bg_config": {
+          "pattern": "chessboard",
+          "chessboard_square_size": 8,
+          "chessboard_square_on_top_left": true,
+          "chessboard_white_value": 255,
+          "chessboard_gray_value": 180
+        },
+        "transparent_bg_fill_stage": "after_resize",
+        "config_type": "media_proc.processors.moonvit.MoonViTMediaProcessorConfig"
+      },
+      "auto_map": {
+        "AutoProcessor": "kimi_k3_processor.KimiK3Processor",
+        "AutoImageProcessor": "kimi_k3_vision_processing.KimiK3VisionProcessor"
+      }
+    }
+  },
+  "release_date": "2026-07-27"
+}

@@ -1,0 +1,96 @@
+# Pre-norm decoder block wrapped in Manifold-Constrained Hyper-Connections (mHC).
+#
+# Structurally this is `dsv4_block` (same six HC parameters, same hc_pre →
+# norm → sublayer → hc_post round-trip around BOTH the attention and the FFN
+# site), with the HF pre-norm NODE NAMES — `input_layernorm`, `self_attn`,
+# `post_attention_layernorm`, `mlp` — instead of DSv4's `attn_norm` / `attn` /
+# `ffn_norm` / `ffn`. The names are what the per-node dtype matcher and
+# `unmatched_nodes` reporting key on, and this family stores
+# `layers.X.input_layernorm.weight` / `layers.X.self_attn.*` /
+# `layers.X.post_attention_layernorm.weight` / `layers.X.mlp.*` next to the
+# flat `layers.X.hc_{attn,ffn}_{fn,base,scale}` parameters, so neither
+# `dsv4_block` (right topology, wrong names) nor `pre_norm` (right names, no
+# HC) can be bound to it.
+#
+# Block input/output is [B, s_ctx, n_hidden_copies, d_model] — the widened
+# residual stream set up at network entry (`hc_expand`) and reduced at the
+# exit. Source (modeling_glm5_next.py, Glm5NextTextDecoderLayer.forward:1295-1329):
+#
+#   residual = hidden_states                                   # :1295  [B,S,H,D]
+#   post, comb, hidden_states = self.attn_hc(hidden_states)    # :1296  (hc_pre)
+#   hidden_states = self.input_layernorm(hidden_states)        # :1298
+#   hidden_states = self.self_attn(...)                        # :1300 / :1308
+#   hidden_states = post.unsqueeze(-1) * hidden_states.unsqueeze(-2)
+#                   + torch.matmul(comb.transpose(-1, -2), residual)   # :1318-1320 (hc_post)
+#   residual = hidden_states                                   # :1322
+#   post, comb, hidden_states = self.ffn_hc(hidden_states)     # :1323
+#   hidden_states = self.post_attention_layernorm(hidden_states)  # :1325
+#   hidden_states = self.mlp(hidden_states)                    # :1326
+#   hidden_states = post.unsqueeze(-1) * hidden_states.unsqueeze(-2)
+#                   + torch.matmul(comb.transpose(-1, -2), residual)   # :1327-1329
+#
+# `Glm5NextTextHyperConnection.forward` (:268-297) is exactly `hc_pre`:
+# unweighted RMSNorm over the flattened H·D stream (:279), one
+# `F.linear(flat, self.fn)` split into pre/post/comb (:280-281),
+# σ / 2·σ / softmax+Sinkhorn (:283-292, hc_sinkhorn_iters=20), then
+# `collapsed = (pre.unsqueeze(-1) * hidden_streams).sum(dim=2)` (:296) —
+# `hc_weighted_reduce`. The returned `(post, comb)` are consumed by hc_post.
+#
+# Per-block checkpoint tensors (all flat on the layer prefix):
+#   hc_attn_fn    [d_hc_mix, n_hidden_copies·d_model]   (nn.Parameter, no `.weight`; :260)
+#   hc_attn_base  [d_hc_mix]                            (:261)
+#   hc_attn_scale [3]                                   (:266 — one scale per mHC output)
+#   hc_ffn_fn / hc_ffn_base / hc_ffn_scale   mirror     (:1281)
+#
+# Required dims: d_model, n_hidden_copies (hc_mult), d_hc_mix (= (2 + n_hidden_copies) · n_hidden_copies).
+
+role: block
+description: "Pre-norm decoder block (input_layernorm / self_attn / post_attention_layernorm / mlp) wrapped in manifold-constrained Hyper-Connections: hc_pre sinkhorn-collapses n_hidden_copies streams into one, the sublayer runs on it, hc_post re-spreads and mixes back."
+
+inputs: [x]   # x: [B, s_ctx, n_hidden_copies, d_model] — the widened HC stream
+params:
+  attn: { kind: component }
+  ffn:  { kind: component }
+  norm: { kind: component, default: rmsnorm }
+
+# KV growth of the wrapper itself: NONE. `Glm5NextTextHyperConnection.forward`
+# reads only the current token's H·D stream plus its three owned parameters, and
+# hc_post is a pointwise/matmul recombination of the sublayer output with the
+# block's own residual — nothing is appended per token:
+#   modeling_glm5_next.py::Glm5NextTextDecoderLayer.forward
+#   `hidden_states = post.to(dtype).unsqueeze(-1) * hidden_states.unsqueeze(-2)
+#    + torch.matmul(comb.to(dtype).transpose(-1, -2), residual)`
+# Every cached tensor in this block belongs to the `attn` component bound at the
+# call site, and is judged against that component's claims.
+
+graph:
+  # Hyper-Connection parameters — owned at block scope, mirroring
+  # Glm5NextTextDecoderLayer.__init__:1280-1281 where `attn_hc` / `ffn_hc`
+  # are two Glm5NextTextHyperConnection modules whose `fn` / `base` / `scale`
+  # land flat on the layer prefix (the module itself contributes no path
+  # segment in this checkpoint).
+  hc_attn_fn:    { op: parameter_tensor, role: hyper_connection, shape: [d_hc_mix, "n_hidden_copies * d_model"], weight_axes: [{ replicated: true }, { replicated: true }] }
+  hc_attn_base:  { op: parameter_vector, role: hyper_connection, dim: d_hc_mix, weight_axes: [{ replicated: true }] }
+  hc_attn_scale: { op: parameter_vector, role: hyper_connection, dim: "3", weight_axes: [{ replicated: true }] }
+  hc_ffn_fn:     { op: parameter_tensor, role: hyper_connection, shape: [d_hc_mix, "n_hidden_copies * d_model"], weight_axes: [{ replicated: true }, { replicated: true }] }
+  hc_ffn_base:   { op: parameter_vector, role: hyper_connection, dim: d_hc_mix, weight_axes: [{ replicated: true }] }
+  hc_ffn_scale:  { op: parameter_vector, role: hyper_connection, dim: "3", weight_axes: [{ replicated: true }] }
+
+  # --- attention site (modeling_glm5_next.py:1295-1320) ---
+  # The pre-mix nodes are named after the MODULES the forward calls —
+  # `self.attn_hc(hidden_states)` (:1296) and `self.ffn_hc(hidden_states)`
+  # (:1323) — not after the law they implement, so the forward-alignment check
+  # can pair them up. They own no tensors (the parameters are the six flat
+  # hc_* nodes above), so the names cost nothing in checkpoint space.
+  attn_hc:                  { op: hc_pre, in: [x, hc_attn_fn, hc_attn_scale, hc_attn_base] }
+  input_layernorm:          { op: <norm>, in: attn_hc, dim: d_model, weight_axes: [{ replicated: true }] }
+  self_attn:                { op: <attn>, in: input_layernorm }
+  hc_attn_post:             { op: hc_post, in: [self_attn, x, attn_hc.post, attn_hc.comb] }
+
+  # --- FFN site (modeling_glm5_next.py:1322-1329) ---
+  ffn_hc:                   { op: hc_pre, in: [hc_attn_post, hc_ffn_fn, hc_ffn_scale, hc_ffn_base] }
+  post_attention_layernorm: { op: <norm>, in: ffn_hc, dim: d_model, weight_axes: [{ replicated: true }] }
+  mlp:                      { op: <ffn>, in: post_attention_layernorm }
+  out:                      { op: hc_post, in: [mlp, hc_attn_post, ffn_hc.post, ffn_hc.comb] }
+
+outputs: [out]

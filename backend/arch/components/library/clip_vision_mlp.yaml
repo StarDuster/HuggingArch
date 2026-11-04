@@ -1,0 +1,14 @@
+# CLIP ViT MLP: fc1 -> gelu -> fc2, both biased.
+# Used by: MiniMax-M3 vision tower (encoder.layers.X.mlp.fc1/fc2).
+#
+# Same topology as gelu_ffn but HF CLIP tensor naming is fc1/fc2 (not
+# up_proj/down_proj), which cannot be renamed from a model spec.
+#
+# Required dims: d_vis_model, d_vis_ffn
+role: ffn_dense
+description: "CLIP ViT MLP: fc1 -> gelu -> fc2, both biased. MiniMax-M3 vision tower."
+graph:
+  fc1:  { op: linear, in: x, dims: { in: d_vis_model, out: d_vis_ffn, bias: "1" }, weight_axes: [{ world: dense_ffn, parts: d_vis_ffn, fit: exact }, { replicated: true }] }
+  gelu: { op: gelu, in: fc1, dim: d_vis_ffn }
+  fc2:  { op: linear, in: gelu, dims: { in: d_vis_ffn, out: d_vis_model, bias: "1" }, weight_axes: [{ replicated: true }, { world: dense_ffn, parts: d_vis_ffn, fit: exact }] }
+outputs: [fc2]

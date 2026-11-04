@@ -1,0 +1,51 @@
+# A sublayer boundary's post-mix and the next pre-mix's GEMM in ONE launch —
+# the frameworks' small-token hyper-connection path.
+#
+# Naive subgraph: `mhc_post`'s five leaves and `mhc_pre_gemm`'s three, joined
+# by the edge the post's output makes into the next pre's flatten. The
+# boundary view supplies that edge: the next pre reads the `hc_post`
+# component, and the leaf behind it is the post's `add`.
+#
+#   residual_add = post ⊙ sublayer_out + comb ⊗ residual
+#   mixes        = mix_weight @ rms_unscaled(flatten(residual_add))
+#
+# vLLM (audited at v0.32.0): `mhc_fused_tilelang`, the first of the two
+# launches `mhc_fused_post_pre_tilelang` makes on its small-token path
+# (model_executor/kernels/mhc/tilelang.py, config
+# `mhc_fused_post_pre_split_config`). sglang (audited at v0.5.22):
+# `mhc_fused_post_pre_fma_tilelang`, the first of two in
+# `mhc_fused_post_pre` (kernels/ops/layernorm/mhc.py).
+#
+# Both frameworks choose it by the flattened token count of the step — 32
+# rows for DeepSeek-V4, 16 for sglang's GLM — and vLLM additionally requires
+# a hidden size divisible by 128, which every corpus HC model has. A token
+# threshold only moves the launch count at edge sizes, so per
+# `docs/inference_cost_model.md` ("Fusion: collapsing memory round-trips")
+# the binding bills the default path of each phase: decode is the small-token
+# path, prefill the large one (`mhc_post` plus `mhc_pre_gemm`, two launches).
+# What that mis-bills: a decode step with more rows than the threshold, and a
+# prefill chunk with fewer, each by one launch at the seam.
+#
+# The new residual survives the launch (the sublayer's own post-mix reads it
+# again, and so does the next sublayer's reduce), so it stays an exposed port.
+
+fused_op: mhc_fused_post_pre
+
+naive_pattern:
+  nodes:
+    post_broadcast:     { op: broadcast,           inputs: [external.post] }
+    sublayer_broadcast: { op: broadcast,           inputs: [external.sublayer] }
+    post_term:          { op: mul,                 inputs: [post_broadcast.out, sublayer_broadcast.out] }
+    comb_mix:           { op: hc_mix,              inputs: [external.comb, external.residual] }
+    residual_add:       { op: add,                 inputs: [post_term.out, comb_mix.out] }
+    residual_flat:      { op: view_merge,          inputs: [residual_add.out] }
+    norm:               { op: rmsnorm_unscaled,    inputs: [residual_flat.out] }
+    mixes:              { op: linear_external_weight, inputs: [norm.out, external.mix_weight] }
+  io_mapping:
+    post:         external.post
+    sublayer:     external.sublayer
+    comb:         external.comb
+    residual:     external.residual
+    mix_weight:   external.mix_weight
+    output:       mixes.out
+    residual_out: residual_add.out

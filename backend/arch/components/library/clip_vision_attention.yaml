@@ -1,0 +1,31 @@
+# CLIP-style ViT attention: separate biased q/k/v/out_proj + 3D RoPE.
+# Used by: MiniMax-M3 vision tower (vision_tower.vision_model.encoder.layers.X.self_attn).
+#
+# HF CLIPAttention layout — separate q_proj / k_proj / v_proj / out_proj,
+# each with bias, plain MHA (n_kv_heads = n_vis_heads). vision_config.position_embedding_type
+# == "rope" (rope_mode 3d), so RoPE is applied to Q/K (no learned position
+# embedding parameters). Distinct from vit_attention (fused qkv) and
+# mha_attention (o_proj naming, no bias).
+#
+# Required dims: d_vis_model, n_vis_heads, d_vis_head  (d_vis_head = d_vis_model // n_vis_heads)
+role: attention
+description: "CLIP ViT attention: separate biased q/k/v/out_proj + 3D RoPE. MiniMax-M3 vision tower."
+cache:
+  family: ViT
+  entries: []
+graph:
+  q_proj:          { op: linear, in: x, dims: { in: d_vis_model, out: "n_vis_heads * d_vis_head", bias: "1" }, weight_axes: [{ world: attention, parts: n_vis_heads, fit: replica_cells }, { replicated: true }] }
+  k_proj:          { op: linear, in: x, dims: { in: d_vis_model, out: "n_vis_heads * d_vis_head", bias: "1" }, weight_axes: [{ world: attention, parts: n_vis_heads, fit: replica_cells }, { replicated: true }] }
+  v_proj:          { op: linear, in: x, dims: { in: d_vis_model, out: "n_vis_heads * d_vis_head", bias: "1" }, weight_axes: [{ world: attention, parts: n_vis_heads, fit: replica_cells }, { replicated: true }] }
+  q_split_heads:   { op: head_split, in: q_proj, dims: { n_heads: n_vis_heads, d_head: d_vis_head } }
+  k_split_heads:   { op: head_split, in: k_proj, dims: { n_heads: n_vis_heads, d_head: d_vis_head } }
+  v_split_heads:   { op: head_split, in: v_proj, dims: { n_heads: n_vis_heads, d_head: d_vis_head } }
+  q_rope:          { op: rope, in: q_split_heads, dim: d_vis_head }
+  k_rope:          { op: rope, in: k_split_heads, dim: d_vis_head }
+  # Bidirectional: every query sees every key of its image (sglang minimax_vl_common.py:264,316 VisionAttention, non-causal per image).
+  qk_score:        { op: attention_score, in: [q_rope, k_rope], dims: { is_causal: "0", n_heads: n_vis_heads, d_head: d_vis_head } }
+  softmax:         { op: softmax, in: qk_score, dims: { is_causal: "0", n_heads: n_vis_heads } }
+  attn_apply:      { op: attention_apply, in: [softmax, v_split_heads], dims: { is_causal: "0", n_heads: n_vis_heads, d_head: d_vis_head } }
+  o_merge_heads:   { op: head_merge, in: attn_apply, dims: { n_heads: n_vis_heads, d_head: d_vis_head } }
+  out_proj:        { op: linear, in: o_merge_heads, dims: { in: "n_vis_heads * d_vis_head", out: d_vis_model, bias: "1" }, weight_axes: [{ replicated: true }, { world: attention, parts: n_vis_heads, fit: replica_cells }] }
+outputs: [out_proj]

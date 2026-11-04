@@ -1,0 +1,17 @@
+schema: huggingarch.claims/v1
+subject: gqa_qknorm_partial_rope_dsa_attention
+axioms:
+  checks:
+  - kind: kv_growth
+    storage: per_token
+    expect: 2 * n_kv_heads * d_head + d_indexer_head
+    src: MiniMax-M3 MSA — dense GQA K/V (n_kv_heads*d_head each, store-full read top-K)
+      PLUS the MQA lightning-indexer key (d_indexer_head per position). Total per-token
+      cache = 2*n_kv_heads*d_head + d_indexer_head. Sparsity is read-side only.
+  - kind: kv_growth
+    node: index_key_concat
+    storage: per_token
+    expect: d_indexer_head
+    src: MSA indexer key is MQA (one sparse_index_dim=d_indexer_head vector per position),
+      cached full-length; the top-K block selection is read-side, so storage grows
+      per token.

@@ -1,0 +1,4 @@
+description: "MXFP4 (E2M1) activations, one dynamic UE8M0 scale per 32 elements."
+source: "OCP Microscaling MXFP4 (E2M1 data, E8M0 scale per 32-element block)"
+dtype: FP4_E2M1
+scale: { granularity: per-group, group: 32, dtype: F8_E8M0 }

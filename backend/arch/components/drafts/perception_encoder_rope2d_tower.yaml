@@ -1,0 +1,53 @@
+# Step-5 Perception-Encoder vision tower, as one singleton aux block.
+#
+# `Step5VisionEncoder.forward` (inference/vision_encoder.py:473-500) plus the
+# two downsamplers and the projector that `_encode_images` runs right after it
+# (inference/model.py:2368-2379) — they are stored as children of the encoder
+# module (`vision_model.vit_downsampler{1,2}`) and at the file root
+# (`vit_large_projector`), and nothing runs between them:
+#
+#   x = conv1(pixel_values)                  # 14x14 stride-14 patch conv, no bias
+#   x = x.flatten(2).transpose(1, 2)         # (B, grid**2, width)
+#   x = x + sample_abs_posemb(grid_h, grid_w)    # use_abs_posemb, :491-493
+#   x = ln_pre(x)                            # use_ln_pre
+#   for blk in transformer.resblocks: x = blk(x, grid_hw)
+#   # use_ln_post is false on this checkpoint -> no ln_post tensors
+#   # use_cls_token is false -> no class_embedding and no [:, 1:] crop
+#   x = vit_downsampler2(vit_downsampler1(x_as_grid))   # 3x3 stride-2, biased
+#   x = vit_large_projector(x.flatten(2).transpose(1, 2))  # -> text d_model
+#
+# Identical in tensors and in shape to `step3p7_perception_encoder_tower`; it
+# differs in the block it stacks (2-D RoPE on q/k, QuickGELU MLP — see
+# `vit_layerscale_rope2d_quickgelu_block`), which is why it is its own
+# component rather than a binding of that one.
+#
+# Required dims: d_vis_model, n_vis_pos_slots, n_vis_channels, s_patch,
+#   n_vis_layers, s_vis_ds_kernel, s_vis_ds_stride, d_vis_ds_out1,
+#   d_vis_ds_out2, d_model, n_vis_heads, d_vis_head, d_vis_ffn.
+
+role: aux_block
+description: "Step-5 Perception-Encoder ViT tower: patch conv + interpolated learned position grid + ln_pre + n_vis_layers LayerScale/2-D-RoPE blocks + two 3x3 stride-2 downsampler convs + projector to the text width. Singleton wrapper — flat HF tensor paths."
+graph:
+  # `(hidden**-0.5) * randn(posemb_grid_size**2, hidden)` (:457-462): one row
+  # per patch slot of the 728 view's 52x52 grid, bilinearly resampled for any
+  # other grid (`sample_abs_posemb`, :479-500).
+  vision_model.positional_embedding:   { op: parameter_tensor, shape: [n_vis_pos_slots, d_vis_model], weight_axes: [{ replicated: true }, { replicated: true }] }
+  # Conv2d(3, width, kernel=14, stride=14, bias=False) (:426-431) — stride
+  # equals kernel, so it is a linear over the flattened patch.
+  vision_model.conv1:                  { op: linear, in: x, dims: { in: "n_vis_channels * s_patch * s_patch", out: d_vis_model, bias: "0" }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  vision_model.add_pe:
+    op: position_table_add
+    in: [vision_model.conv1, vision_model.positional_embedding]
+    dim: d_vis_model
+    formula: "y[b, i, :] = conv1(x)[b, i, :] + posemb[i, :]   (i = patch slot in raster order; vision_encoder.py:491-493)"
+  vision_model.ln_pre:                 { op: layernorm, in: vision_model.add_pe, dim: d_vis_model, weight_axes: [{ replicated: true }] }
+  vision_model.transformer.resblocks:  { op: vit_layerscale_rope2d_quickgelu_block, in: vision_model.ln_pre, chain: n_vis_layers, checkpoint: { index: local }, role: aux_block }
+  # Two 3x3 stride-2 convs over the patch grid (vision_encoder.py:464-472,
+  # run at model.py:2377-2378): 52x52 -> 26x26 -> 13x13 = the 169 rows an
+  # image occupies in the prompt (config.image_token_len).
+  vision_model.vit_downsampler1:       { op: conv2d, in: vision_model.transformer.resblocks, dims: { C_in: d_vis_model, C_out: d_vis_ds_out1, kernel_size: s_vis_ds_kernel, stride: s_vis_ds_stride, bias: "1" }, weight_axes: [{ replicated: true }, { replicated: true }, { replicated: true }, { replicated: true }] }
+  vision_model.vit_downsampler2:       { op: conv2d, in: vision_model.vit_downsampler1, dims: { C_in: d_vis_ds_out1, C_out: d_vis_ds_out2, kernel_size: s_vis_ds_kernel, stride: s_vis_ds_stride, bias: "1" }, weight_axes: [{ replicated: true }, { replicated: true }, { replicated: true }, { replicated: true }] }
+  # `nn.Linear(width * 4, text hidden, bias=config.projector_bias)` — false
+  # on this checkpoint (model.py:2362-2365).
+  vit_large_projector:                 { op: linear, in: vision_model.vit_downsampler2, dims: { in: d_vis_ds_out2, out: d_model, bias: "0" }, weight_axes: [{ replicated: true }, { replicated: true }] }
+outputs: [vit_large_projector]

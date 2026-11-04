@@ -1,0 +1,12 @@
+schema: huggingarch.claims/v1
+subject: swa_partial_rope_sink_fused_qkv_vscale_attention
+axioms:
+  checks:
+  - kind: kv_growth
+    storage: windowed
+    bound: s_window
+    expect: n_kv_heads * (d_head + d_v_head)
+    src: 'modeling_mimo_v2.py::MiMoV2Attention.__init__ `self.sliding_window = getattr(config,
+      "sliding_window", None) if is_swa else None` + _forward_attention `past_key_values.update(key_states,
+      value_states, self.layer_idx, cache_kwargs)` (K: swa_num_key_value_heads x swa_head_dim,
+      V: swa_num_key_value_heads x swa_v_head_dim)'

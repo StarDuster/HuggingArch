@@ -1,0 +1,14 @@
+# Provider env: flash_kda — SOURCE BUILD, provisioned OUT OF BAND.
+# GENERATED from the provider registry (`python -m kernel_bench envs`). Edit the provider, not this file.
+# Import gate (what availability checks, and what the build actually needs): flash_kda
+# Providers: flash_kda_cutlass_fwd
+#
+# pip install from github.com/MoonshotAI/FlashKDA (CUTLASS, SM90+, CUDA 12.9+, K=V=128 only)
+#
+# The lines below are what pip CAN install. If that is only torch, this
+# library is not reproducible from the repo and someone has to build it.
+torch>=2.5
+pydantic
+pyyaml
+huggingface-hub
+httpx

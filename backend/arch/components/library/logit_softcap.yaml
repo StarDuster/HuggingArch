@@ -1,0 +1,26 @@
+# Final-logit soft-capping: logits → c · tanh(logits / c).
+#
+# Source mirror: transformers Gemma2ForCausalLM.forward / Gemma4 causal-LM
+# forward (`if config.final_logit_softcapping is not None: logits = logits / c;
+# logits = torch.tanh(logits); logits = logits * c`); vLLM gemma2.py builds its
+# LogitsProcessor with `soft_cap=config.final_logit_softcapping`.
+#
+# Applied to the output head's logits, so it runs only at the sampled
+# positions. Every step is `when: n_logit_softcap`, bound to
+# `present(config.final_logit_softcapping)`: the source's condition is
+# `is not None`, so a config that sets no cap returns the head's logits
+# unchanged and any set cap — 0 or fractional included — builds the steps. The
+# cap constant itself is not a dim (scale_const is priced per element whatever
+# its constant), like the router's routed_scaling_factor.
+#
+# Required dims at call site: n_vocab, n_logit_softcap.
+
+description: "Final-logit soft-cap: c·tanh(logits/c) over the vocabulary, switched by n_logit_softcap. Gemma 2, Gemma 4."
+inputs: [x]
+
+graph:
+  scale_in:  { op: scale_const, in: x, dims: { in: n_vocab }, when: n_logit_softcap }
+  tanh:      { op: tanh, in: scale_in, dim: n_vocab, when: n_logit_softcap }
+  scale_out: { op: scale_const, in: tanh, dims: { in: n_vocab }, when: n_logit_softcap }
+
+outputs: [scale_out]

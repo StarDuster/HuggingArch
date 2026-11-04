@@ -1,0 +1,65 @@
+# RMSNorm with in-place residual add — vLLM's most universally-fired
+# fusion. Every transformer block's `residual + sub_layer_out -> norm`
+# chain collapses into one C++ kernel that:
+#   * adds the residual into the input (in-place update of residual)
+#   * computes RMSNorm on the result
+# in a single fused pass over HBM, saving one full hidden-state
+# read/write pair per layer.
+#
+# Naive subgraph:
+#   add:     y = x + residual
+#   rmsnorm: z = rmsnorm(y, weight)
+#
+# Two outputs (both consumed by downstream code):
+#   * `output` (= rmsnorm.out): the normalized activation feeding the
+#     next attention / FFN
+#   * `residual_out` (= add.out): the updated residual, written back so
+#     the NEXT block's add+rmsnorm sees it
+# vLLM models this as a single fused kernel with an in-place residual
+# buffer — we surface both ports so the edge rewriter can
+# route the residual to the next add without breaking the data-flow
+# closure check (`add.out` has TWO consumers in the naive graph:
+# rmsnorm AND the next block's add).
+#
+# vLLM kernel ref:
+#   csrc/layernorm_kernels.cu::fused_add_rms_norm_kernel
+#   vllm/_custom_ops.py::fused_add_rms_norm (wrapper)
+#   vllm/model_executor/layers/layernorm.py::RMSNorm.forward
+#     (dispatches to fused_add_rms_norm when residual != None)
+#
+# Cost preservation: Cost.combine sums matched values.
+# flops/params/access_bytes.
+
+fused_op: fused_add_rmsnorm
+
+naive_pattern:
+  nodes:
+    add:     { op: add,     inputs: [external.x, external.residual] }
+    rmsnorm: { op: rmsnorm, inputs: [add.out] }
+    quant: { op: quantise_activation, inputs: [rmsnorm.out], optional: true }
+  io_mapping:
+    x:            external.x
+    residual:     external.residual
+    output:       quant.out
+    residual_out: add.out
+
+# The launch writes its normed output already quantised when what reads it is
+# a quantised GEMM, so no separate activation-quant kernel runs between the
+# two. vLLM rewrites the pair into one launch — `RMSNormQuantFusionPass`
+# registers `RMSNormGroupQuantPattern` and `FusedAddRMSNormGroupQuantPattern`
+# for the per-token group sizes (compilation/passes/fusion/rms_quant_fusion.py
+# :463, :356, registered at :772, :813-835) — and with the custom ops off
+# Inductor fuses the quantise into the norm's epilogue instead, which is what
+# `enable_norm_fusion` means by "otherwise Inductor handles fusion"
+# (config/vllm.py:149-156; the pass flag `fuse_norm_quant`,
+# config/compilation.py:128, is on from -O1 up, config/vllm.py:268-273).
+# The absorption is the graph's, by the pattern's optional `quant` member: the
+# `quantise_activation` cast exists only where a quantised GEMM reads the
+# normed row, and the launch takes it only when that cast is the row's one
+# reader (the fused kernel publishes the quantised tensor and the residual,
+# not the wide normed row, so a consumer that wants it wide keeps the cast
+# apart — `fusion.Fusion._closed`).
+# What this does NOT model: at -O0 / eager vLLM runs the quantise as its own
+# kernel, and sglang folds one in at its norms only for a static per-tensor
+# scale (srt/layers/layernorm.py:515-530) — the per-group variant there is the
+# all-reduce kernel's, ROCm + aiter only (:248-312).

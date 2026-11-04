@@ -1,0 +1,63 @@
+# GQA + fused QZ projection + QK-norm + partial RoPE + channel-wise sigmoid gate
+# Used by: Qwen3.5-MoE and Qwen3-Next (full-attention layers, every 4th; also
+# their MTP layer).
+#
+# Q and gate share a single fused projection (d_model → 2*n_heads*d_head), sliced into Q
+# and gate halves. The fused linear is named `q_proj` to match HF's
+# `self.q_proj` nn.Linear attribute (HF source doesn't reflect the
+# fused-QZ semantic in the module name; the spec follows that
+# convention so checkpoint-tensor matching lands on `q_proj.weight`).
+# RoPE only on the first d_rope dims of each head (d_rope + d_nope == d_head). Output
+# gate path is sigmoid(gate_slice) * o_merge_heads, applied channel-wise
+# over n_heads*d_head (contrast with the per-head scalar gate in
+# `gqa_qknorm_partial_rope_gated_attention`). Source: transformers
+# `Qwen3_5MoeAttention.forward` / `Qwen3NextAttention.forward`
+# (`attn_output * torch.sigmoid(gate)`); vLLM `qwen3_next.py`
+# `Qwen3NextAttention.forward` does the same.
+#
+# Required dims: d_model, n_heads, n_kv_heads, d_head, d_rope, d_nope
+
+role: attention
+description: "GQA + fused QZ (named q_proj per HF) + QK-norm + partial RoPE + channel-wise sigmoid output gate. Qwen3.5-MoE, Qwen3-Next."
+# The rotation of the first d_rope dims: `rope_emb` unless the caller's model
+# rotates by multimodal positions — `params: { rope: mrope }` when its HF
+# rotary class sections the rotation (Qwen3.5, Qwen3.8, with or without an
+# `mrope_section` in the config).
+params:
+  rope: { kind: component, default: rope_emb }
+cache:
+  family: GQA
+  entries:
+    - { node: key_concat, kind: kv }
+    - { node: v_split_heads, kind: kv }
+graph:
+  q_proj:          { op: linear, in: x, dims: { in: d_model, out: "2 * n_heads * d_head" }, weight_axes: [{ world: attention, parts: n_heads, fit: replica_cells }, { replicated: true }] }
+  # HF views q_proj as [B,S,n_heads,2*d_head] and chunks the per-head field.
+  # Preserve that index map: slicing two flattened H*D ranges would not select
+  # the interleaved query/gate halves stored for each head.
+  q_gate_split_heads: { op: head_split, in: q_proj, dims: { n_heads: n_heads, d_head: "2 * d_head" } }
+  q_slice:         { op: slice, in: q_gate_split_heads, dims: { in: "2 * d_head", out: d_head } }
+  gate_slice:      { op: slice, in: q_gate_split_heads, dims: { in: "2 * d_head", out: d_head } }
+  k_proj:          { op: linear, in: x, dims: { in: d_model, out: "n_kv_heads * d_head" }, weight_axes: [{ world: attention, parts: n_kv_heads, fit: replica_cells }, { replicated: true }] }
+  v_proj:          { op: linear, in: x, dims: { in: d_model, out: "n_kv_heads * d_head" }, weight_axes: [{ world: attention, parts: n_kv_heads, fit: replica_cells }, { replicated: true }] }
+  k_split_heads:      { op: head_split, in: k_proj, dims: { n_heads: n_kv_heads, d_head: d_head } }
+  v_split_heads:      { op: head_split, in: v_proj, dims: { n_heads: n_kv_heads, d_head: d_head } }
+  q_norm:          { op: rmsnorm, in: q_slice, dim: d_head, weight_axes: [{ replicated: true }] }
+  k_norm:          { op: rmsnorm, in: k_split_heads, dim: d_head, weight_axes: [{ replicated: true }] }
+  q_pe_slice:      { op: slice, in: q_norm, dims: { in: d_head, out: d_rope } }
+  q_nope_slice:    { op: slice, in: q_norm, dims: { in: d_head, out: d_nope } }
+  k_pe_slice:      { op: slice, in: k_norm, dims: { in: d_head, out: d_rope } }
+  k_nope_slice:    { op: slice, in: k_norm, dims: { in: d_head, out: d_nope } }
+  q_pe_rope:       { op: <rope>, in: q_pe_slice, dims: { dim: d_rope } }
+  k_pe_rope:       { op: <rope>, in: k_pe_slice, dims: { dim: d_rope } }
+  query_concat:    { op: concat, in: [q_pe_rope, q_nope_slice], dims: { in_a: d_rope, in_b: d_nope, out: d_head } }
+  key_concat:      { op: concat, in: [k_pe_rope, k_nope_slice], dims: { in_a: d_rope, in_b: d_nope, out: d_head } }
+  qk_score:        { op: attention_score, in: [query_concat, key_concat], dims: { n_heads: n_heads, d_head: d_head } }
+  softmax:         { op: softmax, in: qk_score, dims: { n_heads: n_heads } }
+  attn_apply:      { op: attention_apply, in: [softmax, v_split_heads], dims: { n_heads: n_heads, d_head: d_head } }
+  o_merge_heads:      { op: head_merge, in: attn_apply, dims: { n_heads: n_heads, d_head: d_head } }
+  gate_merge_heads: { op: head_merge, in: gate_slice, dims: { n_heads: n_heads, d_head: d_head } }
+  gate_act:        { op: sigmoid, in: gate_merge_heads, dim: "n_heads * d_head" }
+  gated_attn:      { op: mul, in: [o_merge_heads, gate_act], dim: "n_heads * d_head" }
+  o_proj:          { op: linear, in: gated_attn, dims: { in: "n_heads * d_head", out: d_model }, weight_axes: [{ replicated: true }, { world: attention, parts: n_heads, fit: replica_cells }] }
+outputs: [o_proj]

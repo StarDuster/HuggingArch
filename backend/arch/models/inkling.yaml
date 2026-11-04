@@ -1,0 +1,228 @@
+# Inkling (Thinking Machines) — natively-multimodal MoE decoder.
+#
+# 66-layer decoder-only transformer with a packed-expert MoE backbone (6 of
+# 256 routed experts + 2 always-on shared experts) and a NOVEL attention
+# (no RoPE): GQA + per-head QK-RMSNorm + depthwise short-convs on the QKV
+# path + a learned relative-position branch (wr_du / rel_logits_proj).
+#
+# Heterogeneity:
+#   - Attention: 55 LOCAL (sliding-window s_window=512, swa_num_key_value_heads=16)
+#     + 11 GLOBAL (full, num_key_value_heads=8). Global = every 6th layer
+#     (index == 5 mod 6); this exactly reproduces the complement of
+#     config.text_config.local_layer_ids (the schedule below encodes it).
+#   - FFN: first Dmi=2 layers dense fused-SwiGLU (dense_mlp_idx), rest MoE.
+#
+# Stacks: llm backbone, visual (hmlp vision, singleton), audio (dmel,
+# singleton), mtp (8-layer speculative head; dense FFN, shared naming).
+#
+# All weights BF16 except the MoE router's gate.bias / gate.global_scale
+# (F32); no low-bit quantization.
+match:
+  model_type: [inkling_mm_model]
+
+dims:
+  d_model:    config.text_config.hidden_size
+  n_heads:    config.text_config.num_attention_heads
+  d_head:    config.text_config.head_dim
+  n_kv_heads:   config.text_config.num_key_value_heads
+  n_kv_heads_swa:  config.text_config.swa_num_key_value_heads
+  s_window:    config.text_config.sliding_window_size
+  s_conv_kernel:   config.text_config.sconv_kernel_size
+  d_rel_proj: config.text_config.rel_extent
+  d_rel_logits: config.text_config.d_rel
+  d_ffn:    config.text_config.dense_intermediate_size
+  d_ffn_expert:   config.text_config.intermediate_size
+  n_vocab:    config.text_config.vocab_size
+  n_layers:    config.text_config.num_hidden_layers
+  n_experts:    config.text_config.n_routed_experts
+  n_shared_experts:   config.text_config.n_shared_experts
+  n_experts_active:    config.text_config.num_experts_per_tok
+  Dmi:  config.text_config.dense_mlp_idx
+  n_mtp_layers: config.mtp_config.num_nextn_predict_layers
+  n_mel_vocab: "1280"   # n_mel_bins (80) * mel_vocab_size (16) — dmel discrete vocab
+
+view:
+  rope_theta: config.rope_theta
+  rope_scaling: config.rope_scaling
+  hidden_act: config.hidden_act
+  norm.eps: config.rms_norm_eps
+
+# Main decoder block topology (all 3 concrete variants share it):
+#   x -> attn_norm -> attn -> attn_sconv -> +res -> mlp_norm -> mlp -> mlp_sconv -> +res
+# attn_sconv / mlp_sconv (use_sconv) are short convs on each sublayer's OUTPUT,
+# before the residual add, each carrying its own residual (x + conv(x)):
+# HF modeling_inkling.py InklingDecoderLayer.forward (:574-591), vLLM
+# models/inkling/nvidia/model.py InklingDecoderLayer.forward (:213-240,
+# `_sconv_add_norm`: h = hidden + sconv(delta)). Concrete (non-param-slot)
+# blocks so the HF tensor matcher enumerates every leaf.
+# No low-bit weight quantization (all weight matrices are native BF16, no
+# quantization_config). quant_context exists only to pin the two MoE router
+# tensors that are stored as F32 on disk (gate.bias + gate.global_scale) so
+# deployment-byte accounting counts 4 bytes for them, not the BF16 default.
+quant_context:
+  per_role:
+    default: { method: none }
+  overrides:
+    - tensors_re: 'mlp\.gate\.bias$'
+      dtype: F32
+    - tensors_re: 'mlp\.gate\.global_scale$'
+      dtype: F32
+  default_dtype: BF16
+
+blocks:
+  inkling_block_local_dense:
+    graph:
+      attn_norm:  { op: rmsnorm, in: x, dim: d_model, weight_axes: [{ replicated: true }] }
+      attn:       { op: inkling_local_attention, in: attn_norm }
+      attn_sconv: { op: inkling_short_conv, in: attn, dims: { C: d_model, kernel_size: s_conv_kernel } }
+      attn_add:   { op: add, in: [x, attn_sconv], dim: d_model }
+      mlp_norm:   { op: rmsnorm, in: attn_add, dim: d_model, weight_axes: [{ replicated: true }] }
+      mlp:        { op: inkling_dense_ffn, in: mlp_norm }
+      mlp_sconv:  { op: inkling_short_conv, in: mlp, dims: { C: d_model, kernel_size: s_conv_kernel } }
+      mlp_add:    { op: add, in: [attn_add, mlp_sconv], dim: d_model }
+    outputs: [mlp_add]
+
+  inkling_block_local_moe:
+    graph:
+      attn_norm:  { op: rmsnorm, in: x, dim: d_model, weight_axes: [{ replicated: true }] }
+      attn:       { op: inkling_local_attention, in: attn_norm }
+      attn_sconv: { op: inkling_short_conv, in: attn, dims: { C: d_model, kernel_size: s_conv_kernel } }
+      attn_add:   { op: add, in: [x, attn_sconv], dim: d_model }
+      mlp_norm:   { op: rmsnorm, in: attn_add, dim: d_model, weight_axes: [{ replicated: true }] }
+      mlp:        { op: inkling_moe, in: mlp_norm }
+      mlp_sconv:  { op: inkling_short_conv, in: mlp, dims: { C: d_model, kernel_size: s_conv_kernel } }
+      mlp_add:    { op: add, in: [attn_add, mlp_sconv], dim: d_model }
+    outputs: [mlp_add]
+
+  inkling_block_global_moe:
+    graph:
+      attn_norm:  { op: rmsnorm, in: x, dim: d_model, weight_axes: [{ replicated: true }] }
+      attn:       { op: inkling_global_attention, in: attn_norm }
+      attn_sconv: { op: inkling_short_conv, in: attn, dims: { C: d_model, kernel_size: s_conv_kernel } }
+      attn_add:   { op: add, in: [x, attn_sconv], dim: d_model }
+      mlp_norm:   { op: rmsnorm, in: attn_add, dim: d_model, weight_axes: [{ replicated: true }] }
+      mlp:        { op: inkling_moe, in: mlp_norm }
+      mlp_sconv:  { op: inkling_short_conv, in: mlp, dims: { C: d_model, kernel_size: s_conv_kernel } }
+      mlp_add:    { op: add, in: [attn_add, mlp_sconv], dim: d_model }
+    outputs: [mlp_add]
+
+  # MTP block: parallel embed_norm/hidden_norm -> concat -> input_proj, then a
+  # transformer_block (novel attn + dense fused-SwiGLU FFN), the backbone's
+  # decoder layer: its short convs sit on the sublayer outputs (vLLM
+  # models/inkling/nvidia/mtp.py builds InklingDecoderLayer, force_dense_mlp).
+  inkling_mtp_local:
+    graph:
+      embed_norm:                   { op: rmsnorm, in: x, dim: d_model, weight_axes: [{ replicated: true }] }
+      hidden_norm:                  { op: rmsnorm, in: x, dim: d_model, weight_axes: [{ replicated: true }] }
+      concat:                       { op: concat, in: [embed_norm, hidden_norm], dim: "2 * d_model" }
+      input_proj:                   { op: linear, in: concat, dims: { in: "2 * d_model", out: d_model }, weight_axes: [{ replicated: true }, { replicated: true }] }
+      transformer_block.attn_norm:  { op: rmsnorm, in: input_proj, dim: d_model, weight_axes: [{ replicated: true }] }
+      transformer_block.attn:       { op: inkling_local_attention, in: transformer_block.attn_norm }
+      transformer_block.attn_sconv: { op: inkling_short_conv, in: transformer_block.attn, dims: { C: d_model, kernel_size: s_conv_kernel } }
+      attn_add:                     { op: add, in: [input_proj, transformer_block.attn_sconv], dim: d_model }
+      transformer_block.mlp_norm:   { op: rmsnorm, in: attn_add, dim: d_model, weight_axes: [{ replicated: true }] }
+      transformer_block.mlp:        { op: inkling_dense_ffn, in: transformer_block.mlp_norm }
+      transformer_block.mlp_sconv:  { op: inkling_short_conv, in: transformer_block.mlp, dims: { C: d_model, kernel_size: s_conv_kernel } }
+      mlp_add:                      { op: add, in: [attn_add, transformer_block.mlp_sconv], dim: d_model }
+    outputs: [mlp_add]
+
+  inkling_mtp_global:
+    graph:
+      embed_norm:                   { op: rmsnorm, in: x, dim: d_model, weight_axes: [{ replicated: true }] }
+      hidden_norm:                  { op: rmsnorm, in: x, dim: d_model, weight_axes: [{ replicated: true }] }
+      concat:                       { op: concat, in: [embed_norm, hidden_norm], dim: "2 * d_model" }
+      input_proj:                   { op: linear, in: concat, dims: { in: "2 * d_model", out: d_model }, weight_axes: [{ replicated: true }, { replicated: true }] }
+      transformer_block.attn_norm:  { op: rmsnorm, in: input_proj, dim: d_model, weight_axes: [{ replicated: true }] }
+      transformer_block.attn:       { op: inkling_global_attention, in: transformer_block.attn_norm }
+      transformer_block.attn_sconv: { op: inkling_short_conv, in: transformer_block.attn, dims: { C: d_model, kernel_size: s_conv_kernel } }
+      attn_add:                     { op: add, in: [input_proj, transformer_block.attn_sconv], dim: d_model }
+      transformer_block.mlp_norm:   { op: rmsnorm, in: attn_add, dim: d_model, weight_axes: [{ replicated: true }] }
+      transformer_block.mlp:        { op: inkling_dense_ffn, in: transformer_block.mlp_norm }
+      transformer_block.mlp_sconv:  { op: inkling_short_conv, in: transformer_block.mlp, dims: { C: d_model, kernel_size: s_conv_kernel } }
+      mlp_add:                      { op: add, in: [attn_add, transformer_block.mlp_sconv], dim: d_model }
+    outputs: [mlp_add]
+
+model_inputs:
+  input_ids: { kind: tokens }
+  # Audio clips per request, then each clip's length in dMel frames (one
+  # token per frame).
+  audio_codes: { kind: audio, axes: [n_aud, s_audio] }
+  # Images per request, then each image's size as the processor patchifies
+  # it: its height rounded up to a whole patch row and its width plus the
+  # one padding column of patches the processor appends.
+  pixel_values: { kind: image, axes: [n_img, img_h, img_w] }
+
+# The checkpoint keeps every module under `model.` (`model.llm.*`,
+# `model.visual.*`, `model.mtp.layers.*`).
+checkpoint: { root: model }
+
+model:
+  - { name: llm.embed, inputs: [input_ids], op: embedding, boundary_role: input_embedding, dims: { n_vocab: n_vocab, d_model: d_model }, weight_axes: [{ world: attention, parts: n_vocab, fit: pad }, { replicated: true }] }
+  - { name: llm.embed_norm, op: rmsnorm, dim: d_model, weight_axes: [{ replicated: true }], inputs: [llm.embed]}
+  # Vision tower — self-contained hmlp encoder, singleton (no repeat).
+  - name: visual
+    group: true
+    aux_kind: vision
+    layers:
+      # 40x40 patches of 3 channels, each expanded to 2 temporal copies, one
+      # row (one token) each, nph = ceil(h / 40) rows of npw = w // 40 + 1.
+      - name: visual.patchify
+        op: patchify
+        inputs: [pixel_values]
+        dims: { patch: "40", temporal: "2", channels: "3", align: "40" }
+        segment: item
+        source_anchor: "vLLM transformers_utils/processors/inkling.py:185-196 nph = ceil(height / patch_size), npw = width // patch_size + 1, patches [n, 2, patch, patch, 3]; :214 patch_size 40; models/inkling/common/towers.py:5-6 one token per image patch"
+      - { name: visual, inputs: [visual.patchify], template: inkling_vision_encoder }
+
+  # Audio encoder — dmel embedding, singleton (no repeat).
+  - name: audio
+    group: true
+    aux_kind: audio
+    layers:
+      - { name: audio, inputs: [audio_codes], template: inkling_audio_encoder }
+
+  # Image patches and audio frames overwrite their placeholder rows of the
+  # normed token embeddings before the decoder runs.
+  - { name: llm.vision_merge, op: scatter_rows_replace, inputs: [llm.embed_norm, visual],
+      prompt_slots: { domain: pixel_values, defines: true, source_anchor: "vLLM models/inkling/nvidia/model.py:606-630 embed_input_ids -> models/utils.py:636-673 _merge_multimodal_embeddings" } }
+  - { name: llm.audio_merge, op: scatter_rows_replace, inputs: [llm.vision_merge, audio],
+      prompt_slots: { domain: audio_codes, defines: true, source_anchor: "vLLM models/inkling/nvidia/model.py:606-630 embed_input_ids -> models/utils.py:636-673 _merge_multimodal_embeddings; models/inkling/common/towers.py:5-6 one token per audio frame" } }
+  - name: llm.layers
+    inputs: [llm.audio_merge]
+    repeat: n_layers
+    streams:
+      hidden: { carries: true }
+    per_layer:
+      assign:
+        - { type: local_dense, range: ["0", "Dmi - 1"] }
+        - { type: global_moe,  stride: "6", offset: "5" }
+        - { type: local_moe,   rest: true }
+      map:
+        local_dense: { template: inkling_block_local_dense }
+        global_moe:  { template: inkling_block_global_moe }
+        local_moe:   { template: inkling_block_local_moe }
+  - { name: llm.norm, op: rmsnorm, dim: d_model, weight_axes: [{ replicated: true }] , inputs: [llm.layers]}
+  - { name: llm.unembed, op: linear, boundary_role: output_head, dims: { in: d_model, out: n_vocab }, weight_axes: [{ world: attention, parts: n_vocab, fit: pad }, { replicated: true }] , inputs: [llm.norm]}
+
+  # MTP speculative head — 8 layers, heterogeneous attention (mtp local_layer_ids
+  # marks indices 1 and 3 as global), dense FFN throughout.
+  - name: mtp
+    group: true
+    aux_kind: mtp
+    checkpoint: { prefix: model.mtp.layers, index: local }
+    inputs: [llm.norm]
+    layers:
+      - name: layers
+        inputs: [llm.norm]
+        repeat: n_mtp_layers
+        streams:
+          hidden: { carries: true }
+        per_layer:
+          assign:
+            - { type: mtp_global, layers: ["1", "3"] }
+            - { type: mtp_local,  rest: true }
+          map:
+            mtp_global: { template: inkling_mtp_global }
+            mtp_local:  { template: inkling_mtp_local }
+      # MTP logits use the target LM head, once per depth (vLLM models/inkling/nvidia/mtp.py compute_logits).
+      - { name: mtp_logits, op: linear, boundary_role: output_head, repeat: n_mtp_layers, dims: { in: d_model, out: n_vocab }, weight_axes: [{ world: attention, parts: n_vocab, fit: pad }, { replicated: true }], tied_weight: { to: llm.unembed } , inputs: [layers]}

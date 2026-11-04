@@ -1,0 +1,9 @@
+schema: huggingarch.claims/v1
+subject: kimi_k3_kda_attention
+axioms:
+  checks:
+  - kind: kv_growth
+    storage: constant_state
+    src: 'Kimi-K3 KDA — Kimi Delta Attention keeps a fixed per-request recurrent (conv
+      + delta) state; it does not append a K/V per token. The fixed state is declared
+      by cache.entries[].state.'

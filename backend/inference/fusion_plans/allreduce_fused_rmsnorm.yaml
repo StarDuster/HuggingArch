@@ -1,0 +1,52 @@
+# AllReduce-fused residual RMSNorm — TP>1 variant of `fused_add_rmsnorm`.
+#
+# Naive subgraph (the 3-op chain after a row-parallel linear's
+# partial_sum output at TP > 1):
+#
+#   allreduce: y = ring_all_reduce(x_partial)
+#   add:       z = y + residual            # in-place into residual
+#   rmsnorm:   out = rmsnorm(z, weight)
+#
+# vLLM ships ONE custom CUDA kernel for the whole chain
+# (`flashinfer_allreduce_residual_rmsnorm`) and sglang ships the
+# equivalent (`tensor_model_parallel_fused_allreduce_rmsnorm`,
+# delegating to FlashInfer or to its own AITER path on AMD). The
+# fused kernel avoids the two intermediate HBM write/read pairs that
+# vanilla allreduce → add → rmsnorm would incur.
+#
+# Relationship to `fused_add_rmsnorm`
+# -----------------------------------
+# `fused_add_rmsnorm` matches the 2-op `(add, rmsnorm)` chain that
+# appears at TP=1 (no allreduce present). `allreduce_fused_rmsnorm`
+# adds the upstream `all_reduce` node to the pattern, so it ONLY
+# matches at TP>1 (the comm node only exists after the
+# parallelism-comm injection pass).
+#
+# The matcher's specificity sort puts higher-arity patterns
+# first; the 3-node `allreduce_fused_rmsnorm` consumes the chain
+# before `fused_add_rmsnorm` (2 nodes) gets a chance. At TP=1 the
+# all_reduce node doesn't exist, so the larger pattern can't
+# match and `fused_add_rmsnorm` fires instead. The two plans
+# specialize on disjoint deployment configurations without binding-
+# yaml ordering hacks.
+#
+# Cost preservation: Cost.combine sums each matched value. The all_reduce contributes 0 FLOPs but
+# real `access_bytes` (NCCL ring traffic), which the fused leaf
+# inherits.
+
+fused_op: allreduce_fused_rmsnorm
+
+naive_pattern:
+  nodes:
+    allreduce: { op: all_reduce, inputs: [external.partial] }
+    # Input order matches the spec's `add(residual, sub_output)`
+    # positional convention — same as `fused_add_rmsnorm.yaml` —
+    # so the matcher binds position 0 to the residual and position 1
+    # to the post-all_reduce activation.
+    add:       { op: add,        inputs: [external.residual, allreduce.out] }
+    rmsnorm:   { op: rmsnorm,    inputs: [add.out] }
+  io_mapping:
+    partial:       external.partial
+    residual:      external.residual
+    output:        rmsnorm.out
+    residual_out:  add.out

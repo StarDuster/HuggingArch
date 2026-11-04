@@ -1,0 +1,10 @@
+schema: huggingarch.claims/v1
+subject: mla_output_gate_attention
+axioms:
+  checks:
+  - kind: kv_growth
+    storage: per_token
+    expect: d_kv_lora + d_qk_rope
+    src: Kimi-K3 gated MLA — latent KV cache grows per token; per position is the
+      MQA latent d_kv_lora (kv_lora_rank) + decoupled RoPE key d_qk_rope (qk_rope_head_dim),
+      shared across heads.

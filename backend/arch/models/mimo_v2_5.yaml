@@ -1,0 +1,369 @@
+# MiMo-V2.5 (Xiaomi multimodal). ~310B total / ~15B active MoE.
+# Hybrid 48-layer text backbone + vision tower (28 ViT blocks) + audio
+# encoder (6 Qwen2-style layers + projection) + 20 speech embedding
+# banks + 3-layer MTP head.
+#
+# Shares model_type=mimo_v2 with `mimo_v2_5_pro` (text-only, no
+# vision_config); each identity file names its variant via `base:`.
+#
+# Text backbone uses MiMo-V2.5-Pro-style fused QKV. Layer 0 has dense
+# SwiGLU FFN. Layers at hybrid_layer_pattern==0 (5, 11, 17, 23, 29, 35,
+# 41, 47) keep full GQA but switch to MoE. All other 39 layers use SWA
+# + sink + MoE. MTP head (3 layers) is SWA + sink as well. KV-head count
+# splits by attention class: full-GQA layers store qkv_proj=[4096, 13568]
+# (n_kv_heads = num_key_value_heads = 4), SWA + MTP layers store
+# qkv_proj=[4096, 14848] (n_kv_heads = swa_num_key_value_heads = 8). MTP wraps
+# each block with parallel enorm/hnorm → concat → eh_proj and a trailing
+# final_layernorm.
+#
+# Vision tower (visual.*): 28 ViT blocks (4 full-attention at indices
+# 0, 9, 18, 27; 24 windowed with per-head sinks at the rest), fused
+# biased GQA (n_vis_heads=32, n_vis_kv_heads=8, d_vis_head=64), biased SwiGLU MLP. Merger:
+# rmsnorm + 2 linears (5120 → 5120 → 4096 = text d_model). Patch embed is a
+# Conv3d projection over (n_vis_channels=3) × (s_patch_temporal=2) × (s_patch=16) × (s_patch=16) input.
+#
+# Audio encoder: 6 Qwen2-style layers (d_audio_model=1024, n_audio_heads=16, d_audio_head=64, d_audio_ffn=4096)
+# with biased Q/K/V Linears + un-biased O projection. Followed by an
+# input_local_transformer.norm + a 2-linear projection (d_model → 4H → d_model).
+#
+# Speech embeddings: 20 banks of Embedding(n_speech_vocab=1280, d_audio_model=1024).
+
+match:
+  model_type: [mimo_v2]
+
+components:
+  attention: gqa_partial_rope_fused_qkv_vscale_attention
+  attention_swa: swa_partial_rope_sink_fused_qkv_vscale_attention
+  ffn_dense: swiglu_ffn
+  ffn_moe: moe_ffn_gate_routing_bias
+  norm: rmsnorm
+  block: pre_norm
+
+dims:
+  # Text backbone
+  d_model:    config.hidden_size
+  n_heads:    config.num_attention_heads
+  n_kv_heads:   config.num_key_value_heads
+  n_kv_heads_swa:  config.swa_num_key_value_heads ?? n_kv_heads
+  d_head:    config.head_dim
+  d_v_head:   config.v_head_dim ?? d_head
+  d_rope:   "(d_head * 334) // 1000"               # int(d_head * partial_rotary_factor) = int(192 * 0.334) = 64
+  d_nope:   "d_head - d_rope"
+  s_window:    config.sliding_window ?? "128"
+  d_ffn:    config.intermediate_size
+  d_ffn_expert:   config.moe_intermediate_size
+  n_vocab:    config.vocab_size
+  n_layers:    config.num_hidden_layers
+  n_experts:    config.n_routed_experts
+  n_experts_active:    config.num_experts_per_tok
+  n_shared_experts:   config.n_shared_experts ?? "0"
+  # Read from config, no fallback: MiMoV2Config defaults both to None, and every shipped config sets both.
+  n_expert_groups:   config.n_group
+  n_groups_active:   config.topk_group
+  n_mtp_layers: config.num_nextn_predict_layers ?? "3"
+
+  # Vision tower
+  d_vis_model:   config.vision_config.hidden_size
+  n_vis_heads:   config.vision_config.num_heads
+  n_vis_kv_heads:  config.vision_config.num_key_value_heads
+  d_vis_head:  "64"                                # vision head_dim = 64 (not d_vis_model/n_vis_heads = 40)
+  # Windowed vision blocks see w = visual_token_window_size keys each side.
+  s_vis_window_reach: config.vision_config.visual_token_window_size
+  s_vis_window: "2 * s_vis_window_reach + 1"
+  d_vis_ffn:   config.vision_config.intermediate_size
+  n_vis_layers:   config.vision_config.depth
+  n_vis_channels:   config.vision_config.in_chans
+  s_patch:   config.vision_config.patch_size
+  s_patch_temporal:   config.vision_config.temporal_patch_size
+  n_spatial_merge:   config.vision_config.spatial_merge_size
+  d_vis_merge:   "n_spatial_merge * n_spatial_merge * d_vis_model"
+
+  # Audio encoder
+  d_audio_model:   config.audio_config.input_local_dim
+  n_audio_heads:   config.audio_config.input_local_attn_heads
+  d_audio_head:  config.audio_config.input_local_head_dim
+  s_audio_window: config.audio_config.group_size   # 4 frames per bidirectional group (modeling_mimo_v2.py:538-551)
+  d_audio_ffn:   config.audio_config.input_local_intermediate_size
+  n_audio_layers:   config.audio_config.input_local_layers
+
+  # Speech embeddings — speech_vocab_size is stored as a string in config.json,
+  # bind as a literal to avoid resolver type confusion.
+  n_speech_vocab:   "1280"
+  n_speech_banks:   config.audio_config.audio_channels
+  s_max: config.max_position_embeddings
+
+view:
+  rope_theta: config.rope_theta
+  rope_scaling: config.rope_scaling
+  hidden_act: config.hidden_act
+  norm.eps: config.layernorm_epsilon
+  swa.num_heads: config.swa_num_attention_heads
+  swa.head_dim: config.swa_head_dim
+  swa.v_head_dim: config.swa_v_head_dim
+  swa.rope_theta: config.swa_rope_theta
+
+blocks:
+  # MTP layer (vLLM mimo_v2_mtp.py MiMoV2MultiTokenPredictorLayer.forward;
+  # sglang mimo_v2_nextn.py): eh_proj(cat[enorm(inputs_embeds),
+  # hnorm(previous_hidden_states)]) -> an SWA + sink pre-norm decoder layer ->
+  # final_layernorm. `inputs_embeds` is the main embed_tokens output, the
+  # hidden state the backbone's final norm. The library head holds that entry;
+  # the checkpoint names the trailing norm `final_layernorm` and the decoder's
+  # second norm `pre_mlp_layernorm`.
+  mimo_v2_5_mtp_decoder:
+    graph:
+      layer: { op: pre_norm, in: x, module: null,
+               params: { attn: swa_partial_rope_sink_fused_qkv_vscale_attention, ffn: swiglu_ffn },
+               inner_modules: { post_attention_layernorm: pre_mlp_layernorm } }
+    outputs: [layer]
+  mimo_v2_5_mtp_block:
+    inputs: [x, inputs_embeds]
+    graph:
+      layer: { op: mtp_block_shared_head, in: [x, inputs_embeds], module: null,
+               params: { inner: mimo_v2_5_mtp_decoder },
+               inner_modules: { shared_head.norm: final_layernorm } }
+    outputs: [layer]
+
+  # The audio encoder's local transformer runs on [T/G, G, D] groups of
+  # audio_config.group_size = 4 frames (modeling_mimo_v2.py:538-551) with
+  # `is_causal=not input_full_attention` = False (:979-984; vLLM
+  # mimo_audio.py:1284-1289, 1304-1335): each frame attends to exactly the 4
+  # frames of its own group, both directions. Written with the windowed ops at
+  # `s_window` = the group size, `is_causal: "0"` and `is_chunked: "1"` (fixed
+  # groups, not a sliding band) — the block-diagonal work, 2·B·H·S·G·d per
+  # score — rather than dense attention over the whole
+  # sequence; the group size is `s_audio_window`.
+  # Qwen2Attention: q/k/v biased, o_proj not; full RoPE; encoder, no cache.
+  mimo_v2_5_audio_attention:
+    description: "Biased-QKV MHA + full RoPE, bidirectional attention within fixed groups of group_size (= 4) frames (encoder, no cache)."
+    graph:
+      q_proj:          { op: linear, in: x, dims: { in: d_audio_model, out: "n_audio_heads * d_audio_head", bias: "1" }, weight_axes: [{ replicated: true }, { replicated: true }] }
+      k_proj:          { op: linear, in: x, dims: { in: d_audio_model, out: "n_audio_heads * d_audio_head", bias: "1" }, weight_axes: [{ replicated: true }, { replicated: true }] }
+      v_proj:          { op: linear, in: x, dims: { in: d_audio_model, out: "n_audio_heads * d_audio_head", bias: "1" }, weight_axes: [{ replicated: true }, { replicated: true }] }
+      q_split_heads:   { op: head_split, in: q_proj, dims: { n_heads: n_audio_heads, d_head: d_audio_head } }
+      k_split_heads:   { op: head_split, in: k_proj, dims: { n_heads: n_audio_heads, d_head: d_audio_head } }
+      v_split_heads:   { op: head_split, in: v_proj, dims: { n_heads: n_audio_heads, d_head: d_audio_head } }
+      q_rope:          { op: rope, in: q_split_heads, dim: d_audio_head }
+      k_rope:          { op: rope, in: k_split_heads, dim: d_audio_head }
+      qk_score:        { op: swa_attention_score, in: [q_rope, k_rope], dims: { n_heads: n_audio_heads, d_head: d_audio_head, s_window: s_audio_window, is_causal: "0", is_chunked: "1" }, formula: "A[g, h, i, j] = Q[g, h, i]·K[g, h, j] / sqrt(d_audio_head)   (i, j in one group of 4 frames; no causal mask)" }
+      softmax:         { op: swa_softmax, in: qk_score, dims: { n_heads: n_audio_heads, s_window: s_audio_window, is_causal: "0", is_chunked: "1" } }
+      attn_apply:      { op: swa_attention_apply, in: [softmax, v_split_heads], dims: { n_heads: n_audio_heads, d_head: d_audio_head, s_window: s_audio_window, is_causal: "0", is_chunked: "1" } }
+      o_merge_heads:   { op: head_merge, in: attn_apply, dims: { n_heads: n_audio_heads, d_head: d_audio_head } }
+      o_proj:          { op: linear, in: o_merge_heads, dims: { in: "n_audio_heads * d_audio_head", out: d_audio_model, bias: "0" }, weight_axes: [{ replicated: true }, { replicated: true }] }
+    outputs: [o_proj]
+
+  mimo_v2_5_audio_block:
+    graph:
+      input_layernorm:          { op: rmsnorm, in: x, dim: d_audio_model, weight_axes: [{ replicated: true }] }
+      self_attn:                { op: mimo_v2_5_audio_attention, in: input_layernorm }
+      post_attn_add:            { op: add, in: [x, self_attn], dim: d_audio_model }
+      post_attention_layernorm: { op: rmsnorm, in: post_attn_add, dim: d_audio_model, weight_axes: [{ replicated: true }] }
+      mlp:                      { op: swiglu_ffn, in: post_attention_layernorm, dims: { d_model: d_audio_model, d_ffn: d_audio_ffn } }
+      out:                      { op: add, in: [post_attn_add, mlp], dim: d_audio_model }
+    outputs: [out]
+
+model_inputs:
+  input_ids: { kind: tokens }
+  # Audio clips per request, then each clip's length in codec frames; each
+  # frame is one id per speech bank, read by the bank lookups. The model's
+  # forward reads the codes: the repo's modeling_mimo_v2.py `forward`
+  # (:1806-1835) hands `audio_codes` to `_get_multimodal_embeds`
+  # (:1758-1803), whose audio encoder starts at the bank lookups
+  # (`MiMoAudioEncoder.forward`, :1018-1036). The mel -> codes tokenizer is
+  # a separate model, loaded beside it (`load_audio_tokenizer`, :1716-1744,
+  # weights in the repo's `audio_tokenizer/`, outside
+  # model.safetensors.index.json) and run only by `get_audio_feature`
+  # (:992-1016), outside the forward; so the spec's boundary is the codes.
+  audio_codes: { kind: audio, axes: [n_aud, s_audio] }
+  # Images per request, then each image's processed size (a multiple of 32).
+  pixel_values: { kind: image, axes: [n_img, img_h, img_w] }
+  # Videos per request, then each video's sampled frames and processed size
+  # (the repo's forward reads `video_pixel_values` with `video_grid_thw`,
+  # modeling_mimo_v2.py:1806-1835, through the image tower, :1787-1792).
+  video_pixel_values: { kind: video, axes: [n_vid, vid_frames, vid_h, vid_w] }
+
+# The transformers base model's tensors sit under `model.`; the LM head
+# beside it declares its own path.
+checkpoint: { root: model }
+
+model:
+  - { name: embed_tokens, inputs: [input_ids], op: embedding, boundary_role: input_embedding, dims: { n_vocab: n_vocab, d_model: d_model }, weight_axes: [{ world: attention, parts: n_vocab, fit: pad }, { replicated: true }] }
+  # Vision tower — 28 ViT blocks (4 full-attn + 24 sink-windowed) +
+  # patch embed + merger.
+  - name: visual
+    group: true
+    aux_kind: vision
+    checkpoint: { prefix: visual.blocks, index: local, root: "" }
+    layers:
+      # Conv3d patch embed: weight shape [d_vis_model, n_vis_channels, s_patch_temporal, s_patch, s_patch].
+      # Count as a linear with in = n_vis_channels*s_patch_temporal*s_patch*s_patch = 3*2*16*16 = 1536.
+      # The processor resizes each image to a multiple of patch_size *
+      # merge_size = 16 * 2 = 32 (Qwen2-VL's smart_resize), repeats it into
+      # temporal_patch_size = 2 frames and cuts 16x16x2 patches of 3
+      # channels, one row each; one attention segment per temporal patch,
+      # which for an image is the whole image.
+      - name: visual.patchify
+        op: patchify
+        inputs: [pixel_values]
+        dims: { patch: s_patch, temporal: s_patch_temporal, channels: n_vis_channels, align: "s_patch * n_spatial_merge" }
+        segment: temporal_patch
+        source_anchor: "vLLM models/mimo_v2_omni.py:717-721 smart_resize with factor = patch_size * merge_size (Qwen2-VL's, :14; patch layout :69); :585-595 cu_seqlens one segment per temporal patch"
+      - { name: visual.patch_embed.proj, inputs: [visual.patchify], op: linear, dims: { in: "n_vis_channels * s_patch_temporal * s_patch * s_patch", out: d_vis_model, bias: "0" }, weight_axes: [{ replicated: true }, { replicated: true }] }
+      # Full-attention vision blocks at vision_config.fullatt_block_indexes
+      # (modeling_mimo_v2.py:821, :908) and sink-bearing windowed blocks at
+      # the remaining indices. All blocks share the HF namespace
+      # `visual.blocks.X.*`.
+      - name: visual.blocks
+        inputs: [visual.patch_embed.proj]
+        repeat: n_vis_layers
+        streams:
+          hidden: { carries: true }
+        per_layer:
+          assign:
+            - { type: full, from: config.vision_config.fullatt_block_indexes }
+            - { type: sink, rest: true }
+          map:
+            full: { template: mimo_v2_5_vision_block_full }
+            sink: { template: mimo_v2_5_vision_block_sink }
+      # MiMoVisionPatchMerger (modeling_mimo_v2.py:768-780): ln_q → view(-1,
+      # n_spatial_merge²·C) → `nn.Sequential(Linear, GELU(), Linear)`, with
+      # `self.ln_q = nn.LayerNorm(context_dim, eps=1e-6)`. The checkpoint
+      # stores only `ln_q.weight`: a LayerNorm without its bias. vLLM builds
+      # it as RMSNorm instead (mimo_v2_omni.py:431 `norm_layer =
+      # partial(RMSNorm, eps=norm_eps)`, :96 `self.ln_q = norm_layer(context_dim)`),
+      # and its mlp is the same Linear → GELU → Linear (:115-135). The
+      # checkpoint stores no mlp.0 / mlp.2 bias; `mlp.1` is the weightless GELU.
+      - { name: visual.merger.ln_q, op: layernorm, dims: { dim: d_vis_model, bias: "0" }, weight_axes: [{ replicated: true }] , inputs: [visual.blocks]}
+      - { name: visual.merger.spatial_merge, op: spatial_merge, dims: { n_spatial_merge: n_spatial_merge } , inputs: [visual.merger.ln_q]}
+      - { name: visual.merger.mlp.0, op: linear, dims: { in: "n_spatial_merge * n_spatial_merge * d_vis_model", out: d_vis_merge, bias: "0" }, weight_axes: [{ world: dense_ffn, parts: d_vis_merge, fit: exact }, { replicated: true }] , inputs: [visual.merger.spatial_merge]}
+      - { name: visual.merger.mlp.1, op: gelu, dim: d_vis_merge, inputs: [visual.merger.mlp.0] }
+      - { name: visual.merger.mlp.2, op: linear, dims: { in: d_vis_merge, out: d_model, bias: "0" }, weight_axes: [{ replicated: true }, { world: dense_ffn, parts: d_vis_merge, fit: exact }] , inputs: [visual.merger.mlp.1]}
+
+  # The videos, through the same tower with the same weights in a call of
+  # their own (modeling_mimo_v2.py:1787-1792 `self.visual(video_pixel_values,
+  # video_grid_thw)` after the images; vLLM v0.30.0 mimo_v2_omni.py:1500-1507).
+  # The processor repeats the last frame to a whole temporal patch
+  # (processors/mimo_v2_omni.py:495-508) and the tower runs one attention
+  # segment per temporal patch (mimo_v2_omni.py:602-612).
+  - { name: video, call: visual, inputs: [video_pixel_values] }
+
+  # Audio encoder — Qwen2-style 6-layer transformer + projection.
+  - name: audio
+    group: true
+    aux_kind: audio
+    # The audio tower's tensors sit at the file root (`audio_encoder.*`,
+    # `speech_embeddings.*`).
+    checkpoint: { root: "" }
+    layers:
+      # The codes are padded to a whole number of groups of group_size =
+      # s_audio_window frames by repeating the last frame, before the
+      # lookup: every padded frame is looked up in every bank.
+      - name: audio.pad
+        op: pad_rows
+        inputs: [audio_codes]
+        dims: { rows: "s_audio_window * ceiling(s_audio / s_audio_window)" }
+        source_anchor: "vLLM models/mimo_audio.py:1303-1337 process_audio: T rounded up to a multiple of group_size, padded with the last frame (:1327), reshaped [T/4, 4, channels]; :1376-1378 ceil(T/4) tokens per clip"
+      # Speech embeddings — n_speech_banks (=20) banks of Embedding(speech_vocab_size=n_speech_vocab=1280,
+      # input_local_dim=d_audio_model=1024), stored as `speech_embeddings.0.weight … .19.weight`:
+      # one repeat-bearing entry whose copies the checkpoint indexes. The
+      # encoder sums the banks (vLLM mimo_audio.py apply_speech_embeddings).
+      - { name: speech_embeddings, inputs: [audio.pad], op: embedding, dims: { n_vocab: n_speech_vocab, d_model: d_audio_model }, repeat: n_speech_banks, checkpoint: { index: local }, weight_axes: [{ replicated: true }, { replicated: true }] }
+      - { name: audio, template: mimo_v2_5_audio_encoder, inputs: [speech_embeddings] }
+  # Image and audio features overwrite their placeholder rows of the token
+  # embeddings before the decoder runs.
+  - name: vision_splice
+    op: scatter_rows_replace
+    inputs: [embed_tokens, visual.merger.mlp.2, video.merger.mlp.2]
+    prompt_slots:
+      visual.merger.mlp.2: { domain: pixel_values, defines: true, source_anchor: "vLLM models/interfaces.py:441-476 SupportsMultiModal.embed_input_ids -> models/utils.py:636-673 _merge_multimodal_embeddings inputs_embeds[is_multimodal] = mm_embeds_flat (MiMoV2OmniForCausalLM keeps the default)" }
+      video.merger.mlp.2: { domain: video_pixel_values, defines: true, source_anchor: "vLLM v0.30.0 models/mimo_v2_omni.py:1386-1390 T*(H*W)/merge^2 rows per video, merged by models/utils.py _merge_multimodal_embeddings with the images; modeling_mimo_v2.py:1787-1792 video_token_id positions" }
+  - { name: audio_splice, op: scatter_rows_replace, inputs: [vision_splice, audio],
+      prompt_slots: { domain: audio_codes, defines: true, source_anchor: "vLLM models/interfaces.py:441-476 SupportsMultiModal.embed_input_ids -> models/utils.py:636-673 _merge_multimodal_embeddings inputs_embeds[is_multimodal] = mm_embeds_flat (MiMoV2OmniForCausalLM keeps the default)" } }
+  - name: layers
+    inputs: [audio_splice]
+    repeat: n_layers
+    streams:
+      hidden: { carries: true }
+    per_layer:
+      assign:
+        # Layers with moe_layer_freq == 0 (layer 0): full GQA + dense SwiGLU FFN (no sink)
+        - { type: gqa_dense, from: config.moe_layer_freq, is: '0' }
+        # Full GQA + MoE FFN at hybrid_layer_pattern==0 positions (8 layers, n_kv_heads=4)
+        - { type: gqa_moe,   from: config.hybrid_layer_pattern, is: '0' }
+        # Remaining 39 layers: SWA + sink + MoE.
+        - { type: swa_moe,   from: config.hybrid_layer_pattern, is: '1' }
+        - { type: swa_moe,   from: config.moe_layer_freq, is: '1' }
+      map:
+        gqa_dense: { attention: gqa_partial_rope_fused_qkv_vscale_attention, ffn: swiglu_ffn }
+        gqa_moe:   { attention: gqa_partial_rope_fused_qkv_vscale_attention, ffn: moe_ffn_gate_routing_bias }
+        # n_kv_heads=n_kv_heads_swa=8 on disk (qkv_proj=[4096, 14848]); same per-class override
+        # as the MTP block below.
+        swa_moe:   { attention: swa_partial_rope_sink_fused_qkv_vscale_attention, ffn: moe_ffn_gate_routing_bias, dims: { n_kv_heads: n_kv_heads_swa } }
+  - { name: norm, op: rmsnorm, dim: d_model, weight_axes: [{ replicated: true }] , inputs: [layers]}
+  # MiMoV2ForCausalLM `_tied_weights_keys = {"lm_head.weight":
+  # "model.embed_tokens.weight"}` (modeling_mimo_v2.py:1687): tied when
+  # config.tie_word_embeddings (false in every shipped config).
+  - { name: lm_head, op: linear, checkpoint: { path: lm_head }, boundary_role: output_head, dims: { in: d_model, out: n_vocab }, weight_axes: [{ world: attention, parts: n_vocab, fit: pad }, { replicated: true }], tied_weight: { to: embed_tokens, when: config.tie_word_embeddings }, inputs: [norm]}
+
+  # MTP head — 3 layers.
+  - name: mtp
+    group: true
+    aux_kind: mtp
+    checkpoint: { prefix: model.mtp.layers, index: local }
+    inputs: [norm]
+    layers:
+      # The MTP layer is a windowed layer and stores that class's KV-head
+      # count; the rebinding is the backbone's `swa_moe` row's.
+      - name: layers
+        repeat: n_mtp_layers
+        inputs: [norm, embed_tokens]
+        streams: { hidden: { carries: true } }
+        per_layer:
+          assign:
+            - { type: mtp, rest: true }
+          map:
+            mtp: { template: mimo_v2_5_mtp_block, dims: { n_kv_heads: n_kv_heads_swa } }
+      # MTP logits use the main lm_head, once per MTP layer (vLLM mimo_v2_mtp.py compute_logits).
+      - { name: mtp_logits, op: linear, boundary_role: output_head, repeat: n_mtp_layers, dims: { in: d_model, out: n_vocab }, weight_axes: [{ world: attention, parts: n_vocab, fit: pad }, { replicated: true }], tied_weight: { to: lm_head } , inputs: [layers]}
+
+# FP8-E4M3 + per-128×128-tile F32 scale for main backbone weights only.
+# Vision tower, audio encoder, speech embeddings stay BF16. Router gate
+# and e_score_correction_bias are F32 (as in V2.5-Pro).
+# o_proj.weight in main + MTP is BF16 (config.quantization_config.ignored_layers):
+# the `attention_output` role.
+quant_context:
+  per_role:
+    # The FULL-attention class only. Its fused QKV is blocked per SEGMENT,
+    # each ceil-padded on its own, with the K segment blocked per head inside
+    # that: 96 + 4x2 + 4 = 108 rows where the flat rule gives
+    # ceil(13568/128) = 106, and the file says [108, 32].
+    #
+    # Scoped by ROLE rather than by tensor name, and it has to be: the windowed
+    # class holds the same leaf under the same name, differing only in
+    # `n_kv_heads` (8 against 4), and its scale IS flat at 116 — a number the
+    # segmented expression cannot produce for either class. The spec already
+    # separates them, giving the windowed component the `attention_swa` slot,
+    # so `per_role` can say two different things where a name pattern could
+    # say only one.
+    attention: { method: fp8, block_h: 128, block_w: 128,
+                 scale_shape: ["((n_heads * d_head + block_h - 1) // block_h)
+                                + n_kv_heads * ((d_head + block_h - 1) // block_h)
+                                + ((n_kv_heads * d_v_head + block_h - 1) // block_h)",
+                               "(in + block_w - 1) // block_w"] }
+    # Flat, and therefore nothing to declare — it falls through to the scheme.
+    attention_swa: { method: fp8, block_h: 128, block_w: 128 }
+    ffn_dense: { method: fp8, block_h: 128, block_w: 128 }
+    ffn_moe:   { method: fp8, block_h: 128, block_w: 128 }
+    attention_output: { method: none }
+    router:    { method: none, dtype: F32 }
+    default:   { method: none }
+  overrides:
+    - tensors_re: 'mlp\.gate\.e_score_correction_bias$'
+      dtype: F32
+    - tensors_re: '^visual\.'
+      dtype: BF16
+    - tensors_re: '^audio_encoder\.'
+      dtype: BF16
+    - tensors_re: '^speech_embeddings\.'
+      dtype: BF16
+  default_dtype: BF16

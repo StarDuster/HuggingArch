@@ -1,0 +1,12 @@
+# Provider env: fa2 — GENERATED from the library registry (`python -m kernel_bench envs`). Edit the provider, not this file.
+# Measure just this env (uv resolves+caches the deps, no venv):
+#   PYTHONPATH=. uv run --no-project --with-requirements kernel_bench/envs/fa2.txt \
+#       -- python -m kernel_bench run --jobs jobs.jsonl -o results/fa2.csv --library fa2 --skip-existing
+# Or every provider env in one command:  python -m kernel_bench run-all --jobs jobs.jsonl
+# Providers: flash_attention_v2, flash_attention_v2_kvcache
+torch>=2.5
+pydantic
+pyyaml
+huggingface-hub
+httpx
+flash-attn>=2.6,<3

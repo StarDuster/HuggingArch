@@ -1,0 +1,26 @@
+# Qwen3.8 Hyper-Connection mix activation: silu(x / hc_count) in one launch.
+#
+# Naive subgraph (qwen_hc_*_block, the model-level hyper_connection_mixer):
+# attn_mix_scale / mlp_mix_scale (scale_const, y = x / n_hidden_copies) and
+# attn_mix_act / mlp_mix_act (silu), between the low-rank down and up
+# projections.
+#
+# vLLM (v0.32.0): `hc_silu` (models/qwen4_exp/nvidia/ops/hc.py:461, kernel
+#   `_hc_silu_kernel` :82, `/ HC` and silu at :100-101), from
+#   hyperconnection.py:142 / :159 (`_down_and_inject`, from :171 / :199), both phases; on SM90+ with BF16 weights and 1-48 tokens the combine-path call becomes the fused down-GEMM+SiLU `hc_down_silu` (:144-155; ops/cute_dsl/hc_down_silu.py:27), billed unfused here. Called only by the Qwen4Exp
+#   model, hence the binding's `architectures`.
+# sglang (v0.5.22): NOT bound — the read is one fused chain there (the
+#   persistent `fused_hc_mix`, kernels/ops/gemm/hc_mix.py:182; the SM100
+#   split-K `hc_mix`, kernels/ops/elementwise/hc_mix.py:72; else
+#   torch.compile) and the silu rides a GEMM epilogue, so no launch exists
+#   at this boundary (the audit in providers/hc.py).
+
+fused_op: hc_silu
+
+naive_pattern:
+  nodes:
+    scale: { op: scale_const, inputs: [external.x] }
+    silu:  { op: silu,        inputs: [scale.out] }
+  io_mapping:
+    x:      external.x
+    output: silu.out

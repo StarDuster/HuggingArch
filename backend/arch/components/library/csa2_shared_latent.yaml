@@ -1,0 +1,18 @@
+# The compressed latent a layer that is NOT a kv source has: the one the
+# nearest kv source published. `Attention._compress_kv` leaves its own
+# `latent = None` in that case (source/model.py:744-748 — the compressor
+# runs only `if self.is_kv_source`) and reads the shared buffer instead, so
+# this is that read, standing where a `Compressor` stands on a source layer.
+#
+# One view, no weights, no buffer: the rows arrive with the read law the kv
+# source's cached node states (the stream carries it), and the rows
+# themselves are the kv source's storage. `x` is the formal the `compressor` slot passes — a Compressor's
+# input, which this form does not look at.
+#
+# Required dims: none of its own.
+
+description: "CSA2 shared compressed latent: the rows the nearest kv-source layer published, read where a Compressor would stand. No weights, no cache."
+reads: [compress_kv]
+graph:
+  rows: { op: identity, in: compress_kv, formula: "shared_attn.compress_kv   (source/model.py:748 publishes the kv source's buffer; this layer has no compressor of its own, source/model.py:744-746)" }
+outputs: [rows]

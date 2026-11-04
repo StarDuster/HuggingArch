@@ -1,0 +1,32 @@
+# Vision-Transformer attention with FUSED QKV projection
+#
+# Single linear produces [d_model, 3*d_model] (Q, K, V concatenated), split into heads,
+# optional 2D RoPE applied to Q/K, standard dot-product attention, out_proj.
+# Assumes plain MHA (n_kv_heads = n_heads); no GQA / no Q-/KV-compression.
+#
+# Required dims: d_model, n_heads, d_head   (d_head = d_model // n_heads)
+# Optional dims: Fb (bias flag on qkv/out linears; default 0)
+
+role: attention
+description: "ViT-style attention with biased QKV/proj projections. Vision encoders."
+cache:
+  family: ViT
+  entries: []
+graph:
+  wqkv:           { op: linear, in: x, dims: { in: d_model, out: "3 * d_model", bias: Fb }, weight_axes: [{ segments: [{ segment: q, extent: d_model, world: attention, parts: n_heads, fit: replica_cells }, { segment: k, extent: d_model, world: attention, parts: n_heads, fit: replica_cells }, { segment: v, extent: d_model, world: attention, parts: n_heads, fit: replica_cells }] }, { replicated: true }] }
+  # Split the fused projection three ways along the last dim.
+  q_flat:         { op: slice, in: wqkv, dims: { in: "3 * d_model", out: d_model } }
+  k_flat:         { op: slice, in: wqkv, dims: { in: "3 * d_model", out: d_model } }
+  v_flat:         { op: slice, in: wqkv, dims: { in: "3 * d_model", out: d_model } }
+  q_split_heads:      { op: head_split, in: q_flat, dims: { n_heads: n_heads, d_head: d_head } }
+  k_split_heads:      { op: head_split, in: k_flat, dims: { n_heads: n_heads, d_head: d_head } }
+  v_split_heads:      { op: head_split, in: v_flat, dims: { n_heads: n_heads, d_head: d_head } }
+  q_rope:         { op: rope, in: q_split_heads, dim: d_head }
+  k_rope:         { op: rope, in: k_split_heads, dim: d_head }
+  # Bidirectional: every query sees every key of its image (a ViT encoder attention: no causal mask (vLLM MMEncoderAttention, vit_attn_wrappers.py:71,185,368 causal=False)).
+  qk_score:       { op: attention_score, in: [q_rope, k_rope], dims: { is_causal: "0", n_heads: n_heads, d_head: d_head } }
+  softmax:        { op: softmax, in: qk_score, dims: { is_causal: "0", n_heads: n_heads } }
+  attn_apply:     { op: attention_apply, in: [softmax, v_split_heads], dims: { is_causal: "0", n_heads: n_heads, d_head: d_head } }
+  o_merge_heads:      { op: head_merge, in: attn_apply, dims: { n_heads: n_heads, d_head: d_head } }
+  wo:             { op: linear, in: o_merge_heads, dims: { in: d_model, out: d_model, bias: Fb }, weight_axes: [{ replicated: true }, { world: attention, parts: n_heads, fit: replica_cells }] }
+outputs: [wo]

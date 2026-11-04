@@ -1,0 +1,4 @@
+description: "NVFP4 (E2M1) activations, one dynamic E4M3 scale per 16 elements plus one F32 per tensor."
+source: "NVFP4 W4A4 (E2M1 data, E4M3 block scale per 16, F32 global scale)"
+dtype: FP4_E2M1
+scale: { granularity: per-group, group: 16, dtype: F8_E4M3 }

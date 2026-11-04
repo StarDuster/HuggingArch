@@ -1,0 +1,43 @@
+# DeepSeek-V4's sqrt-softplus top-K router with a selection bias — one launch
+# from the router logits to the top-k ids and weights.
+#
+# Naive subgraph (dsv4_moe_sigmoid — DeepSeek-V4-Flash / -Pro, its MTP layer):
+#
+#   s   = sqrt(softplus(gating))
+#   idx = topk(s + bias)
+#   w   = gather(s, idx)
+#   w   = w / sum(w) * routed_scaling_factor
+#
+#   vLLM (audited at v0.32.0): `FusedTopKBiasRouter` (scoring "sqrtsoftplus",
+#     models/deepseek_v4/nvidia/model.py:879-888) → `fused_topk_bias`
+#     (fused_moe/router/fused_topk_bias_router.py:179-199) → `dsv4_topk`, the
+#     Triton `_dsv4_topk_kernel` (dsv4_topk.py:41-113: softplus, sqrt, bias,
+#     top-6, renorm and scale in one program) when `can_use_dsv4_topk` holds
+#     (:15-35: CUDA, fp32 logits, 256 or 384 experts, top-6, renormalise —
+#     both V4 checkpoints), else `ops.topk_hash_softplus_sqrt` without a
+#     table (:92; csrc/moe/topk_softplus_sqrt_kernels.cu:245,
+#     the same steps in one CUDA kernel). Either way one launch with this
+#     boundary, so the binding asks nothing about expert count or k.
+#   sglang (audited at v0.5.22): `select_experts` → `biased_topk_jit_kernel_impl`
+#     (srt/layers/moe/topk.py:2714, :1471) → `moe_fused_gate(...,
+#     scoring_func="sqrtsoftplus")` (kernels/ops/moe/moe_fused_gate.py:192-204).
+#     The routed scale is applied in that launch or folded into the MoE output
+#     (`apply_routed_scaling_factor_on_output`, srt/models/deepseek_v2.py:781).
+#
+# Same boundary in prefill and decode.
+
+fused_op: moe_topk_sqrtsoftplus
+
+naive_pattern:
+  nodes:
+    softplus: { op: softplus,          inputs: [external.gating] }
+    score:    { op: sqrt,              inputs: [softplus.out] }
+    biased:   { op: add,               inputs: [score.out, external.bias] }
+    topk:     { op: topk,              inputs: [biased.out] }
+    gather:   { op: gather,            inputs: [score.out, topk.out] }
+    norm:     { op: normalize_sum_one, inputs: [gather.out] }
+    scale:    { op: scale_const,       inputs: [norm.out] }
+  io_mapping:
+    gating: external.gating
+    bias:   external.bias
+    output: scale.out

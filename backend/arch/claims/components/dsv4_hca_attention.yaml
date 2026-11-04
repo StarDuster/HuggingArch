@@ -1,0 +1,16 @@
+schema: huggingarch.claims/v1
+subject: dsv4_hca_attention
+axioms:
+  checks:
+  - kind: kv_growth
+    node: kv_concat
+    storage: windowed
+    bound: s_window
+    src: 'model.py::Attention.forward — the SWA latent KV is sliding-window: cached
+      positions = min(s_ctx, s_window).'
+  - kind: kv_growth
+    node: compressor.pooled_out
+    storage: per_token
+    src: model.py::Compressor (non-overlap, compress_ratio=128) — stores ⌈s_ctx/128⌉
+      positions and keeps ALL of them; the cache grows with the sequence, unlike the
+      SWA stream beside it. HCA has no indexer.

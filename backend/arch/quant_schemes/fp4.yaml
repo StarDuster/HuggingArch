@@ -1,0 +1,60 @@
+# FP4 — generic FP4-E2M1 quant with packing into I8 / U8 storage and
+# `.scale` sibling tensors (NVFP4-style naming).
+#
+# NOT a transformers main_classes entry; closest HF Config is
+# `Mxfp4Config` (its own scheme yaml — uses per-projection
+# `_blocks` / `_scales` naming, different tensor layout). This
+# scheme covers FP4 deployments that follow the simpler dot-suffix
+# convention (`<linear>.weight` packed in I8, `<linear>.scale` as
+# UE8M0). Triggered ONLY via `model.quant_context.per_role` because
+# no standard `quant_method: fp4` field exists in HF configs.
+description: "FP4-E2M1 packed 2-per-byte with `.scale` UE8M0 sibling (NVFP4-style)."
+
+# No HF `quant_method: fp4` field exists; this scheme is only reached
+# via `model.quant_context.per_role[<role>].method = fp4`. There is
+# no config.json signal — auto-detection at HF-fetch time can't trip
+# it.
+num_bits:
+  fixed: 4
+badge: FP4
+
+format_variants:
+  default:
+    # FP4 always packs 2 elements per byte.
+    packing_factor: 2
+    storage_dtype: I8
+    weight_storage_suffix: ".weight"
+
+numeric_format: [fp_e2m1]
+numeric_format_resolver:
+  - { when: "true", format: fp_e2m1 }
+
+scale_strategy: [group]
+
+metadata_siblings:
+  - suffix: ".scale"
+    kind: scale
+    shape_per_strategy:
+      # One scale per contiguous input group for every stored output row.
+      group: ["out", "(in + group_size - 1) // group_size"]
+    dtype: F8_E8M0FNU                              # UE8M0 (NVFP4 / DSv4 convention)
+
+required_fields: [group_size]
+valid_status: [compressed, frozen]
+
+# The activation operand of an FP4 weight's matmul is FP8, not FP4: DeepSeek's
+# `linear()` quantises it with the same `act_quant` the FP8 path uses and calls
+# `fp4_gemm`, which handles the mixed precision — V4
+# `inference/model.py:112-115`, V4.1 :185-195 ("both fp4 and fp8 weights take
+# an fp8 one -- for fp4 the kernel handles the mixed precision"). The K block
+# is the repo's own activation constant, which is not the FP4 weight's group:
+# V4 quantises over 128 (`block_size`, model.py:17), V4.1 over 32
+# (`fp8_block_size`, :27). A spec states it where it is not 128.
+activation:
+  reference:
+    - { when: "act_group == 32", format: fp8_token_group32_ue8m0 }
+    - { when: "true", format: fp8_token_group128_ue8m0 }
+
+optional_fields: [act_group]
+default_fields:
+  act_group: 128

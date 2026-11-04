@@ -1,0 +1,9 @@
+schema: huggingarch.claims/v1
+subject: mla_dsa_attention_shared
+axioms:
+  checks:
+  - kind: kv_growth
+    storage: per_token
+    src: model.py::MLA.forward — DSA STORES the full latent KV per token (no eviction);
+      sparsity is read-side only (top-K). Store-full, read-sparse. Shared layers store
+      the MLA latent but NOT an indexer key.

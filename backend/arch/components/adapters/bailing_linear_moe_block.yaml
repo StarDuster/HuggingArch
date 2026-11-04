@@ -1,0 +1,17 @@
+# Bailing-MoE V2.5 (Ling-2.6) linear-attention MoE decoder block.
+# Used at the majority of main-backbone layers: 66 of 80.
+# Pre_norm whose attention the checkpoint stores under `attention`.
+role: block
+description: "Bailing-MoE V2.5 linear-attention MoE layer: pre-norm + GLA attention + moe_ffn_gate_expert_bias, naming its attention `attention` as the checkpoint does."
+
+graph:
+  layer:
+    module: null
+    op: pre_norm
+    in: x
+    params:
+      attn: gla_qknorm_partial_rope_sigmoid_gated_attention
+      ffn:  moe_ffn_gate_expert_bias
+    inner_modules:
+      self_attn: attention
+outputs: [layer]

@@ -1,0 +1,42 @@
+# MoE FFN with noaux_tc sigmoid routing + per-expert correction bias, whose
+# routed and shared experts are clamped SwiGLUs.
+# First observed in: GLM-5.3 (zai-org/GLM-5.3-Flash, config swiglu_limit 10.0).
+#
+# Same topology as `moe_ffn_gate_routing_bias` (router_noaux_tc gate, routed
+# expert bank, always-on shared experts, final add), with `swiglu_ffn_clamped`
+# in place of `swiglu_ffn` for both expert kinds. The clamps sit inside each
+# expert, between its projections and its gating, so no binding on
+# `moe_ffn_gate_routing_bias` reaches them; that is what makes this a
+# component of its own.
+#
+# Serving source: sglang serves the GLM-5 family (GlmMoeDsaForCausalLM,
+# models/glm4_moe.py:1447) through models/deepseek_v2.py. DeepseekV2MoE
+# (deepseek_v2.py:555) builds the routed experts with
+# `swiglu_limit=getattr(config, "swiglu_limit", None)` (deepseek_v2.py:659)
+# and the shared experts as DeepseekV2MLP with the same limit
+# (deepseek_v2.py:747). DeepseekV2MLP.forward applies it as
+# `gate.clamp(max=limit)`, `up.clamp(min=-limit, max=limit)` before
+# silu-and-mul (deepseek_v2.py:441-452, the `silu_and_mul_clamp` launch).
+# Routing is the DeepSeek-V3 noaux_tc pipeline (MoEGate with
+# e_score_correction_bias), as in `moe_ffn_gate_routing_bias`.
+#
+# HF tensor naming this matches (identical to moe_ffn_gate_routing_bias):
+#   <moe>.gate.weight                  → router_noaux_tc.gate (linear)
+#   <moe>.gate.e_score_correction_bias → router_noaux_tc.gate.e_score_correction_bias
+#   <moe>.experts.X.{gate,up,down}_proj.weight  → experts.* (×n_experts)
+#   <moe>.shared_experts.{gate,up,down}_proj.weight (n_shared_experts copies)
+#
+# Required dims: d_model, d_ffn_expert, n_experts, n_experts_active, clamp_limit
+# Optional dims: n_shared_experts (shared experts), n_route_targets (the gate's width, derived),
+#                n_expert_groups (n_group), n_groups_active (topk_group) — required, the router reads them
+
+role: ffn_moe
+description: "MoE + noaux_tc routing (sigmoid + e_score_correction_bias under gate), routed + shared experts each a clamped SwiGLU (swiglu_limit). GLM-5.3."
+graph:
+  gate:           { op: router_noaux_tc, in: x }
+  permute:        { op: permute, in: [x, gate] }
+  experts:        { op: clamped_gated_experts, role: ffn_moe, in: permute, dims: { d_model: d_model, d_ffn: d_ffn_expert }, expert_weight: unrolled }
+  combine:        { op: combine, in: [experts, gate] }
+  shared_experts: { op: swiglu_ffn_clamped, role: ffn_moe, in: x, dims: { d_model: d_model, d_ffn: d_ffn_expert }, repeat: n_shared_experts }
+  moe_out:        { op: add, in: [combine, shared_experts], dim: d_model }
+outputs: [moe_out]

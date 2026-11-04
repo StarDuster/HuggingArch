@@ -1,0 +1,14 @@
+# Provider env: flashmla — SOURCE BUILD, provisioned OUT OF BAND.
+# GENERATED from the provider registry (`python -m kernel_bench envs`). Edit the provider, not this file.
+# Import gate (what availability checks, and what the build actually needs): flash_mla
+# Providers: flashmla_decode, flashmla_sparse, flashmla_sparse_fp8
+#
+# pip install from github.com/deepseek-ai/FlashMLA (no PyPI release)
+#
+# The lines below are what pip CAN install. If that is only torch, this
+# library is not reproducible from the repo and someone has to build it.
+torch>=2.5
+pydantic
+pyyaml
+huggingface-hub
+httpx

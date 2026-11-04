@@ -1,0 +1,87 @@
+# Aux-loss-free top-K router fusion — sglang's `moe_fused_gate` kernel.
+#
+# Naive subgraph: the DSv3 `route_tokens_to_experts` / `MoEGate.forward`
+# pipeline from the router logits on (matched against HuggingArch's
+# `router_noaux_tc` component used by DSv3, DSv3.1, Kimi-K2/K2.5,
+# MiMo-V2, Moonlight, GLM-MoE-DSA). Nine nodes over the logits (bound as
+# `external.gating`) plus the `e_score_correction_bias` parameter (bound as
+# `external.bias`):
+#
+#   gate_sigmoid   = sigmoid(gating)
+#   scores_biased  = add(gate_sigmoid, bias_param)        ┐
+#   group_top2_sum = group_top2_sum(scores_biased)        │  fan-out:
+#   group_topk     = topk(group_top2_sum)                 │  scores_biased
+#   group_mask     = group_mask_apply(scores_biased,      │  feeds two
+#                                     group_topk)         ┘  consumers
+#   topk_indices   = topk(group_mask)                     ┐
+#   topk_gather    = gather(gate_sigmoid, topk_indices)   │  fan-out:
+#   topk_norm      = normalize_sum_one(topk_gather)       │  gate_sigmoid
+#   topk_scale     = scale_const(topk_norm)               ┘  feeds two
+#                                                            consumers
+#
+# The router GEMM (`gate = linear(x)`) is NOT in the pattern: neither
+# framework's kernel runs it. vLLM's `fused_grouped_topk(hidden_states,
+# gating_output, ...)` passes the raw logits to `ops.grouped_topk`
+# (v0.32.0 fused_moe/router/grouped_topk_router.py:29, call :44), and
+# sglang's `biased_grouped_topk_gpu(hidden_states, gating_output, ...)`
+# (v0.5.22 python/sglang/srt/layers/moe/topk.py:1777) takes them too. The
+# logits the router linear wrote are read by the fused node, and the linear
+# stays its own row.
+#
+# Matcher prerequisite: the `e_score_correction_bias` parameter is
+# defined inside the `router_noaux_tc` component (HF tensor name
+# `mlp.gate.e_score_correction_bias`) — it's "locally scoped" relative
+# to the fused subgraph's external inputs. `_absorb_locally_scoped_params`
+# pulls it into the matched chain so the plan's `external.bias` input
+# binds correctly without forcing the parameter to be exposed at the
+# parent MoE component level.
+#
+# sglang ships ONE CUDA kernel for the whole chain (gated by the
+# `topk_method: noaux_tc` / `scoring_func: sigmoid` config). vLLM
+# ships an equivalent kernel at `torch.ops._moe_C.grouped_topk`
+# (wrapper `vllm._custom_ops.grouped_topk`), which the DSv3 routing
+# path (`grouped_topk_router.grouped_topk`) dispatches into when
+# `VLLM_USE_FUSED_MOE_GROUPED_TOPK` is set on CUDA — covering
+# sigmoid + bias_add + group_top2_sum + group_topk + group_mask +
+# topk + gather + renormalize + routed_scaling as one kernel call.
+# Both frameworks are now bound; the binding-level kernel_impl
+# differs (sgl_moe_fused_gate vs vllm_moe_c_grouped_topk) but the
+# 9-node naive subgraph is identical.
+#
+# Cost preservation: Cost.combine sums each matched value.
+# sibling's per-op flops/access_bytes. router work is
+# O(B·s_ctx·n_route_targets), which is tiny vs the expert MLP path
+# (O(B·s_ctx·n_experts_active·d_model·d_ffn_expert)) — the value of this
+# fusion is in HBM round-trip savings, which traffic rebasing accounts
+# for via the leaves' summed access_bytes.
+#
+# sglang kernel ref (v0.5.22): the AOT `sgl-kernel/csrc/moe/moe_fused_gate.cu`
+# (and `kimi_k2_moe_fused_gate`) were retired upstream (1da7d3a50b,
+# python/sglang/srt/layers/moe/topk.py:2938-2941). On CUDA
+# `biased_grouped_topk_gpu` (topk.py:1777) runs flashinfer's
+# `fused_topk_deepseek` when its shape limits hold (topk.py:1838-1892; DSv3's
+# 256 experts in 8 groups, top-4 groups, top-8 do), else the Triton router
+# `sglang.kernels.ops.moe.moe_fused_gate.moe_fused_gate`
+# (python/sglang/kernels/ops/moe/moe_fused_gate.py:337; grouped call
+# topk.py:1894-1916, the single-group import at topk.py:2025). Each takes
+# the router logits and the bias and returns the top-k ids and weights in one
+# launch, so which one runs moves neither this plan's boundary nor its
+# traffic; it is the binding's `kernel_impl`.
+
+fused_op: moe_fused_gate
+
+naive_pattern:
+  nodes:
+    gate_sigmoid:   { op: sigmoid,           inputs: [external.gating] }
+    scores_biased:  { op: add,               inputs: [gate_sigmoid.out, external.bias] }
+    group_top2_sum: { op: group_top2_sum,    inputs: [scores_biased.out] }
+    group_topk:     { op: topk,              inputs: [group_top2_sum.out] }
+    group_mask:     { op: group_mask_apply,  inputs: [scores_biased.out, group_topk.out] }
+    topk_indices:   { op: topk,              inputs: [group_mask.out] }
+    topk_gather:    { op: gather,            inputs: [gate_sigmoid.out, topk_indices.out] }
+    topk_norm:      { op: normalize_sum_one, inputs: [topk_gather.out] }
+    topk_scale:     { op: scale_const,       inputs: [topk_norm.out] }
+  io_mapping:
+    gating: external.gating
+    bias:   external.bias
+    output: topk_scale.out

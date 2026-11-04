@@ -1,0 +1,58 @@
+# The CSA2 indexer's scoring pass — `Indexer.forward` without its key branch
+# and without its top-k (source/model.py:550-557):
+#
+#   q = self.wq_b(qr).unflatten(-1, (n_index_heads, index_head_dim))
+#   apply_rotary_emb(q[..., -rd:], freqs_cis[start_pos:end_pos])
+#   index_k = shared_attn.index_k[:bsz, : end_pos // ratio]
+#   weights = self.weights_proj(x) * (softmax_scale * n_heads**-0.5)
+#   index_score = einsum("bshd,btd->bsht", q, index_k)
+#   index_score = (index_score.relu_() * weights.unsqueeze(-1)).sum(dim=2)
+#
+# Written once because all three CSA2 indexer forms run it — the two that own
+# their keys and the one that reads another layer's — and only where the key
+# comes from, and what happens to the logits afterwards, differs. `index_key`
+# is that key: one shared key per compressed position, so the head broadcast
+# is here.
+#
+# How many index keys a query scores is the caller's: every compressed
+# position (`s_kv // compress_ratio`) for a layer that scans the whole
+# causally visible range, or the candidate pool for one that scores only the
+# candidates a source layer published (`csa2_indexer_shared_keys`). The keys
+# it hands in carry that length (the view of the key buffer the caller
+# reads), and the score reads it off them.
+#
+# Required dims: d_model, d_q_lora, n_indexer_heads, d_indexer_head,
+#   d_qk_rope.
+
+description: "CSA2 indexer scoring pass: wq_b + partial RoPE query heads against one shared key per compressed position, rectified and combined by weights_proj into one logit per compressed position."
+inputs: [x, q_norm, index_key]
+graph:
+  wq_b:         { op: linear, in: q_norm, dims: { in: d_q_lora, out: "n_indexer_heads * d_indexer_head" }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  q_split:      { op: head_split, in: wq_b, dims: { n_heads: n_indexer_heads, d_head: d_indexer_head } }
+  q_pe_slice:   { op: slice, in: q_split, dims: { in: d_indexer_head, out: d_qk_rope, start: "d_indexer_head - d_qk_rope" } }
+  q_nope_slice: { op: slice, in: q_split, dims: { in: d_indexer_head, out: "d_indexer_head - d_qk_rope", start: "0" } }
+  q_pe_rope:    { op: rope_emb, in: q_pe_slice, dim: d_qk_rope }
+  q_roped:      { op: concat, in: [q_nope_slice, q_pe_rope], dims: { in_a: "d_indexer_head - d_qk_rope", in_b: d_qk_rope, out: d_indexer_head } }
+  # One key per compressed position, shared by every index head (MQA).
+  k_broadcast:  { op: head_broadcast, in: index_key, dims: { n_heads: n_indexer_heads } }
+  # `index_score = einsum("bshd,btd->bsht", q, index_k[:, : end_pos // ratio])`
+  # — the key axis is the COMPRESSED CACHE length the caller's keys carry,
+  # never the query length (writing `s_query // ratio` collapses the scan to
+  # ⌊1/ratio⌋ = 0 at decode).
+  score:        { op: attention_score, in: [q_roped, k_broadcast], dims: { n_heads: n_indexer_heads, d_head: d_indexer_head } }
+  weights_proj: { op: linear, role: attention_indexer, in: x, dims: { in: d_model, out: n_indexer_heads }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  # source/model.py:553 `weights = self.weights_proj(x) * (self.softmax_scale
+  # * self.n_heads**-0.5)` — both positive constants fold into the [B, S, H]
+  # head weights, which is where the serving stacks apply them.
+  weights_scaled: { op: scale_const, in: weights_proj, dims: { in: n_indexer_heads }, formula: "w = weights_proj · d_indexer_head^-0.5 · n_indexer_heads^-0.5" }
+  # weights_proj is [B,S,H] while the score is [B,H,S,T]: the source's
+  # `weights.unsqueeze(-1)`, a unit axis the multiply broadcasts.
+  weights_heads:  { op: transpose, in: weights_scaled, axes: [0, 2, 1] }
+  weights_full:   { op: broadcast, in: weights_heads, axis: -1, dims: { width: "1" } }
+  # source/model.py:555 `(index_score.relu_() * weights.unsqueeze(-1)).sum(dim=2)`
+  score_relu:   { op: relu, in: score, dim: n_indexer_heads }
+  weighted:     { op: mul, in: [score_relu, weights_full], dim: n_indexer_heads }
+  # Over the index heads (axis 1 of [B, n_indexer_heads, s_query, s_kv]), not
+  # over the key axis `sum_reduce` drops by default.
+  reduced:      { op: sum_reduce, in: weighted, axis: 1, dims: { in: n_indexer_heads } }
+outputs: [reduced]

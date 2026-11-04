@@ -1,0 +1,68 @@
+# MXFP4 — aligned with `transformers.Mxfp4Config` (quant_method: "mxfp4").
+# HF official field set:
+#   modules_to_not_convert : list[str]
+#   dequantize             : bool, default False
+# Note: HF Mxfp4Config has no `bits` parameter — bit width is fixed
+# at 4 by the MXFP4 spec (E2M1 + per-32-element UE8M0 block scales).
+#
+# On-disk layout: each quantized projection ships as a triple
+#   <proj>_blocks  (FP4 pairs packed in U8 — 2 logical params per byte)
+#   <proj>_scales  (per-block U8 scales — quant metadata)
+#   <proj>_bias    (BF16 vector — real bias, NOT quant metadata)
+# Tensor naming is per-projection (gate_up_proj_blocks, down_proj_blocks),
+# so we match by endswith rather than exact tail.
+#
+# Known clients: OpenAI gpt-oss family.
+description: "MXFP4 — per-projection {_blocks, _scales, _bias} triples (transformers.Mxfp4Config)."
+
+num_bits:
+  fixed: 4
+badge: MXFP4
+
+# MXFP4 always packs 2 FP4 elements per uint8 byte.
+format_variants:
+  default:
+    packing_factor: 2
+    storage_dtype: U8
+    weight_storage_suffix: "_blocks"          # per-projection naming
+
+numeric_format: [mx_e2m1]
+numeric_format_resolver:
+  - { when: "true", format: mx_e2m1 }
+
+# Spec-fixed group_size of 32 elements per UE8M0 scale.
+scale_strategy: [group]
+
+metadata_siblings:
+  - suffix: "_scales"
+    kind: scale
+    shape_per_strategy:
+      # One scale per contiguous input group for every stored output row.
+      group: ["out", "(in + group_size - 1) // group_size"]
+    dtype: U8                                  # UE8M0 packed in U8
+    logical_dtype: F8_E8M0FNU
+
+# group_size is fixed by spec at 32; per_role can omit and engine
+# will use this default. Listed in required_fields so the validator
+# auto-injects 32 when not provided by per_role config.
+required_fields: [group_size]
+
+valid_status: [compressed, frozen]
+
+# A deployment's MXFP4 weight (OCP MX: E2M1 + one UE8M0 per 32). W4A4 runs
+# MXFP4 activations on the FP4 MMA; W4A16 is gpt-oss's own kernel, the
+# activation unquantised (transformers integrations/mxfp4.py, matmul_ogs).
+deployment_fields:
+  group_size: 32
+activation_options:
+  w4a4: mxfp4_dynamic
+  w4a16: none
+
+# The activation operand is NOT quantised: gpt-oss's own kernel takes it as it
+# arrives and dequantises the MXFP4 weight inside the matmul — transformers
+# `integrations/mxfp4.py`, whose `matmul_ogs` is called with the bf16
+# activation (W4A16). Declared rather than left silent: "weight-only" is a
+# statement about the kernel, and it decides the peak column.
+activation:
+  reference:
+    - { when: "true", format: none }

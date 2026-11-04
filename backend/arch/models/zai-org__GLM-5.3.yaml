@@ -1,0 +1,7 @@
+# Identity file for zai-org/GLM-5.3 — the glm_moe_dsa architecture
+# (MLA + DSA indexer with full/shared indexer_types, 3 dense SwiGLU layers,
+# noaux_tc sigmoid MoE with 1 shared expert, one shared-head MTP block)
+# stored as FP8-E4M3 with 128x128 weight_scale_inv blocks.
+base: glm_moe_dsa_fp8
+match:
+  model_id: [zai-org/GLM-5.3]

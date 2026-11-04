@@ -1,0 +1,4 @@
+# Identity file for ByteDance-Seed/Seed-OSS-36B-Instruct
+base: qwen2
+match:
+  model_id: [ByteDance-Seed/Seed-OSS-36B-Instruct]

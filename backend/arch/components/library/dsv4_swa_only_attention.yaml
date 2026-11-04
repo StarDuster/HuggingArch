@@ -1,0 +1,78 @@
+# DeepSeek-V4 attention WITHOUT compressor / indexer.
+#
+# Used by the MTP head (compress_ratio = 0). Pure sliding-window attention
+# over the most recent s_window tokens; no sparse top-K selection.
+#
+# Topology (model.py::Attention.forward, compress_ratio == 0 branch):
+#   q     = wq_b(q_norm(wq_a(x))).view(n_heads, d_head)        # q-LoRA + per-head split
+#   q     = q * rsqrt(mean(q², -1) + eps)                        # per-head RMS norm, no gain
+#   q[..., -d_qk_rope:] = apply_rope(q[..., -d_qk_rope:])           # partial RoPE
+#   kv    = kv_norm(wkv(x))                         # MQA-style: 1 KV head, dim = d_head
+#   kv[..., -d_qk_rope:] = apply_rope(kv[..., -d_qk_rope:])
+#   o     = sliding_attention(q, kv, attn_sink)     # K = V (kv reused as both)
+#   o[..., -d_qk_rope:] = apply_rope(o[..., -d_qk_rope:], inverse=True)
+#   o     = o.view(B, s_ctx, n_out_lora_groups, -1)
+#   o     = einsum("bsgd,grd->bsgr", o, wo_a)       # per-group LoRA on output
+#   x     = wo_b(o.flatten(2))                      # d_model-projection
+#
+# Required dims: d_model, n_heads, d_head, d_qk_rope, d_q_lora, d_out_lora (o_lora_rank), n_out_lora_groups (o_groups), s_window.
+
+role: attention
+description: "DSv4-family attention without compressor (compress_ratio=0): pure SWA + sink + q-LoRA + per-head q RMS norm (`n_q_head_norm`) + MQA-style KV (k_eq_v) + partial RoPE + grouped o-LoRA."
+cache:
+  family: SWA
+  entries:
+    - { node: kv_concat, kind: kv }
+graph:
+  wq_a:          { op: linear, in: x, dims: { in: d_model, out: d_q_lora }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  q_norm:        { op: rmsnorm, in: wq_a, dim: d_q_lora, weight_axes: [{ replicated: true }] }
+  wq_b:          { op: linear, in: q_norm, dims: { in: d_q_lora, out: "n_heads * d_head" }, weight_axes: [{ world: attention, parts: n_heads, fit: replica_cells }, { replicated: true }] }
+  q_split:       { op: head_split, in: wq_b, dims: { n_heads: n_heads, d_head: d_head } }
+  # model.py::Attention.forward: `q *= torch.rsqrt(q.square().mean(-1, keepdim=True) + self.eps)`
+  # — every query head is RMS-normalized over d_head with no gain, before RoPE.
+  # DeepSeek-V4.1's Attention.forward has no such statement (wq_b goes
+  # straight to apply_rotary_emb), so the step is switched by `n_q_head_norm`.
+  q_head_norm:   { op: rmsnorm_unscaled, in: q_split, dim: d_head, when: n_q_head_norm }
+  # The rotated dims are the LAST d_qk_rope (`q[..., -rd:]`).
+  q_pe_slice:    { op: slice, in: q_head_norm, dims: { in: d_head, out: d_qk_rope, start: "d_head - d_qk_rope" } }
+  q_nope_slice:  { op: slice, in: q_head_norm, dims: { in: d_head, out: "d_head - d_qk_rope", start: "0" } }
+  q_pe_rope:     { op: rope_emb, in: q_pe_slice, dim: d_qk_rope }
+  q_concat:      { op: concat, in: [q_nope_slice, q_pe_rope], dims: { in_a: "d_head - d_qk_rope", in_b: d_qk_rope, out: d_head } }
+
+  wkv:           { op: linear, in: x, dims: { in: d_model, out: d_head }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  kv_norm:       { op: rmsnorm, in: wkv, dim: d_head, weight_axes: [{ replicated: true }] }
+  kv_pe_slice:   { op: slice, in: kv_norm, dims: { in: d_head, out: d_qk_rope, start: "d_head - d_qk_rope" } }
+  kv_nope_slice: { op: slice, in: kv_norm, dims: { in: d_head, out: "d_head - d_qk_rope", start: "0" } }
+  kv_pe_rope:    { op: rope_emb, in: kv_pe_slice, dim: d_qk_rope }
+  kv_concat:     { op: concat, in: [kv_nope_slice, kv_pe_rope], dims: { in_a: "d_head - d_qk_rope", in_b: d_qk_rope, out: d_head } }
+  kv_broadcast:  { op: head_broadcast, in: kv_concat, dims: { n_heads: n_heads } }
+
+  qk_score:      { op: swa_attention_score, in: [q_concat, kv_broadcast], dims: { n_heads: n_heads, d_head: d_head, s_window: s_window } }
+  attn_sink:     { op: parameter_vector, dim: n_heads, weight_axes: [{ world: attention, parts: n_heads, fit: replica_cells }] }
+  softmax:       { op: swa_softmax_with_sink, in: [qk_score, attn_sink], dims: { n_heads: n_heads, s_window: s_window } }
+  attn_apply:    { op: swa_attention_apply, in: [softmax, kv_broadcast], dims: { n_heads: n_heads, d_head: d_head, s_window: s_window } }
+  # model.py::Attention.forward: `apply_rotary_emb(o[..., -rd:], freqs_cis, True)`
+  # — the output's rope dims are rotated back (conjugate frequencies) before
+  # the grouped output projection.
+  o_pe_slice:    { op: slice, in: attn_apply, dims: { in: d_head, out: d_qk_rope, start: "d_head - d_qk_rope" } }
+  o_nope_slice:  { op: slice, in: attn_apply, dims: { in: d_head, out: "d_head - d_qk_rope", start: "0" } }
+  o_pe_inverse_rope: { op: rope_emb_inverse, in: o_pe_slice, dim: d_qk_rope }
+  o_concat:      { op: concat, in: [o_nope_slice, o_pe_inverse_rope], dims: { in_a: "d_head - d_qk_rope", in_b: d_qk_rope, out: d_head } }
+  o_merge:       { op: head_merge, in: o_concat, dims: { n_heads: n_heads, d_head: d_head } }
+
+  # Grouped output LoRA, as the forward writes it:
+  # o.view(B, s_ctx, n_out_lora_groups,
+  #        n_heads*d_head/n_out_lora_groups), then
+  # einsum("bsgd,grd->bsgr", o, wo_a) — n_out_lora_groups independent d→r
+  # maps, NOT one dense (n_heads*d_head)→(n_out_lora_groups*d_out_lora)
+  # linear. The checkpoint stores the bank flattened
+  # ([n_out_lora_groups*d_out_lora, d]), so params are identical either way;
+  # the flops are not, and a dense reading overstates them by
+  # n_out_lora_groups. Modeled as what it is: a group view
+  # into a per-group linear, so the arriving shape and the declared dims
+  # agree and every derivation reads the same geometry.
+  o_group_split: { op: head_split, in: o_merge, dims: { n_heads: n_out_lora_groups, d_head: d_out_lora_group_in } }
+  wo_a:          { op: per_head_linear, in: o_group_split, dims: { n_heads: n_out_lora_groups, in: d_out_lora_group_in, out: d_out_lora }, weight_axes: [{ world: attention, parts: n_out_lora_groups, fit: replica_cells }, { replicated: true }, { replicated: true }] }
+  wo_a_merge:    { op: head_merge, in: wo_a, dims: { n_heads: n_out_lora_groups, d_head: d_out_lora } }
+  wo_b:          { op: linear, in: wo_a_merge, dims: { in: "n_out_lora_groups * d_out_lora", out: d_model }, weight_axes: [{ replicated: true }, { world: attention, parts: n_out_lora_groups, fit: replica_cells }] }
+outputs: [wo_b]

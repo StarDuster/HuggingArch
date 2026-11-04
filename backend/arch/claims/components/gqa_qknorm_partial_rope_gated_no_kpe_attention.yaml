@@ -1,0 +1,13 @@
+schema: huggingarch.claims/v1
+subject: gqa_qknorm_partial_rope_gated_no_kpe_attention
+axioms:
+  checks:
+  - kind: kv_growth
+    storage: per_token
+    expect: 2 * n_kv_heads * d_head
+    src: 'GQA cache contract: K (key_concat, RoPE and no-RoPE halves rejoined to
+      d_head) and V (v_split_heads) each retain n_kv_heads * d_head elements per
+      position. What this component drops relative to
+      gqa_qknorm_partial_rope_gated_attention is the k_pe concat on the OUTPUT
+      side before o_proj — a read-side shape, not a cached one — so the cache
+      contract is the plain GQA one.'

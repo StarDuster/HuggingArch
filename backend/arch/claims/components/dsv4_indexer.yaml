@@ -1,0 +1,9 @@
+schema: huggingarch.claims/v1
+subject: dsv4_indexer
+axioms:
+  checks:
+    - kind: kv_growth
+      node: compressor.pooled_out
+      storage: per_token
+      expect: "d_indexer_head"
+      src: 'model.py::Indexer.__init__ `self.kv_cache = zeros(B, max_seq_len // compress_ratio, index_head_dim)` — compressed cache storage remains unbounded with context; each compressed position stores one index_head_dim vector.'

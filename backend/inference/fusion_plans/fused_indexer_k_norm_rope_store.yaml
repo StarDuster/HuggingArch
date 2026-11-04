@@ -1,0 +1,38 @@
+# The DSA indexer's key preparation where the indexer ropes the LEADING
+# d_qk_rope channels (DeepSeek-V3.2 / GLM-5.x `Indexer`): LayerNorm, rotate
+# the rope slice, put it back in front — one launch that also quantises the
+# key to FP8 and writes it into the paged index-key cache.
+#
+# Naive subgraph (mla_dsa_attention and its absorbed form):
+#
+#   k = layernorm(wk(x))
+#   k = concat(rope_emb(k[..., :d_qk_rope]), k[..., d_qk_rope:])
+#
+# The quantisation and the store are not nodes (the format is the precision
+# profile's; the cache write is the `index_key` entry on the concat).
+#
+# sglang (audited at v0.5.22): `fused_k_indexer_norm_rope_store`
+#   (kernels/ops/attention/dsa/indexer_k.py:65: "LayerNorm + RoPE on leading
+#   dims + fp8 act-quant + paged index-k cache write, in one launch"), from
+#   `Indexer._fused_k_prepare_and_store` (srt/layers/attention/dsa/
+#   dsa_indexer.py:995, launch :1017); where the fused store does not apply
+#   (`can_use_dsa_fused_store`, :1012-1015) `fused_k_indexer_norm_rope`
+#   (indexer_k.py:41) still does the norm + rope in one launch and the store
+#   follows (:1031). Reached under the same `use_dsa_indexer_fusion` as the
+#   query kernel (`fused_indexer_q_rope_first_quant`, which states the
+#   condition), prefill and decode alike (:1073, :1119, :1740).
+# vLLM (audited at v0.32.0): not bound here — vLLM folds this chain into
+#   `fused_dsa_qkv_norm_rope_indexer` with the two a-norms.
+
+fused_op: fused_indexer_k_norm_rope_store
+
+naive_pattern:
+  nodes:
+    norm:         { op: layernorm, inputs: [external.k] }
+    rope_slice:   { op: slice,     inputs: [norm.out] }
+    norope_slice: { op: slice,     inputs: [norm.out] }
+    rope:         { op: rope_emb,  inputs: [rope_slice.out] }
+    concat:       { op: concat,    inputs: [rope.out, norope_slice.out] }
+  io_mapping:
+    k:      external.k
+    output: concat.out

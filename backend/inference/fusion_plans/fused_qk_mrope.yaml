@@ -1,0 +1,42 @@
+# Multimodal RoPE on Q and K in one launch — the `MRotaryEmbedding` kernel.
+#
+# Naive subgraph: two sibling `mrope` nodes (Qwen3-VL, Qwen3.5 / Qwen3.8:
+# 3-axis t/h/w positions, `mrope_section` in the rope parameters) fed by
+# different external producers, no edge between them — the `fused_qk_rope`
+# shape, but for the op that reads three position streams.
+#
+# A plan of its own, not a third `op_choices` member of `fused_qk_rope`,
+# because the frameworks run a different kernel for it:
+#   - vLLM (audited at v0.32.0) builds `MRotaryEmbedding` whenever the rope
+#     parameters carry `mrope_section` (layers/rotary_embedding/__init__.py:113-123);
+#     `forward_cuda` gathers cos/sin by the [3, T] positions and calls
+#     `triton_mrope(q, k, ...)` once (mrope.py:439-470, the call at :458).
+#   - sglang (audited at v0.5.22) runs `triton_mrope_fused` on q and k once
+#     from `MRotaryEmbedding.forward_triton`
+#     (srt/layers/rotary_embedding/mrope.py:270-291), and the Qwen3-MoE
+#     attention that Qwen3-VL-MoE uses keeps it out of the fused qk-norm+rope
+#     kernel (qwen3_vl_moe.py:34 -> qwen3_moe.py:559-589, 662-720). That is
+#     why `fused_qk_norm_rope` names `rope` and not this op.
+# Four-axis XD-RoPE (HunyuanOCR) is its own op, `xdrope`: no q/k plan covers
+# it, and sglang has no implementation.
+#
+# Cost preservation: Cost.combine sums each matched value; the saving is one
+# launch and the separate K pass, as for `fused_qk_rope`.
+
+fused_op: fused_qk_mrope
+
+naive_pattern:
+  nodes:
+    q_rope:
+      op: mrope
+      inputs: [external.q_pe]
+      feeds: q
+    k_rope:
+      op: mrope
+      inputs: [external.k_pe]
+      feeds: k
+  io_mapping:
+    q_pe:   external.q_pe
+    k_pe:   external.k_pe
+    q_out:  q_rope.out
+    k_out:  k_rope.out

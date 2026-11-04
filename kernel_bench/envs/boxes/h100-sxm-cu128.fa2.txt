@@ -1,0 +1,8 @@
+# Box override for fa2 on the H100 SXM boxes (CUDA 12.9).
+# flash-attn sdist needs psutil at build time and a long nvcc compile;
+# the Astral cu128 wheel is the prebuilt match for torch 2.8.0+cu128.
+torch==2.8.0+cu128
+numpy
+flash-attn @ https://wheels.astral.sh/artifacts/079d893ad1cb244fa8fbc90549ccf32186aebe7aae521e55ce30b423df869205/flash_attn-2.8.3.post1+cu.12.8.torch.2.8-cp312-cp312-manylinux_2_24_x86_64.whl
+pydantic
+pyyaml

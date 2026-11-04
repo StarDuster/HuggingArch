@@ -1,0 +1,22 @@
+name: fly recover
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+jobs:
+  recover:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+      - name: Show and start machines
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          flyctl machines list -a huggingarch
+          flyctl machines start 811d5e2c504e18 -a huggingarch || flyctl apps restart -a huggingarch
+          sleep 15
+          flyctl status -a huggingarch

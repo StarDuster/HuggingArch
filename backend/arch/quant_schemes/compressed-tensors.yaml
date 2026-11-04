@@ -1,0 +1,146 @@
+# compressed-tensors — aligned with `transformers.CompressedTensorsConfig`
+# (quant_method: "compressed-tensors"). Wraps the upstream
+# `compressed_tensors.QuantizationConfig` library.
+#
+# HF official field set (per main_classes/quantization):
+#   config_groups            : dict[str, QuantizationScheme] — per-group
+#                              quant params; THIS is the official mechanism
+#                              for mixed-precision (e.g. INT4 attention +
+#                              FP8 MLP under one checkpoint).
+#   format                   : "dense" | packed format string
+#   quantization_status      : "initialized" / "calibration" / "frozen"
+#   kv_cache_scheme          : QuantizationArgs | None — KV-cache dtype
+#   global_compression_ratio : float | None
+#   ignore                   : list[str] — layer names/types not quantized;
+#                              supports `re:` prefix for regex
+#   sparsity_config          : dict[str, Any]
+#   run_compressed           : bool, default True
+#
+# Each `config_groups[<gid>].weights` is a `QuantizationArgs` with
+# `num_bits`, `type` ("int" | "float"), `strategy` ("channel" | "group" | "tensor"),
+# `group_size`, `symmetric`, `dynamic`. `.input_activations` follows the
+# same shape for activation quantization.
+#
+# Known clients: Kimi-K2.5 INT4, RedHatAI / Neural Magic FP8 / INT8
+# deployments, llm-compressor outputs in general.
+#
+# On-disk tensor layout per quantized linear:
+#   <name>.weight_packed   (packed weight data)
+#   <name>.weight_scale    (per-group scales)
+#   <name>.weight_shape    (original logical shape)
+# Some FP8 variants additionally emit `input_scale`. KV-cache quant
+# (when `kv_cache_scheme` is set) emits `k_scale` / `v_scale`.
+description: "compressed-tensors library — config_groups-driven (transformers.CompressedTensorsConfig)."
+
+num_bits:
+  nested_field: [config_groups, "*", weights, num_bits]
+badge: "W{num_bits}"
+
+# Two distinct on-disk layouts under the same method.
+format_variants:
+  pack-quantized:
+    # Packed: weights bit-packed into I32 words (8× INT4, 4× INT8, 16× INT2).
+    packing_factor_per_num_bits: { 2: 16, 4: 8, 8: 4 }
+    storage_dtype: I32
+    weight_storage_suffix: ".weight_packed"
+  dense:
+    # Decompressed: weights stored at native bit width (no packing).
+    packing_factor: 1
+    storage_dtype_per_num_bits: { 4: I8, 8: I8, 2: I8 }
+    weight_storage_suffix: ".weight"
+  float-quantized:
+    # FP8 sub-mode (llmcompressor "FP8_DYNAMIC"): weights stored as
+    # F8_E4M3 unpacked. Per-channel or per-tensor scale.
+    packing_factor: 1
+    storage_dtype: F8_E4M3
+    weight_storage_suffix: ".weight"
+
+# compressed-tensors supports INT (sym/asym), FP4, and FP8 numeric formats.
+numeric_format: [int_sym, int_asym, fp_e2m1, fp_e4m3]
+numeric_format_resolver:
+  - { when: "type == 'int' and symmetric == true",  format: int_sym }
+  - { when: "type == 'int' and symmetric == false", format: int_asym }
+  - { when: "type == 'float' and num_bits == 4",    format: fp_e2m1 }
+  - { when: "type == 'float' and num_bits == 8",    format: fp_e4m3 }
+
+scale_strategy: [group, channel, tensor, tile_2d]
+
+metadata_siblings:
+  - suffix: ".weight_scale"
+    kind: scale
+    when: "dynamic == false"                       # absent for runtime-dynamic act quant
+    cardinality_per_strategy:
+      tensor:   "1"
+    # Group and channel scales are 2-D ON DISK, in the stored weight's
+    # (out, in) axis order — read off checkpoints, not assumed: Kimi-K2.5
+    # (group, 32) stores gate/up (2048, 224) and down (7168, 64); Ling
+    # (channel) stores (out, 1). Declared as flat counts they carried the
+    # right byte total and the wrong geometry, which only the checkpoint
+    # oracle could see.
+    #
+    # Block quantisation pads each axis INDEPENDENTLY, so every count is a
+    # product of ceil-divisions and not a ceil of the product. The plain
+    # division dropped the final partial block of any axis that is not a
+    # multiple of the block size — DeepSeek's `kv_a_proj_with_mqa` is
+    # [576, 7168] against a 128 block, so 576/128 = 4.5 became 4 where the
+    # checkpoint stores 5, and the file's own scale shape says [5, 56].
+    # 28 scales x 4 bytes x 62 layers = 6,944 bytes, exactly the diff.
+    shape_per_strategy:
+      group:    ["out", "(in + group_size - 1) // group_size"]
+      channel:  ["out", "1"]
+      tile_2d: ["(out + block_h - 1) // block_h", "(in + block_w - 1) // block_w"]
+    # Read off the same headers: llm-compressor serializes scales in the
+    # model's own dtype, and both corpus clients (Kimi-K2.5, Ling) are
+    # BF16 models. Same two bytes per element as the F16 this once
+    # declared, so storage totals never moved. Revisit if an F16-scaled
+    # compressed-tensors checkpoint enters the corpus.
+    dtype: BF16
+  - suffix: ".weight_zero_point"
+    kind: zero_point
+    when: "symmetric == false"                     # only asymmetric needs zeros
+    cardinality_per_strategy:
+      group:    "(in * out) / group_size"
+      channel:  "out"
+      tensor:   "1"
+    shape_per_strategy:
+      tile_2d: ["(out + block_h - 1) // block_h", "(in + block_w - 1) // block_w"]
+    dtype_per_format:
+      pack-quantized: I32                          # zeros packed alongside weights
+      dense: I8
+  - suffix: ".weight_shape"
+    kind: shape
+    when: "format == 'pack-quantized'"             # original-shape sidecar only when packed
+    shape: ["2"]                                   # rank-2 vector [out, in]
+    # I32, and read off a checkpoint rather than assumed: Kimi-K2.5 is the only
+    # `pack-quantized` model in the corpus and its header records these as I32.
+    # Declared I64 they cost twice what they do — 69,120 sidecars (three per
+    # expert matrix, 23,040 expert-layers) at eight bytes over each is 552,960,
+    # which was the whole of that model's metadata disagreement.
+    dtype: I32
+
+required_fields: [num_bits, strategy, type, symmetric, format]
+optional_fields: [group_size, block_h, block_w]
+valid_status: [compressed, frozen]
+
+# Default values for scheme-config fields per_role can omit. These match
+# `compressed_tensors.QuantizationScheme` upstream defaults.
+default_fields:
+  # What an absent `input_activations` means: weight-only.
+  input_activations: none
+  dynamic: false
+  actorder: null     # null/None = no act-order; predicates compare against
+                     # 'true' explicitly so this is safe
+
+# Whether the matmul quantises its activation is `config_groups[*]
+# .input_activations`: a group that declares one runs W8A8 (llm-compressor's
+# `FP8_DYNAMIC`: 8-bit float, `strategy: token`, `dynamic: true` — one scale
+# per token), and a group whose `input_activations` is null is weight-only
+# (W4A16: the kernel dequantises the weight and runs at the activation's own
+# dtype). A spec states which of the two its checkpoint declares; `none` is
+# the default because that is what an absent `input_activations` means.
+activation:
+  from_config: input_activations
+  fp8_dynamic_per_token:
+    - { when: "true", format: fp8_per_token }
+  none:
+    - { when: "true", format: none }

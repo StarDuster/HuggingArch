@@ -1,0 +1,95 @@
+# DeepSeek-V4.1-Flash vision encoder layer — `vision.Block` (source/vision.py:74-84):
+#
+#     x = x + self.attn(self.norm1(x), cos, sin)
+#     return x + self.mlp(self.norm2(x))
+#
+# Two plain residual adds, two pre-RMSNorms. Checkpoint paths are
+# `vision.blocks.X.{norm1,attn.wqkv,attn.wo,norm2,mlp.w1,mlp.w2}` ×32
+# (pattern_counts, snapshot:2360-2367).
+#
+# Why neither `library/kimi_k3_vision_block.yaml` (read in full, 38 lines) nor
+# `library/kimi_k25_vision_block.yaml` (43 lines) is reusable:
+#   * k3 is bias-FREE throughout (`bias: "0"` on wqkv/wo/fc0/fc1) and carries a
+#     separate `qkv_hidden_size`. DeepSeek's `wqkv = nn.Linear(vision_dim,
+#     3*vision_dim)` and `wo = nn.Linear(vision_dim, vision_dim)` are both
+#     BIASED (source/vision.py:51-52, default bias=True), and the snapshot has
+#     `vision.blocks.X.attn.wqkv.bias` / `.wo.bias` ×32.
+#   * both Kimi blocks use a 2-matrix GELU MLP (fc0/gelu/fc1). DeepSeek's MLP is
+#     a bias-free FUSED-gate SwiGLU: `w1 = Linear(vision_dim, 2*vision_inter_dim,
+#     bias=False)`, chunked into (gate, up), `w2(silu(gate) * up)`
+#     (source/vision.py:66-71) — a different op graph and a different dim
+#     signature (1024 → 5632 → 2816 → 1024).
+#
+# RoPE: `apply_rotary` (source/vision.py:18-21) is the half-split
+# (`chunk(2, dim=-1)`) convention applied to a cos/sin built from stacked
+# (hpos, wpos) frequencies — `get_vision_cos_sin` (:9-15) — so it is 2-D RoPE
+# over `rope_dim = vision_dim // n_heads // 2 = 32` pairs, i.e. the full 64-wide
+# head. Applied to q and k only, never to v, and never to the output.
+#
+# Attention is fully bidirectional: `F.scaled_dot_product_attention` is called
+# with no mask and no `is_causal` (source/vision.py:59), over one image.
+#
+# Required dims: d_vis_model, n_vis_heads, d_vis_head, d_vis_ffn.
+
+role: block
+description: "DSv4.1 DeepSeek-ViT encoder layer: pre-RMSNorm, BIASED fused QKV + biased wo, 2-D half-split RoPE on q/k, non-causal SDPA, bias-free fused-gate SwiGLU MLP."
+graph:
+  norm1:         { op: rmsnorm, in: x, dim: d_vis_model, weight_axes: [{ replicated: true }] }
+  # `self.wqkv(x).chunk(3, dim=-1)` then `.view(n, n_heads, head_dim)` each.
+  # The output axis is written head-factored (`3 * n_vis_heads * d_vis_head` ==
+  # `3 * d_vis_model`) because that is the axis the head-parallel shard cuts:
+  # a `parts: n_vis_heads` contract has to name a factor of the axis it splits.
+  # The three chunks are declared as SEGMENTS of the one stored axis, the
+  # `library/gqa_partial_rope_fused_qkv_attention.yaml:20-25` spelling: each is
+  # head-parallel in its own right, so a q / k / v slice is a whole shard cell
+  # on every rank instead of a proper subinterval of one sharded block (which
+  # leaves out-of-interval ranks empty).
+  attn.wqkv:
+    op: linear
+    in: norm1
+    dims: { in: d_vis_model, out: "3 * n_vis_heads * d_vis_head", bias: "1" }
+    weight_axes:
+      - segments:
+          - { segment: q, extent: "n_vis_heads * d_vis_head", world: attention, parts: n_vis_heads, fit: replica_cells }
+          - { segment: k, extent: "n_vis_heads * d_vis_head", world: attention, parts: n_vis_heads, fit: replica_cells }
+          - { segment: v, extent: "n_vis_heads * d_vis_head", world: attention, parts: n_vis_heads, fit: replica_cells }
+      - { replicated: true }
+  attn.q_flat:   { op: slice, in: attn.wqkv, dims: { in: "3 * n_vis_heads * d_vis_head", out: "n_vis_heads * d_vis_head" } }
+  attn.k_flat:   { op: slice, in: attn.wqkv, dims: { in: "3 * n_vis_heads * d_vis_head", out: "n_vis_heads * d_vis_head" } }
+  attn.v_flat:   { op: slice, in: attn.wqkv, dims: { in: "3 * n_vis_heads * d_vis_head", out: "n_vis_heads * d_vis_head" } }
+  attn.q_split:  { op: head_split, in: attn.q_flat, dims: { n_heads: n_vis_heads, d_head: d_vis_head } }
+  attn.k_split:  { op: head_split, in: attn.k_flat, dims: { n_heads: n_vis_heads, d_head: d_vis_head } }
+  attn.v_split:  { op: head_split, in: attn.v_flat, dims: { n_heads: n_vis_heads, d_head: d_vis_head } }
+  attn.q_rope:   { op: rope_2d, in: attn.q_split, dim: d_vis_head }
+  attn.k_rope:   { op: rope_2d, in: attn.k_split, dim: d_vis_head }
+  attn.score:    { op: attention_score, in: [attn.q_rope, attn.k_rope], dims: { is_causal: "0", n_heads: n_vis_heads, d_head: d_vis_head } }
+  attn.softmax:  { op: softmax, in: attn.score, dims: { is_causal: "0", n_heads: n_vis_heads } }
+  attn.apply:    { op: attention_apply, in: [attn.softmax, attn.v_split], dims: { is_causal: "0", n_heads: n_vis_heads, d_head: d_vis_head } }
+  attn.o_merge:  { op: head_merge, in: attn.apply, dims: { n_heads: n_vis_heads, d_head: d_vis_head } }
+  # Input axis head-factored for the same reason as `attn.wqkv`'s output:
+  # `n_vis_heads * d_vis_head == d_vis_model`, and the head-parallel shard cuts
+  # the contraction axis here.
+  attn.wo:       { op: linear, in: attn.o_merge, dims: { in: "n_vis_heads * d_vis_head", out: d_vis_model, bias: "1" }, weight_axes: [{ replicated: true }, { world: attention, parts: n_vis_heads, fit: replica_cells }] }
+  attn_residual: { op: add, in: [x, attn.wo], dim: d_vis_model }
+
+  norm2:         { op: rmsnorm, in: attn_residual, dim: d_vis_model, weight_axes: [{ replicated: true }] }
+  # `gate, up = self.w1(x).chunk(2, dim=-1)` — one fused 2·inter-wide GEMM.
+  # Gate and up are SEGMENTS of the one stored axis, same reason as `attn.wqkv`:
+  # each half is column-parallel in its own right, so the gate / up slices are
+  # whole shard cells rather than a proper subinterval of one sharded block.
+  mlp.w1:
+    op: linear
+    in: norm2
+    dims: { in: d_vis_model, out: "2 * d_vis_ffn", bias: "0" }
+    weight_axes:
+      - segments:
+          - { segment: gate, extent: d_vis_ffn, world: dense_ffn, parts: d_vis_ffn, fit: exact }
+          - { segment: up, extent: d_vis_ffn, world: dense_ffn, parts: d_vis_ffn, fit: exact }
+      - { replicated: true }
+  mlp.gate:      { op: slice, in: mlp.w1, dims: { in: "2 * d_vis_ffn", out: d_vis_ffn } }
+  mlp.up:        { op: slice, in: mlp.w1, dims: { in: "2 * d_vis_ffn", out: d_vis_ffn } }
+  mlp.act:       { op: silu, in: mlp.gate, dim: d_vis_ffn }
+  mlp.gated:     { op: mul, in: [mlp.act, mlp.up], dim: d_vis_ffn }
+  mlp.w2:        { op: linear, in: mlp.gated, dims: { in: d_vis_ffn, out: d_vis_model, bias: "0" }, weight_axes: [{ replicated: true }, { world: dense_ffn, parts: d_vis_ffn, fit: exact }] }
+  out:           { op: add, in: [attn_residual, mlp.w2], dim: d_vis_model }
+outputs: [out]

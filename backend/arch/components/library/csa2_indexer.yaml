@@ -1,0 +1,59 @@
+# CSA2 indexer, the key-owning form — `Indexer` on a layer that is both a kv
+# source and an index source (source/model.py:494-580 with `owns_k` true and
+# neither candidate role).
+#
+# It derives the shared index keys from the main compressor's pre-RoPE latent
+# (`csa2_index_keys`), keeps them in a buffer of its own, publishes that
+# buffer as `index_k`, scores every query against it (`csa2_index_score`) and
+# keeps the `index_topk` best compressed positions per query:
+#
+#     topk = min(self.index_topk, end_pos // ratio)
+#     idxs = index_score.topk(topk, dim=-1, sorted=False).indices.sort(…)
+#
+# which `Attention._compress_topk_idxs` publishes as the shared selection
+# (`shared_attn.topk_idxs = idxs`, source/model.py:736) — written here, from
+# the node that produces it.
+#
+# Required dims: d_head, d_indexer_head, d_qk_rope, d_model, d_q_lora,
+#   n_indexer_heads, compress_ratio, n_topk_keys.
+
+description: "CSA2 indexer, key-owning form: own index keys off the compressor's pre-RoPE latent, own key cache, scores and top-K. Publishes index_k and csa_topk."
+inputs: [x, q_norm, latent]
+cache:
+  entries:
+    - { node: k_cache, kind: index_key }
+stream_out:
+  # `shared_attn.index_k = self.k_cache` (source/model.py:548), read by every
+  # index source that owns no keys at :554. Published from the read, not from
+  # the buffer: a cached node is bound to this layer's storage, and a reader
+  # in a later layer reaching it has no producer to attribute its read to.
+  index_k: k_read
+  csa_topk: topk_idx
+graph:
+  keys: { op: csa2_index_keys, in: latent, module: null }
+  # source/model.py:519-525 — a buffer of its own, one shared key per
+  # compressed position: `zeros(max_batch_size, max_seq_len // compress_ratio,
+  # index_head_dim)`. A cache ENTRY carries its own laws rather than borrowing
+  # a length, which is what `token_pool_compressor` states (⌈s_kv/ratio⌉
+  # stored, ⌊s_kv/ratio⌋ readable).
+  k_cache:
+    op: token_pool_compressor
+    in: keys
+    dim: d_indexer_head
+    dims: { compress_ratio: compress_ratio }
+    formula: "self.k_cache = zeros(max_batch_size, max_seq_len // compress_ratio, index_head_dim)   (source/model.py:519-525; one shared key per compressed position)"
+  # The published read of that buffer: the rows leave this layer the way a
+  # buffer leaves its producer — whole, every compressed position of the
+  # request — not divided by the cp cut over this rank's own token range,
+  # which is the cut the per-token key projection carries.
+  k_read:
+    op: kv_cache_view
+    in: k_cache
+    formula: "shared_attn.index_k[:bsz, : end_pos // compress_ratio]   (source/model.py:548 publishes self.k_cache, :554 is the read every index-source consumer makes)"
+  # Through the published read, which is also what the later index sources
+  # take: the buffer node has one consumer and every score — this layer's and
+  # theirs — is built from the same tensor.
+  score:    { op: csa2_index_score, in: [x, q_norm, k_read], module: null }
+  # source/model.py:578 `topk = min(self.index_topk, end_pos // ratio)`
+  topk_idx: { op: topk, in: score, dims: { in: "s_ctx // compress_ratio", k: n_topk_keys } }
+outputs: [topk_idx]

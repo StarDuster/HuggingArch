@@ -1,0 +1,882 @@
+{
+  "schema_version": 4,
+  "model_id": "moonshotai/Kimi-K2.5",
+  "config": {
+    "architectures": [
+      "KimiK25ForConditionalGeneration"
+    ],
+    "auto_map": {
+      "AutoConfig": "configuration_kimi_k25.KimiK25Config",
+      "AutoModel": "modeling_kimi_k25.KimiK25ForConditionalGeneration",
+      "AutoModelForCausalLM": "modeling_kimi_k25.KimiK25ForConditionalGeneration"
+    },
+    "bos_token_id": 163584,
+    "dtype": "bfloat16",
+    "eos_token_id": 163585,
+    "ignore_index": -100,
+    "media_placeholder_token_id": 163605,
+    "model_type": "kimi_k25",
+    "pad_token_id": 163839,
+    "text_config": {
+      "_name_or_path": "",
+      "add_cross_attention": false,
+      "architectures": [
+        "DeepseekV3ForCausalLM"
+      ],
+      "attention_bias": false,
+      "attention_dropout": 0.0,
+      "auto_map": {
+        "AutoConfig": "configuration_deepseek.DeepseekV3Config",
+        "AutoModel": "modeling_deepseek.DeepseekV3Model",
+        "AutoModelForCausalLM": "modeling_deepseek.DeepseekV3ForCausalLM"
+      },
+      "aux_loss_alpha": 0.001,
+      "bad_words_ids": null,
+      "begin_suppress_tokens": null,
+      "bos_token_id": 163584,
+      "chunk_size_feed_forward": 0,
+      "cross_attention_hidden_size": null,
+      "decoder_start_token_id": null,
+      "diversity_penalty": 0.0,
+      "do_sample": false,
+      "dtype": "bfloat16",
+      "early_stopping": false,
+      "encoder_no_repeat_ngram_size": 0,
+      "eos_token_id": 163585,
+      "ep_size": 1,
+      "exponential_decay_length_penalty": null,
+      "finetuning_task": null,
+      "first_k_dense_replace": 1,
+      "forced_bos_token_id": null,
+      "forced_eos_token_id": null,
+      "hidden_act": "silu",
+      "hidden_size": 7168,
+      "id2label": {
+        "0": "LABEL_0",
+        "1": "LABEL_1"
+      },
+      "initializer_range": 0.02,
+      "intermediate_size": 18432,
+      "is_decoder": false,
+      "is_encoder_decoder": false,
+      "kv_lora_rank": 512,
+      "label2id": {
+        "LABEL_0": 0,
+        "LABEL_1": 1
+      },
+      "length_penalty": 1.0,
+      "max_length": 20,
+      "max_position_embeddings": 262144,
+      "min_length": 0,
+      "model_type": "kimi_k2",
+      "moe_intermediate_size": 2048,
+      "moe_layer_freq": 1,
+      "n_group": 1,
+      "n_routed_experts": 384,
+      "n_shared_experts": 1,
+      "no_repeat_ngram_size": 0,
+      "norm_topk_prob": true,
+      "num_attention_heads": 64,
+      "num_beam_groups": 1,
+      "num_beams": 1,
+      "num_experts_per_tok": 8,
+      "num_hidden_layers": 61,
+      "num_key_value_heads": 64,
+      "num_nextn_predict_layers": 0,
+      "num_return_sequences": 1,
+      "output_attentions": false,
+      "output_hidden_states": false,
+      "output_scores": false,
+      "pad_token_id": 163839,
+      "prefix": null,
+      "pretraining_tp": 1,
+      "problem_type": null,
+      "pruned_heads": {},
+      "q_lora_rank": 1536,
+      "qk_nope_head_dim": 128,
+      "qk_rope_head_dim": 64,
+      "quantization_config": {
+        "config_groups": {
+          "group_0": {
+            "input_activations": null,
+            "output_activations": null,
+            "targets": [
+              "Linear"
+            ],
+            "weights": {
+              "actorder": null,
+              "block_structure": null,
+              "dynamic": false,
+              "group_size": 32,
+              "num_bits": 4,
+              "observer": "minmax",
+              "observer_kwargs": {},
+              "strategy": "group",
+              "symmetric": true,
+              "type": "int"
+            }
+          }
+        },
+        "format": "pack-quantized",
+        "ignore": [
+          "re:.*self_attn.*",
+          "re:.*shared_experts.*",
+          "re:.*mlp\\.(gate|up|gate_up|down)_proj.*",
+          "re:.*lm_head.*",
+          "re:vision_tower.*",
+          "re:mm_projector.*"
+        ],
+        "kv_cache_scheme": null,
+        "quant_method": "compressed-tensors",
+        "quantization_status": "compressed"
+      },
+      "remove_invalid_values": false,
+      "repetition_penalty": 1.0,
+      "return_dict": true,
+      "return_dict_in_generate": false,
+      "rms_norm_eps": 1e-05,
+      "rope_scaling": {
+        "beta_fast": 32.0,
+        "beta_slow": 1.0,
+        "factor": 64.0,
+        "mscale": 1.0,
+        "mscale_all_dim": 1.0,
+        "original_max_position_embeddings": 4096,
+        "type": "yarn"
+      },
+      "rope_theta": 50000.0,
+      "routed_scaling_factor": 2.827,
+      "scoring_func": "sigmoid",
+      "sep_token_id": null,
+      "seq_aux": true,
+      "suppress_tokens": null,
+      "task_specific_params": null,
+      "temperature": 1.0,
+      "tf_legacy_loss": false,
+      "tie_encoder_decoder": false,
+      "tie_word_embeddings": false,
+      "tokenizer_class": null,
+      "top_k": 50,
+      "top_p": 1.0,
+      "topk_group": 1,
+      "topk_method": "noaux_tc",
+      "torchscript": false,
+      "transformers_version": "4.56.2",
+      "typical_p": 1.0,
+      "use_bfloat16": false,
+      "use_cache": true,
+      "v_head_dim": 128,
+      "vocab_size": 163840
+    },
+    "tie_word_embeddings": false,
+    "use_unified_vision_chunk": true,
+    "video_placeholder": "<|kimi_k25_video_placeholder|>",
+    "vision_config": {
+      "_attn_implementation": "flash_attention_2",
+      "init_pos_emb_height": 64,
+      "init_pos_emb_time": 4,
+      "init_pos_emb_width": 64,
+      "merge_kernel_size": [
+        2,
+        2
+      ],
+      "merge_type": "sd2_tpool",
+      "mm_hidden_size": 1152,
+      "mm_projector_type": "patchmerger",
+      "patch_size": 14,
+      "pos_emb_type": "divided_fixed",
+      "projector_hidden_act": "gelu",
+      "projector_ln_eps": 1e-05,
+      "text_hidden_size": 7168,
+      "video_attn_type": "spatial_temporal",
+      "vt_hidden_size": 1152,
+      "vt_intermediate_size": 4304,
+      "vt_num_attention_heads": 16,
+      "vt_num_hidden_layers": 27
+    }
+  },
+  "metadata": {
+    "header": {
+      "revision": "4d01dfe0332d63057c186e0b262165819efb6611",
+      "total_size": 595148192736,
+      "tensors": [
+        {
+          "name": "language_model.lm_head.weight",
+          "dtype": "BF16",
+          "shape": [
+            163840,
+            7168
+          ]
+        },
+        {
+          "name": "language_model.model.embed_tokens.weight",
+          "dtype": "BF16",
+          "shape": [
+            163840,
+            7168
+          ]
+        },
+        {
+          "name": "language_model.model.layers.{}.input_layernorm.weight",
+          "dtype": "BF16",
+          "shape": [
+            7168
+          ],
+          "index": [
+            [
+              "0-60"
+            ]
+          ]
+        },
+        {
+          "name": "language_model.model.layers.{}.mlp.down_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            7168,
+            18432
+          ],
+          "index": [
+            [
+              "0"
+            ]
+          ]
+        },
+        {
+          "name": "language_model.model.layers.{}.mlp.experts.{}.down_proj.weight_packed",
+          "dtype": "I32",
+          "shape": [
+            7168,
+            256
+          ],
+          "index": [
+            [
+              "1-60",
+              "0-383"
+            ]
+          ]
+        },
+        {
+          "name": "language_model.model.layers.{}.mlp.experts.{}.down_proj.weight_scale",
+          "dtype": "BF16",
+          "shape": [
+            7168,
+            64
+          ],
+          "index": [
+            [
+              "1-60",
+              "0-383"
+            ]
+          ]
+        },
+        {
+          "name": "language_model.model.layers.{}.mlp.experts.{}.down_proj.weight_shape",
+          "dtype": "I32",
+          "shape": [
+            2
+          ],
+          "index": [
+            [
+              "1-60",
+              "0-383"
+            ]
+          ]
+        },
+        {
+          "name": "language_model.model.layers.{}.mlp.experts.{}.gate_proj.weight_packed",
+          "dtype": "I32",
+          "shape": [
+            2048,
+            896
+          ],
+          "index": [
+            [
+              "1-60",
+              "0-383"
+            ]
+          ]
+        },
+        {
+          "name": "language_model.model.layers.{}.mlp.experts.{}.gate_proj.weight_scale",
+          "dtype": "BF16",
+          "shape": [
+            2048,
+            224
+          ],
+          "index": [
+            [
+              "1-60",
+              "0-383"
+            ]
+          ]
+        },
+        {
+          "name": "language_model.model.layers.{}.mlp.experts.{}.gate_proj.weight_shape",
+          "dtype": "I32",
+          "shape": [
+            2
+          ],
+          "index": [
+            [
+              "1-60",
+              "0-383"
+            ]
+          ]
+        },
+        {
+          "name": "language_model.model.layers.{}.mlp.experts.{}.up_proj.weight_packed",
+          "dtype": "I32",
+          "shape": [
+            2048,
+            896
+          ],
+          "index": [
+            [
+              "1-60",
+              "0-383"
+            ]
+          ]
+        },
+        {
+          "name": "language_model.model.layers.{}.mlp.experts.{}.up_proj.weight_scale",
+          "dtype": "BF16",
+          "shape": [
+            2048,
+            224
+          ],
+          "index": [
+            [
+              "1-60",
+              "0-383"
+            ]
+          ]
+        },
+        {
+          "name": "language_model.model.layers.{}.mlp.experts.{}.up_proj.weight_shape",
+          "dtype": "I32",
+          "shape": [
+            2
+          ],
+          "index": [
+            [
+              "1-60",
+              "0-383"
+            ]
+          ]
+        },
+        {
+          "name": "language_model.model.layers.{}.mlp.gate.e_score_correction_bias",
+          "dtype": "F32",
+          "shape": [
+            384
+          ],
+          "index": [
+            [
+              "1-60"
+            ]
+          ]
+        },
+        {
+          "name": "language_model.model.layers.{}.mlp.gate.weight",
+          "dtype": "BF16",
+          "shape": [
+            384,
+            7168
+          ],
+          "index": [
+            [
+              "1-60"
+            ]
+          ]
+        },
+        {
+          "name": "language_model.model.layers.{}.mlp.gate_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            18432,
+            7168
+          ],
+          "index": [
+            [
+              "0"
+            ]
+          ]
+        },
+        {
+          "name": "language_model.model.layers.{}.mlp.shared_experts.down_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            7168,
+            2048
+          ],
+          "index": [
+            [
+              "1-60"
+            ]
+          ]
+        },
+        {
+          "name": "language_model.model.layers.{}.mlp.shared_experts.gate_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            2048,
+            7168
+          ],
+          "index": [
+            [
+              "1-60"
+            ]
+          ]
+        },
+        {
+          "name": "language_model.model.layers.{}.mlp.shared_experts.up_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            2048,
+            7168
+          ],
+          "index": [
+            [
+              "1-60"
+            ]
+          ]
+        },
+        {
+          "name": "language_model.model.layers.{}.mlp.up_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            18432,
+            7168
+          ],
+          "index": [
+            [
+              "0"
+            ]
+          ]
+        },
+        {
+          "name": "language_model.model.layers.{}.post_attention_layernorm.weight",
+          "dtype": "BF16",
+          "shape": [
+            7168
+          ],
+          "index": [
+            [
+              "0-60"
+            ]
+          ]
+        },
+        {
+          "name": "language_model.model.layers.{}.self_attn.kv_a_layernorm.weight",
+          "dtype": "BF16",
+          "shape": [
+            512
+          ],
+          "index": [
+            [
+              "0-60"
+            ]
+          ]
+        },
+        {
+          "name": "language_model.model.layers.{}.self_attn.kv_a_proj_with_mqa.weight",
+          "dtype": "BF16",
+          "shape": [
+            576,
+            7168
+          ],
+          "index": [
+            [
+              "0-60"
+            ]
+          ]
+        },
+        {
+          "name": "language_model.model.layers.{}.self_attn.kv_b_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            16384,
+            512
+          ],
+          "index": [
+            [
+              "0-60"
+            ]
+          ]
+        },
+        {
+          "name": "language_model.model.layers.{}.self_attn.o_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            7168,
+            8192
+          ],
+          "index": [
+            [
+              "0-60"
+            ]
+          ]
+        },
+        {
+          "name": "language_model.model.layers.{}.self_attn.q_a_layernorm.weight",
+          "dtype": "BF16",
+          "shape": [
+            1536
+          ],
+          "index": [
+            [
+              "0-60"
+            ]
+          ]
+        },
+        {
+          "name": "language_model.model.layers.{}.self_attn.q_a_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            1536,
+            7168
+          ],
+          "index": [
+            [
+              "0-60"
+            ]
+          ]
+        },
+        {
+          "name": "language_model.model.layers.{}.self_attn.q_b_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            12288,
+            1536
+          ],
+          "index": [
+            [
+              "0-60"
+            ]
+          ]
+        },
+        {
+          "name": "language_model.model.norm.weight",
+          "dtype": "BF16",
+          "shape": [
+            7168
+          ]
+        },
+        {
+          "name": "mm_projector.pre_norm.bias",
+          "dtype": "BF16",
+          "shape": [
+            1152
+          ]
+        },
+        {
+          "name": "mm_projector.pre_norm.weight",
+          "dtype": "BF16",
+          "shape": [
+            1152
+          ]
+        },
+        {
+          "name": "mm_projector.proj.{}.bias",
+          "dtype": "BF16",
+          "shape": [
+            4608
+          ],
+          "index": [
+            [
+              "0"
+            ]
+          ]
+        },
+        {
+          "name": "mm_projector.proj.{}.bias",
+          "dtype": "BF16",
+          "shape": [
+            7168
+          ],
+          "index": [
+            [
+              "2"
+            ]
+          ]
+        },
+        {
+          "name": "mm_projector.proj.{}.weight",
+          "dtype": "BF16",
+          "shape": [
+            4608,
+            4608
+          ],
+          "index": [
+            [
+              "0"
+            ]
+          ]
+        },
+        {
+          "name": "mm_projector.proj.{}.weight",
+          "dtype": "BF16",
+          "shape": [
+            7168,
+            4608
+          ],
+          "index": [
+            [
+              "2"
+            ]
+          ]
+        },
+        {
+          "name": "vision_tower.encoder.blocks.{}.mlp.fc0.bias",
+          "dtype": "BF16",
+          "shape": [
+            4304
+          ],
+          "index": [
+            [
+              "0-26"
+            ]
+          ]
+        },
+        {
+          "name": "vision_tower.encoder.blocks.{}.mlp.fc0.weight",
+          "dtype": "BF16",
+          "shape": [
+            4304,
+            1152
+          ],
+          "index": [
+            [
+              "0-26"
+            ]
+          ]
+        },
+        {
+          "name": "vision_tower.encoder.blocks.{}.mlp.fc1.bias",
+          "dtype": "BF16",
+          "shape": [
+            1152
+          ],
+          "index": [
+            [
+              "0-26"
+            ]
+          ]
+        },
+        {
+          "name": "vision_tower.encoder.blocks.{}.mlp.fc1.weight",
+          "dtype": "BF16",
+          "shape": [
+            1152,
+            4304
+          ],
+          "index": [
+            [
+              "0-26"
+            ]
+          ]
+        },
+        {
+          "name": "vision_tower.encoder.blocks.{}.norm0.bias",
+          "dtype": "BF16",
+          "shape": [
+            1152
+          ],
+          "index": [
+            [
+              "0-26"
+            ]
+          ]
+        },
+        {
+          "name": "vision_tower.encoder.blocks.{}.norm0.weight",
+          "dtype": "BF16",
+          "shape": [
+            1152
+          ],
+          "index": [
+            [
+              "0-26"
+            ]
+          ]
+        },
+        {
+          "name": "vision_tower.encoder.blocks.{}.norm1.bias",
+          "dtype": "BF16",
+          "shape": [
+            1152
+          ],
+          "index": [
+            [
+              "0-26"
+            ]
+          ]
+        },
+        {
+          "name": "vision_tower.encoder.blocks.{}.norm1.weight",
+          "dtype": "BF16",
+          "shape": [
+            1152
+          ],
+          "index": [
+            [
+              "0-26"
+            ]
+          ]
+        },
+        {
+          "name": "vision_tower.encoder.blocks.{}.wo.bias",
+          "dtype": "BF16",
+          "shape": [
+            1152
+          ],
+          "index": [
+            [
+              "0-26"
+            ]
+          ]
+        },
+        {
+          "name": "vision_tower.encoder.blocks.{}.wo.weight",
+          "dtype": "BF16",
+          "shape": [
+            1152,
+            1152
+          ],
+          "index": [
+            [
+              "0-26"
+            ]
+          ]
+        },
+        {
+          "name": "vision_tower.encoder.blocks.{}.wqkv.bias",
+          "dtype": "BF16",
+          "shape": [
+            3456
+          ],
+          "index": [
+            [
+              "0-26"
+            ]
+          ]
+        },
+        {
+          "name": "vision_tower.encoder.blocks.{}.wqkv.weight",
+          "dtype": "BF16",
+          "shape": [
+            3456,
+            1152
+          ],
+          "index": [
+            [
+              "0-26"
+            ]
+          ]
+        },
+        {
+          "name": "vision_tower.encoder.final_layernorm.bias",
+          "dtype": "BF16",
+          "shape": [
+            1152
+          ]
+        },
+        {
+          "name": "vision_tower.encoder.final_layernorm.weight",
+          "dtype": "BF16",
+          "shape": [
+            1152
+          ]
+        },
+        {
+          "name": "vision_tower.patch_embed.pos_emb.weight",
+          "dtype": "BF16",
+          "shape": [
+            64,
+            64,
+            1152
+          ]
+        },
+        {
+          "name": "vision_tower.patch_embed.proj.bias",
+          "dtype": "BF16",
+          "shape": [
+            1152
+          ]
+        },
+        {
+          "name": "vision_tower.patch_embed.proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            1152,
+            3,
+            14,
+            14
+          ]
+        }
+      ]
+    },
+    "quant_scheme": "compressed-tensors",
+    "num_bits": 4
+  },
+  "forward_source": {
+    "source": "hf_modeling_files",
+    "paths": [
+      "hf-cache/moonshotai/Kimi-K2.5/configuration_kimi_k25.py",
+      "hf-cache/moonshotai/Kimi-K2.5/modeling_kimi_k25.py",
+      "hf-cache/moonshotai/Kimi-K2.5/configuration_deepseek.py",
+      "hf-cache/moonshotai/Kimi-K2.5/modeling_deepseek.py"
+    ],
+    "files": [
+      {
+        "path": "hf-cache/moonshotai/Kimi-K2.5/configuration_kimi_k25.py",
+        "text": "from transformers.configuration_utils import PretrainedConfig\n\ntry:\n    from configuration_deepseek import DeepseekV3Config\nexcept ImportError:\n    from .configuration_deepseek import DeepseekV3Config\n\n\nclass KimiK25VisionConfig(PretrainedConfig):\n\n    def __init__(\n            self,\n            patch_size: int = 14,\n            init_pos_emb_height: int = 64,\n            init_pos_emb_width: int = 64,\n            init_pos_emb_time: int = 4,\n            pos_emb_type: str = 'divided_fixed',\n            vt_num_attention_heads: int = 16,\n            vt_num_hidden_layers: int = 27,\n            vt_hidden_size: int = 1152,\n            vt_intermediate_size: int = 4304,\n            merge_kernel_size: tuple = (2, 2),\n            video_attn_type: str = 'spatial_temporal',\n            merge_type: str = 'sd2_tpool',\n            _attn_implementation: str = 'flash_attention_2',\n            # MM Projector parameters\n            mm_projector_type: str = 'patchmerger',\n            mm_hidden_size: int | None = None,\n            projector_hidden_act: str = \"gelu\",\n            projector_ln_eps: float = 1e-5,\n            # Other parameters\n            ignore_index: int = -100,\n            media_placeholder_token_id: int = 163605,\n            pad_token_id: int = 0,\n            use_unified_vision_chunk: bool = True,\n            video_placeholder=\"<|kimi_k25_video_placeholder|>\",\n            text_hidden_size=7168,\n            **vision_config_kwargs):\n\n        self.patch_size = patch_size\n        self.init_pos_emb_height = init_pos_emb_height\n        self.init_pos_emb_width = init_pos_emb_width\n        self.init_pos_emb_time = init_pos_emb_time\n        self.pos_emb_type = pos_emb_type\n        self.vt_num_attention_heads = vt_num_attention_heads\n        self.vt_num_hidden_layers = vt_num_hidden_layers\n        self.vt_hidden_size = vt_hidden_size\n        self.vt_intermediate_size = vt_intermediate_size\n        self.merge_kernel_size = merge_kernel_size\n        self.video_attn_type = video_attn_type\n        self.merge_type = merge_type\n        self._attn_implementation = _attn_implementation\n\n        # MM Projector config\n        self.mm_projector_type = mm_projector_type\n        self.mm_hidden_size = mm_hidden_size if mm_hidden_size is not None else vt_hidden_size\n        self.projector_hidden_act = projector_hidden_act\n        self.projector_ln_eps = projector_ln_eps\n        self.text_hidden_size = text_hidden_size\n\n\nclass KimiK25Config(PretrainedConfig):\n    \"\"\"Kimi-K2.5 model configuration.\n\n    Args:\n        text_config (dict | DeepseekV3Config): Configuration for the text model.\n        \n        Vision Tower Parameters (from MoonViT3dConfig):\n            patch_size (int): Patch size for vision tower.\n            init_pos_emb_height (int): Initial position embedding height.\n            init_pos_emb_width (int): Initial position embedding width.\n            init_pos_emb_time (int): Initial position embedding time dimension.\n            pos_emb_type (str): Type of position embedding.\n            vt_num_attention_heads (int): Number of attention heads in vision tower.\n            vt_num_hidden_layers (int): Number of hidden layers in vision tower.\n            vt_hidden_size (int): Hidden size of vision tower.\n            vt_intermediate_size (int): Intermediate size in vision tower FFN.\n            merge_kernel_size (tuple): Kernel size for patch merging.\n            video_attn_type (str): Type of video attention.\n            merge_type (str): Type of merge operation.\n            _attn_implementation (str): Attention implementation type.\n        \n        MM Projector Parameters (from MultiModalProjectorConfig):\n            mm_projector_type (str): Type of multimodal projector.\n            mm_hidden_size (int): Hidden size from vision tower (should match vt_hidden_size).\n            projector_hidden_act (str): Activation function for projector.\n            projector_ln_eps (float): Layer norm epsilon for projector.\n        \n        Other Parameters:\n            ignore_index (int): The ignore index for the loss function.\n            media_placeholder_token_id (int): The token ID to use for media placeholders.\n            pad_token_id (int): The token ID to use for padding.\n    \"\"\"\n\n    model_type = \"kimi_k25\"\n\n    def __init__(\n        self,\n        text_config: dict | DeepseekV3Config = None,\n        vision_config: dict | KimiK25VisionConfig = None,\n        # Other parameters\n        ignore_index: int = -100,\n        media_placeholder_token_id: int = 163605,\n        pad_token_id: int = 0,\n        use_unified_vision_chunk: bool = True,\n        video_placeholder=\"<|kimi_k25_video_placeholder|>\",\n        **kwargs,\n    ):\n        if isinstance(text_config, dict):\n            text_config = DeepseekV3Config(**text_config)\n        if isinstance(vision_config, dict):\n            vision_config = KimiK25VisionConfig(**vision_config)\n        self.text_config = text_config\n        self.vision_config = vision_config\n        # Other config\n        self.ignore_index = ignore_index\n        self.media_placeholder_token_id = media_placeholder_token_id\n        self.use_unified_vision_chunk = use_unified_vision_chunk\n        self.video_placeholder = video_placeholder\n        if getattr(self.text_config, \"quantization_config\", None) is not None:\n            self.quantization_config = self.text_config.quantization_config\n\n        super().__init__(pad_token_id=pad_token_id, **kwargs)\n"
+      },
+      {
+        "path": "hf-cache/moonshotai/Kimi-K2.5/modeling_kimi_k25.py",
+        "text": "# coding=utf-8\n# Copyright 2025-2026 The Moonshot AI Team, DeepSeek-AI, and HuggingFace Inc. team. All rights reserved.\n#\n# The code is based on llava (llava/modeling_llava.py) and DeepSeek-V3 (DeepSeek-V3/modeling_deepseek.py), but modified for Kimi-K2.5.\n#\n# Licensing Information:\n# - Code derived from llava (llava/modeling_llava.py) and DeepSeek-V3 (DeepSeek-V3/modeling_deepseek.py) is licensed under the Apache License, Version 2.0.\n# - Other parts of the code are licensed under the MIT License.\n#\n# Apache License, Version 2.0:\n# Licensed under the Apache License, Version 2.0 (the \"License\");\n# you may not use this file except in compliance with the License.\n# You may obtain a copy of the License at\n#\n#     http://www.apache.org/licenses/LICENSE-2.0\n#\n# Unless required by applicable law or agreed to in writing, software\n# distributed under the License is distributed on an \"AS IS\" BASIS,\n# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n# See the License for the specific language governing permissions and\n# limitations under the License.\n#\n# MIT License:\n# Permission is hereby granted, free of charge, to any person obtaining a copy\n# of this software and associated documentation files (the \"Software\"), to deal\n# in the Software without restriction, including without limitation the rights\n# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell\n# copies of the Software, and to permit persons to whom the Software is\n# furnished to do so, subject to the following conditions:\n#\n# The above copyright notice and this permission notice shall be included in all\n# copies or substantial portions of the Software.\n#\n# THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\n# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\n# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\n# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\n# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\n# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\n# SOFTWARE.\nimport math\nfrom collections.abc import Sequence\nfrom copy import deepcopy\nfrom typing import Optional\n\nimport numpy as np\nimport torch\nimport torch.nn as nn\nimport torch.nn.functional as F\nfrom transformers import activations\n\ntry:\n    from transformers.activations import PytorchGELUTanh\nexcept ImportError:\n    from transformers.activations import GELUTanh\n    activations.PytorchGELUTanh = GELUTanh\n    PytorchGELUTanh = GELUTanh\nfrom transformers.activations import PytorchGELUTanh\nfrom transformers.cache_utils import Cache\nfrom transformers.configuration_utils import PretrainedConfig\nfrom transformers.modeling_utils import PreTrainedModel\nfrom transformers.models.llava.modeling_llava import \\\n    LlavaCausalLMOutputWithPast\nfrom transformers.utils import is_flash_attn_2_available\n\nfrom .configuration_kimi_k25 import KimiK25Config\nfrom .modeling_deepseek import DeepseekV3ForCausalLM\n\n# Flash attention imports\nif is_flash_attn_2_available():\n    from flash_attn import flash_attn_varlen_func\nelse:\n    flash_attn_varlen_func = None\n\n\ndef multihead_attention(\n    q: torch.Tensor,\n    k: torch.Tensor,\n    v: torch.Tensor,\n    q_cu_seqlens: torch.Tensor | None = None,\n    k_cu_seqlens: torch.Tensor | None = None,\n    max_seqlen_q: int | None = None,\n    max_seqlen_k: int | None = None,\n    deterministic: bool = False,\n):\n    \"\"\"Multi-head attention using flash attention 2.\n\n    Args:\n        q, k, v: tensor of shape (batch_size, seqlen, num_heads, head_dim),\n            or (tot_seqlens, num_heads, head_dim) if packing.\n        q_cu_seqlens (torch.Tensor): cumulative sequence lengths of q.\n            The first element should be 0 and the last element should be q.shape[0].\n        k_cu_seqlens (torch.Tensor): cumulative sequence lengths of k.\n            The first element should be 0 and the last element should be k.shape[0].\n\n    Returns:\n        output: shape (batch_size, seqlen, dim) or (tot_seqlens, dim) if packing,\n            where dim = num_heads * head_dim\n    \"\"\"\n    attn_out = flash_attn_varlen_func(\n        q,\n        k,\n        v,\n        q_cu_seqlens,\n        k_cu_seqlens,\n        max_seqlen_q,\n        max_seqlen_k,\n        causal=False,\n        deterministic=deterministic,\n    )\n    if isinstance(attn_out, tuple):\n        attn_out = attn_out[0]\n\n    attn_out = attn_out.flatten(start_dim=-2)\n\n    return attn_out\n\n\ndef eager_attention(\n    q: torch.Tensor,\n    k: torch.Tensor,\n    v: torch.Tensor,\n    q_cu_seqlens: Optional[torch.Tensor] = None,\n    k_cu_seqlens: Optional[torch.Tensor] = None,\n    **kwargs,\n) -> torch.Tensor:\n    seq_length = q.shape[0]\n    attention_mask = torch.zeros([1, seq_length, seq_length],\n                                 device=q.device,\n                                 dtype=torch.bool)\n    for i in range(1, len(q_cu_seqlens)):\n        attention_mask[\n            ...,\n            q_cu_seqlens[i - 1]:q_cu_seqlens[i],\n            q_cu_seqlens[i - 1]:q_cu_seqlens[i],\n        ] = True\n    q = q.transpose(0, 1)\n    k = k.transpose(0, 1)\n    v = v.transpose(0, 1)\n\n    attn_weight = q @ k.transpose(-2, -1) / math.sqrt(q.shape[-1])\n    attn_weight += attention_mask\n    attn_weight = torch.softmax(attn_weight, dim=-1,\n                                dtype=torch.float32).to(q.dtype)\n\n    attn_output = attn_weight @ v\n    attn_output = attn_output.transpose(0, 1)\n    attn_output = attn_output.reshape(seq_length, -1)\n    return attn_output\n\n\nVL_VISION_ATTENTION_FUNCTIONS = {\n    \"flash_attention_2\": multihead_attention,\n    \"eager\": eager_attention,\n}\n\n\ndef _apply_rope_input_validation(x, freqs_cis):\n    assert x.ndim == freqs_cis.ndim + 1, (x.shape, freqs_cis.shape)\n    assert x.shape[:-2] == freqs_cis.shape[:-1], (x.shape, freqs_cis.shape)\n    assert x.shape[-1] == 2 * freqs_cis.shape[-1], (x.shape, freqs_cis.shape)\n    assert freqs_cis.dtype == torch.complex64, freqs_cis.dtype\n\n\ndef get_rope_shape_decorate(func):\n    _get_rope_shape_first_call_flag = set()\n\n    def wrapper(org, interpolation_mode, shape):\n        key = (org.requires_grad, torch.is_grad_enabled(), interpolation_mode)\n        if key not in _get_rope_shape_first_call_flag:\n            _get_rope_shape_first_call_flag.add(key)\n            _ = func(org, interpolation_mode, shape=(64, 64))\n        return func(org, interpolation_mode, shape)\n\n    return wrapper\n\n\n@get_rope_shape_decorate\n@torch.compile(dynamic=True)\ndef get_rope_shape(org, interpolation_mode, shape):\n    return (F.interpolate(\n        org.permute((2, 0, 1)).unsqueeze(0),\n        size=shape,\n        mode=interpolation_mode,\n    ).squeeze(0).permute((1, 2, 0)).flatten(end_dim=1))\n\n\ndef apply_rope(xq: torch.Tensor, xk: torch.Tensor,\n               freqs_cis: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:\n    \"\"\"\n    Args: (The leading dimensions of all inputs should be the same)\n        xq: query, tensor of shape (..., num_heads, head_dim)\n        xk: key, tensor of shape (..., num_heads, head_dim)\n        freqs_cis: tensor of shape (..., head_dim/2), dtype=torch.complex64. It contains the precomputed cis(freqs) for each position in the 2D grid.\n    Returns:\n        xq_out, xk_out: tensors of shape (..., num_heads, head_dim)\n    \"\"\"\n    _apply_rope_input_validation(xq, freqs_cis)\n    _apply_rope_input_validation(xk, freqs_cis)\n\n    freqs_cis = freqs_cis.unsqueeze(-2)  # ..., 1, head_dim/2\n    # ..., num_heads, head_dim/2\n    xq_ = torch.view_as_complex(xq.float().view(*xq.shape[:-1], -1, 2))\n    xk_ = torch.view_as_complex(xk.float().view(*xq.shape[:-1], -1, 2))\n    xq_out = torch.view_as_real(xq_ * freqs_cis).flatten(\n        -2)  # ..., num_heads, head_dim\n    xk_out = torch.view_as_real(xk_ * freqs_cis).flatten(\n        -2)  # ..., num_heads, head_dim\n    return xq_out.type_as(xq), xk_out.type_as(xk)\n\n\ndef get_1d_sincos_pos_embed_from_grid(embed_dim, pos):\n    \"\"\"\n    From:\n    https://github.com/OpenGVLab/InternVideo/blob/421f6d2361fc8f61a3394244571f2601a4e99e29/InternVideo2/multi_modality/models/backbones/internvideo2/pos_embed.py#L86\n    embed_dim: output dimension for each position\n    pos: a list of positions to be encoded: size (M,)\n    out: (M, D)\n    \"\"\"\n    assert embed_dim % 2 == 0\n    omega = np.arange(embed_dim // 2, dtype=np.float32)\n    omega /= embed_dim / 2.0\n    omega = 1.0 / 10000**omega  # (D/2,)\n\n    pos = pos.reshape(-1)  # (M,)\n    out = np.einsum('m,d->md', pos, omega)  # (M, D/2), outer product\n\n    emb_sin = np.sin(out)  # (M, D/2)\n    emb_cos = np.cos(out)  # (M, D/2)\n\n    emb = np.concatenate([emb_sin, emb_cos], axis=1)  # (M, D)\n    return emb\n\n\ndef get_1d_sincos_pos_embed(embed_dim, t_size, cls_token=False):\n    \"\"\"\n    t_size: int of the temporal size\n    return:\n    pos_embed: [t_size, embed_dim] or [1+t_size, embed_dim] (w/ or w/o cls_token)\n    \"\"\"\n    grid_t = np.arange(t_size, dtype=np.float32)\n    pos_embed = get_1d_sincos_pos_embed_from_grid(embed_dim, grid_t)\n    if cls_token:\n        pos_embed = np.concatenate([np.zeros([1, embed_dim]), pos_embed],\n                                   axis=0)\n    return pos_embed\n\n\nclass Learnable2DInterpPosEmbDivided_fixed(nn.Module):\n\n    def __init__(self,\n                 height: int,\n                 width: int,\n                 num_frames: int,\n                 dim: int,\n                 interpolation_mode: str = 'bicubic') -> None:\n        super().__init__()\n        self.height = height\n        self.width = width\n        self.num_frames = num_frames\n        self.dim = dim\n        self.interpolation_mode = interpolation_mode\n        self.weight = nn.Parameter(torch.empty(height, width, dim))\n        self.register_buffer('time_weight',\n                             torch.from_numpy(\n                                 get_1d_sincos_pos_embed(\n                                     self.dim,\n                                     self.num_frames)).float().unsqueeze(1),\n                             persistent=False)\n\n        self.reset_parameters()\n\n    def reset_parameters(self):\n        nn.init.normal_(self.weight)\n\n    def forward(self, x: torch.Tensor,\n                grid_thws: torch.Tensor) -> torch.Tensor:\n        pos_embs = []\n        for t, h, w in grid_thws.tolist():\n            assert t <= self.num_frames, f't:{t} > self.num_frames:{self.num_frames}'\n            if (h, w) == self.weight.shape[:-1]:\n                pos_emb_2d = self.weight.flatten(end_dim=1)\n            else:\n                pos_emb_2d = get_rope_shape(\n                    self.weight,\n                    interpolation_mode=self.interpolation_mode,\n                    shape=(h, w),\n                )\n\n            if t == 1:\n                pos_emb_3d = pos_emb_2d\n            else:\n                pos_emb_3d = pos_emb_2d.unsqueeze(0).repeat(\n                    t, 1, 1) + self.time_weight[0:t]\n\n            pos_embs.append(pos_emb_3d.reshape(-1, pos_emb_3d.shape[-1]))\n\n        out = x + torch.cat(pos_embs)\n        return out\n\n\nclass MoonVision3dPatchEmbed(nn.Module):\n\n    def __init__(self,\n                 out_dim: int,\n                 in_dim: int = 3,\n                 patch_size: int | tuple[int, int] = (14, 14),\n                 pos_emb_height: int = 14,\n                 pos_emb_width: int = 14,\n                 pos_emb_time: int = 4,\n                 pos_emb_type: str = 'divided_fixed'):\n        super().__init__()\n        assert isinstance(\n            patch_size,\n            int | Sequence), f'Invalid patch_size type: {type(patch_size)}'\n        if isinstance(patch_size, int):\n            patch_size = (patch_size, patch_size)\n        assert (len(patch_size) == 2\n                ), f'Expected patch_size to be a tuple of 2, got {patch_size}'\n        self.patch_size = patch_size\n\n        self.proj = nn.Conv2d(in_dim,\n                              out_dim,\n                              kernel_size=patch_size,\n                              stride=patch_size)\n\n        if pos_emb_type == 'divided_fixed':\n            self.pos_emb = Learnable2DInterpPosEmbDivided_fixed(\n                height=pos_emb_height,\n                width=pos_emb_width,\n                num_frames=pos_emb_time,\n                dim=out_dim)\n        else:\n            raise NotImplementedError(\n                f'Not support pos_emb_type: {pos_emb_type}')\n\n    def forward(self, x: torch.Tensor,\n                grid_thws: torch.Tensor) -> torch.Tensor:\n        \"\"\"\n        Args:\n            x (L, Channels): input tensor\n            grid_hws (N, 3): temporal, height and width\n\n        Returns:\n            (L, Cout) tensor\n        \"\"\"\n        x = self.proj(x).view(x.size(0), -1)\n        # apply positional embedding\n        x = self.pos_emb(x, grid_thws)\n        return x\n\n\nclass Rope2DPosEmbRepeated(nn.Module):\n    \"\"\"2D rotary position embedding with multi-resolution support.\n\n    This class is intended to be used in the following way:\n    1. Before training, create an instance of Rope2DPosEmb. This instance will hold the precomputed cis.\n    2. Before each forward pass, call `get_freqs_cis_by_*` to get the `freqs_cis` tensor for this iteration.\n    3. During the forward pass, pass the `freqs_cis` tensor to each attention layer, and call `apply` just before each attention operation.\n        The rope is shared across all attention layers and all heads.\n\n    Refs:\n    - RoFormer: https://arxiv.org/abs/2104.09864\n    - VisionLLaMA: https://arxiv.org/abs/2403.00522\n    - https://github.com/Meituan-AutoML/VisionLLaMA/blob/main/dit/models.py\n\n    Args:\n        dim (int): usually the multi-head attention dimension, should be divisible by 4 (TODO: relax this constraint if needed)\n        max_height (int): the maximum height of the 2D grid\n        max_width (int): the maximum width of the 2D grid\n        theta_base (float): the base of the theta\n        device (str): the device to store the precomputed cis\n    \"\"\"\n\n    def __init__(self,\n                 dim: int,\n                 max_height: int,\n                 max_width: int,\n                 theta_base=10000):\n        super().__init__()\n        self.dim = dim\n        assert self.dim % 4 == 0, 'dim must be divisible by 4'\n        self.max_height = max_height\n        self.max_width = max_width\n        self.theta_base = theta_base\n\n    def extra_repr(self):\n        return f'dim={self.dim}, max_height={self.max_height}, max_width={self.max_width}, theta_base={self.theta_base}'\n\n    def _precompute_freqs_cis(self, device: torch.device) -> torch.Tensor:\n        \"\"\"Calculate the cis(freqs) for each position in the 2D grid.\n\n        Return: complex tensor of shape (max_height, max_width, dim//2) and value:\n            height axis: ret[h, w, 2*i] = cis(h * theta_base**(-4*i/dim))\n            weight axis: ret[h, w, 2*i+1] = cis(w * theta_base**(-4*i/dim))   with (i in [0, dim//4))\n            note: `cis` is a mathematical notation defined by cis x = cos x + i sin x,\n        \"\"\"\n        N = self.max_height * self.max_width\n        flat_pos = torch.arange(0, N).float().to(device)\n        x_pos = flat_pos % self.max_width\n        y_pos = flat_pos // self.max_width\n        dim_range = (torch.arange(0, self.dim,\n                                  4)[:(self.dim // 4)].float().to(device)\n                     )  # C/4\n        freqs = 1.0 / (self.theta_base**(dim_range / self.dim))\n        x_freqs = torch.outer(x_pos, freqs).float()  # N, C/4\n        y_freqs = torch.outer(y_pos, freqs).float()  # N, C/4\n        x_cis = torch.polar(torch.ones_like(x_freqs), x_freqs)  # N, C/4\n        y_cis = torch.polar(torch.ones_like(y_freqs), y_freqs)  # N, C/4\n        # N, C/4, 2\n        freqs_cis = torch.cat(\n            [x_cis.unsqueeze(dim=-1),\n             y_cis.unsqueeze(dim=-1)], dim=-1)\n        # max_height, max_width, C/2\n        freqs_cis = freqs_cis.reshape(self.max_height, self.max_width, -1)\n        return freqs_cis\n\n    def get_freqs_cis(self, grid_thws: torch.Tensor,\n                      device: torch.device) -> torch.Tensor:\n        \"\"\"\n        Args:\n            grid_thws (torch.Tensor): grid time, height and width\n\n        Returns:\n            freqs_cis: tensor of shape (sum(t * height * width), dim//2)\n        \"\"\"\n        if not hasattr(self, 'freqs_cis'):\n            self.register_buffer('freqs_cis',\n                                 self._precompute_freqs_cis(device),\n                                 persistent=False)\n\n        shapes = grid_thws.tolist()\n        assert all(1 <= h <= self.max_height and 1 <= w <= self.max_width\n                   for t, h, w in shapes), (\n                       shapes,\n                       self.max_height,\n                       self.max_width,\n                   )\n        freqs_cis = torch.cat(\n            [\n                self.freqs_cis[:h, :w].reshape(-1, self.dim // 2).repeat(t, 1)\n                for t, h, w in shapes\n            ],\n            dim=0,\n        )\n        return freqs_cis\n\n\nclass MLP2(nn.Module):\n    \"\"\"\n    Args:\n        dims: [in_dim, hidden_dim, out_dim]\n        bias: whether to use bias in linear layer.\n    \"\"\"\n\n    def __init__(self, dims: list[int], activation, bias=True):\n        super().__init__()\n        assert len(dims) == 3\n        self.fc0 = nn.Linear(dims[0], dims[1], bias=bias)\n        self.fc1 = nn.Linear(dims[1], dims[2], bias=bias)\n        self.activation = activation\n        for m in [self.fc0, self.fc1]:\n            nn.init.trunc_normal_(m.weight, std=math.sqrt(2 / m.in_features))\n            if m.bias is not None:\n                nn.init.zeros_(m.bias)\n\n    def forward(self, x: torch.Tensor) -> torch.Tensor:\n        x = self.fc0(x)\n        x = self.activation(x)\n        return self.fc1(x)\n\n\nclass MoonViTEncoderLayer(nn.Module):\n\n    def __init__(\n        self,\n        num_heads: int,\n        hidden_dim: int,\n        mlp_dim: int,\n        *,\n        attn_implementation: str = 'flash_attention_2',\n        activation=F.gelu,\n        attn_bias: bool = False,\n        use_deterministic_attn: bool = False,\n    ):\n        super().__init__()\n        self.num_heads = num_heads\n        self.hidden_dim = hidden_dim\n        self.hidden_size_per_attention_head = self.hidden_dim // self.num_heads\n        self.attn_implementation = attn_implementation\n        self.use_deterministic_attn = use_deterministic_attn\n\n        self.norm0 = nn.LayerNorm(hidden_dim)\n        self.norm1 = nn.LayerNorm(hidden_dim)\n        self.mlp = MLP2([hidden_dim, mlp_dim, hidden_dim], activation)\n        self.wqkv = nn.Linear(hidden_dim, hidden_dim * 3, bias=attn_bias)\n        self.wo = nn.Linear(hidden_dim, hidden_dim, bias=attn_bias)\n\n    def attention_qkvpacked(\n        self,\n        x: torch.Tensor,\n        cu_seqlens: torch.Tensor,\n        max_seqlen: torch.Tensor,\n        rope_freqs_cis: torch.Tensor | None = None,\n    ):\n        \"\"\"\n        Args:\n            x (torch.Tensor): (batch_size, seqlen, hidden_dim)\n            cu_seqlens (torch.Tensor):\n        \"\"\"\n        xqkv = self.wqkv(x)\n\n        qkv_shape = xqkv.size()[:-1] + (\n            3,\n            self.num_heads,\n            self.hidden_size_per_attention_head,\n        )\n        # xqkv: (batch_size, seqlen, 3, nheads, headdim)\n        xqkv = xqkv.view(*qkv_shape)\n        xq, xk, xv = torch.unbind(xqkv, dim=-3)\n\n        xq, xk = apply_rope(xq, xk, rope_freqs_cis)\n\n        attn_func = VL_VISION_ATTENTION_FUNCTIONS[self.attn_implementation]\n        attn_out = attn_func(xq,\n                             xk,\n                             xv,\n                             q_cu_seqlens=cu_seqlens,\n                             k_cu_seqlens=cu_seqlens,\n                             max_seqlen_k=max_seqlen,\n                             max_seqlen_q=max_seqlen,\n                             deterministic=self.use_deterministic_attn)\n\n        attn_out = self.wo(attn_out)\n        return attn_out\n\n    def forward(\n        self,\n        hidden_states: torch.Tensor,\n        cu_seqlens: torch.Tensor,\n        max_seqlen: int,\n        rope_freqs_cis: torch.Tensor | None = None,\n    ):\n        residual = hidden_states\n        hidden_states = self.norm0(hidden_states)\n\n        hidden_states = self.attention_qkvpacked(hidden_states, cu_seqlens,\n                                                 max_seqlen, rope_freqs_cis)\n        hidden_states = residual + hidden_states\n\n        residual = hidden_states\n        hidden_states = self.norm1(hidden_states)\n        hidden_states = self.mlp(hidden_states)\n        hidden_states = residual + hidden_states\n\n        return hidden_states\n\n\nclass MoonViT3dEncoder(nn.Module):\n\n    def __init__(self,\n                 hidden_dim: int,\n                 num_layers: int,\n                 block_cfg: dict,\n                 video_attn_type: str = 'spatial_temporal',\n                 use_deterministic_attn: bool = False) -> None:\n        super().__init__()\n\n        assert video_attn_type == 'spatial_temporal', f'video_attn_type must be \"spatial_temporal\", got {video_attn_type}'\n        self.video_attn_type = video_attn_type\n        self.rope_2d = Rope2DPosEmbRepeated(\n            block_cfg['hidden_dim'] // block_cfg['num_heads'], 512, 512)\n        self.blocks = nn.ModuleList([\n            MoonViTEncoderLayer(**block_cfg,\n                                use_deterministic_attn=use_deterministic_attn)\n            for _ in range(num_layers)\n        ])\n        self.final_layernorm = nn.LayerNorm(hidden_dim)\n\n    def forward(\n        self,\n        hidden_states: torch.Tensor,\n        grid_thws: torch.Tensor,\n    ) -> torch.Tensor:\n        rope_freqs_cis = self.rope_2d.get_freqs_cis(\n            grid_thws=grid_thws, device=hidden_states.device)\n\n        lengths = torch.cat((\n            torch.zeros(1, dtype=grid_thws.dtype, device=grid_thws.device),\n            grid_thws[:, 0] * grid_thws[:, 1] * grid_thws[:, 2],\n        ))\n\n        max_seqlen = lengths.max()\n        cu_seqlens = lengths.to(hidden_states.device).cumsum(dim=0,\n                                                             dtype=torch.int32)\n        for block in self.blocks:\n            hidden_states = block(hidden_states,\n                                  cu_seqlens,\n                                  max_seqlen,\n                                  rope_freqs_cis=rope_freqs_cis)\n\n        hidden_states = self.final_layernorm(hidden_states)\n        return hidden_states\n\n\ndef tpool_patch_merger(\n        x: torch.Tensor,\n        grid_thws: torch.Tensor,\n        merge_kernel_size: tuple[int, int] = (2, 2),\n) -> list[torch.Tensor]:\n    d_model = x.size(-1)\n\n    outputs = []\n    pre_sum = 0\n    for t, h, w in grid_thws.tolist():\n        # Get the current sequence\n        seq = x[pre_sum:pre_sum + t * h * w]\n        # Reshape along self.merge_kernel_size and concat to the last dimension\n        kernel_height, kernel_width = merge_kernel_size\n        new_height, new_width = h // kernel_height, w // kernel_width\n        reshaped_seq = seq.view(t, new_height, kernel_height, new_width,\n                                kernel_width, d_model)\n        reshaped_seq = reshaped_seq.permute(0, 1,\n                                            3, 2, 4, 5).contiguous().mean(\n                                                dim=0)  # temporal pooling\n        padded_seq = reshaped_seq.view(new_height * new_width,\n                                       kernel_height * kernel_width, -1)\n        outputs.append(padded_seq)\n        pre_sum += t * h * w\n\n    return outputs\n\n\nclass MoonViT3dPretrainedModel(PreTrainedModel):\n    config_class = None\n    model_type = 'moonvit3d'\n    _no_split_modules = ['PackingTransformer']\n    _supports_flash_attn_2 = True\n    _supports_sdpa = True\n\n    def __init__(self, config, *inputs, **kwargs):\n        super().__init__(config, *inputs, **kwargs)\n        config = deepcopy(config)\n        self.merge_kernel_size = config.merge_kernel_size\n        self.patch_size = config.patch_size\n        self.merge_type = config.merge_type\n\n        self.patch_embed = MoonVision3dPatchEmbed(\n            out_dim=config.hidden_size,\n            patch_size=config.patch_size,\n            pos_emb_height=config.init_pos_emb_height,\n            pos_emb_width=config.init_pos_emb_width,\n            pos_emb_time=config.init_pos_emb_time,\n            pos_emb_type=config.pos_emb_type,\n        )\n\n        self.encoder = MoonViT3dEncoder(hidden_dim=config.hidden_size,\n                                        num_layers=config.num_hidden_layers,\n                                        block_cfg={\n                                            'num_heads':\n                                            config.num_attention_heads,\n                                            'hidden_dim':\n                                            config.hidden_size,\n                                            'mlp_dim':\n                                            config.intermediate_size,\n                                            'activation':\n                                            PytorchGELUTanh(),\n                                            'attn_bias':\n                                            True,\n                                            'attn_implementation':\n                                            config._attn_implementation,\n                                        },\n                                        video_attn_type=config.video_attn_type)\n\n    def forward(self, pixel_values: torch.Tensor,\n                grid_thws: torch.Tensor) -> torch.Tensor:\n        \"\"\"\n        Args:\n            pixel_values (torch.Tensor): The input pixel values.\n            grid_thws (torch.Tensor): Temporal, height and width.\n\n        Returns:\n            torch.Tensor: The output tokens.\n        \"\"\"\n        # grid_thws = grid_thws.to('cpu')\n        assert grid_thws.ndim == 2, f'grid_thws should be 2D, got {grid_thws.ndim}'\n        assert grid_thws.size(1) == 3, f'No support for thw: {grid_thws}'\n        hidden_states = self.patch_embed(pixel_values, grid_thws)\n        hidden_states = self.encoder(hidden_states, grid_thws)\n        if self.merge_type == 'sd2_tpool':  # spatial downsampling 2x with temporal pooling all\n            hidden_states = tpool_patch_merger(\n                hidden_states,\n                grid_thws,\n                merge_kernel_size=self.merge_kernel_size)\n        else:\n            raise NotImplementedError(f'Not support {self.merge_type}')\n\n        return hidden_states\n\n\n# ============================================================================\n# MM Projector Helper Classes (from mm_projector/modeling_mm_projectors.py)\n# ============================================================================\n\n\nclass IdentityMap(nn.Module):\n\n    def __init__(self):\n        super().__init__()\n\n    def forward(self, x, *args, **kwargs):\n        return x\n\n\nclass MLP(nn.Module):\n\n    def __init__(self, config):\n        super().__init__()\n        # TODO, use faster LayerNorm\n        self.pre_norm = nn.LayerNorm(config.mm_hidden_size)\n        self.proj = nn.Sequential(\n            nn.Linear(config.mm_hidden_size, config.hidden_size), nn.GELU(),\n            nn.Linear(config.hidden_size, config.hidden_size))\n\n    def forward(self, x, *args, **kwargs):\n        assert isinstance(x,\n                          list | tuple), f'x is not a list or tuple: {type(x)}'\n        lengths = [item.shape[0] for item in x]\n        x = torch.cat(x, dim=0)\n        x = self.pre_norm(x)\n        x = self.proj(x)\n        x = torch.split(x, lengths, dim=0)\n\n        return x\n\n\nclass PatchMergerMLP(nn.Module):\n\n    def __init__(self, config):\n        super().__init__()\n        eps = config.projector_ln_eps\n        self.hidden_size = config.mm_hidden_size * (\n            config.merge_kernel_size[0] * config.merge_kernel_size[1])\n        self.pre_norm = nn.LayerNorm(config.mm_hidden_size, eps=eps)\n        self.proj = nn.Sequential(\n            nn.Linear(self.hidden_size, self.hidden_size),\n            nn.GELU(),\n            nn.Linear(self.hidden_size, config.hidden_size),\n        )\n\n    def forward(self, x, *args, **kwargs):\n        if isinstance(x, list) or isinstance(x, tuple):\n            x = [\n                self.proj(self.pre_norm(item).view(item.shape[0], -1))\n                for item in x\n            ]\n        else:\n            # B, N, N_k, C = x.shape\n            B = x.shape[0]\n            x = self.proj(self.pre_norm(x).view(B, -1, self.hidden_size))\n        return x\n\n\nclass KimiK25PreTrainedModel(PreTrainedModel):\n    config_class = KimiK25Config\n    base_model_prefix = \"model\"\n    _no_split_modules = [\n        \"MoonViT3dPretrainedModel\",\n        \"MoonViTEncoderLayer\",\n        \"DeepseekDecoderLayer\",\n        \"PatchMergerMLP\",\n    ]\n    _skip_keys_device_placement = \"past_key_values\"\n    _supports_flash_attn_2 = True\n    _supports_sdpa = False\n\n    def _init_weights(self, module):\n        # important: this ported version of Llava isn't meant for training from scratch - only\n        # inference and fine-tuning - so the proper init weights code has been removed - the original codebase\n        # https://github.com/haotian-liu/LLaVA/tree/main/llava should serve for that purpose\n        std = (self.config.initializer_range if hasattr(\n            self.config, \"initializer_range\") else\n               self.config.text_config.initializer_range)\n\n        if hasattr(module, \"class_embedding\"):\n            module.class_embedding.data.normal_(mean=0.0, std=std)\n\n        if isinstance(module, (nn.Linear, nn.Conv2d)):\n            module.weight.data.normal_(mean=0.0, std=std)\n            if module.bias is not None:\n                module.bias.data.zero_()\n        elif isinstance(module, nn.Embedding):\n            module.weight.data.normal_(mean=0.0, std=std)\n            if module.padding_idx is not None:\n                module.weight.data[module.padding_idx].zero_()\n\n\nclass VisionTowerConfig(PretrainedConfig):\n    model_type = 'moonvit3d'\n\n    def __init__(self, config: KimiK25Config, **kwargs):\n        super().__init__(**kwargs)\n        self.patch_size = config.patch_size\n        self.init_pos_emb_height = config.init_pos_emb_height\n        self.init_pos_emb_width = config.init_pos_emb_width\n        self.init_pos_emb_time = config.init_pos_emb_time\n        self.pos_emb_type = config.pos_emb_type\n        self.num_attention_heads = config.vt_num_attention_heads\n        self.num_hidden_layers = config.vt_num_hidden_layers\n        self.hidden_size = config.vt_hidden_size\n        self.intermediate_size = config.vt_intermediate_size\n        self.merge_kernel_size = config.merge_kernel_size\n        self.video_attn_type = config.video_attn_type\n        self.merge_type = config.merge_type\n        self._attn_implementation = config._attn_implementation\n\n\nclass ProjectorConfig:\n\n    def __init__(self, config: KimiK25Config):\n        self.mm_projector_type = config.mm_projector_type\n        self.mm_hidden_size = config.mm_hidden_size\n        self.hidden_size = config.text_hidden_size\n        self.merge_kernel_size = config.merge_kernel_size\n        self.projector_hidden_act = config.projector_hidden_act\n        self.projector_ln_eps = config.projector_ln_eps\n\n\n# ref https://github.com/huggingface/transformers/blob/78b2929c0554b79e0489b451ce4ece14d265ead2/src/transformers/models/llava/modeling_llava.py#L240\nclass KimiK25ForConditionalGeneration(KimiK25PreTrainedModel):\n\n    def __init__(self, config: KimiK25Config):\n        super().__init__(config)\n\n        vt_config = VisionTowerConfig(config.vision_config)\n        self.vision_tower = MoonViT3dPretrainedModel(vt_config)\n\n        proj_config = ProjectorConfig(config.vision_config)\n        if proj_config.mm_projector_type == 'identity':\n            self.mm_projector = IdentityMap()\n        elif proj_config.mm_projector_type == 'mlp':\n            self.mm_projector = MLP(proj_config)\n        elif proj_config.mm_projector_type == 'patchmerger':\n            self.mm_projector = PatchMergerMLP(proj_config)\n        else:\n            raise ValueError(\n                f\"Unsupported mm_projector_type: {proj_config.mm_projector_type}\"\n            )\n\n        self.language_model = DeepseekV3ForCausalLM(config.text_config)\n        self.post_init()\n\n        if hasattr(self.language_model, 'dtype'):\n            target_dtype = self.language_model.dtype\n            self.vision_tower = self.vision_tower.to(dtype=target_dtype)\n            self.mm_projector = self.mm_projector.to(dtype=target_dtype)\n\n    def get_input_embeddings(self):\n        return self.language_model.get_input_embeddings()\n\n    def set_input_embeddings(self, value):\n        self.language_model.set_input_embeddings(value)\n\n    def get_output_embeddings(self):\n        return self.language_model.get_output_embeddings()\n\n    def set_output_embeddings(self, new_embeddings):\n        self.language_model.set_output_embeddings(new_embeddings)\n\n    def set_decoder(self, decoder):\n        self.language_model.set_decoder(decoder)\n\n    def get_decoder(self):\n        return self.language_model.get_decoder()\n\n    def tie_weights(self):\n        return self.language_model.tie_weights()\n\n    def resize_token_embeddings(self,\n                                new_num_tokens: int | None = None,\n                                pad_to_multiple_of=None) -> nn.Embedding:\n        model_embeds = self.language_model.resize_token_embeddings(\n            new_num_tokens, pad_to_multiple_of)\n        # update vocab size\n        self.config.text_config.vocab_size = model_embeds.num_embeddings\n        self.vocab_size = model_embeds.num_embeddings\n        return model_embeds\n\n    def _merge_input_ids_with_image_features(\n        self,\n        image_features: list[torch.Tensor],\n        inputs_embeds: torch.Tensor,\n        input_ids: torch.Tensor,\n        attention_mask: torch.Tensor,\n        labels: torch.Tensor | None = None,\n    ):\n        \"\"\"\n        Args:\n            image_features (:obj:`torch.Tensor` of shape :obj:`(num_image_tokens, embed_dim)`):\n                The image features to merge with the input embeddings.\n            inputs_embeds (:obj:`torch.Tensor` of shape :obj:`(batch_size, sequence_length, embed_dim)`):\n                The input embeddings.\n            input_ids (:obj:`torch.Tensor` of shape :obj:`(batch_size, sequence_length)`):\n                The input ids.\n            attention_mask (:obj:`torch.Tensor` of shape :obj:`(batch_size, sequence_length)`):\n                The attention mask.\n            labels (:obj:`torch.Tensor` of shape :obj:`(batch_size, sequence_length)`, *optional*):\n                The labels.\n        \"\"\"\n        _, embed_dim = image_features[0].shape\n        feature_lengths = [x.shape[0] for x in image_features]\n        image_features = torch.cat(image_features, dim=0)\n\n        image_token_index: int = self.config.media_placeholder_token_id\n        pad_token_id: int = self.config.pad_token_id\n        ignore_index: int = self.config.ignore_index\n\n        batch_size, sequence_length = input_ids.shape\n        left_padding = not torch.sum(\n            input_ids[:, -1] == torch.tensor(pad_token_id))\n\n        # 1. Create a mask to know where special image tokens are\n        _token_occupation_table = torch.ones_like(input_ids.flatten())\n        _token_occupation_table[input_ids.flatten() ==\n                                image_token_index] = torch.tensor(\n                                    feature_lengths,\n                                    dtype=torch.long,\n                                    device=input_ids.device)\n        _token_occupation_table = _token_occupation_table.reshape(\n            input_ids.shape)\n\n        max_embed_dim = _token_occupation_table.sum(-1).max().item()\n        assert (\n            max_embed_dim >= sequence_length\n        ), f\"The maximum embedding dimension ({max_embed_dim}) is less than the sequence length ({sequence_length})\"\n        batch_indices, non_image_indices = torch.where(\n            input_ids != image_token_index)\n\n        # 2. Compute the positions where text should be written\n        # Calculate new positions for text tokens in merged image-text sequence.\n        new_token_positions = torch.cumsum(_token_occupation_table, -1) - 1\n        nb_image_pad = max_embed_dim - 1 - new_token_positions[:, -1]\n        if left_padding:\n            new_token_positions += nb_image_pad[:,\n                                                None]  # offset for left padding\n        text_to_overwrite = new_token_positions[batch_indices,\n                                                non_image_indices]\n\n        # 3. Create the full embedding, already padded to the maximum position\n        final_embedding = torch.zeros(\n            batch_size,\n            max_embed_dim,\n            embed_dim,\n            dtype=inputs_embeds.dtype,\n            device=inputs_embeds.device,\n        )\n        final_attention_mask = torch.zeros(batch_size,\n                                           max_embed_dim,\n                                           dtype=attention_mask.dtype,\n                                           device=inputs_embeds.device)\n        if labels is not None:\n            final_labels = torch.full(\n                (batch_size, max_embed_dim),\n                ignore_index,\n                dtype=input_ids.dtype,\n                device=input_ids.device,\n            )\n        # In case the Vision model or the Language model has been offloaded to CPU, we need to manually\n        # set the corresponding tensors into their correct target device.\n        target_device = inputs_embeds.device\n        batch_indices, non_image_indices, text_to_overwrite = (\n            batch_indices.to(target_device),\n            non_image_indices.to(target_device),\n            text_to_overwrite.to(target_device),\n        )\n        attention_mask = attention_mask.to(target_device)\n\n        # 4. Fill the embeddings based on the mask.\n        final_embedding[batch_indices,\n                        text_to_overwrite] = inputs_embeds[batch_indices,\n                                                           non_image_indices]\n        final_attention_mask[batch_indices,\n                             text_to_overwrite] = attention_mask[\n                                 batch_indices, non_image_indices]\n        if labels is not None:\n            final_labels[batch_indices,\n                         text_to_overwrite] = labels[batch_indices,\n                                                     non_image_indices]\n\n        # 5. Fill the embeddings corresponding to the images. Anything that is not `text_positions` needs filling (#29835)\n        image_to_overwrite = torch.full((batch_size, max_embed_dim),\n                                        True,\n                                        dtype=torch.bool,\n                                        device=inputs_embeds.device)\n        image_to_overwrite[batch_indices, text_to_overwrite] = False\n        image_to_overwrite &= image_to_overwrite.cumsum(\n            -1) - 1 >= nb_image_pad[:, None].to(target_device)\n\n        if image_to_overwrite.sum() != image_features.shape[:-1].numel():\n            raise ValueError(\n                f\"The input provided to the model are wrong. The number of image tokens is {image_to_overwrite.sum()} while\"\n                f\" the number of image features given to the model is {image_features.shape[:-1].numel()}. \"\n                \"This prevents correct indexing and breaks batch generation.\")\n\n        final_embedding[image_to_overwrite] = (\n            image_features.contiguous().reshape(-1,\n                                                embed_dim).to(target_device))\n        final_attention_mask |= image_to_overwrite\n        position_ids = (final_attention_mask.cumsum(-1) - 1).masked_fill_(\n            (final_attention_mask == 0), 1)\n\n        # 6. Mask out the embedding at padding positions, as we later use the past_key_value value to determine the non-attended tokens.\n        batch_indices, pad_indices = torch.where(input_ids == pad_token_id)\n        indices_to_mask = new_token_positions[batch_indices, pad_indices]\n\n        final_embedding[batch_indices, indices_to_mask] = 0\n\n        if labels is None:\n            final_labels = None\n\n        return final_embedding, final_attention_mask, final_labels, position_ids\n\n    def _extract_image_features(self, pixel_values: torch.Tensor,\n                                grid_thws: torch.Tensor) -> list[torch.Tensor]:\n        \"\"\"\n        Args:\n            pixel_values (:obj:`torch.FloatTensor` of shape :obj:`(batch_size, num_channels, height, width)`):\n                The pixel values of the images processed by image processor.\n            grid_thws (:obj:`torch.Tensor` of shape :obj:`(batch_size, 3)`):\n                The grid, height, width of the images.\n\n        Returns:\n            selected_image_feature (:obj:`torch.FloatTensor` of shape :obj:`(num_image_tokens, embed_dim)`):\n                The selected image features to use as input to the projector head.\n\n        \"\"\"\n\n        target_dtype = self.vision_tower.patch_embed.proj.weight.dtype\n        pixel_values = pixel_values.to(target_dtype)\n\n        image_features = self.vision_tower(pixel_values, grid_thws)\n        return image_features\n\n    def forward(\n        self,\n        input_ids: torch.LongTensor | None = None,\n        pixel_values: torch.FloatTensor | list[torch.FloatTensor]\n        | None = None,\n        grid_thws: torch.Tensor | None = None,\n        attention_mask: torch.Tensor | None = None,\n        position_ids: torch.LongTensor | None = None,\n        past_key_values: list[torch.FloatTensor] | None = None,\n        inputs_embeds: torch.FloatTensor | None = None,\n        labels: torch.LongTensor | None = None,\n        use_cache: bool | None = None,\n        output_attentions: bool | None = None,\n        output_hidden_states: bool | None = None,\n        return_dict: bool | None = None,\n    ) -> tuple | LlavaCausalLMOutputWithPast:\n        r\"\"\"\n        Args:\n            labels (`torch.LongTensor` of shape `(batch_size, sequence_length)`, *optional*):\n                Labels for computing the masked language modeling loss. Indices should either be in `[0, ...,\n                config.vocab_size]` or -100 (see `input_ids` docstring). Tokens with indices set to `-100` are ignored\n                (masked), the loss is only computed for the tokens with labels in `[0, ..., config.vocab_size]`.\n\n        ```\"\"\"\n        assert self.vision_tower is not None, \"vision_tower is not loaded\"\n        output_attentions = (output_attentions if output_attentions is not None\n                             else self.config.output_attentions)\n        output_hidden_states = (output_hidden_states\n                                if output_hidden_states is not None else\n                                self.config.output_hidden_states)\n        return_dict = return_dict if return_dict is not None else self.config.use_return_dict\n\n        if inputs_embeds is None:\n            # 1. Extra the input embeddings\n            inputs_embeds = self.get_input_embeddings()(input_ids)\n\n            # 2. Merge text and images\n            if pixel_values is not None and len(\n                    pixel_values) > 0 and input_ids.shape[1] != 1:\n                image_features = self._extract_image_features(\n                    pixel_values, grid_thws)\n                if self.mm_projector:\n                    image_features = self.mm_projector(image_features)\n\n                inputs_embeds = inputs_embeds.to(\n                    image_features[0].dtype)  # num_tokens, embed_dim\n                inputs_embeds, attention_mask, labels, position_ids = (\n                    self._merge_input_ids_with_image_features(\n                        image_features,\n                        inputs_embeds,\n                        input_ids,\n                        attention_mask,\n                        labels,\n                    ))\n\n            # In case input_ids.shape[1] == 1 & pixel_values==None & past_key_values != None, we are in the case of\n            # generation with cache\n            elif (past_key_values is not None and pixel_values is not None\n                  and input_ids.shape[1] == 1):\n                # Retrieve the first layer to inspect the logits and mask out the hidden states\n                # that are set to 0\n                first_layer_past_key_value = past_key_values[0][0][:, :, :, 0]\n\n                # Sum all dimensions of head_dim (-2) to avoid random errors such as: https://github.com/huggingface/transformers/pull/28032#issuecomment-1863691941\n                batch_index, non_attended_tokens = torch.where(\n                    first_layer_past_key_value.float().sum(-2) == 0)\n\n                # Get the target length\n                target_length = input_ids.shape[1]\n                past_length = first_layer_past_key_value.shape[-1]\n\n                extended_attention_mask = torch.ones(\n                    (attention_mask.shape[0], past_length),\n                    dtype=attention_mask.dtype,\n                    device=attention_mask.device,\n                )\n\n                # Filter out only the tokens that can be un-attended, this can happen\n                # if one uses Llava + Fused modules where the cache on the\n                # first iteration is already big enough, or if one passes custom cache\n                valid_indices = non_attended_tokens < extended_attention_mask.size(\n                    -1)\n                new_batch_index = batch_index[valid_indices]\n                new_non_attended_tokens = non_attended_tokens[valid_indices]\n\n                # Zero-out the places where we don't need to attend\n                extended_attention_mask[new_batch_index,\n                                        new_non_attended_tokens] = 0\n\n                attention_mask = torch.cat(\n                    (extended_attention_mask, attention_mask[:,\n                                                             -target_length:]),\n                    dim=1)\n                position_ids = torch.sum(attention_mask,\n                                         dim=1).unsqueeze(-1) - 1\n\n        outputs = self.language_model(\n            attention_mask=attention_mask,\n            position_ids=position_ids,\n            past_key_values=past_key_values,\n            inputs_embeds=inputs_embeds,\n            use_cache=use_cache,\n            output_attentions=output_attentions,\n            output_hidden_states=output_hidden_states,\n            return_dict=return_dict,\n        )\n\n        logits = outputs[0]\n\n        loss = None\n        if labels is not None:\n            # Shift so that tokens < n predict n\n            if attention_mask is not None:\n                shift_attention_mask = attention_mask[..., 1:]\n                shift_logits = logits[..., :-1, :][shift_attention_mask.to(\n                    logits.device) != 0].contiguous()\n                shift_labels = labels[..., 1:][shift_attention_mask.to(\n                    labels.device) != 0].contiguous()\n            else:\n                shift_logits = logits[..., :-1, :].contiguous()\n                shift_labels = labels[..., 1:].contiguous()\n            # Flatten the tokens\n            loss_fct = nn.CrossEntropyLoss()\n            loss = loss_fct(\n                shift_logits.view(-1, shift_logits.size(-1)),\n                shift_labels.view(-1).to(shift_logits.device),\n            )\n\n        if not return_dict:\n            output = (logits, ) + outputs[1:]\n            return (loss, ) + output if loss is not None else output\n\n        return LlavaCausalLMOutputWithPast(\n            loss=loss,\n            logits=logits,\n            past_key_values=outputs.past_key_values,\n            hidden_states=outputs.hidden_states,\n            attentions=outputs.attentions,\n        )\n\n    def prepare_inputs_for_generation(\n        self,\n        input_ids,\n        past_key_values=None,\n        inputs_embeds=None,\n        pixel_values=None,\n        grid_thws=None,\n        attention_mask=None,\n        **kwargs,\n    ):\n        if past_key_values is not None:\n            if isinstance(past_key_values, Cache):\n                cache_length = past_key_values.get_seq_length()\n                past_length = getattr(past_key_values, 'seen_tokens',\n                                      cache_length)\n            else:\n                cache_length = past_length = past_key_values[0][0].shape[2]\n\n            # Keep only the unprocessed tokens:\n            # 1 - If the length of the attention_mask exceeds the length of input_ids, then we are in a setting where\n            # some of the inputs are exclusively passed as part of the cache (e.g. when passing input_embeds as\n            # input)\n            if attention_mask is not None and attention_mask.shape[\n                    1] > input_ids.shape[1]:\n                input_ids = input_ids[:, -(attention_mask.shape[1] -\n                                           past_length):]\n            # 2 - If the past_length is smaller than input_ids', then input_ids holds all input tokens. We can discard\n            # input_ids based on the past_length.\n            elif past_length < input_ids.shape[1]:\n                input_ids = input_ids[:, past_length:]\n            # 3 - Otherwise (past_length >= input_ids.shape[1]), let's assume input_ids only has unprocessed tokens.\n            elif self.config.media_placeholder_token_id in input_ids:\n                input_ids = input_ids[:, input_ids.shape[1] - 1:]\n            # If the cache has seen more tokens than it can hold, then the cache has a size limit. Let's discard the\n            # older attention values, as their corresponding values are not part of the input.\n            if cache_length < past_length and attention_mask is not None:\n                attention_mask = attention_mask[:, -(cache_length +\n                                                     input_ids.shape[1]):]\n\n        position_ids = kwargs.get(\"position_ids\", None)\n        if attention_mask is not None and position_ids is None:\n            # create position_ids on the fly for batch generation\n            position_ids = attention_mask.long().cumsum(-1) - 1\n            position_ids.masked_fill_(attention_mask == 0, 1)\n            if past_key_values:\n                position_ids = position_ids[:, -input_ids.shape[1]:]\n\n        # if `inputs_embeds` are passed, we only want to use them in the 1st generation step\n        if inputs_embeds is not None and past_key_values is None:\n            model_inputs = {\"inputs_embeds\": inputs_embeds}\n        else:\n            model_inputs = {\"input_ids\": input_ids}\n\n        model_inputs.update({\n            \"position_ids\": position_ids,\n            \"past_key_values\": past_key_values,\n            \"use_cache\": kwargs.get(\"use_cache\"),\n            \"attention_mask\": attention_mask,\n            \"pixel_values\": pixel_values,\n            \"grid_thws\": grid_thws,\n        })\n        return model_inputs\n\n    def _reorder_cache(self, *args, **kwargs):\n        return self.language_model._reorder_cache(*args, **kwargs)\n"
+      },
+      {
+        "path": "hf-cache/moonshotai/Kimi-K2.5/configuration_deepseek.py",
+        "text": "# Copy from https://huggingface.co/deepseek-ai/DeepSeek-V3/blob/main/configuration_deepseek.py\n\nfrom transformers.configuration_utils import PretrainedConfig\nfrom transformers.utils import logging\n\nlogger = logging.get_logger(__name__)\n\nDEEPSEEK_PRETRAINED_CONFIG_ARCHIVE_MAP = {}\n\n\nclass DeepseekV3Config(PretrainedConfig):\n    r\"\"\"\n    This is the configuration class to store the configuration of a [`DeepseekV3Model`]. It is used to instantiate an DeepSeek\n    model according to the specified arguments, defining the model architecture. Instantiating a configuration with the\n    defaults will yield a similar configuration to that of the DeepSeek-V3.\n\n    Configuration objects inherit from [`PretrainedConfig`] and can be used to control the model outputs. Read the\n    documentation from [`PretrainedConfig`] for more information.\n\n\n    Args:\n        vocab_size (`int`, *optional*, defaults to 129280):\n            Vocabulary size of the Deep model. Defines the number of different tokens that can be represented by the\n            `inputs_ids` passed when calling [`DeepseekV3Model`]\n        hidden_size (`int`, *optional*, defaults to 4096):\n            Dimension of the hidden representations.\n        intermediate_size (`int`, *optional*, defaults to 11008):\n            Dimension of the MLP representations.\n        moe_intermediate_size (`int`, *optional*, defaults to 1407):\n            Dimension of the MoE representations.\n        num_hidden_layers (`int`, *optional*, defaults to 32):\n            Number of hidden layers in the Transformer decoder.\n        num_nextn_predict_layers (`int`, *optional*, defaults to 1):\n            Number of nextn predict layers in the DeepSeekV3 Model.\n        num_attention_heads (`int`, *optional*, defaults to 32):\n            Number of attention heads for each attention layer in the Transformer decoder.\n        n_shared_experts (`int`, *optional*, defaults to None):\n            Number of shared experts, None means dense model.\n        n_routed_experts (`int`, *optional*, defaults to None):\n            Number of routed experts, None means dense model.\n        routed_scaling_factor (`float`, *optional*, defaults to 1.0):\n            Scaling factor or routed experts.\n        topk_method (`str`, *optional*, defaults to `gready`):\n            Topk method used in routed gate.\n        n_group (`int`, *optional*, defaults to None):\n            Number of groups for routed experts.\n        topk_group (`int`, *optional*, defaults to None):\n            Number of selected groups for each token(for each token, ensuring the selected experts is only within `topk_group` groups).\n        num_experts_per_tok (`int`, *optional*, defaults to None):\n            Number of selected experts, None means dense model.\n        moe_layer_freq (`int`, *optional*, defaults to 1):\n            The frequency of the MoE layer: one expert layer for every `moe_layer_freq - 1` dense layers.\n        first_k_dense_replace (`int`, *optional*, defaults to 0):\n            Number of dense layers in shallow layers(embed->dense->dense->...->dense->moe->moe...->lm_head).\n                                                            \\--k dense layers--/\n        norm_topk_prob (`bool`, *optional*, defaults to False):\n            Whether to normalize the weights of the routed experts.\n        scoring_func (`str`, *optional*, defaults to 'softmax'):\n            Method of computing expert weights.\n        aux_loss_alpha (`float`, *optional*, defaults to 0.001):\n            Auxiliary loss weight coefficient.\n        seq_aux = (`bool`, *optional*, defaults to True):\n            Whether to compute the auxiliary loss for each individual sample.\n        num_key_value_heads (`int`, *optional*):\n            This is the number of key_value heads that should be used to implement Grouped Query Attention. If\n            `num_key_value_heads=num_attention_heads`, the model will use Multi Head Attention (MHA), if\n            `num_key_value_heads=1 the model will use Multi Query Attention (MQA) otherwise GQA is used. When\n            converting a multi-head checkpoint to a GQA checkpoint, each group key and value head should be constructed\n            by meanpooling all the original heads within that group. For more details checkout [this\n            paper](https://arxiv.org/pdf/2305.13245.pdf). If it is not specified, will default to\n            `num_attention_heads`.\n        hidden_act (`str` or `function`, *optional*, defaults to `\"silu\"`):\n            The non-linear activation function (function or string) in the decoder.\n        max_position_embeddings (`int`, *optional*, defaults to 2048):\n            The maximum sequence length that this model might ever be used with.\n        initializer_range (`float`, *optional*, defaults to 0.02):\n            The standard deviation of the truncated_normal_initializer for initializing all weight matrices.\n        rms_norm_eps (`float`, *optional*, defaults to 1e-06):\n            The epsilon used by the rms normalization layers.\n        use_cache (`bool`, *optional*, defaults to `True`):\n            Whether or not the model should return the last key/values attentions (not used by all models). Only\n            relevant if `config.is_decoder=True`.\n        pad_token_id (`int`, *optional*):\n            Padding token id.\n        bos_token_id (`int`, *optional*, defaults to 1):\n            Beginning of stream token id.\n        eos_token_id (`int`, *optional*, defaults to 2):\n            End of stream token id.\n        pretraining_tp (`int`, *optional*, defaults to 1):\n            Experimental feature. Tensor parallelism rank used during pretraining. Please refer to [this\n            document](https://huggingface.co/docs/transformers/parallelism) to understand more about it. This value is\n            necessary to ensure exact reproducibility of the pretraining results. Please refer to [this\n            issue](https://github.com/pytorch/pytorch/issues/76232).\n        tie_word_embeddings (`bool`, *optional*, defaults to `False`):\n            Whether to tie weight embeddings\n        rope_theta (`float`, *optional*, defaults to 10000.0):\n            The base period of the RoPE embeddings.\n        rope_scaling (`Dict`, *optional*):\n            Dictionary containing the scaling configuration for the RoPE embeddings. Currently supports two scaling\n            strategies: linear and dynamic. Their scaling factor must be a float greater than 1. The expected format is\n            `{\"type\": strategy name, \"factor\": scaling factor}`. When using this flag, don't update\n            `max_position_embeddings` to the expected new maximum.\n        attention_bias (`bool`, defaults to `False`, *optional*, defaults to `False`):\n            Whether to use a bias in the query, key, value and output projection layers during self-attention.\n        attention_dropout (`float`, *optional*, defaults to 0.0):\n            The dropout ratio for the attention probabilities.\n\n    ```python\n    >>> from transformers import DeepseekV3Model, DeepseekV3Config\n\n    >>> # Initializing a Deepseek-V3 style configuration\n    >>> configuration = DeepseekV3Config()\n\n    >>> # Accessing the model configuration\n    >>> configuration = model.config\n    ```\"\"\"\n\n    model_type = \"deepseek_v3\"\n    keys_to_ignore_at_inference = [\"past_key_values\"]\n\n    def __init__(\n        self,\n        vocab_size=129280,\n        hidden_size=7168,\n        intermediate_size=18432,\n        moe_intermediate_size=2048,\n        num_hidden_layers=61,\n        num_nextn_predict_layers=1,\n        num_attention_heads=128,\n        num_key_value_heads=128,\n        n_shared_experts=1,\n        n_routed_experts=256,\n        ep_size=1,\n        routed_scaling_factor=2.5,\n        kv_lora_rank=512,\n        q_lora_rank=1536,\n        qk_rope_head_dim=64,\n        v_head_dim=128,\n        qk_nope_head_dim=128,\n        topk_method='noaux_tc',\n        n_group=8,\n        topk_group=4,\n        num_experts_per_tok=8,\n        moe_layer_freq=1,\n        first_k_dense_replace=3,\n        norm_topk_prob=True,\n        scoring_func='sigmoid',\n        aux_loss_alpha=0.001,\n        seq_aux=True,\n        hidden_act=\"silu\",\n        max_position_embeddings=4096,\n        initializer_range=0.02,\n        rms_norm_eps=1e-6,\n        use_cache=True,\n        pad_token_id=None,\n        bos_token_id=0,\n        eos_token_id=1,\n        pretraining_tp=1,\n        tie_word_embeddings=False,\n        rope_theta=10000.0,\n        rope_scaling=None,\n        attention_bias=False,\n        attention_dropout=0.0,\n        **kwargs,\n    ):\n        self.vocab_size = vocab_size\n        self.max_position_embeddings = max_position_embeddings\n        self.hidden_size = hidden_size\n        self.intermediate_size = intermediate_size\n        self.moe_intermediate_size = moe_intermediate_size\n        self.num_hidden_layers = num_hidden_layers\n        self.num_nextn_predict_layers = num_nextn_predict_layers\n        self.num_attention_heads = num_attention_heads\n        self.n_shared_experts = n_shared_experts\n        self.n_routed_experts = n_routed_experts\n        self.ep_size = ep_size\n        self.routed_scaling_factor = routed_scaling_factor\n        self.kv_lora_rank = kv_lora_rank\n        self.q_lora_rank = q_lora_rank\n        self.qk_rope_head_dim = qk_rope_head_dim\n        self.v_head_dim = v_head_dim\n        self.qk_nope_head_dim = qk_nope_head_dim\n        self.topk_method = topk_method\n        self.n_group = n_group\n        self.topk_group = topk_group\n        self.num_experts_per_tok = num_experts_per_tok\n        self.moe_layer_freq = moe_layer_freq\n        self.first_k_dense_replace = first_k_dense_replace\n        self.norm_topk_prob = norm_topk_prob\n        self.scoring_func = scoring_func\n        self.aux_loss_alpha = aux_loss_alpha\n        self.seq_aux = seq_aux\n        # for backward compatibility\n        if num_key_value_heads is None:\n            num_key_value_heads = num_attention_heads\n\n        self.num_key_value_heads = num_key_value_heads\n        self.hidden_act = hidden_act\n        self.initializer_range = initializer_range\n        self.rms_norm_eps = rms_norm_eps\n        self.pretraining_tp = pretraining_tp\n        self.use_cache = use_cache\n        self.rope_theta = rope_theta\n        self.rope_scaling = rope_scaling\n        self.attention_bias = attention_bias\n        self.attention_dropout = attention_dropout\n\n        super().__init__(\n            pad_token_id=pad_token_id,\n            bos_token_id=bos_token_id,\n            eos_token_id=eos_token_id,\n            tie_word_embeddings=tie_word_embeddings,\n            **kwargs,\n        )\n"
+      },
+      {
+        "path": "hf-cache/moonshotai/Kimi-K2.5/modeling_deepseek.py",
+        "text": "# coding=utf-8\n# Copyright 2023 DeepSeek-AI and The HuggingFace Inc. team. All rights reserved.\n#\n# This code is based on EleutherAI's GPT-NeoX library and the GPT-NeoX\n# and OPT implementations in this library. It has been modified from its\n# original forms to accommodate minor architectural differences compared\n# to GPT-NeoX and OPT used by the Meta AI team that trained the model.\n#\n# Licensed under the Apache License, Version 2.0 (the \"License\");\n# you may not use this file except in compliance with the License.\n# You may obtain a copy of the License at\n#\n#     http://www.apache.org/licenses/LICENSE-2.0\n#\n# Unless required by applicable law or agreed to in writing, software\n# distributed under the License is distributed on an \"AS IS\" BASIS,\n# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n# See the License for the specific language governing permissions and\n# limitations under the License.\n\"\"\" PyTorch DeepSeek model.\"\"\"\nimport math\nimport warnings\nfrom typing import List, Optional, Tuple, Union\n\nimport numpy as np\nimport torch\nimport torch.distributed as dist\nimport torch.nn.functional as F\nimport torch.utils.checkpoint\nfrom torch import nn\nfrom torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss\nfrom transformers.activations import ACT2FN\nfrom transformers.cache_utils import Cache, DynamicCache\nfrom transformers.modeling_attn_mask_utils import \\\n    _prepare_4d_causal_attention_mask\nfrom transformers.modeling_outputs import (BaseModelOutputWithPast,\n                                           CausalLMOutputWithPast,\n                                           SequenceClassifierOutputWithPast)\nfrom transformers.modeling_utils import PreTrainedModel\nfrom transformers.pytorch_utils import (ALL_LAYERNORM_LAYERS,\n                                        is_torch_greater_or_equal_than_1_13)\nfrom transformers.utils import (add_start_docstrings,\n                                add_start_docstrings_to_model_forward,\n                                is_flash_attn_2_available,\n                                is_flash_attn_greater_or_equal_2_10, logging,\n                                replace_return_docstrings)\nfrom transformers.utils.import_utils import is_torch_fx_available\n\nfrom .configuration_deepseek import DeepseekV3Config\n\nif is_flash_attn_2_available():\n    from flash_attn import flash_attn_func, flash_attn_varlen_func\n    from flash_attn.bert_padding import pad_input  # noqa\n    from flash_attn.bert_padding import index_first_axis, unpad_input\n\n# This makes `_prepare_4d_causal_attention_mask` a leaf function in the FX graph.\n# It means that the function will not be traced through and simply appear as a node in the graph.\nif is_torch_fx_available():\n    if not is_torch_greater_or_equal_than_1_13:\n        import torch.fx\n\n    _prepare_4d_causal_attention_mask = torch.fx.wrap(\n        _prepare_4d_causal_attention_mask)\n\nlogger = logging.get_logger(__name__)\n\n_CONFIG_FOR_DOC = \"DeepseekV3Config\"\n\n\ndef _get_unpad_data(attention_mask):\n    seqlens_in_batch = attention_mask.sum(dim=-1, dtype=torch.int32)\n    indices = torch.nonzero(attention_mask.flatten(), as_tuple=False).flatten()\n    max_seqlen_in_batch = seqlens_in_batch.max().item()\n    cu_seqlens = F.pad(\n        torch.cumsum(seqlens_in_batch, dim=0, dtype=torch.torch.int32), (1, 0))\n    return (\n        indices,\n        cu_seqlens,\n        max_seqlen_in_batch,\n    )\n\n\n# code modified from transformers 4.48.3 to amend breaks in newer transformers versions\ndef get_usable_length(past_key_value,\n                      new_seq_length: int,\n                      layer_idx: Optional[int] = 0) -> int:\n    max_length = past_key_value.get_max_cache_shape()\n    previous_seq_length = past_key_value.get_seq_length(layer_idx)\n    if max_length is not None and max_length > 0 and previous_seq_length + new_seq_length > max_length:\n        return max_length - new_seq_length\n    return previous_seq_length\n\n\nclass DeepseekV3RMSNorm(nn.Module):\n\n    def __init__(self, hidden_size, eps=1e-6):\n        \"\"\"\n        DeepseekV3RMSNorm is equivalent to T5LayerNorm\n        \"\"\"\n        super().__init__()\n        self.weight = nn.Parameter(torch.ones(hidden_size))\n        self.variance_epsilon = eps\n\n    def forward(self, hidden_states):\n        input_dtype = hidden_states.dtype\n        hidden_states = hidden_states.to(torch.float32)\n        variance = hidden_states.pow(2).mean(-1, keepdim=True)\n        hidden_states = hidden_states * torch.rsqrt(variance +\n                                                    self.variance_epsilon)\n        return self.weight * hidden_states.to(input_dtype)\n\n\nALL_LAYERNORM_LAYERS.append(DeepseekV3RMSNorm)\n\n\nclass DeepseekV3RotaryEmbedding(nn.Module):\n\n    def __init__(self,\n                 dim,\n                 max_position_embeddings=2048,\n                 base=10000,\n                 device=None):\n        super().__init__()\n\n        self.dim = dim\n        self.max_position_embeddings = max_position_embeddings\n        self.base = base\n        inv_freq = 1.0 / (self.base**(\n            torch.arange(0, self.dim, 2).float().to(device) / self.dim))\n        self.register_buffer(\"inv_freq\", inv_freq, persistent=False)\n\n        # Build here to make `torch.jit.trace` work.\n        self._set_cos_sin_cache(\n            seq_len=max_position_embeddings,\n            device=self.inv_freq.device,\n            dtype=torch.get_default_dtype(),\n        )\n        self.max_seq_len_cached = None\n\n    def _set_cos_sin_cache(self, seq_len, device, dtype):\n        self.max_seq_len_cached = seq_len\n        t = torch.arange(self.max_seq_len_cached,\n                         device=device,\n                         dtype=self.inv_freq.dtype)\n\n        freqs = torch.outer(t, self.inv_freq.to(t.device))\n        # Different from paper, but it uses a different permutation in order to obtain the same calculation\n        emb = torch.cat((freqs, freqs), dim=-1)\n        self.register_buffer(\"cos_cached\",\n                             emb.cos().to(dtype),\n                             persistent=False)\n        self.register_buffer(\"sin_cached\",\n                             emb.sin().to(dtype),\n                             persistent=False)\n\n    def forward(self, x, seq_len=None):\n        # x: [bs, num_attention_heads, seq_len, head_size]\n        if self.max_seq_len_cached is None or seq_len > self.max_seq_len_cached:\n            self._set_cos_sin_cache(seq_len=seq_len,\n                                    device=x.device,\n                                    dtype=x.dtype)\n\n        return (\n            self.cos_cached[:seq_len].to(dtype=x.dtype),\n            self.sin_cached[:seq_len].to(dtype=x.dtype),\n        )\n\n\n# Copied from transformers.models.llama.modeling_llama.LlamaLinearScalingRotaryEmbedding with Llama->DeepseekV3\nclass DeepseekV3LinearScalingRotaryEmbedding(DeepseekV3RotaryEmbedding):\n    \"\"\"DeepseekV3RotaryEmbedding extended with linear scaling. Credits to the Reddit user /u/kaiokendev\"\"\"\n\n    def __init__(\n        self,\n        dim,\n        max_position_embeddings=2048,\n        base=10000,\n        device=None,\n        scaling_factor=1.0,\n    ):\n        self.scaling_factor = scaling_factor\n        super().__init__(dim, max_position_embeddings, base, device)\n\n    def _set_cos_sin_cache(self, seq_len, device, dtype):\n        self.max_seq_len_cached = seq_len\n        t = torch.arange(self.max_seq_len_cached,\n                         device=device,\n                         dtype=self.inv_freq.dtype)\n        t = t / self.scaling_factor\n\n        freqs = torch.outer(t, self.inv_freq)\n        # Different from paper, but it uses a different permutation in order to obtain the same calculation\n        emb = torch.cat((freqs, freqs), dim=-1)\n        self.register_buffer(\"cos_cached\",\n                             emb.cos().to(dtype),\n                             persistent=False)\n        self.register_buffer(\"sin_cached\",\n                             emb.sin().to(dtype),\n                             persistent=False)\n\n\n# Copied from transformers.models.llama.modeling_llama.LlamaDynamicNTKScalingRotaryEmbedding with Llama->DeepseekV3\nclass DeepseekV3DynamicNTKScalingRotaryEmbedding(DeepseekV3RotaryEmbedding):\n    \"\"\"DeepseekV3RotaryEmbedding extended with Dynamic NTK scaling. Credits to the Reddit users /u/bloc97 and /u/emozilla\"\"\"\n\n    def __init__(\n        self,\n        dim,\n        max_position_embeddings=2048,\n        base=10000,\n        device=None,\n        scaling_factor=1.0,\n    ):\n        self.scaling_factor = scaling_factor\n        super().__init__(dim, max_position_embeddings, base, device)\n\n    def _set_cos_sin_cache(self, seq_len, device, dtype):\n        self.max_seq_len_cached = seq_len\n\n        if seq_len > self.max_position_embeddings:\n            base = self.base * ((self.scaling_factor * seq_len /\n                                 self.max_position_embeddings) -\n                                (self.scaling_factor - 1))**(self.dim /\n                                                             (self.dim - 2))\n            inv_freq = 1.0 / (base**(\n                torch.arange(0, self.dim, 2).float().to(device) / self.dim))\n            self.register_buffer(\"inv_freq\", inv_freq, persistent=False)\n\n        t = torch.arange(self.max_seq_len_cached,\n                         device=device,\n                         dtype=self.inv_freq.dtype)\n\n        freqs = torch.outer(t, self.inv_freq)\n        # Different from paper, but it uses a different permutation in order to obtain the same calculation\n        emb = torch.cat((freqs, freqs), dim=-1)\n        self.register_buffer(\"cos_cached\",\n                             emb.cos().to(dtype),\n                             persistent=False)\n        self.register_buffer(\"sin_cached\",\n                             emb.sin().to(dtype),\n                             persistent=False)\n\n\n# Inverse dim formula to find dim based on number of rotations\ndef yarn_find_correction_dim(num_rotations,\n                             dim,\n                             base=10000,\n                             max_position_embeddings=2048):\n    return (dim * math.log(max_position_embeddings /\n                           (num_rotations * 2 * math.pi))) / (2 *\n                                                              math.log(base))\n\n\n# Find dim range bounds based on rotations\ndef yarn_find_correction_range(low_rot,\n                               high_rot,\n                               dim,\n                               base=10000,\n                               max_position_embeddings=2048):\n    low = math.floor(\n        yarn_find_correction_dim(low_rot, dim, base, max_position_embeddings))\n    high = math.ceil(\n        yarn_find_correction_dim(high_rot, dim, base, max_position_embeddings))\n    return max(low, 0), min(high, dim - 1)  # Clamp values just in case\n\n\ndef yarn_get_mscale(scale=1, mscale=1):\n    if scale <= 1:\n        return 1.0\n    return 0.1 * mscale * math.log(scale) + 1.0\n\n\ndef yarn_linear_ramp_mask(min, max, dim):\n    if min == max:\n        max += 0.001  # Prevent singularity\n\n    linear_func = (torch.arange(dim, dtype=torch.float32) - min) / (max - min)\n    ramp_func = torch.clamp(linear_func, 0, 1)\n    return ramp_func\n\n\nclass DeepseekV3YarnRotaryEmbedding(DeepseekV3RotaryEmbedding):\n\n    def __init__(\n        self,\n        dim,\n        max_position_embeddings=2048,\n        base=10000,\n        device=None,\n        scaling_factor=1.0,\n        original_max_position_embeddings=4096,\n        beta_fast=32,\n        beta_slow=1,\n        mscale=1,\n        mscale_all_dim=0,\n    ):\n        self.scaling_factor = scaling_factor\n        self.original_max_position_embeddings = original_max_position_embeddings\n        self.beta_fast = beta_fast\n        self.beta_slow = beta_slow\n        self.mscale = mscale\n        self.mscale_all_dim = mscale_all_dim\n        super().__init__(dim, max_position_embeddings, base, device)\n\n    def _set_cos_sin_cache(self, seq_len, device, dtype):\n        self.max_seq_len_cached = seq_len\n        dim = self.dim\n\n        freq_extra = 1.0 / (self.base**(\n            torch.arange(0, dim, 2, dtype=torch.float32, device=device) / dim))\n        freq_inter = 1.0 / (self.scaling_factor * self.base**(\n            torch.arange(0, dim, 2, dtype=torch.float32, device=device) / dim))\n\n        low, high = yarn_find_correction_range(\n            self.beta_fast,\n            self.beta_slow,\n            dim,\n            self.base,\n            self.original_max_position_embeddings,\n        )\n        inv_freq_mask = 1.0 - yarn_linear_ramp_mask(low, high, dim // 2).to(\n            device=device, dtype=torch.float32)\n        inv_freq = freq_inter * (1 -\n                                 inv_freq_mask) + freq_extra * inv_freq_mask\n        self.register_buffer(\"inv_freq\", inv_freq, persistent=False)\n\n        t = torch.arange(seq_len, device=device, dtype=torch.float32)\n\n        freqs = torch.outer(t, inv_freq)\n\n        _mscale = float(\n            yarn_get_mscale(self.scaling_factor, self.mscale) /\n            yarn_get_mscale(self.scaling_factor, self.mscale_all_dim))\n\n        emb = torch.cat((freqs, freqs), dim=-1)\n        self.register_buffer(\"cos_cached\", (emb.cos() * _mscale).to(dtype),\n                             persistent=False)\n        self.register_buffer(\"sin_cached\", (emb.sin() * _mscale).to(dtype),\n                             persistent=False)\n\n\n# Copied from transformers.models.llama.modeling_llama.rotate_half\ndef rotate_half(x):\n    \"\"\"Rotates half the hidden dims of the input.\"\"\"\n    x1 = x[..., :x.shape[-1] // 2]\n    x2 = x[..., x.shape[-1] // 2:]\n    return torch.cat((-x2, x1), dim=-1)\n\n\n# Copied from transformers.models.llama.modeling_llama.apply_rotary_pos_emb\ndef apply_rotary_pos_emb(q, k, cos, sin, position_ids, unsqueeze_dim=1):\n    \"\"\"Applies Rotary Position Embedding to the query and key tensors.\n\n    Args:\n        q (`torch.Tensor`): The query tensor.\n        k (`torch.Tensor`): The key tensor.\n        cos (`torch.Tensor`): The cosine part of the rotary embedding.\n        sin (`torch.Tensor`): The sine part of the rotary embedding.\n        position_ids (`torch.Tensor`):\n            The position indices of the tokens corresponding to the query and key tensors. For example, this can be\n            used to pass offsetted position ids when working with a KV-cache.\n        unsqueeze_dim (`int`, *optional*, defaults to 1):\n            The 'unsqueeze_dim' argument specifies the dimension along which to unsqueeze cos[position_ids] and\n            sin[position_ids] so that they can be properly broadcasted to the dimensions of q and k. For example, note\n            that cos[position_ids] and sin[position_ids] have the shape [batch_size, seq_len, head_dim]. Then, if q and\n            k have the shape [batch_size, heads, seq_len, head_dim], then setting unsqueeze_dim=1 makes\n            cos[position_ids] and sin[position_ids] broadcastable to the shapes of q and k. Similarly, if q and k have\n            the shape [batch_size, seq_len, heads, head_dim], then set unsqueeze_dim=2.\n    Returns:\n        `tuple(torch.Tensor)` comprising of the query and key tensors rotated using the Rotary Position Embedding.\n    \"\"\"\n    cos = cos[position_ids].unsqueeze(unsqueeze_dim)\n    sin = sin[position_ids].unsqueeze(unsqueeze_dim)\n\n    b, h, s, d = q.shape\n    q = q.view(b, h, s, d // 2, 2).transpose(4, 3).reshape(b, h, s, d)\n\n    b, h, s, d = k.shape\n    k = k.view(b, h, s, d // 2, 2).transpose(4, 3).reshape(b, h, s, d)\n\n    q_embed = (q * cos) + (rotate_half(q) * sin)\n    k_embed = (k * cos) + (rotate_half(k) * sin)\n    return q_embed, k_embed\n\n\nclass DeepseekV3MLP(nn.Module):\n\n    def __init__(self, config, hidden_size=None, intermediate_size=None):\n        super().__init__()\n        self.config = config\n        self.hidden_size = config.hidden_size if hidden_size is None else hidden_size\n        self.intermediate_size = (config.intermediate_size if intermediate_size\n                                  is None else intermediate_size)\n\n        self.gate_proj = nn.Linear(self.hidden_size,\n                                   self.intermediate_size,\n                                   bias=False)\n        self.up_proj = nn.Linear(self.hidden_size,\n                                 self.intermediate_size,\n                                 bias=False)\n        self.down_proj = nn.Linear(self.intermediate_size,\n                                   self.hidden_size,\n                                   bias=False)\n        self.act_fn = ACT2FN[config.hidden_act]\n\n    def forward(self, x):\n        down_proj = self.down_proj(\n            self.act_fn(self.gate_proj(x)) * self.up_proj(x))\n        return down_proj\n\n\nclass MoEGate(nn.Module):\n\n    def __init__(self, config):\n        super().__init__()\n        self.config = config\n        self.top_k = config.num_experts_per_tok\n        self.n_routed_experts = config.n_routed_experts\n        self.routed_scaling_factor = config.routed_scaling_factor\n        self.scoring_func = config.scoring_func\n        self.seq_aux = config.seq_aux\n        self.topk_method = config.topk_method\n        self.n_group = config.n_group\n        self.topk_group = config.topk_group\n\n        # topk selection algorithm\n        self.norm_topk_prob = config.norm_topk_prob\n        self.gating_dim = config.hidden_size\n        self.weight = nn.Parameter(\n            torch.empty((self.n_routed_experts, self.gating_dim)))\n        if self.topk_method == \"noaux_tc\":\n            self.e_score_correction_bias = nn.Parameter(\n                torch.empty((self.n_routed_experts)))\n        self.reset_parameters()\n\n    def reset_parameters(self) -> None:\n        import torch.nn.init as init\n\n        init.kaiming_uniform_(self.weight, a=math.sqrt(5))\n\n    def forward(self, hidden_states):\n        bsz, seq_len, h = hidden_states.shape\n        ### compute gating score\n        hidden_states = hidden_states.view(-1, h)\n        logits = F.linear(hidden_states.type(torch.float32),\n                          self.weight.type(torch.float32), None)\n        if self.scoring_func == \"sigmoid\":\n            scores = logits.sigmoid()\n        else:\n            raise NotImplementedError(\n                f\"insupportable scoring function for MoE gating: {self.scoring_func}\"\n            )\n\n        ### select top-k experts\n        if self.topk_method == \"noaux_tc\":\n            assert not self.training\n            scores_for_choice = scores.view(\n                bsz * seq_len, -1) + self.e_score_correction_bias.unsqueeze(0)\n            group_scores = (scores_for_choice.view(\n                bsz * seq_len, self.n_group,\n                -1).topk(2, dim=-1)[0].sum(dim=-1))  # [n, n_group]\n            group_idx = torch.topk(group_scores,\n                                   k=self.topk_group,\n                                   dim=-1,\n                                   sorted=False)[1]  # [n, top_k_group]\n            group_mask = torch.zeros_like(group_scores)  # [n, n_group]\n            group_mask.scatter_(1, group_idx, 1)  # [n, n_group]\n            score_mask = (group_mask.unsqueeze(-1).expand(\n                bsz * seq_len, self.n_group,\n                self.n_routed_experts // self.n_group).reshape(\n                    bsz * seq_len, -1))  # [n, e]\n            tmp_scores = scores_for_choice.masked_fill(~score_mask.bool(),\n                                                       0.0)  # [n, e]\n            _, topk_idx = torch.topk(tmp_scores,\n                                     k=self.top_k,\n                                     dim=-1,\n                                     sorted=False)\n            topk_weight = scores.gather(1, topk_idx)\n        else:\n            raise NotImplementedError(\n                f\"insupportable TopK function for MoE gating: {self.topk_method}\"\n            )\n\n        ### norm gate to sum 1\n        if self.top_k > 1 and self.norm_topk_prob:\n            denominator = topk_weight.sum(dim=-1, keepdim=True) + 1e-20\n            topk_weight = topk_weight / denominator\n        topk_weight = topk_weight * self.routed_scaling_factor  # must multiply the scaling factor\n\n        return topk_idx, topk_weight\n\n\nclass DeepseekV3MoE(nn.Module):\n    \"\"\"\n    A mixed expert module containing shared experts.\n    \"\"\"\n\n    def __init__(self, config):\n        super().__init__()\n        self.config = config\n        self.num_experts_per_tok = config.num_experts_per_tok\n\n        if hasattr(config, \"ep_size\") and config.ep_size > 1:\n            assert config.ep_size == dist.get_world_size()\n            self.ep_size = config.ep_size\n            self.experts_per_rank = config.n_routed_experts // config.ep_size\n            self.ep_rank = dist.get_rank()\n            self.experts = nn.ModuleList([\n                (DeepseekV3MLP(config,\n                               intermediate_size=config.moe_intermediate_size)\n                 if i >= self.ep_rank * self.experts_per_rank\n                 and i < (self.ep_rank + 1) * self.experts_per_rank else None)\n                for i in range(config.n_routed_experts)\n            ])\n        else:\n            self.ep_size = 1\n            self.experts_per_rank = config.n_routed_experts\n            self.ep_rank = 0\n            self.experts = nn.ModuleList([\n                DeepseekV3MLP(config,\n                              intermediate_size=config.moe_intermediate_size)\n                for i in range(config.n_routed_experts)\n            ])\n        self.gate = MoEGate(config)\n        if config.n_shared_experts is not None:\n            intermediate_size = config.moe_intermediate_size * config.n_shared_experts\n            self.shared_experts = DeepseekV3MLP(\n                config=config, intermediate_size=intermediate_size)\n\n    def forward(self, hidden_states):\n        identity = hidden_states\n        orig_shape = hidden_states.shape\n        topk_idx, topk_weight = self.gate(hidden_states)\n        hidden_states = hidden_states.view(-1, hidden_states.shape[-1])\n        flat_topk_idx = topk_idx.view(-1)\n        if not self.training:\n            y = self.moe_infer(hidden_states, topk_idx,\n                               topk_weight).view(*orig_shape)\n        if self.config.n_shared_experts is not None:\n            y = y + self.shared_experts(identity)\n        return y\n\n    @torch.no_grad()\n    def moe_infer(self, x, topk_ids, topk_weight):\n        cnts = topk_ids.new_zeros((topk_ids.shape[0], len(self.experts)))\n        cnts.scatter_(1, topk_ids, 1)\n        tokens_per_expert = cnts.sum(dim=0)\n        idxs = topk_ids.view(-1).argsort()\n        sorted_tokens = x[idxs // topk_ids.shape[1]]\n        sorted_tokens_shape = sorted_tokens.shape\n        if self.ep_size > 1:\n            tokens_per_ep_rank = tokens_per_expert.view(self.ep_size,\n                                                        -1).sum(dim=1)\n            tokens_per_expert_group = tokens_per_expert.new_empty(\n                tokens_per_expert.shape[0])\n            dist.all_to_all_single(tokens_per_expert_group, tokens_per_expert)\n            output_splits = (tokens_per_expert_group.view(\n                self.ep_size, -1).sum(1).cpu().numpy().tolist())\n            gathered_tokens = sorted_tokens.new_empty(\n                tokens_per_expert_group.sum(dim=0).cpu().item(),\n                sorted_tokens.shape[1])\n            input_split_sizes = tokens_per_ep_rank.cpu().numpy().tolist()\n            dist.all_to_all(\n                list(gathered_tokens.split(output_splits)),\n                list(sorted_tokens.split(input_split_sizes)),\n            )\n            tokens_per_expert_post_gather = tokens_per_expert_group.view(\n                self.ep_size, self.experts_per_rank).sum(dim=0)\n            gatherd_idxs = np.zeros(shape=(gathered_tokens.shape[0], ),\n                                    dtype=np.int32)\n            s = 0\n            for i, k in enumerate(tokens_per_expert_group.cpu().numpy()):\n                gatherd_idxs[s:s + k] = i % self.experts_per_rank\n                s += k\n            gatherd_idxs = gatherd_idxs.argsort()\n            sorted_tokens = gathered_tokens[gatherd_idxs]\n            tokens_per_expert = tokens_per_expert_post_gather\n        tokens_per_expert = tokens_per_expert.cpu().numpy()\n\n        outputs = []\n        start_idx = 0\n        for i, num_tokens in enumerate(tokens_per_expert):\n            end_idx = start_idx + num_tokens\n            if num_tokens == 0:\n                continue\n            expert = self.experts[i + self.ep_rank * self.experts_per_rank]\n            tokens_for_this_expert = sorted_tokens[start_idx:end_idx]\n            expert_out = expert(tokens_for_this_expert)\n            outputs.append(expert_out)\n            start_idx = end_idx\n\n        outs = torch.cat(outputs,\n                         dim=0) if len(outputs) else sorted_tokens.new_empty(0)\n        if self.ep_size > 1:\n            new_x = torch.empty_like(outs)\n            new_x[gatherd_idxs] = outs\n            gathered_tokens = new_x.new_empty(*sorted_tokens_shape)\n            dist.all_to_all(\n                list(gathered_tokens.split(input_split_sizes)),\n                list(new_x.split(output_splits)),\n            )\n            outs = gathered_tokens\n\n        new_x = torch.empty_like(outs)\n        new_x[idxs] = outs\n        final_out = (new_x.view(\n            *topk_ids.shape, -1).type(topk_weight.dtype).mul_(\n                topk_weight.unsqueeze(dim=-1)).sum(dim=1).type(new_x.dtype))\n        return final_out\n\n\n# Copied from transformers.models.llama.modeling_llama.repeat_kv\ndef repeat_kv(hidden_states: torch.Tensor, n_rep: int) -> torch.Tensor:\n    \"\"\"\n    This is the equivalent of torch.repeat_interleave(x, dim=1, repeats=n_rep). The hidden states go from (batch,\n    num_key_value_heads, seqlen, head_dim) to (batch, num_attention_heads, seqlen, head_dim)\n    \"\"\"\n    batch, num_key_value_heads, slen, head_dim = hidden_states.shape\n    if n_rep == 1:\n        return hidden_states\n    hidden_states = hidden_states[:, :,\n                                  None, :, :].expand(batch,\n                                                     num_key_value_heads,\n                                                     n_rep, slen, head_dim)\n    return hidden_states.reshape(batch, num_key_value_heads * n_rep, slen,\n                                 head_dim)\n\n\n# Copied from transformers.models.llama.modeling_llama.LlamaAttention with Llama->DeepseekV3\nclass DeepseekV3Attention(nn.Module):\n    \"\"\"Multi-headed attention from 'Attention Is All You Need' paper\"\"\"\n\n    def __init__(self,\n                 config: DeepseekV3Config,\n                 layer_idx: Optional[int] = None):\n        super().__init__()\n        self.config = config\n        self.layer_idx = layer_idx\n        if layer_idx is None:\n            logger.warning_once(\n                f\"Instantiating {self.__class__.__name__} without passing `layer_idx` is not recommended and will \"\n                \"to errors during the forward call, if caching is used. Please make sure to provide a `layer_idx` \"\n                \"when creating this class.\")\n\n        self.attention_dropout = config.attention_dropout\n        self.hidden_size = config.hidden_size\n        self.num_heads = config.num_attention_heads\n\n        self.max_position_embeddings = config.max_position_embeddings\n        self.rope_theta = config.rope_theta\n        self.q_lora_rank = config.q_lora_rank\n        self.qk_rope_head_dim = config.qk_rope_head_dim\n        self.kv_lora_rank = config.kv_lora_rank\n        self.v_head_dim = config.v_head_dim\n        self.qk_nope_head_dim = config.qk_nope_head_dim\n        self.q_head_dim = config.qk_nope_head_dim + config.qk_rope_head_dim\n\n        self.is_causal = True\n\n        if self.q_lora_rank is None:\n            self.q_proj = nn.Linear(self.hidden_size,\n                                    self.num_heads * self.q_head_dim,\n                                    bias=False)\n        else:\n            self.q_a_proj = nn.Linear(self.hidden_size,\n                                      config.q_lora_rank,\n                                      bias=config.attention_bias)\n            self.q_a_layernorm = DeepseekV3RMSNorm(config.q_lora_rank)\n            self.q_b_proj = nn.Linear(config.q_lora_rank,\n                                      self.num_heads * self.q_head_dim,\n                                      bias=False)\n\n        self.kv_a_proj_with_mqa = nn.Linear(\n            self.hidden_size,\n            config.kv_lora_rank + config.qk_rope_head_dim,\n            bias=config.attention_bias,\n        )\n        self.kv_a_layernorm = DeepseekV3RMSNorm(config.kv_lora_rank)\n        self.kv_b_proj = nn.Linear(\n            config.kv_lora_rank,\n            self.num_heads *\n            (self.q_head_dim - self.qk_rope_head_dim + self.v_head_dim),\n            bias=False,\n        )\n\n        self.o_proj = nn.Linear(\n            self.num_heads * self.v_head_dim,\n            self.hidden_size,\n            bias=config.attention_bias,\n        )\n        self._init_rope()\n\n        self.softmax_scale = self.q_head_dim**(-0.5)\n        if self.config.rope_scaling is not None:\n            mscale_all_dim = self.config.rope_scaling.get(\"mscale_all_dim\", 0)\n            scaling_factor = self.config.rope_scaling[\"factor\"]\n            if mscale_all_dim:\n                mscale = yarn_get_mscale(scaling_factor, mscale_all_dim)\n                self.softmax_scale = self.softmax_scale * mscale * mscale\n\n    def _init_rope(self):\n        if self.config.rope_scaling is None:\n            self.rotary_emb = DeepseekV3RotaryEmbedding(\n                self.qk_rope_head_dim,\n                max_position_embeddings=self.max_position_embeddings,\n                base=self.rope_theta,\n            )\n        else:\n            scaling_type = self.config.rope_scaling[\"type\"]\n            scaling_factor = self.config.rope_scaling[\"factor\"]\n            if scaling_type == \"linear\":\n                self.rotary_emb = DeepseekV3LinearScalingRotaryEmbedding(\n                    self.qk_rope_head_dim,\n                    max_position_embeddings=self.max_position_embeddings,\n                    scaling_factor=scaling_factor,\n                    base=self.rope_theta,\n                )\n            elif scaling_type == \"dynamic\":\n                self.rotary_emb = DeepseekV3DynamicNTKScalingRotaryEmbedding(\n                    self.qk_rope_head_dim,\n                    max_position_embeddings=self.max_position_embeddings,\n                    scaling_factor=scaling_factor,\n                    base=self.rope_theta,\n                )\n            elif scaling_type == \"yarn\":\n                kwargs = {\n                    key: self.config.rope_scaling[key]\n                    for key in [\n                        \"original_max_position_embeddings\",\n                        \"beta_fast\",\n                        \"beta_slow\",\n                        \"mscale\",\n                        \"mscale_all_dim\",\n                    ] if key in self.config.rope_scaling\n                }\n                self.rotary_emb = DeepseekV3YarnRotaryEmbedding(\n                    self.qk_rope_head_dim,\n                    max_position_embeddings=self.max_position_embeddings,\n                    scaling_factor=scaling_factor,\n                    base=self.rope_theta,\n                    **kwargs,\n                )\n            else:\n                raise ValueError(f\"Unknown RoPE scaling type {scaling_type}\")\n\n    def _shape(self, tensor: torch.Tensor, seq_len: int, bsz: int):\n        return (tensor.view(bsz, seq_len, self.num_heads,\n                            self.v_head_dim).transpose(1, 2).contiguous())\n\n    def forward(\n        self,\n        hidden_states: torch.Tensor,\n        attention_mask: Optional[torch.Tensor] = None,\n        position_ids: Optional[torch.LongTensor] = None,\n        past_key_value: Optional[Cache] = None,\n        output_attentions: bool = False,\n        use_cache: bool = False,\n        **kwargs,\n    ) -> Tuple[torch.Tensor, Optional[torch.Tensor],\n               Optional[Tuple[torch.Tensor]]]:\n        if \"padding_mask\" in kwargs:\n            warnings.warn(\n                \"Passing `padding_mask` is deprecated and will be removed in v4.37. Please make sure use `attention_mask` instead.`\"\n            )\n        bsz, q_len, _ = hidden_states.size()\n\n        if self.q_lora_rank is None:\n            q = self.q_proj(hidden_states)\n        else:\n            q = self.q_b_proj(self.q_a_layernorm(self.q_a_proj(hidden_states)))\n        q = q.view(bsz, q_len, self.num_heads, self.q_head_dim).transpose(1, 2)\n        q_nope, q_pe = torch.split(\n            q, [self.qk_nope_head_dim, self.qk_rope_head_dim], dim=-1)\n\n        compressed_kv = self.kv_a_proj_with_mqa(hidden_states)\n        compressed_kv, k_pe = torch.split(\n            compressed_kv, [self.kv_lora_rank, self.qk_rope_head_dim], dim=-1)\n        k_pe = k_pe.view(bsz, q_len, 1, self.qk_rope_head_dim).transpose(1, 2)\n        kv = (self.kv_b_proj(self.kv_a_layernorm(compressed_kv)).view(\n            bsz, q_len, self.num_heads,\n            self.qk_nope_head_dim + self.v_head_dim).transpose(1, 2))\n\n        k_nope, value_states = torch.split(\n            kv, [self.qk_nope_head_dim, self.v_head_dim], dim=-1)\n        kv_seq_len = value_states.shape[-2]\n        if past_key_value is not None:\n            if self.layer_idx is None:\n                raise ValueError(\n                    f\"The cache structure has changed since version v4.36. If you are using {self.__class__.__name__} \"\n                    \"for auto-regressive decoding with k/v caching, please make sure to initialize the attention class \"\n                    \"with a layer index.\")\n            kv_seq_len += get_usable_length(past_key_value, kv_seq_len,\n                                            self.layer_idx)\n        cos, sin = self.rotary_emb(value_states, seq_len=kv_seq_len)\n\n        q_pe, k_pe = apply_rotary_pos_emb(q_pe, k_pe, cos, sin, position_ids)\n\n        query_states = k_pe.new_empty(bsz, self.num_heads, q_len,\n                                      self.q_head_dim)\n        query_states[:, :, :, :self.qk_nope_head_dim] = q_nope\n        query_states[:, :, :, self.qk_nope_head_dim:] = q_pe\n\n        key_states = k_pe.new_empty(bsz, self.num_heads, q_len,\n                                    self.q_head_dim)\n        key_states[:, :, :, :self.qk_nope_head_dim] = k_nope\n        key_states[:, :, :, self.qk_nope_head_dim:] = k_pe\n        if past_key_value is not None:\n            cache_kwargs = {\"sin\": sin, \"cos\": cos}  # Specific to RoPE models\n            key_states, value_states = past_key_value.update(\n                key_states, value_states, self.layer_idx, cache_kwargs)\n\n        attn_weights = (\n            torch.matmul(query_states, key_states.transpose(2, 3)) *\n            self.softmax_scale)\n\n        if attn_weights.size() != (bsz, self.num_heads, q_len, kv_seq_len):\n            raise ValueError(\n                f\"Attention weights should be of size {(bsz, self.num_heads, q_len, kv_seq_len)}, but is\"\n                f\" {attn_weights.size()}\")\n        assert attention_mask is not None\n        if attention_mask is not None:\n            if attention_mask.size() != (bsz, 1, q_len, kv_seq_len):\n                raise ValueError(\n                    f\"Attention mask should be of size {(bsz, 1, q_len, kv_seq_len)}, but is {attention_mask.size()}\"\n                )\n            attn_weights = attn_weights + attention_mask\n\n        # upcast attention to fp32\n        attn_weights = nn.functional.softmax(attn_weights,\n                                             dim=-1,\n                                             dtype=torch.float32).to(\n                                                 query_states.dtype)\n        attn_weights = nn.functional.dropout(attn_weights,\n                                             p=self.attention_dropout,\n                                             training=self.training)\n        attn_output = torch.matmul(attn_weights, value_states)\n\n        if attn_output.size() != (bsz, self.num_heads, q_len, self.v_head_dim):\n            raise ValueError(\n                f\"`attn_output` should be of size {(bsz, self.num_heads, q_len, self.v_head_dim)}, but is\"\n                f\" {attn_output.size()}\")\n\n        attn_output = attn_output.transpose(1, 2).contiguous()\n\n        attn_output = attn_output.reshape(bsz, q_len,\n                                          self.num_heads * self.v_head_dim)\n\n        attn_output = self.o_proj(attn_output)\n\n        if not output_attentions:\n            attn_weights = None\n\n        return attn_output, attn_weights, past_key_value\n\n\n# Copied from transformers.models.llama.modeling_llama.LlamaFlashAttention2 with Llama->DeepseekV3\nclass DeepseekV3FlashAttention2(DeepseekV3Attention):\n    \"\"\"\n    DeepseekV3 flash attention module. This module inherits from `DeepseekV3Attention` as the weights of the module stays\n    untouched. The only required change would be on the forward pass where it needs to correctly call the public API of\n    flash attention and deal with padding tokens in case the input contains any of them.\n    \"\"\"\n\n    def __init__(self, *args, **kwargs):\n        super().__init__(*args, **kwargs)\n\n        # TODO: Should be removed once Flash Attention for RoCm is bumped to 2.1.\n        # flash_attn<2.1 generates top-left aligned causal mask, while what is needed here is bottom-right alignment, that was made default for flash_attn>=2.1. This attribute is used to handle this difference. Reference: https://github.com/Dao-AILab/flash-attention/releases/tag/v2.1.0.\n        # Beware that with flash_attn<2.1, using q_seqlen != k_seqlen (except for the case q_seqlen == 1) produces a wrong mask (top-left).\n        self._flash_attn_uses_top_left_mask = not is_flash_attn_greater_or_equal_2_10(\n        )\n\n    def forward(\n        self,\n        hidden_states: torch.Tensor,\n        attention_mask: Optional[torch.LongTensor] = None,\n        position_ids: Optional[torch.LongTensor] = None,\n        past_key_value: Optional[Cache] = None,\n        output_attentions: bool = False,\n        use_cache: bool = False,\n        **kwargs,\n    ) -> Tuple[torch.Tensor, Optional[torch.Tensor],\n               Optional[Tuple[torch.Tensor]]]:\n        # DeepseekV3FlashAttention2 attention does not support output_attentions\n        if \"padding_mask\" in kwargs:\n            warnings.warn(\n                \"Passing `padding_mask` is deprecated and will be removed in v4.37. Please make sure use `attention_mask` instead.`\"\n            )\n\n            # overwrite attention_mask with padding_mask\n            attention_mask = kwargs.pop(\"padding_mask\")\n\n        output_attentions = False\n\n        bsz, q_len, _ = hidden_states.size()\n\n        if self.q_lora_rank is None:\n            q = self.q_proj(hidden_states)\n        else:\n            q = self.q_b_proj(self.q_a_layernorm(self.q_a_proj(hidden_states)))\n        q = q.view(bsz, q_len, self.num_heads, self.q_head_dim).transpose(1, 2)\n        q_nope, q_pe = torch.split(\n            q, [self.qk_nope_head_dim, self.qk_rope_head_dim], dim=-1)\n\n        # Flash attention requires the input to have the shape\n        # batch_size x seq_length x head_dim x hidden_dim\n        # therefore we just need to keep the original shape\n        compressed_kv = self.kv_a_proj_with_mqa(hidden_states)\n        compressed_kv, k_pe = torch.split(\n            compressed_kv, [self.kv_lora_rank, self.qk_rope_head_dim], dim=-1)\n        k_pe = k_pe.view(bsz, q_len, 1, self.qk_rope_head_dim).transpose(1, 2)\n        kv = (self.kv_b_proj(self.kv_a_layernorm(compressed_kv)).view(\n            bsz, q_len, self.num_heads,\n            self.qk_nope_head_dim + self.v_head_dim).transpose(1, 2))\n\n        k_nope, value_states = torch.split(\n            kv, [self.qk_nope_head_dim, self.v_head_dim], dim=-1)\n        kv_seq_len = value_states.shape[-2]\n\n        kv_seq_len = value_states.shape[-2]\n        if past_key_value is not None:\n            kv_seq_len += get_usable_length(past_key_value, kv_seq_len,\n                                            self.layer_idx)\n\n        cos, sin = self.rotary_emb(value_states, seq_len=kv_seq_len)\n        q_pe, k_pe = apply_rotary_pos_emb(q_pe, k_pe, cos, sin, position_ids)\n\n        query_states = k_pe.new_empty(bsz, self.num_heads, q_len,\n                                      self.q_head_dim)\n        query_states[:, :, :, :self.qk_nope_head_dim] = q_nope\n        query_states[:, :, :, self.qk_nope_head_dim:] = q_pe\n\n        key_states = k_pe.new_empty(bsz, self.num_heads, q_len,\n                                    self.q_head_dim)\n        key_states[:, :, :, :self.qk_nope_head_dim] = k_nope\n        key_states[:, :, :, self.qk_nope_head_dim:] = k_pe\n\n        if self.q_head_dim != self.v_head_dim:\n            value_states = F.pad(value_states,\n                                 [0, self.q_head_dim - self.v_head_dim])\n\n        if past_key_value is not None:\n            cache_kwargs = {\"sin\": sin, \"cos\": cos}  # Specific to RoPE models\n            key_states, value_states = past_key_value.update(\n                key_states, value_states, self.layer_idx, cache_kwargs)\n\n        # TODO: These transpose are quite inefficient but Flash Attention requires the layout [batch_size, sequence_length, num_heads, head_dim]. We would need to refactor the KV cache\n        # to be able to avoid many of these transpose/reshape/view.\n        query_states = query_states.transpose(1, 2)\n        key_states = key_states.transpose(1, 2)\n        value_states = value_states.transpose(1, 2)\n\n        dropout_rate = self.attention_dropout if self.training else 0.0\n\n        # In PEFT, usually we cast the layer norms in float32 for training stability reasons\n        # therefore the input hidden states gets silently casted in float32. Hence, we need\n        # cast them back in the correct dtype just to be sure everything works as expected.\n        # This might slowdown training & inference so it is recommended to not cast the LayerNorms\n        # in fp32. (DeepseekV3RMSNorm handles it correctly)\n\n        input_dtype = query_states.dtype\n        if input_dtype == torch.float32:\n            # Handle the case where the model is quantized\n            if hasattr(self.config, \"_pre_quantization_dtype\"):\n                target_dtype = self.config._pre_quantization_dtype\n            elif torch.is_autocast_enabled():\n                target_dtype = torch.get_autocast_gpu_dtype()\n            else:\n                target_dtype = (self.q_proj.weight.dtype if self.q_lora_rank\n                                is None else self.q_a_proj.weight.dtype)\n\n            logger.warning_once(\n                f\"The input hidden states seems to be silently casted in float32, this might be related to\"\n                f\" the fact you have upcasted embedding or layer norm layers in float32. We will cast back the input in\"\n                f\" {target_dtype}.\")\n\n            query_states = query_states.to(target_dtype)\n            key_states = key_states.to(target_dtype)\n            value_states = value_states.to(target_dtype)\n\n        attn_output = self._flash_attention_forward(\n            query_states,\n            key_states,\n            value_states,\n            attention_mask,\n            q_len,\n            dropout=dropout_rate,\n            softmax_scale=self.softmax_scale,\n        )\n        if self.q_head_dim != self.v_head_dim:\n            attn_output = attn_output[:, :, :, :self.v_head_dim]\n\n        attn_output = attn_output.reshape(bsz, q_len, self.num_heads *\n                                          self.v_head_dim).contiguous()\n        attn_output = self.o_proj(attn_output)\n\n        if not output_attentions:\n            attn_weights = None\n\n        return attn_output, attn_weights, past_key_value\n\n    def _flash_attention_forward(\n        self,\n        query_states,\n        key_states,\n        value_states,\n        attention_mask,\n        query_length,\n        dropout=0.0,\n        softmax_scale=None,\n    ):\n        \"\"\"\n        Calls the forward method of Flash Attention - if the input hidden states contain at least one padding token\n        first unpad the input, then computes the attention scores and pad the final attention scores.\n\n        Args:\n            query_states (`torch.Tensor`):\n                Input query states to be passed to Flash Attention API\n            key_states (`torch.Tensor`):\n                Input key states to be passed to Flash Attention API\n            value_states (`torch.Tensor`):\n                Input value states to be passed to Flash Attention API\n            attention_mask (`torch.Tensor`):\n                The padding mask - corresponds to a tensor of size `(batch_size, seq_len)` where 0 stands for the\n                position of padding tokens and 1 for the position of non-padding tokens.\n            dropout (`int`, *optional*):\n                Attention dropout\n            softmax_scale (`float`, *optional*):\n                The scaling of QK^T before applying softmax. Default to 1 / sqrt(head_dim)\n        \"\"\"\n        if not self._flash_attn_uses_top_left_mask:\n            causal = self.is_causal\n        else:\n            # TODO: Remove the `query_length != 1` check once Flash Attention for RoCm is bumped to 2.1. For details, please see the comment in DeepseekV3FlashAttention2 __init__.\n            causal = self.is_causal and query_length != 1\n\n        # Contains at least one padding token in the sequence\n        if attention_mask is not None:\n            batch_size = query_states.shape[0]\n            (\n                query_states,\n                key_states,\n                value_states,\n                indices_q,\n                cu_seq_lens,\n                max_seq_lens,\n            ) = self._upad_input(query_states, key_states, value_states,\n                                 attention_mask, query_length)\n\n            cu_seqlens_q, cu_seqlens_k = cu_seq_lens\n            max_seqlen_in_batch_q, max_seqlen_in_batch_k = max_seq_lens\n\n            attn_output_unpad = flash_attn_varlen_func(\n                query_states,\n                key_states,\n                value_states,\n                cu_seqlens_q=cu_seqlens_q,\n                cu_seqlens_k=cu_seqlens_k,\n                max_seqlen_q=max_seqlen_in_batch_q,\n                max_seqlen_k=max_seqlen_in_batch_k,\n                dropout_p=dropout,\n                softmax_scale=softmax_scale,\n                causal=causal,\n            )\n\n            attn_output = pad_input(attn_output_unpad, indices_q, batch_size,\n                                    query_length)\n        else:\n            attn_output = flash_attn_func(\n                query_states,\n                key_states,\n                value_states,\n                dropout,\n                softmax_scale=softmax_scale,\n                causal=causal,\n            )\n\n        return attn_output\n\n    def _upad_input(self, query_layer, key_layer, value_layer, attention_mask,\n                    query_length):\n        indices_k, cu_seqlens_k, max_seqlen_in_batch_k = _get_unpad_data(\n            attention_mask)\n        batch_size, kv_seq_len, num_key_value_heads, head_dim = key_layer.shape\n\n        key_layer = index_first_axis(\n            key_layer.reshape(batch_size * kv_seq_len, num_key_value_heads,\n                              head_dim),\n            indices_k,\n        )\n        value_layer = index_first_axis(\n            value_layer.reshape(batch_size * kv_seq_len, num_key_value_heads,\n                                head_dim),\n            indices_k,\n        )\n        if query_length == kv_seq_len:\n            query_layer = index_first_axis(\n                query_layer.reshape(batch_size * kv_seq_len, self.num_heads,\n                                    head_dim),\n                indices_k,\n            )\n            cu_seqlens_q = cu_seqlens_k\n            max_seqlen_in_batch_q = max_seqlen_in_batch_k\n            indices_q = indices_k\n        elif query_length == 1:\n            max_seqlen_in_batch_q = 1\n            cu_seqlens_q = torch.arange(\n                batch_size + 1, dtype=torch.int32, device=query_layer.device\n            )  # There is a memcpy here, that is very bad.\n            indices_q = cu_seqlens_q[:-1]\n            query_layer = query_layer.squeeze(1)\n        else:\n            # The -q_len: slice assumes left padding.\n            attention_mask = attention_mask[:, -query_length:]\n            query_layer, indices_q, cu_seqlens_q, max_seqlen_in_batch_q = unpad_input(\n                query_layer, attention_mask)\n\n        return (\n            query_layer,\n            key_layer,\n            value_layer,\n            indices_q,\n            (cu_seqlens_q, cu_seqlens_k),\n            (max_seqlen_in_batch_q, max_seqlen_in_batch_k),\n        )\n\n\nATTENTION_CLASSES = {\n    \"eager\": DeepseekV3Attention,\n    \"flash_attention_2\": DeepseekV3FlashAttention2,\n}\n\n\nclass DeepseekV3DecoderLayer(nn.Module):\n\n    def __init__(self, config: DeepseekV3Config, layer_idx: int):\n        super().__init__()\n        self.hidden_size = config.hidden_size\n\n        self.self_attn = ATTENTION_CLASSES[config._attn_implementation](\n            config=config, layer_idx=layer_idx)\n\n        self.mlp = (DeepseekV3MoE(config) if\n                    (config.n_routed_experts is not None\n                     and layer_idx >= config.first_k_dense_replace\n                     and layer_idx % config.moe_layer_freq == 0) else\n                    DeepseekV3MLP(config))\n        self.input_layernorm = DeepseekV3RMSNorm(config.hidden_size,\n                                                 eps=config.rms_norm_eps)\n        self.post_attention_layernorm = DeepseekV3RMSNorm(\n            config.hidden_size, eps=config.rms_norm_eps)\n\n    def forward(\n        self,\n        hidden_states: torch.Tensor,\n        attention_mask: Optional[torch.Tensor] = None,\n        position_ids: Optional[torch.LongTensor] = None,\n        past_key_value: Optional[Tuple[torch.Tensor]] = None,\n        output_attentions: Optional[bool] = False,\n        use_cache: Optional[bool] = False,\n        **kwargs,\n    ) -> Tuple[torch.FloatTensor, Optional[Tuple[torch.FloatTensor,\n                                                 torch.FloatTensor]]]:\n        \"\"\"\n        Args:\n            hidden_states (`torch.FloatTensor`): input to the layer of shape `(batch, seq_len, embed_dim)`\n            attention_mask (`torch.FloatTensor`, *optional*):\n                attention mask of size `(batch_size, sequence_length)` if flash attention is used or `(batch_size, 1,\n                query_sequence_length, key_sequence_length)` if default attention is used.\n            output_attentions (`bool`, *optional*):\n                Whether or not to return the attentions tensors of all attention layers. See `attentions` under\n                returned tensors for more detail.\n            use_cache (`bool`, *optional*):\n                If set to `True`, `past_key_values` key value states are returned and can be used to speed up decoding\n                (see `past_key_values`).\n            past_key_value (`Tuple(torch.FloatTensor)`, *optional*): cached past key and value projection states\n        \"\"\"\n        if \"padding_mask\" in kwargs:\n            warnings.warn(\n                \"Passing `padding_mask` is deprecated and will be removed in v4.37. Please make sure use `attention_mask` instead.`\"\n            )\n        residual = hidden_states\n\n        hidden_states = self.input_layernorm(hidden_states)\n\n        # Self Attention\n        hidden_states, self_attn_weights, present_key_value = self.self_attn(\n            hidden_states=hidden_states,\n            attention_mask=attention_mask,\n            position_ids=position_ids,\n            past_key_value=past_key_value,\n            output_attentions=output_attentions,\n            use_cache=use_cache,\n            **kwargs,\n        )\n        hidden_states = residual + hidden_states\n\n        # Fully Connected\n        residual = hidden_states\n        hidden_states = self.post_attention_layernorm(hidden_states)\n        hidden_states = self.mlp(hidden_states)\n        hidden_states = residual + hidden_states\n\n        outputs = (hidden_states, )\n\n        if output_attentions:\n            outputs += (self_attn_weights, )\n\n        if use_cache:\n            outputs += (present_key_value, )\n\n        return outputs\n\n\nDeepseekV3_START_DOCSTRING = r\"\"\"\n    This model inherits from [`PreTrainedModel`]. Check the superclass documentation for the generic methods the\n    library implements for all its model (such as downloading or saving, resizing the input embeddings, pruning heads\n    etc.)\n\n    This model is also a PyTorch [torch.nn.Module](https://pytorch.org/docs/stable/nn.html#torch.nn.Module) subclass.\n    Use it as a regular PyTorch Module and refer to the PyTorch documentation for all matter related to general usage\n    and behavior.\n\n    Parameters:\n        config ([`DeepseekV3Config`]):\n            Model configuration class with all the parameters of the model. Initializing with a config file does not\n            load the weights associated with the model, only the configuration. Check out the\n            [`~PreTrainedModel.from_pretrained`] method to load the model weights.\n\"\"\"\n\n\n@add_start_docstrings(\n    \"The bare DeepseekV3 Model outputting raw hidden-states without any specific head on top.\",\n    DeepseekV3_START_DOCSTRING,\n)\nclass DeepseekV3PreTrainedModel(PreTrainedModel):\n    config_class = DeepseekV3Config\n    base_model_prefix = \"model\"\n    supports_gradient_checkpointing = True\n    _no_split_modules = [\"DeepseekV3DecoderLayer\"]\n    _skip_keys_device_placement = \"past_key_values\"\n    _supports_flash_attn_2 = True\n    _supports_cache_class = True\n\n    def _init_weights(self, module):\n        std = self.config.initializer_range\n        if isinstance(module, nn.Linear):\n            module.weight.data.normal_(mean=0.0, std=std)\n            if module.bias is not None:\n                module.bias.data.zero_()\n        elif isinstance(module, nn.Embedding):\n            module.weight.data.normal_(mean=0.0, std=std)\n            if module.padding_idx is not None:\n                module.weight.data[module.padding_idx].zero_()\n\n\nDeepseekV3_INPUTS_DOCSTRING = r\"\"\"\n    Args:\n        input_ids (`torch.LongTensor` of shape `(batch_size, sequence_length)`):\n            Indices of input sequence tokens in the vocabulary. Padding will be ignored by default should you provide\n            it.\n\n            Indices can be obtained using [`AutoTokenizer`]. See [`PreTrainedTokenizer.encode`] and\n            [`PreTrainedTokenizer.__call__`] for details.\n\n            [What are input IDs?](../glossary#input-ids)\n        attention_mask (`torch.Tensor` of shape `(batch_size, sequence_length)`, *optional*):\n            Mask to avoid performing attention on padding token indices. Mask values selected in `[0, 1]`:\n\n            - 1 for tokens that are **not masked**,\n            - 0 for tokens that are **masked**.\n\n            [What are attention masks?](../glossary#attention-mask)\n\n            Indices can be obtained using [`AutoTokenizer`]. See [`PreTrainedTokenizer.encode`] and\n            [`PreTrainedTokenizer.__call__`] for details.\n\n            If `past_key_values` is used, optionally only the last `input_ids` have to be input (see\n            `past_key_values`).\n\n            If you want to change padding behavior, you should read [`modeling_opt._prepare_decoder_attention_mask`]\n            and modify to your needs. See diagram 1 in [the paper](https://arxiv.org/abs/1910.13461) for more\n            information on the default strategy.\n\n            - 1 indicates the head is **not masked**,\n            - 0 indicates the head is **masked**.\n        position_ids (`torch.LongTensor` of shape `(batch_size, sequence_length)`, *optional*):\n            Indices of positions of each input sequence tokens in the position embeddings. Selected in the range `[0,\n            config.n_positions - 1]`.\n\n            [What are position IDs?](../glossary#position-ids)\n        past_key_values (`Cache` or `tuple(tuple(torch.FloatTensor))`, *optional*):\n            Pre-computed hidden-states (key and values in the self-attention blocks and in the cross-attention\n            blocks) that can be used to speed up sequential decoding. This typically consists in the `past_key_values`\n            returned by the model at a previous stage of decoding, when `use_cache=True` or `config.use_cache=True`.\n\n            Two formats are allowed:\n            - a [`~cache_utils.Cache`] instance;\n            - Tuple of `tuple(torch.FloatTensor)` of length `config.n_layers`, with each tuple having 2 tensors of\n            shape `(batch_size, num_heads, sequence_length, embed_size_per_head)`). This is also known as the legacy\n            cache format.\n\n            The model will output the same cache format that is fed as input. If no `past_key_values` are passed, the\n            legacy cache format will be returned.\n\n            If `past_key_values` are used, the user can optionally input only the last `input_ids` (those that don't\n            have their past key value states given to this model) of shape `(batch_size, 1)` instead of all `input_ids`\n            of shape `(batch_size, sequence_length)`.\n        inputs_embeds (`torch.FloatTensor` of shape `(batch_size, sequence_length, hidden_size)`, *optional*):\n            Optionally, instead of passing `input_ids` you can choose to directly pass an embedded representation. This\n            is useful if you want more control over how to convert `input_ids` indices into associated vectors than the\n            model's internal embedding lookup matrix.\n        use_cache (`bool`, *optional*):\n            If set to `True`, `past_key_values` key value states are returned and can be used to speed up decoding (see\n            `past_key_values`).\n        output_attentions (`bool`, *optional*):\n            Whether or not to return the attentions tensors of all attention layers. See `attentions` under returned\n            tensors for more detail.\n        output_hidden_states (`bool`, *optional*):\n            Whether or not to return the hidden states of all layers. See `hidden_states` under returned tensors for\n            more detail.\n        return_dict (`bool`, *optional*):\n            Whether or not to return a [`~utils.ModelOutput`] instead of a plain tuple.\n\"\"\"\n\n\n@add_start_docstrings(\n    \"The bare DeepseekV3 Model outputting raw hidden-states without any specific head on top.\",\n    DeepseekV3_START_DOCSTRING,\n)\nclass DeepseekV3Model(DeepseekV3PreTrainedModel):\n    \"\"\"\n    Transformer decoder consisting of *config.num_hidden_layers* layers. Each layer is a [`DeepseekV3DecoderLayer`]\n\n    Args:\n        config: DeepseekV3Config\n    \"\"\"\n\n    def __init__(self, config: DeepseekV3Config):\n        super().__init__(config)\n        self.padding_idx = config.pad_token_id\n        self.vocab_size = config.vocab_size\n\n        self.embed_tokens = nn.Embedding(config.vocab_size, config.hidden_size,\n                                         self.padding_idx)\n        self.layers = nn.ModuleList([\n            DeepseekV3DecoderLayer(config, layer_idx)\n            for layer_idx in range(config.num_hidden_layers)\n        ])\n        self._use_flash_attention_2 = config._attn_implementation == \"flash_attention_2\"\n        self.norm = DeepseekV3RMSNorm(config.hidden_size,\n                                      eps=config.rms_norm_eps)\n\n        self.gradient_checkpointing = False\n        # Initialize weights and apply final processing\n        self.post_init()\n\n    def get_input_embeddings(self):\n        return self.embed_tokens\n\n    def set_input_embeddings(self, value):\n        self.embed_tokens = value\n\n    @add_start_docstrings_to_model_forward(DeepseekV3_INPUTS_DOCSTRING)\n    def forward(\n        self,\n        input_ids: torch.LongTensor = None,\n        attention_mask: Optional[torch.Tensor] = None,\n        position_ids: Optional[torch.LongTensor] = None,\n        past_key_values: Optional[List[torch.FloatTensor]] = None,\n        inputs_embeds: Optional[torch.FloatTensor] = None,\n        use_cache: Optional[bool] = None,\n        output_attentions: Optional[bool] = None,\n        output_hidden_states: Optional[bool] = None,\n        return_dict: Optional[bool] = None,\n    ) -> Union[Tuple, BaseModelOutputWithPast]:\n        output_attentions = (output_attentions if output_attentions is not None\n                             else self.config.output_attentions)\n        output_hidden_states = (output_hidden_states\n                                if output_hidden_states is not None else\n                                self.config.output_hidden_states)\n        use_cache = use_cache if use_cache is not None else self.config.use_cache\n\n        return_dict = (return_dict if return_dict is not None else\n                       self.config.use_return_dict)\n\n        # retrieve input_ids and inputs_embeds\n        if input_ids is not None and inputs_embeds is not None:\n            raise ValueError(\n                \"You cannot specify both input_ids and inputs_embeds at the same time\"\n            )\n        elif input_ids is not None:\n            batch_size, seq_length = input_ids.shape[:2]\n        elif inputs_embeds is not None:\n            batch_size, seq_length = inputs_embeds.shape[:2]\n        else:\n            raise ValueError(\n                \"You have to specify either input_ids or inputs_embeds\")\n\n        past_key_values_length = 0\n        if use_cache:\n            use_legacy_cache = not isinstance(past_key_values, Cache)\n            if use_legacy_cache:\n                past_key_values = DynamicCache.from_legacy_cache(\n                    past_key_values)\n            past_key_values_length = get_usable_length(past_key_values,\n                                                       seq_length)\n\n        if position_ids is None:\n            device = input_ids.device if input_ids is not None else inputs_embeds.device\n            position_ids = torch.arange(\n                past_key_values_length,\n                seq_length + past_key_values_length,\n                dtype=torch.long,\n                device=device,\n            )\n            position_ids = position_ids.unsqueeze(0)\n\n        if inputs_embeds is None:\n            inputs_embeds = self.embed_tokens(input_ids)\n\n        if self._use_flash_attention_2:\n            # 2d mask is passed through the layers\n            attention_mask = (attention_mask if\n                              (attention_mask is not None\n                               and 0 in attention_mask) else None)\n        else:\n            # 4d mask is passed through the layers\n            attention_mask = _prepare_4d_causal_attention_mask(\n                attention_mask,\n                (batch_size, seq_length),\n                inputs_embeds,\n                past_key_values_length,\n            )\n\n        # embed positions\n        hidden_states = inputs_embeds\n\n        # decoder layers\n        all_hidden_states = () if output_hidden_states else None\n        all_self_attns = () if output_attentions else None\n        next_decoder_cache = None\n\n        for decoder_layer in self.layers:\n            if output_hidden_states:\n                all_hidden_states += (hidden_states, )\n\n            layer_outputs = decoder_layer(\n                hidden_states,\n                attention_mask=attention_mask,\n                position_ids=position_ids,\n                past_key_value=past_key_values,\n                output_attentions=output_attentions,\n                use_cache=use_cache,\n            )\n\n            hidden_states = layer_outputs[0]\n\n            if use_cache:\n                next_decoder_cache = layer_outputs[\n                    2 if output_attentions else 1]\n\n            if output_attentions:\n                all_self_attns += (layer_outputs[1], )\n\n        hidden_states = self.norm(hidden_states)\n\n        # add hidden states from the last decoder layer\n        if output_hidden_states:\n            all_hidden_states += (hidden_states, )\n\n        next_cache = None\n        if use_cache:\n            next_cache = (next_decoder_cache.to_legacy_cache()\n                          if use_legacy_cache else next_decoder_cache)\n        if not return_dict:\n            return tuple(\n                v for v in\n                [hidden_states, next_cache, all_hidden_states, all_self_attns]\n                if v is not None)\n        return BaseModelOutputWithPast(\n            last_hidden_state=hidden_states,\n            past_key_values=next_cache,\n            hidden_states=all_hidden_states,\n            attentions=all_self_attns,\n        )\n\n\nclass DeepseekV3ForCausalLM(DeepseekV3PreTrainedModel):\n    _tied_weights_keys = [\"lm_head.weight\"]\n\n    def __init__(self, config):\n        super().__init__(config)\n        self.model = DeepseekV3Model(config)\n        self.vocab_size = config.vocab_size\n        self.lm_head = nn.Linear(config.hidden_size,\n                                 config.vocab_size,\n                                 bias=False)\n\n        # Initialize weights and apply final processing\n        self.post_init()\n\n    def get_input_embeddings(self):\n        return self.model.embed_tokens\n\n    def set_input_embeddings(self, value):\n        self.model.embed_tokens = value\n\n    def get_output_embeddings(self):\n        return self.lm_head\n\n    def set_output_embeddings(self, new_embeddings):\n        self.lm_head = new_embeddings\n\n    def set_decoder(self, decoder):\n        self.model = decoder\n\n    def get_decoder(self):\n        return self.model\n\n    @add_start_docstrings_to_model_forward(DeepseekV3_INPUTS_DOCSTRING)\n    @replace_return_docstrings(output_type=CausalLMOutputWithPast,\n                               config_class=_CONFIG_FOR_DOC)\n    def forward(\n        self,\n        input_ids: torch.LongTensor = None,\n        attention_mask: Optional[torch.Tensor] = None,\n        position_ids: Optional[torch.LongTensor] = None,\n        past_key_values: Optional[List[torch.FloatTensor]] = None,\n        inputs_embeds: Optional[torch.FloatTensor] = None,\n        labels: Optional[torch.LongTensor] = None,\n        use_cache: Optional[bool] = None,\n        output_attentions: Optional[bool] = None,\n        output_hidden_states: Optional[bool] = None,\n        return_dict: Optional[bool] = None,\n    ) -> Union[Tuple, CausalLMOutputWithPast]:\n        r\"\"\"\n        Args:\n            labels (`torch.LongTensor` of shape `(batch_size, sequence_length)`, *optional*):\n                Labels for computing the masked language modeling loss. Indices should either be in `[0, transformers.,\n                config.vocab_size]` or -100 (see `input_ids` docstring). Tokens with indices set to `-100` are ignored\n                (masked), the loss is only computed for the tokens with labels in `[0, transformers., config.vocab_size]`.\n\n        Returns:\n\n        Example:\n\n        ```python\n        >>> from transformers import AutoTokenizer, DeepseekV3ForCausalLM\n\n        >>> model = DeepseekV3ForCausalLM.from_pretrained(PATH_TO_CONVERTED_WEIGHTS)\n        >>> tokenizer = AutoTokenizer.from_pretrained(PATH_TO_CONVERTED_TOKENIZER)\n\n        >>> prompt = \"Hey, are you conscious? Can you talk to me?\"\n        >>> inputs = tokenizer(prompt, return_tensors=\"pt\")\n\n        >>> # Generate\n        >>> generate_ids = model.generate(inputs.input_ids, max_length=30)\n        >>> tokenizer.batch_decode(generate_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0]\n        \"Hey, are you conscious? Can you talk to me?\\nI'm not conscious, but I can talk to you.\"\n        ```\"\"\"\n        output_attentions = (output_attentions if output_attentions is not None\n                             else self.config.output_attentions)\n        output_hidden_states = (output_hidden_states\n                                if output_hidden_states is not None else\n                                self.config.output_hidden_states)\n        return_dict = (return_dict if return_dict is not None else\n                       self.config.use_return_dict)\n\n        # decoder outputs consists of (dec_features, layer_state, dec_hidden, dec_attn)\n        outputs = self.model(\n            input_ids=input_ids,\n            attention_mask=attention_mask,\n            position_ids=position_ids,\n            past_key_values=past_key_values,\n            inputs_embeds=inputs_embeds,\n            use_cache=use_cache,\n            output_attentions=output_attentions,\n            output_hidden_states=output_hidden_states,\n            return_dict=return_dict,\n        )\n\n        hidden_states = outputs[0]\n        logits = self.lm_head(hidden_states)\n        logits = logits.float()\n\n        loss = None\n        if labels is not None:\n            # Shift so that tokens < n predict n\n            shift_logits = logits[..., :-1, :].contiguous()\n            shift_labels = labels[..., 1:].contiguous()\n            # Flatten the tokens\n            loss_fct = CrossEntropyLoss()\n            shift_logits = shift_logits.view(-1, self.config.vocab_size)\n            shift_labels = shift_labels.view(-1)\n            # Enable model parallelism\n            shift_labels = shift_labels.to(shift_logits.device)\n            loss = loss_fct(shift_logits, shift_labels)\n\n        if not return_dict:\n            output = (logits, ) + outputs[1:]\n            return (loss, ) + output if loss is not None else output\n\n        return CausalLMOutputWithPast(\n            loss=loss,\n            logits=logits,\n            past_key_values=outputs.past_key_values,\n            hidden_states=outputs.hidden_states,\n            attentions=outputs.attentions,\n        )\n\n    def prepare_inputs_for_generation(\n        self,\n        input_ids,\n        past_key_values=None,\n        attention_mask=None,\n        inputs_embeds=None,\n        **kwargs,\n    ):\n        if past_key_values is not None:\n            if isinstance(past_key_values, Cache):\n                cache_length = past_key_values.get_seq_length()\n                # seen_tokens 可能在某些 transformers 版本中不存在，使用 getattr 安全访问\n                past_length = getattr(past_key_values, 'seen_tokens',\n                                      cache_length)\n                max_cache_length = past_key_values.get_max_length()\n            else:\n                cache_length = past_length = past_key_values[0][0].shape[2]\n                max_cache_length = None\n\n            # Keep only the unprocessed tokens:\n            # 1 - If the length of the attention_mask exceeds the length of input_ids, then we are in a setting where\n            # some of the inputs are exclusively passed as part of the cache (e.g. when passing input_embeds as\n            # input)\n            if (attention_mask is not None\n                    and attention_mask.shape[1] > input_ids.shape[1]):\n                input_ids = input_ids[:, -(attention_mask.shape[1] -\n                                           past_length):]\n            # 2 - If the past_length is smaller than input_ids', then input_ids holds all input tokens. We can discard\n            # input_ids based on the past_length.\n            elif past_length < input_ids.shape[1]:\n                input_ids = input_ids[:, past_length:]\n            # 3 - Otherwise (past_length >= input_ids.shape[1]), let's assume input_ids only has unprocessed tokens.\n\n            # If we are about to go beyond the maximum cache length, we need to crop the input attention mask.\n            if (max_cache_length is not None and attention_mask is not None\n                    and cache_length + input_ids.shape[1] > max_cache_length):\n                attention_mask = attention_mask[:, -max_cache_length:]\n\n        position_ids = kwargs.get(\"position_ids\", None)\n        if attention_mask is not None and position_ids is None:\n            # create position_ids on the fly for batch generation\n            position_ids = attention_mask.long().cumsum(-1) - 1\n            position_ids.masked_fill_(attention_mask == 0, 1)\n            if past_key_values:\n                position_ids = position_ids[:, -input_ids.shape[1]:]\n\n        # if `inputs_embeds` are passed, we only want to use them in the 1st generation step\n        if inputs_embeds is not None and past_key_values is None:\n            model_inputs = {\"inputs_embeds\": inputs_embeds}\n        else:\n            model_inputs = {\"input_ids\": input_ids}\n\n        model_inputs.update({\n            \"position_ids\": position_ids,\n            \"past_key_values\": past_key_values,\n            \"use_cache\": kwargs.get(\"use_cache\"),\n            \"attention_mask\": attention_mask,\n        })\n        return model_inputs\n\n    @staticmethod\n    def _reorder_cache(past_key_values, beam_idx):\n        reordered_past = ()\n        for layer_past in past_key_values:\n            reordered_past += (tuple(\n                past_state.index_select(0, beam_idx.to(past_state.device))\n                for past_state in layer_past), )\n        return reordered_past\n\n\n@add_start_docstrings(\n    \"\"\"\n    The DeepseekV3 Model transformer with a sequence classification head on top (linear layer).\n\n    [`DeepseekV3ForSequenceClassification`] uses the last token in order to do the classification, as other causal models\n    (e.g. GPT-2) do.\n\n    Since it does classification on the last token, it requires to know the position of the last token. If a\n    `pad_token_id` is defined in the configuration, it finds the last token that is not a padding token in each row. If\n    no `pad_token_id` is defined, it simply takes the last value in each row of the batch. Since it cannot guess the\n    padding tokens when `inputs_embeds` are passed instead of `input_ids`, it does the same (take the last value in\n    each row of the batch).\n    \"\"\",\n    DeepseekV3_START_DOCSTRING,\n)\nclass DeepseekV3ForSequenceClassification(DeepseekV3PreTrainedModel):\n\n    def __init__(self, config):\n        super().__init__(config)\n        self.num_labels = config.num_labels\n        self.model = DeepseekV3Model(config)\n        self.score = nn.Linear(config.hidden_size, self.num_labels, bias=False)\n\n        # Initialize weights and apply final processing\n        self.post_init()\n\n    def get_input_embeddings(self):\n        return self.model.embed_tokens\n\n    def set_input_embeddings(self, value):\n        self.model.embed_tokens = value\n\n    @add_start_docstrings_to_model_forward(DeepseekV3_INPUTS_DOCSTRING)\n    def forward(\n        self,\n        input_ids: torch.LongTensor = None,\n        attention_mask: Optional[torch.Tensor] = None,\n        position_ids: Optional[torch.LongTensor] = None,\n        past_key_values: Optional[List[torch.FloatTensor]] = None,\n        inputs_embeds: Optional[torch.FloatTensor] = None,\n        labels: Optional[torch.LongTensor] = None,\n        use_cache: Optional[bool] = None,\n        output_attentions: Optional[bool] = None,\n        output_hidden_states: Optional[bool] = None,\n        return_dict: Optional[bool] = None,\n    ) -> Union[Tuple, SequenceClassifierOutputWithPast]:\n        r\"\"\"\n        labels (`torch.LongTensor` of shape `(batch_size,)`, *optional*):\n            Labels for computing the sequence classification/regression loss. Indices should be in `[0, transformers.,\n            config.num_labels - 1]`. If `config.num_labels == 1` a regression loss is computed (Mean-Square loss), If\n            `config.num_labels > 1` a classification loss is computed (Cross-Entropy).\n        \"\"\"\n        return_dict = (return_dict if return_dict is not None else\n                       self.config.use_return_dict)\n\n        transformer_outputs = self.model(\n            input_ids,\n            attention_mask=attention_mask,\n            position_ids=position_ids,\n            past_key_values=past_key_values,\n            inputs_embeds=inputs_embeds,\n            use_cache=use_cache,\n            output_attentions=output_attentions,\n            output_hidden_states=output_hidden_states,\n            return_dict=return_dict,\n        )\n        hidden_states = transformer_outputs[0]\n        logits = self.score(hidden_states)\n\n        if input_ids is not None:\n            batch_size = input_ids.shape[0]\n        else:\n            batch_size = inputs_embeds.shape[0]\n\n        if self.config.pad_token_id is None and batch_size != 1:\n            raise ValueError(\n                \"Cannot handle batch sizes > 1 if no padding token is defined.\"\n            )\n        if self.config.pad_token_id is None:\n            sequence_lengths = -1\n        else:\n            if input_ids is not None:\n                sequence_lengths = (torch.eq(\n                    input_ids, self.config.pad_token_id).int().argmax(-1) -\n                                    1).to(logits.device)\n            else:\n                sequence_lengths = -1\n\n        pooled_logits = logits[torch.arange(batch_size, device=logits.device),\n                               sequence_lengths]\n\n        loss = None\n        if labels is not None:\n            labels = labels.to(logits.device)\n            if self.config.problem_type is None:\n                if self.num_labels == 1:\n                    self.config.problem_type = \"regression\"\n                elif self.num_labels > 1 and (labels.dtype == torch.long\n                                              or labels.dtype == torch.int):\n                    self.config.problem_type = \"single_label_classification\"\n                else:\n                    self.config.problem_type = \"multi_label_classification\"\n\n            if self.config.problem_type == \"regression\":\n                loss_fct = MSELoss()\n                if self.num_labels == 1:\n                    loss = loss_fct(pooled_logits.squeeze(), labels.squeeze())\n                else:\n                    loss = loss_fct(pooled_logits, labels)\n            elif self.config.problem_type == \"single_label_classification\":\n                loss_fct = CrossEntropyLoss()\n                loss = loss_fct(pooled_logits.view(-1, self.num_labels),\n                                labels.view(-1))\n            elif self.config.problem_type == \"multi_label_classification\":\n                loss_fct = BCEWithLogitsLoss()\n                loss = loss_fct(pooled_logits, labels)\n        if not return_dict:\n            output = (pooled_logits, ) + transformer_outputs[1:]\n            return ((loss, ) + output) if loss is not None else output\n\n        return SequenceClassifierOutputWithPast(\n            loss=loss,\n            logits=pooled_logits,\n            past_key_values=transformer_outputs.past_key_values,\n            hidden_states=transformer_outputs.hidden_states,\n            attentions=transformer_outputs.attentions,\n        )\n"
+      }
+    ]
+  },
+  "processor": {
+    "preprocessor_config.json": {
+      "auto_map": {
+        "AutoProcessor": "kimi_k25_processor.KimiK25Processor",
+        "AutoImageProcessor": "kimi_k25_vision_processing.KimiK25VisionProcessor"
+      },
+      "media_proc_cfg": {
+        "in_patch_limit": 16384,
+        "patch_size": 14,
+        "image_mean": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "image_std": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "merge_kernel_size": 2,
+        "fixed_output_tokens": null,
+        "patch_limit_on_one_side": 512,
+        "in_patch_limit_each_frame": 4096,
+        "in_patch_limit_video": null,
+        "sample_fps": 2.0,
+        "max_num_frames_each_video": null,
+        "temporal_merge_kernel_size": 4,
+        "timestamp_mode": "hh:mm:ss.fff",
+        "config_type": "media_proc.processors.moonvit.MoonViTMediaProcessorConfig"
+      }
+    }
+  },
+  "release_date": "2026-01-01"
+}

@@ -1,0 +1,21 @@
+# Box override for vllm on the H100 SXM box (kernel driver 575.57.08, CUDA 12.9).
+#
+# It asks for the generated env unchanged — the release is the one the vLLM
+# binding was audited at, read from `audited_at`, here as everywhere. What this
+# file is FOR is the box-wide `torch==2.8.0+cu128` pin, which it does not take:
+# an `[env_requirements]` override is that env's requirements in full, so the
+# box's default torch build steps aside and vLLM's own `torch==2.13.0` decides.
+# That pin has one build on PyPI and it is the CUDA-13 one, so this env is a
+# CUDA-13 env and runs against the forward-compatibility user-mode driver that
+# `[library_env.vllm]` puts on its LD_LIBRARY_PATH.
+#
+# The pin used to read `vllm==0.11.0`, on the stated grounds that newer vLLM
+# "needs torch 2.11 / 2.13, whose default wheels are CUDA 13 and do not load on
+# this driver". The first half is right and the second is wrong: CUDA-13 wheels
+# load here, through forward compatibility, with no reboot. Measured on this
+# box at vLLM 0.32.0 — `import vllm._custom_ops` and a `rms_norm` call both
+# succeed under the compat user-mode driver and both fail without it. The wrong
+# half of that sentence is why this box measured 0.11.0 for three weeks while
+# the binding priced 0.32.0, so: do not re-pin an old release here without
+# first checking whether the reason still holds.
+-r ../vllm.txt

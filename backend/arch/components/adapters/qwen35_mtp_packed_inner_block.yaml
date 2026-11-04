@@ -1,0 +1,24 @@
+# Qwen3.5-MoE MTP inner block for checkpoints whose MTP layer stores the
+# packed fused expert bank (`mtp.layers.X.mlp.experts.gate_up_proj`
+# [n_experts, 2*d_ffn_expert, d_model], `.down_proj`), like the backbone —
+# e.g. Qwen3.8-2.4T-A95B. vLLM builds the MTP layer as the backbone's
+# full-attention decoder layer (vllm/model_executor/models/qwen3_5_mtp.py
+# Qwen3_5MultiTokenPredictor: `Qwen3_5DecoderLayer(..., layer_type="full_attention")`,
+# whose `self.mlp = Qwen3NextSparseMoeBlock(...)` for "qwen3_5_moe_text"); the
+# MTP weights are dropped by transformers (modeling_qwen3_5_moe.py:1847), so
+# its rotation follows vLLM too: `get_rope` without `mrope_section` builds a
+# single-stream RotaryEmbedding (the library default), where the backbone's
+# `qwen35_full_moe_block` rotates by three streams. `qwen35_mtp_inner_block` is
+# the sibling for checkpoints whose MTP stores per-expert nn.Linear weights.
+role: block
+description: "Qwen3.5-MoE MTP inner block (packed fused experts): pre-norm + fused-QZ sigmoid-gated GQA + scaled-shared MoE FFN."
+
+graph:
+  layer:
+    module: null
+    op: pre_norm
+    in: x
+    params:
+      attn: gqa_qknorm_partial_rope_sigmoid_gated_attention
+      ffn:  moe_ffn_fused_scaled_shared
+outputs: [layer]

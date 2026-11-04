@@ -1,0 +1,26 @@
+# Step-3.7-Flash MoE FFN with packed expert weights and block-level
+# router bias — NO shared expert (the shared expert lives at a sibling
+# checkpoint namespace in Step-3.7, not under the MoE wrapper).
+#
+# Structure (same routing math as moe_ffn_packed minus the shared block):
+#   gate (d_model -> n_experts linear, no bias)
+#   gate_score = sigmoid(gate)               (config.moe_router_activation)
+#   router_bias (parameter_vector [n_experts])
+#   gate_biased = gate_score + router_bias   (per-token routing scores)
+#   permute     → n_experts packed gate_proj/up_proj (d_model -> d_ffn_expert) → silu(gate)*up
+#               → packed down_proj (d_ffn_expert -> d_model) → combine
+#
+# Required dims: d_model, d_ffn_expert, n_experts, n_experts_active
+# Optional: n_route_targets (the gate's width, derived)
+
+role: ffn_moe
+description: "Step-3.7 packed MoE FFN: routing + n_experts packed experts. Shared expert lives outside this component."
+graph:
+  gate:         { role: router, op: linear, in: x, dims: { in: d_model, out: n_route_targets, bias: "0" }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  gate_score:   { op: sigmoid, in: gate, dim: n_route_targets }
+  router_bias:  { role: router, op: parameter_vector, dim: n_route_targets, weight_axes: [{ replicated: true }] }
+  gate_biased:  { op: add, in: [gate_score, router_bias], dim: n_route_targets }
+  permute:      { op: permute, in: [x, gate_biased] }
+  experts:      { op: gated_experts, in: permute, module: null, dims: { d_model: d_model, d_ffn: d_ffn_expert }, expert_weight: leading_axis }
+  combine:      { op: combine, in: [experts, gate_biased] }
+outputs: [combine]

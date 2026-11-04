@@ -1,0 +1,63 @@
+# CSA2 KV compressor, the pooled branch (compress_ratio > 1).
+#
+# `Compressor.forward` (source/model.py:457-485) pools `compress_ratio`
+# consecutive tokens into one KV latent with a learned softmax gate:
+#
+#   kv, score = self.wkv(x), self.wgate(x)
+#   kv    = kv.unflatten(1, (-1, ratio))
+#   score = score.unflatten(1, (-1, ratio))
+#   kv    = (kv * score.softmax(dim=2)).sum(dim=2)
+#   return self.norm(kv.to(dtype))
+#
+# The graph states that unflatten as a real axis: the ragged tail is dropped
+# first (`seqlen - seqlen % ratio` complete groups; the trailing partial
+# group waits in the decode state), then `view_split axis: 1` folds the
+# complete groups into (slot, window) — an exact product, no rounding. The
+# softmax declares `axis: 2` (the window axis, NOT the feature dim) and
+# `sum_reduce` collapses it back.
+#
+# Two differences from `dsv4_compressor_no_overlap`, which is why this is its
+# own component and not a binding of it:
+#   * no `ape` position table — the gate is the projection alone
+#     (`pattern_counts` carries only compressor.{wkv,wgate,norm});
+#   * no RoPE and no compressed-KV entry: the latent leaves PRE-ROTATION
+#     because the indexer needs the unrotated form, and
+#     `Attention._compress_kv` rotates and stores it afterwards
+#     (source/model.py:434, 753-761). That buffer is the attention's, so
+#     `csa2_compress_store` declares it; this component keeps only its own
+#     partial-group state.
+#
+# Required dims: d_model, d_head, compress_ratio.
+
+description: "CSA2 KV compressor, ratio > 1: gated softmax pooling of compress_ratio consecutive tokens into one pre-RoPE latent (wkv / wgate / norm, no position table)."
+# Decode runs the other branch of Compressor.forward (one token per step, the
+# group pooled once every compress_ratio steps) — its own subgraph.
+decode_variant: csa2_compressor_gated_decode
+# The two buffers that hold a group that is not yet full, per request, fp32,
+# [ratio, head_dim] each (source/model.py:449-456). Prefill leaves its ragged
+# tail there (:470-472) and decode fills them one row per step (:479-480); the
+# softmax (`smax`) reads the score rows, the weighting multiply (`weighted`)
+# the kv rows. Billed as read in full every step, as DSv4's compressor state
+# is, though a decode step writes one row and the pool reads them once per
+# group.
+cache:
+  entries:
+    - { state: kv_state,    kind: compressor_state, carrier: weighted, shape: [compress_ratio, d_head], dtype: fp32 }
+    - { state: score_state, kind: compressor_state, carrier: smax,     shape: [compress_ratio, d_head], dtype: fp32 }
+graph:
+  wkv:        { op: linear, role: attention_compressor, in: x, dims: { in: d_model, out: d_head }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  wgate:      { op: linear, role: attention_compressor, in: x, dims: { in: d_model, out: d_head }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  kv_usable:   { op: slice, in: wkv,   axis: 1, dims: { out: "floor(s_ctx / compress_ratio) * compress_ratio" } }
+  gate_usable: { op: slice, in: wgate, axis: 1, dims: { out: "floor(s_ctx / compress_ratio) * compress_ratio" } }
+  kv_win:      { op: view_split, in: kv_usable,   axis: 1, dims: { s_slots: "floor(s_ctx / compress_ratio)", window: compress_ratio } }
+  gate_win:    { op: view_split, in: gate_usable, axis: 1, dims: { s_slots: "floor(s_ctx / compress_ratio)", window: compress_ratio } }
+  smax:
+    op: softmax_act
+    in: gate_win
+    dim: compress_ratio
+    axis: 2
+    formula: "w[b, slot, p, d] = exp(gate[b, slot, p, d]) / Σ_{p'<ratio} exp(gate[b, slot, p', d])   (score.softmax(dim=2), per channel over the group)"
+  weighted:   { op: mul, in: [kv_win, smax], dim: d_head }
+  pooled:     { op: sum_reduce, in: weighted, axis: 2, dims: { in: compress_ratio } }
+  norm:       { op: rmsnorm, role: attention_compressor, in: pooled, dim: d_head, weight_axes: [{ replicated: true }] }
+outputs: [norm]

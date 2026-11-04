@@ -1,0 +1,4 @@
+# Identity file for Qwen/Qwen3.5-35B-A3B
+base: qwen3_5_moe
+match:
+  model_id: [Qwen/Qwen3.5-35B-A3B]

@@ -1,0 +1,54 @@
+# The hyper-connection PRE-mix epilogue — the launch that turns the mix
+# coefficients into this sublayer's normalised input, and publishes the
+# `post` and `comb` coefficients the sublayer's post-mix will need.
+#
+# Naive subgraph (the three leaves of the `hc_weighted_reduce` that `hc_pre`
+# calls, and the sublayer RMSNorm that reads the `hc_pre` component — a leaf
+# of the block itself):
+#
+#   x_in = rmsnorm(Σ_c pre_c · residual_c)
+#
+# vLLM (audited at v0.32.0) runs all of it as one TileLang launch, the
+# "big fuse": it reduces the GEMM's split-K partials, applies the rsqrt, the
+# sigmoids and the Sinkhorn normalisation, does the weighted reduce over the
+# copies and the sublayer RMSNorm, and writes `post`, `comb` and the normed
+# input (model_executor/kernels/mhc/tilelang.py — the last launch on every
+# path, two or three). sglang (audited at v0.5.22) runs the same boundary,
+# `mhc_pre_big_fuse_with_norm_tilelang` (kernels/ops/layernorm/mhc.py).
+#
+# This is the plan that spans component boundaries (`crosses: component`):
+# the reduce's three leaves are in the `hc_weighted_reduce` that `hc_pre`
+# calls, and the norm is the block's own.
+#
+# DeepSeek-V4.1 is billed by this plan too, on its shifted schedule (the
+# reduce reads the PREVIOUS sublayer's `pre`, carried across blocks): vLLM's
+# epilogue there is `MHC_PRE_NORM_KERNEL`, the same TileLang kernel family
+# with the pre-mix carried in and out, and sglang's is `hc_combine_norm`,
+# the reduce + norm half alone — the coefficient generation V4 folds into
+# this launch rides V4.1's stats launch (`mhc_pre_gemm_stream`). The carried
+# pre is a 32-byte-per-token delta against the whole-residual seam; the
+# subgraph this plan matches is the same either way, which is what the plan
+# prices. Both bindings state the dispatch at their entries.
+#
+# Stated residual: the Sinkhorn split stays outside. The real kernel also
+# normalises the mix vector into `pre`, `post` and `comb` and keeps `pre` in
+# registers; here `hc_split_sinkhorn` remains a billed node, so the estimate
+# shows one launch more per seam and materialises three `[T, hc]`-to-
+# `[T, hc²]` coefficient tensors — about 0.2% of the seam's bytes against the
+# `[T, hc, d]` residual the launches really move. Absorbing it would mean a
+# launch publishing TWO ports of one member (`post` and `comb`, both read by
+# the following post-mix), and `FusedNode.output_ports` keys a port by its
+# member alone; re-keying it is its own change.
+
+fused_op: mhc_pre_big_fuse
+
+naive_pattern:
+  nodes:
+    pre_broadcast:     { op: broadcast,  inputs: [external.pre] }
+    residual_weighted: { op: mul,        inputs: [external.residual, pre_broadcast.out] }
+    reduced:           { op: sum_reduce, inputs: [residual_weighted.out] }
+    norm:              { op: rmsnorm,    inputs: [reduced.out] }
+  io_mapping:
+    pre:      external.pre
+    residual: external.residual
+    output:   norm.out

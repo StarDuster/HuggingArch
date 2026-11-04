@@ -1,0 +1,142 @@
+# Weekly auto-refresh of the HuggingFace model-loading stack.
+#
+# WHY: the deployed image builds with `uv sync --frozen`, so it only ships
+# whatever `uv.lock` pins. transformers went stale that way (locked 5.7.0 while
+# 5.14.1 was out) and brand-new models couldn't build their skeleton. This job
+# re-locks JUST the model-loading stack (transformers + its tight companions),
+# syncs the pyproject floor to the locked transformers, runs the golden surface
+# gate (scripts/gate.sh's diffs) + the full test gate, and — only if something
+# changed AND everything passes — opens a PR. A human reviews + merges it; the
+# merge to main triggers deploy.
+#
+# We deliberately do NOT drop `--frozen` in the Dockerfile: builds must stay
+# reproducible, and a transformers bump CAN break analysis (that's what the
+# test gate is for). torch / fastapi / pydantic etc. are left pinned — bumping
+# them is unrelated to new-model support and riskier.
+
+name: update-transformers
+
+on:
+  schedule:
+    # Mondays 06:23 UTC — off the hour to avoid the top-of-hour GH cron crush.
+    - cron: "23 6 * * 1"
+  workflow_dispatch: {}   # allow manual "refresh now" runs
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: update-transformers
+  cancel-in-progress: false
+
+jobs:
+  relock:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Set up Python
+        run: uv python install 3.13
+
+      - name: Re-lock the model-loading stack
+        run: |
+          uv lock \
+            --upgrade-package transformers \
+            --upgrade-package tokenizers \
+            --upgrade-package safetensors \
+            --upgrade-package huggingface-hub \
+            --upgrade-package accelerate
+
+      - name: Detect lock change
+        id: lock
+        run: |
+          if git diff --quiet -- uv.lock; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "The model-loading stack is already up to date — nothing to do."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            NEW=$(grep -A1 'name = "transformers"' uv.lock | grep version | head -1 | sed -E 's/.*"(.*)".*/\1/')
+            echo "transformers=$NEW" >> "$GITHUB_OUTPUT"
+            echo "uv.lock changed; transformers now $NEW"
+          fi
+
+      - name: Sync deps (verify lock is consistent)
+        if: steps.lock.outputs.changed == 'true'
+        run: uv sync --frozen
+
+      # Keep the pyproject floor at the locked version so the manifest doesn't
+      # drift behind the lockfile (last manual bump fixed exactly this drift).
+      - name: Sync pyproject floor to locked version
+        if: steps.lock.outputs.changed == 'true'
+        run: |
+          uv run python - <<'EOF'
+          import pathlib, re
+          new = "${{ steps.lock.outputs.transformers }}"
+          p = pathlib.Path("pyproject.toml")
+          text = p.read_text()
+          updated, n = re.subn(r'"transformers>=[0-9.]+"', f'"transformers>={new}"', text, count=1)
+          if n != 1:
+              raise SystemExit(f"expected 1 transformers floor in pyproject.toml, found {n}")
+          p.write_text(updated)
+          print(f"pyproject floor → transformers>={new}")
+          EOF
+
+      # Same golden gate as scripts/gate.sh: a transformers bump that changes
+      # what the analyzer says is on disk must NOT auto-ship. When this fails
+      # the bump may still be legitimate — a human re-baselines the goldens
+      # locally (scripts/gate.sh) with the evidence in the commit, per the
+      # gate.sh discipline, and includes the new baselines in the bump PR.
+      - name: Golden gate — checkpoint names + storage surface
+        if: steps.lock.outputs.changed == 'true'
+        run: |
+          uv run python scripts/dump_tensor_names.py > /tmp/gate_names.txt
+          diff -u tests/golden/tensor_names.txt /tmp/gate_names.txt
+          uv run python scripts/dump_storage_surface.py > /tmp/gate_storage.txt
+          diff -u tests/golden/storage_surface.txt /tmp/gate_storage.txt
+
+      # Same gate as the tests workflow: a bump only ships if the analyzer /
+      # spec / hermetic suites still pass on the new stack.
+      - name: Ruff
+        if: steps.lock.outputs.changed == 'true'
+        run: uv run ruff check backend/
+
+      - name: Pytest
+        if: steps.lock.outputs.changed == 'true'
+        run: |
+          uv run pytest tests/ \
+            --ignore=tests/backend/hf/test_hf_models.py \
+            --ignore=tests/backend/spec_worker/test_spec_worker.py \
+            -q --tb=short
+
+      - name: Open PR
+        if: steps.lock.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: deps/update-model-stack
+          commit-message: "deps: refresh model-loading stack (transformers ${{ steps.lock.outputs.transformers }})"
+          title: "deps: refresh model-loading stack (transformers ${{ steps.lock.outputs.transformers }})"
+          body: |
+            Automated weekly re-lock of the HuggingFace model-loading stack
+            (transformers, tokenizers, safetensors, huggingface-hub, accelerate)
+            so the deployed image keeps up with newly-released models.
+
+            transformers is now **${{ steps.lock.outputs.transformers }}**
+            (the `pyproject.toml` floor was synced to match).
+
+            The golden surface gate (checkpoint tensor names + storage surface,
+            same diffs as `scripts/gate.sh`) and the full hermetic test gate
+            (ruff + pytest, incl. all analyzer/spec suites) passed on this lock
+            before the PR was opened. Review the `uv.lock` diff and merge to
+            ship on the next deploy. If a brand-new model still won't build
+            after this, it likely targets an *unreleased* transformers API —
+            the coding-agent fallback is correct for those.
+          labels: dependencies
+          delete-branch: true

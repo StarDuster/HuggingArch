@@ -1,0 +1,2024 @@
+{
+  "Qwen__Qwen3-VL-235B-A22B-Instruct": {
+    "": {
+      "encoder": false,
+      "nodes": {
+        "language_model.embed_tokens": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "language_model.norm": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "lm_head": {
+          "decided_by": "vllm",
+          "framework": "split"
+        }
+      },
+      "source": "qwen3_vl_moe.Qwen3MoeLLMModel builds qwen3_moe.Qwen3MoeDecoderLayer: embed_tokens VocabParallelEmbedding, lm_head ParallelLMHead, Qwen3MoeSparseMoeBlock experts FusedMoE (TP over the intermediate when EP is off), RMSNorm replicated",
+      "verdict": "framework_split"
+    },
+    "visual": {
+      "encoder": true,
+      "nodes": {
+        "visual.merger.linear_fc1": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "visual.merger.linear_fc2": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "visual.merger.norm": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "visual.patch_embed.proj": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "visual.pos_embed.weight": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        }
+      },
+      "source": "qwen3_vl_moe.Qwen3VLMoeForConditionalGeneration builds qwen3_vl.Qwen3_VisionTransformer: Qwen3_VisionBlock (QKVParallelLinear qkv, RowParallelLinear proj), Qwen3_VisionMLP and the merger Qwen3_VisionPatchMerger are Column/RowParallelLinear. vLLM splits the deepstack_merger_list entries (Qwen3_VisionPatchMerger) the same way",
+      "verdict": "framework_split"
+    }
+  },
+  "Qwen__Qwen3.5-35B-A3B": {
+    "vision": {
+      "encoder": true,
+      "nodes": null,
+      "source": "qwen3_vl.Qwen3_VisionBlock builds qwen2_5_vl.Qwen2_5_VisionAttention (QKVParallelLinear qkv, RowParallelLinear proj); qwen3_vl.Qwen3_VisionMLP and Qwen3_VisionPatchMerger are Column/RowParallelLinear",
+      "verdict": "framework_split"
+    }
+  },
+  "Qwen__Qwen3.8-2.4T-A95B": {
+    "": {
+      "encoder": false,
+      "nodes": {
+        "lm_head": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "model.embed_tokens": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "model.norm": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        }
+      },
+      "source": "qwen3_5.Qwen3_5Model (model_type qwen3_5_moe_text): embed_tokens VocabParallelEmbedding, norm Qwen3_5RMSNorm; Qwen3_5ForCausalLMBase lm_head ParallelLMHead",
+      "verdict": "framework_split"
+    },
+    "mtp": {
+      "encoder": false,
+      "nodes": {
+        "mtp.fc": {
+          "decided_by": "vllm",
+          "framework": "split",
+          "reason": "vLLM builds mtp.fc as ColumnParallelLinear(2 * hidden, hidden, gather_output=True) (qwen3_5_mtp.Qwen3_5MultiTokenPredictor); the spec keeps it replicated as qwen3_5_moe, qwen3_next_mtp and Qwen3.8-27B write the same layer, which leaves out the all_gather that gather_output adds after it",
+          "spec": "replicated"
+        },
+        "mtp.norm": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "mtp.pre_fc_norm_embedding": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "mtp.pre_fc_norm_hidden": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        }
+      },
+      "source": "qwen3_5_mtp.Qwen3_5MultiTokenPredictor: fc ColumnParallelLinear(gather_output=True), pre_fc_norm_embedding / pre_fc_norm_hidden / norm Qwen3_5RMSNorm",
+      "verdict": "framework_split"
+    }
+  },
+  "Qwen__Qwen3.8-27B": {
+    "": {
+      "encoder": false,
+      "nodes": {
+        "lm_head": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "model.language_model.embed_tokens": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "model.language_model.norm": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        }
+      },
+      "source": "qwen3_5.Qwen3_5Model: embed_tokens VocabParallelEmbedding, norm Qwen3_5RMSNorm; Qwen3_5ForCausalLMBase lm_head ParallelLMHead",
+      "verdict": "framework_split"
+    },
+    "mtp": {
+      "encoder": false,
+      "nodes": {
+        "mtp.fc": {
+          "decided_by": "vllm",
+          "framework": "split",
+          "reason": "vLLM builds mtp.fc as ColumnParallelLinear(2 * hidden, hidden, gather_output=True) (qwen3_5_mtp.Qwen3_5MultiTokenPredictor); the spec keeps it replicated as qwen3_5_moe and qwen3_next_mtp write the same layer, which leaves out the all_gather that gather_output adds after it",
+          "spec": "replicated"
+        },
+        "mtp.norm": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "mtp.pre_fc_norm_embedding": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "mtp.pre_fc_norm_hidden": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        }
+      },
+      "source": "qwen3_5_mtp.Qwen3_5MultiTokenPredictor: fc ColumnParallelLinear(gather_output=True), pre_fc_norm_embedding / pre_fc_norm_hidden / norm Qwen3_5RMSNorm",
+      "verdict": "framework_split"
+    },
+    "vision": {
+      "encoder": true,
+      "nodes": {
+        "model.visual.merger.linear_fc1": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "model.visual.merger.linear_fc2": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "model.visual.merger.norm": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "model.visual.patch_embed.proj": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "model.visual.pos_embed.weight": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        }
+      },
+      "source": "qwen3_5 builds qwen3_vl.Qwen3_VisionTransformer: patch_embed Conv3dLayer and pos_embed nn.Embedding replicated; Qwen3_VisionPatchMerger norm LayerNorm, linear_fc1/linear_fc2 Column/RowParallelLinear",
+      "verdict": "framework_split"
+    }
+  },
+  "Qwen__Qwen3.8-Flash-Next": {
+    "": {
+      "encoder": false,
+      "nodes": {
+        "lm_head": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "model.language_model.embed_tokens": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "model.language_model.hyper_connection_mixer.hc_norm.weight": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "model.language_model.hyper_connection_mixer.input_mix_weight_down": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "model.language_model.hyper_connection_mixer.input_mix_weight_up": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        }
+      },
+      "source": "vLLM v0.30.0 vllm/models/qwen4_exp (nvidia/model.py; amd/ alike): embed_tokens VocabParallelEmbedding, lm_head ParallelLMHead; the Hyper-Connection exit mixer (GatedResidual, nvidia/hyperconnection.py: grouped RMSNorm gain, input_mix_weight_down/up ReplicatedLinear) is replicated, the spec's placement. The PLE n-gram table (library qwen_ple, pinned by the corpus goldens, not here) is Qwen4ExpPLEEmbedding, a VocabParallelEmbedding on the Engram TP group (the TP group unless embedding_across_dp): its rows split over TP (CUDA default: pinned host memory, EngramConfig.cpu_offload)",
+      "verdict": "framework_split"
+    },
+    "mtp": {
+      "encoder": false,
+      "nodes": {
+        "mtp.fc_embedding.weight": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "mtp.fc_hidden.weight": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "mtp.hyper_connection_mixer.hc_norm.weight": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "mtp.hyper_connection_mixer.input_mix_weight_down": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "mtp.hyper_connection_mixer.input_mix_weight_up": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "mtp.pre_fc_norm_embedding.weight": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "mtp.pre_fc_norm_hidden.weight": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        }
+      },
+      "source": "vLLM has no qwen4_exp MTP. The head's entry weights (pre_fc_norm_*, fc_hidden, fc_embedding) are storage-only and its exit mixer is the backbone's module; all are recorded replicated, the spec's placement",
+      "verdict": "framework_replicated"
+    },
+    "vision": {
+      "encoder": true,
+      "nodes": {
+        "model.visual.merger.linear_fc1": {
+          "decided_by": "vllm",
+          "framework": "split",
+          "reason": "the reviewed spec keeps the merger replicated; vLLM's Qwen3-VL family merger, which Qwen4Exp's VisionPatchMerger mirrors (norm -> view(-1, 4*C) -> linear_fc1 -> GELU -> linear_fc2), is Column/RowParallel. vLLM has no qwen4_exp model, so the split is the family's, not this model's",
+          "spec": "replicated"
+        },
+        "model.visual.merger.linear_fc2": {
+          "decided_by": "vllm",
+          "framework": "split",
+          "reason": "the reviewed spec keeps the merger replicated; vLLM's Qwen3-VL family merger, which Qwen4Exp's VisionPatchMerger mirrors (norm -> view(-1, 4*C) -> linear_fc1 -> GELU -> linear_fc2), is Column/RowParallel. vLLM has no qwen4_exp model, so the split is the family's, not this model's",
+          "spec": "replicated"
+        },
+        "model.visual.merger.norm": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "model.visual.patch_embed.proj": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "model.visual.pos_embed.weight": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        }
+      },
+      "source": "vLLM has no qwen4_exp model; the family reference is qwen3_vl.Qwen3_VisionTransformer: patch_embed Conv3dLayer and pos_embed nn.Embedding replicated; Qwen3_VisionBlock QKVParallelLinear qkv / RowParallelLinear proj; Qwen3_VisionPatchMerger norm LayerNorm, linear_fc1/linear_fc2 Column/RowParallelLinear",
+      "verdict": "framework_split"
+    }
+  },
+  "XiaomiMiMo__MiMo-V2.5": {
+    "visual": {
+      "encoder": true,
+      "nodes": null,
+      "source": "mimo_v2_omni.MiMoVisionAttention (QKVParallelLinear qkv, RowParallelLinear proj); MiMoVisionPatchMerger mlp.0/mlp.2 are Column/RowParallelLinear",
+      "verdict": "framework_split"
+    }
+  },
+  "XiaomiMiMo__MiMo-V2.6-Pro-RL": {
+    "": {
+      "encoder": false,
+      "nodes": {
+        "embed_tokens": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "lm_head": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "norm": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        }
+      },
+      "source": "mimo_v2.MiMoV2Model: embed_tokens VocabParallelEmbedding, norm RMSNorm; MiMoV2FlashForCausalLM lm_head ParallelLMHead",
+      "verdict": "framework_split"
+    },
+    "audio": {
+      "encoder": true,
+      "nodes": {
+        "speech_embeddings": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        }
+      },
+      "source": "mimo_v2_omni builds mimo_audio.MimoAudioEncoder: speech_embeddings nn.Embedding, input_local_transformer transformers Qwen2Model (nn.Linear, RMSNorm), projection AudioProjection nn.Linear; nothing tensor-parallel (vLLM runs the towers in mimo_v2_omni.MiMoV2OmniForCausalLM; the config's MiMoV2ForCausalLM maps to the text-only mimo_v2 class)",
+      "verdict": "framework_replicated"
+    },
+    "visual": {
+      "encoder": true,
+      "nodes": {
+        "visual.merger.ln_q": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "visual.merger.mlp.0": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "visual.merger.mlp.2": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "visual.patch_embed.proj": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        }
+      },
+      "source": "mimo_v2_omni.MiMoVisionTransformer: MiMoVisionAttention (QKVParallelLinear qkv, RowParallelLinear proj), MiMoVisionMLP (Qwen2_5_VisionMLP, Column/RowParallelLinear), RMSNorm norms, patch_embed Conv3dLayer; MiMoVisionPatchMerger ln_q RMSNorm, mlp.0/mlp.2 Column/RowParallelLinear (vLLM runs the towers in mimo_v2_omni.MiMoV2OmniForCausalLM; the config's MiMoV2ForCausalLM maps to the text-only mimo_v2 class)",
+      "verdict": "framework_split"
+    }
+  },
+  "deepseek-ai__DeepSeek-V4.1-Flash": {
+    "": {
+      "encoder": false,
+      "nodes": {
+        "dsv41_hc_block__attn-csa2_attention__compressed-csa2_compress_borrowed_compressor-csa2_shared_latent_indexer-csa2_indexer_shared_keys_ffn-dsv41_moe_vl|attn_norm": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dsv41_hc_block__attn-csa2_attention__compressed-csa2_compress_borrowed_compressor-csa2_shared_latent_indexer-csa2_indexer_shared_keys_ffn-dsv41_moe_vl|ffn.gate.bias": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dsv41_hc_block__attn-csa2_attention__compressed-csa2_compress_borrowed_compressor-csa2_shared_latent_indexer-csa2_indexer_shared_keys_ffn-dsv41_moe_vl|ffn.gate.bias_vl": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dsv41_hc_block__attn-csa2_attention__compressed-csa2_compress_borrowed_compressor-csa2_shared_latent_indexer-csa2_indexer_shared_keys_ffn-dsv41_moe_vl|ffn.gate.weight": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dsv41_hc_block__attn-csa2_attention__compressed-csa2_compress_borrowed_compressor-csa2_shared_latent_indexer-csa2_indexer_shared_keys_ffn-dsv41_moe_vl|ffn_norm": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dsv41_hc_block__attn-csa2_attention__compressed-csa2_compress_borrowed_compressor-csa2_shared_latent_indexer-csa2_indexer_shared_keys_ffn-dsv41_moe_vl|hc_attn_base": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dsv41_hc_block__attn-csa2_attention__compressed-csa2_compress_borrowed_compressor-csa2_shared_latent_indexer-csa2_indexer_shared_keys_ffn-dsv41_moe_vl|hc_attn_fn": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dsv41_hc_block__attn-csa2_attention__compressed-csa2_compress_borrowed_compressor-csa2_shared_latent_indexer-csa2_indexer_shared_keys_ffn-dsv41_moe_vl|hc_attn_scale": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dsv41_hc_block__attn-csa2_attention__compressed-csa2_compress_borrowed_compressor-csa2_shared_latent_indexer-csa2_indexer_shared_keys_ffn-dsv41_moe_vl|hc_ffn_base": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dsv41_hc_block__attn-csa2_attention__compressed-csa2_compress_borrowed_compressor-csa2_shared_latent_indexer-csa2_indexer_shared_keys_ffn-dsv41_moe_vl|hc_ffn_fn": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dsv41_hc_block__attn-csa2_attention__compressed-csa2_compress_borrowed_compressor-csa2_shared_latent_indexer-csa2_indexer_shared_keys_ffn-dsv41_moe_vl|hc_ffn_scale": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dsv41_hc_block__attn-csa2_attention__compressed-csa2_compress_borrowed_compressor-csa2_shared_latent_indexer-csa2_shared_selection_ffn-dsv41_moe_vl|attn_norm": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dsv41_hc_block__attn-csa2_attention__compressed-csa2_compress_borrowed_compressor-csa2_shared_latent_indexer-csa2_shared_selection_ffn-dsv41_moe_vl|ffn.gate.bias": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dsv41_hc_block__attn-csa2_attention__compressed-csa2_compress_borrowed_compressor-csa2_shared_latent_indexer-csa2_shared_selection_ffn-dsv41_moe_vl|ffn.gate.bias_vl": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dsv41_hc_block__attn-csa2_attention__compressed-csa2_compress_borrowed_compressor-csa2_shared_latent_indexer-csa2_shared_selection_ffn-dsv41_moe_vl|ffn.gate.weight": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dsv41_hc_block__attn-csa2_attention__compressed-csa2_compress_borrowed_compressor-csa2_shared_latent_indexer-csa2_shared_selection_ffn-dsv41_moe_vl|ffn_norm": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dsv41_hc_block__attn-csa2_attention__compressed-csa2_compress_borrowed_compressor-csa2_shared_latent_indexer-csa2_shared_selection_ffn-dsv41_moe_vl|hc_attn_base": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dsv41_hc_block__attn-csa2_attention__compressed-csa2_compress_borrowed_compressor-csa2_shared_latent_indexer-csa2_shared_selection_ffn-dsv41_moe_vl|hc_attn_fn": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dsv41_hc_block__attn-csa2_attention__compressed-csa2_compress_borrowed_compressor-csa2_shared_latent_indexer-csa2_shared_selection_ffn-dsv41_moe_vl|hc_attn_scale": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dsv41_hc_block__attn-csa2_attention__compressed-csa2_compress_borrowed_compressor-csa2_shared_latent_indexer-csa2_shared_selection_ffn-dsv41_moe_vl|hc_ffn_base": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dsv41_hc_block__attn-csa2_attention__compressed-csa2_compress_borrowed_compressor-csa2_shared_latent_indexer-csa2_shared_selection_ffn-dsv41_moe_vl|hc_ffn_fn": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dsv41_hc_block__attn-csa2_attention__compressed-csa2_compress_borrowed_compressor-csa2_shared_latent_indexer-csa2_shared_selection_ffn-dsv41_moe_vl|hc_ffn_scale": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dsv41_hc_block__attn-csa2_attention__compressed-csa2_compress_store_compressor-csa2_compressor_gated_indexer-csa2_indexer_ffn-dsv41_moe_vl|attn_norm": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dsv41_hc_block__attn-csa2_attention__compressed-csa2_compress_store_compressor-csa2_compressor_gated_indexer-csa2_indexer_ffn-dsv41_moe_vl|ffn.gate.bias": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dsv41_hc_block__attn-csa2_attention__compressed-csa2_compress_store_compressor-csa2_compressor_gated_indexer-csa2_indexer_ffn-dsv41_moe_vl|ffn.gate.bias_vl": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dsv41_hc_block__attn-csa2_attention__compressed-csa2_compress_store_compressor-csa2_compressor_gated_indexer-csa2_indexer_ffn-dsv41_moe_vl|ffn.gate.weight": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dsv41_hc_block__attn-csa2_attention__compressed-csa2_compress_store_compressor-csa2_compressor_gated_indexer-csa2_indexer_ffn-dsv41_moe_vl|ffn_norm": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dsv41_hc_block__attn-csa2_attention__compressed-csa2_compress_store_compressor-csa2_compressor_gated_indexer-csa2_indexer_ffn-dsv41_moe_vl|hc_attn_base": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dsv41_hc_block__attn-csa2_attention__compressed-csa2_compress_store_compressor-csa2_compressor_gated_indexer-csa2_indexer_ffn-dsv41_moe_vl|hc_attn_fn": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dsv41_hc_block__attn-csa2_attention__compressed-csa2_compress_store_compressor-csa2_compressor_gated_indexer-csa2_indexer_ffn-dsv41_moe_vl|hc_attn_scale": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dsv41_hc_block__attn-csa2_attention__compressed-csa2_compress_store_compressor-csa2_compressor_gated_indexer-csa2_indexer_ffn-dsv41_moe_vl|hc_ffn_base": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dsv41_hc_block__attn-csa2_attention__compressed-csa2_compress_store_compressor-csa2_compressor_gated_indexer-csa2_indexer_ffn-dsv41_moe_vl|hc_ffn_fn": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dsv41_hc_block__attn-csa2_attention__compressed-csa2_compress_store_compressor-csa2_compressor_gated_indexer-csa2_indexer_ffn-dsv41_moe_vl|hc_ffn_scale": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dsv41_hc_block__attn-csa2_attention__compressed-csa2_compress_store_compressor-csa2_compressor_plain_indexer-csa2_indexer_candidate_source_ffn-dsv41_moe_vl|attn_norm": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dsv41_hc_block__attn-csa2_attention__compressed-csa2_compress_store_compressor-csa2_compressor_plain_indexer-csa2_indexer_candidate_source_ffn-dsv41_moe_vl|ffn.gate.bias": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dsv41_hc_block__attn-csa2_attention__compressed-csa2_compress_store_compressor-csa2_compressor_plain_indexer-csa2_indexer_candidate_source_ffn-dsv41_moe_vl|ffn.gate.bias_vl": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dsv41_hc_block__attn-csa2_attention__compressed-csa2_compress_store_compressor-csa2_compressor_plain_indexer-csa2_indexer_candidate_source_ffn-dsv41_moe_vl|ffn.gate.weight": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dsv41_hc_block__attn-csa2_attention__compressed-csa2_compress_store_compressor-csa2_compressor_plain_indexer-csa2_indexer_candidate_source_ffn-dsv41_moe_vl|ffn_norm": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dsv41_hc_block__attn-csa2_attention__compressed-csa2_compress_store_compressor-csa2_compressor_plain_indexer-csa2_indexer_candidate_source_ffn-dsv41_moe_vl|hc_attn_base": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dsv41_hc_block__attn-csa2_attention__compressed-csa2_compress_store_compressor-csa2_compressor_plain_indexer-csa2_indexer_candidate_source_ffn-dsv41_moe_vl|hc_attn_fn": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dsv41_hc_block__attn-csa2_attention__compressed-csa2_compress_store_compressor-csa2_compressor_plain_indexer-csa2_indexer_candidate_source_ffn-dsv41_moe_vl|hc_attn_scale": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dsv41_hc_block__attn-csa2_attention__compressed-csa2_compress_store_compressor-csa2_compressor_plain_indexer-csa2_indexer_candidate_source_ffn-dsv41_moe_vl|hc_ffn_base": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dsv41_hc_block__attn-csa2_attention__compressed-csa2_compress_store_compressor-csa2_compressor_plain_indexer-csa2_indexer_candidate_source_ffn-dsv41_moe_vl|hc_ffn_fn": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dsv41_hc_block__attn-csa2_attention__compressed-csa2_compress_store_compressor-csa2_compressor_plain_indexer-csa2_indexer_candidate_source_ffn-dsv41_moe_vl|hc_ffn_scale": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dsv41_hc_block_engram__attn-csa2_attention__compressed-csa2_compress_store_compressor-csa2_compressor_gated_indexer-csa2_indexer_ffn-dsv41_moe_vl|attn_norm": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dsv41_hc_block_engram__attn-csa2_attention__compressed-csa2_compress_store_compressor-csa2_compressor_gated_indexer-csa2_indexer_ffn-dsv41_moe_vl|engram.embed": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "dsv41_hc_block_engram__attn-csa2_attention__compressed-csa2_compress_store_compressor-csa2_compressor_gated_indexer-csa2_indexer_ffn-dsv41_moe_vl|engram.k_weight": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dsv41_hc_block_engram__attn-csa2_attention__compressed-csa2_compress_store_compressor-csa2_compressor_gated_indexer-csa2_indexer_ffn-dsv41_moe_vl|engram.q_weight": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dsv41_hc_block_engram__attn-csa2_attention__compressed-csa2_compress_store_compressor-csa2_compressor_gated_indexer-csa2_indexer_ffn-dsv41_moe_vl|engram.wkv": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dsv41_hc_block_engram__attn-csa2_attention__compressed-csa2_compress_store_compressor-csa2_compressor_gated_indexer-csa2_indexer_ffn-dsv41_moe_vl|ffn.gate.bias": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dsv41_hc_block_engram__attn-csa2_attention__compressed-csa2_compress_store_compressor-csa2_compressor_gated_indexer-csa2_indexer_ffn-dsv41_moe_vl|ffn.gate.bias_vl": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dsv41_hc_block_engram__attn-csa2_attention__compressed-csa2_compress_store_compressor-csa2_compressor_gated_indexer-csa2_indexer_ffn-dsv41_moe_vl|ffn.gate.weight": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dsv41_hc_block_engram__attn-csa2_attention__compressed-csa2_compress_store_compressor-csa2_compressor_gated_indexer-csa2_indexer_ffn-dsv41_moe_vl|ffn_norm": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dsv41_hc_block_engram__attn-csa2_attention__compressed-csa2_compress_store_compressor-csa2_compressor_gated_indexer-csa2_indexer_ffn-dsv41_moe_vl|hc_attn_base": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dsv41_hc_block_engram__attn-csa2_attention__compressed-csa2_compress_store_compressor-csa2_compressor_gated_indexer-csa2_indexer_ffn-dsv41_moe_vl|hc_attn_fn": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dsv41_hc_block_engram__attn-csa2_attention__compressed-csa2_compress_store_compressor-csa2_compressor_gated_indexer-csa2_indexer_ffn-dsv41_moe_vl|hc_attn_scale": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dsv41_hc_block_engram__attn-csa2_attention__compressed-csa2_compress_store_compressor-csa2_compressor_gated_indexer-csa2_indexer_ffn-dsv41_moe_vl|hc_ffn_base": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dsv41_hc_block_engram__attn-csa2_attention__compressed-csa2_compress_store_compressor-csa2_compressor_gated_indexer-csa2_indexer_ffn-dsv41_moe_vl|hc_ffn_fn": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dsv41_hc_block_engram__attn-csa2_attention__compressed-csa2_compress_store_compressor-csa2_compressor_gated_indexer-csa2_indexer_ffn-dsv41_moe_vl|hc_ffn_scale": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dsv41_hc_block_engram__attn-dsv4_swa_only_attention_ffn-dsv41_moe_vl|attn_norm": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dsv41_hc_block_engram__attn-dsv4_swa_only_attention_ffn-dsv41_moe_vl|engram.embed": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "dsv41_hc_block_engram__attn-dsv4_swa_only_attention_ffn-dsv41_moe_vl|engram.k_weight": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dsv41_hc_block_engram__attn-dsv4_swa_only_attention_ffn-dsv41_moe_vl|engram.q_weight": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dsv41_hc_block_engram__attn-dsv4_swa_only_attention_ffn-dsv41_moe_vl|engram.wkv": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dsv41_hc_block_engram__attn-dsv4_swa_only_attention_ffn-dsv41_moe_vl|ffn.gate.bias": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dsv41_hc_block_engram__attn-dsv4_swa_only_attention_ffn-dsv41_moe_vl|ffn.gate.bias_vl": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dsv41_hc_block_engram__attn-dsv4_swa_only_attention_ffn-dsv41_moe_vl|ffn.gate.weight": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dsv41_hc_block_engram__attn-dsv4_swa_only_attention_ffn-dsv41_moe_vl|ffn_norm": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dsv41_hc_block_engram__attn-dsv4_swa_only_attention_ffn-dsv41_moe_vl|hc_attn_base": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dsv41_hc_block_engram__attn-dsv4_swa_only_attention_ffn-dsv41_moe_vl|hc_attn_fn": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dsv41_hc_block_engram__attn-dsv4_swa_only_attention_ffn-dsv41_moe_vl|hc_attn_scale": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dsv41_hc_block_engram__attn-dsv4_swa_only_attention_ffn-dsv41_moe_vl|hc_ffn_base": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dsv41_hc_block_engram__attn-dsv4_swa_only_attention_ffn-dsv41_moe_vl|hc_ffn_fn": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dsv41_hc_block_engram__attn-dsv4_swa_only_attention_ffn-dsv41_moe_vl|hc_ffn_scale": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "embed": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "head": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "norm": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        }
+      },
+      "source": "registry DeepseekV41ForCausalLM -> vllm.models.deepseek_v41 (CUDA: nvidia/vl_model.DeepseekV41ForCausalLM wrapping nvidia/model.DeepseekV41LLMForCausalLM; ROCm: amd/, same layer classes). embed_tokens VocabParallelEmbedding, lm_head ParallelLMHead, final norm RMSNorm. DeepseekV4DecoderLayer: attn_norm/ffn_norm RMSNorm and hc_{attn,ffn}_{fn,base,scale} plain nn.Parameter, replicated. deepseek_v41.attention.DeepseekV4Attention: fused_wqa_wkv MergedColumnParallelLinear(disable_tp=True), q_norm/kv_norm RMSNorm replicated; wq_b ColumnParallel, wo_a ColumnParallel (n_local_groups = o_groups / TP), wo_b RowParallel, attn_sink nn.Parameter of n_local_heads; Indexer wq_b/weights_proj/wk ReplicatedLinear and DeepseekCompressor fused_wkv_wgate disable_tp=True. MoE (deepseek_v4.nvidia.model.DeepseekV4MoE): gate GateLinear(ReplicatedLinear) with e_score_correction_bias and bias_vl plain fp32 nn.Parameter, replicated; routed experts FusedMoEFactory (EP when enabled, else FusedMoE TP over the intermediate; MegaMoE requires EP), shared expert DeepseekV4MLP Column/RowParallel. Engram (common/engram.Engram): wkv ReplicatedLinear, q_weight/k_weight plain nn.Parameter replicated; embed ParallelEngramEmbedding TP-sharded by hash heads (CUDA default: pinned host memory, EngramConfig.cpu_offload)",
+      "verdict": "framework_split"
+    },
+    "mtp": {
+      "encoder": false,
+      "nodes": {
+        "dspark_stage_first@mtp|attn.attn_sink": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "dspark_stage_first@mtp|attn.kv_norm": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dspark_stage_first@mtp|attn.q_norm": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dspark_stage_first@mtp|attn.wkv": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dspark_stage_first@mtp|attn.wo_a": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "dspark_stage_first@mtp|attn.wo_b": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "dspark_stage_first@mtp|attn.wq_a": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dspark_stage_first@mtp|attn.wq_b": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "dspark_stage_first@mtp|ffn.gate.bias": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dspark_stage_first@mtp|ffn.gate.bias_vl": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dspark_stage_first@mtp|ffn.gate.weight": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dspark_stage_last@mtp|attn.attn_sink": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "dspark_stage_last@mtp|attn.kv_norm": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dspark_stage_last@mtp|attn.q_norm": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dspark_stage_last@mtp|attn.wkv": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dspark_stage_last@mtp|attn.wo_a": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "dspark_stage_last@mtp|attn.wo_b": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "dspark_stage_last@mtp|attn.wq_a": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dspark_stage_last@mtp|attn.wq_b": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "dspark_stage_last@mtp|ffn.gate.bias": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dspark_stage_last@mtp|ffn.gate.bias_vl": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dspark_stage_last@mtp|ffn.gate.weight": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dspark_stage_mid@mtp|attn.attn_sink": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "dspark_stage_mid@mtp|attn.kv_norm": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dspark_stage_mid@mtp|attn.q_norm": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dspark_stage_mid@mtp|attn.wkv": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dspark_stage_mid@mtp|attn.wo_a": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "dspark_stage_mid@mtp|attn.wo_b": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "dspark_stage_mid@mtp|attn.wq_a": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dspark_stage_mid@mtp|attn.wq_b": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "dspark_stage_mid@mtp|ffn.gate.bias": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dspark_stage_mid@mtp|ffn.gate.bias_vl": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dspark_stage_mid@mtp|ffn.gate.weight": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        }
+      },
+      "source": "registry DSparkV41DraftModel -> deepseek_v41 DSparkDeepseekV4ForCausalLM (nvidia/dspark.py; amd/dspark.py alike): stages are deepseek_v41 DeepseekV4DecoderLayer at layers num_hidden_layers + i, so the attention is deepseek_v41.attention.DeepseekV4Attention (fused_wqa_wkv = attn.wq_a + attn.wkv MergedColumnParallelLinear(disable_tp=True), q_norm/kv_norm RMSNorm replicated; wq_b ColumnParallel, wo_a ColumnParallel, wo_b RowParallel, attn_sink per local head) and the MoE is DeepseekV4MoE with dspark_n_routed_experts (gate GateLinear(ReplicatedLinear), bias/bias_vl plain nn.Parameter replicated). main_proj ReplicatedLinear, main_norm/norm RMSNorm; embed_tokens/lm_head aliased from the target",
+      "verdict": "framework_split"
+    },
+    "vision": {
+      "encoder": true,
+      "nodes": {
+        "dsv41_vision_tower@vision|vision.blocks.attn.wo": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "dsv41_vision_tower@vision|vision.blocks.attn.wqkv": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "dsv41_vision_tower@vision|vision.blocks.mlp.w1": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "dsv41_vision_tower@vision|vision.blocks.mlp.w2": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "dsv41_vision_tower@vision|vision.blocks.norm1": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "dsv41_vision_tower@vision|vision.blocks.norm2": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        }
+      },
+      "source": "deepseek_v41 nvidia/vl_model.DeepseekV41ForCausalLM builds deepseek_v4.common.vision.DeepseekV4ViT / DeepseekV4Aligner with use_data_parallel = is_vit_use_data_parallel(vision_n_heads): 16 heads divide TP=8 and mm_encoder_tp_mode defaults to weights, so TP mode. DeepseekV4VisionAttention wqkv QKVParallelLinear / wo RowParallelLinear, DeepseekV4VisionMLP w1 MergedColumnParallelLinear / w2 RowParallelLinear, norm1/norm2/norm DeepseekV4RMSNorm and patch_embed ReplicatedLinear replicated; aligner w1/w2 Column/RowParallel; image_start/end/newline plain nn.Parameter",
+      "verdict": "framework_split"
+    }
+  },
+  "google__gemma-4-12B-it": {
+    "vision": {
+      "encoder": true,
+      "nodes": null,
+      "source": "gemma4_unified.Gemma4UnifiedVisionEmbedder: patch_dense is ColumnParallelLinear",
+      "verdict": "framework_split"
+    }
+  },
+  "moonshotai__Kimi-K2.5": {
+    "vision": {
+      "encoder": true,
+      "nodes": null,
+      "source": "kimi_k25_vit.MoonViTEncoderLayer (QKVParallelLinear wqkv, RowParallelLinear wo) and MLP2 (Column/Row fc0/fc1); 16 heads divide 8, so vision.is_vit_use_data_parallel keeps TP",
+      "verdict": "framework_split"
+    }
+  },
+  "moonshotai__Kimi-K3": {
+    "vision": {
+      "encoder": true,
+      "nodes": null,
+      "source": "kimi_k25_vit.MoonViTEncoderLayer reads vision.is_vit_use_data_parallel(num_heads): its 12 vision heads do not divide TP=8, so vLLM runs the whole tower data parallel (wqkv, wo, MLP2 fc0/fc1 and the projector replicated); the layout replicates an encoder stack whose attention heads do not divide the attention TP degree",
+      "verdict": "framework_replicated"
+    }
+  },
+  "stepfun-ai__Step-3.7-Flash": {
+    "vision": {
+      "encoder": true,
+      "nodes": null,
+      "source": "step_vl.PerceptionEncoderVisionAttention (QKVParallelLinear qkv_proj, RowParallelLinear out_proj) and PerceptionEncoderMLP (Column/Row fc1/fc2)",
+      "verdict": "framework_split"
+    }
+  },
+  "stepfun-ai__Step-5-Preview": {
+    "": {
+      "encoder": false,
+      "nodes": {
+        "embed_tokens": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "lm_head": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "norm": {
+          "decided_by": "reference",
+          "framework": "replicated"
+        },
+        "pre_norm__attn-gqa_qknorm_partial_rope_gated_region_sparse_attention_ffn-swiglu_ffn_silu_clamped_norm-rmsnorm|mlp.down_proj": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "pre_norm__attn-gqa_qknorm_partial_rope_gated_region_sparse_attention_ffn-swiglu_ffn_silu_clamped_norm-rmsnorm|mlp.gate_proj": {
+          "decided_by": "reference",
+          "framework": "split"
+        },
+        "pre_norm__attn-gqa_qknorm_partial_rope_gated_region_sparse_attention_ffn-swiglu_ffn_silu_clamped_norm-rmsnorm|mlp.up_proj": {
+          "decided_by": "reference",
+          "framework": "split"
+        },
+        "pre_norm__attn-gqa_qknorm_partial_rope_gated_region_sparse_attention_ffn-swiglu_ffn_silu_clamped_norm-rmsnorm|self_attn.g_proj": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "pre_norm__attn-gqa_qknorm_partial_rope_gated_region_sparse_attention_ffn-swiglu_ffn_silu_clamped_norm-rmsnorm|self_attn.k_norm": {
+          "decided_by": "reference",
+          "framework": "replicated"
+        },
+        "pre_norm__attn-gqa_qknorm_partial_rope_gated_region_sparse_attention_ffn-swiglu_ffn_silu_clamped_norm-rmsnorm|self_attn.k_proj": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "pre_norm__attn-gqa_qknorm_partial_rope_gated_region_sparse_attention_ffn-swiglu_ffn_silu_clamped_norm-rmsnorm|self_attn.o_proj": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "pre_norm__attn-gqa_qknorm_partial_rope_gated_region_sparse_attention_ffn-swiglu_ffn_silu_clamped_norm-rmsnorm|self_attn.q_norm": {
+          "decided_by": "reference",
+          "framework": "replicated"
+        },
+        "pre_norm__attn-gqa_qknorm_partial_rope_gated_region_sparse_attention_ffn-swiglu_ffn_silu_clamped_norm-rmsnorm|self_attn.q_proj": {
+          "decided_by": "reference",
+          "framework": "split"
+        },
+        "pre_norm__attn-gqa_qknorm_partial_rope_gated_region_sparse_attention_ffn-swiglu_ffn_silu_clamped_norm-rmsnorm|self_attn.sparse_indexer_k": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "pre_norm__attn-gqa_qknorm_partial_rope_gated_region_sparse_attention_ffn-swiglu_ffn_silu_clamped_norm-rmsnorm|self_attn.sparse_indexer_k_norm": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "pre_norm__attn-gqa_qknorm_partial_rope_gated_region_sparse_attention_ffn-swiglu_ffn_silu_clamped_norm-rmsnorm|self_attn.sparse_indexer_q": {
+          "decided_by": "vllm",
+          "framework": "split",
+          "reason": "vLLM and the reference both split the indexer's Q and W by DSA provider group, the same partition as the KV groups (num_provider_groups = 4): at TP=8 each rank holds one group's 4 of 16 heads (step5/nvidia/model.py Step5FusedQKVIndexerLinear index_q shard, Step5SparseIndexerIndexTPLinear; reference model.py:1437-1446). The spec now splits them the same way: the draft writes the indexer head axis `n_kv_heads * n_indexer_group_heads` on the `attention` world with `fit: replica_cells` (components/drafts/gqa_qknorm_partial_rope_gated_region_sparse_attention.yaml), so TP partitions it by KV group exactly as it partitions k_proj, and the measurement agrees (Q 33554432 -> 8388608 B, W 262144 -> 65536 B per rank per layer)"
+        },
+        "pre_norm__attn-gqa_qknorm_partial_rope_gated_region_sparse_attention_ffn-swiglu_ffn_silu_clamped_norm-rmsnorm|self_attn.sparse_indexer_q_norm": {
+          "decided_by": "reference",
+          "framework": "replicated"
+        },
+        "pre_norm__attn-gqa_qknorm_partial_rope_gated_region_sparse_attention_ffn-swiglu_ffn_silu_clamped_norm-rmsnorm|self_attn.sparse_indexer_w": {
+          "decided_by": "vllm",
+          "framework": "split",
+          "reason": "vLLM and the reference both split the indexer's Q and W by DSA provider group, the same partition as the KV groups (num_provider_groups = 4): at TP=8 each rank holds one group's 4 of 16 heads (step5/nvidia/model.py Step5FusedQKVIndexerLinear index_q shard, Step5SparseIndexerIndexTPLinear; reference model.py:1437-1446). The spec now splits them the same way: the draft writes the indexer head axis `n_kv_heads * n_indexer_group_heads` on the `attention` world with `fit: replica_cells` (components/drafts/gqa_qknorm_partial_rope_gated_region_sparse_attention.yaml), so TP partitions it by KV group exactly as it partitions k_proj, and the measurement agrees (Q 33554432 -> 8388608 B, W 262144 -> 65536 B per rank per layer)"
+        },
+        "pre_norm__attn-gqa_qknorm_partial_rope_gated_region_sparse_attention_ffn-swiglu_ffn_silu_clamped_norm-rmsnorm|self_attn.sparse_indexer_z": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "pre_norm__attn-gqa_qknorm_partial_rope_gated_region_sparse_attention_ffn-swiglu_ffn_silu_clamped_norm-rmsnorm|self_attn.ssmax_s": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "pre_norm__attn-gqa_qknorm_partial_rope_gated_region_sparse_attention_ffn-swiglu_ffn_silu_clamped_norm-rmsnorm|self_attn.v_proj": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "pre_norm__attn-swa_qknorm_gated_full_rope_attention_ffn-swiglu_ffn_silu_clamped_norm-rmsnorm|mlp.down_proj": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "pre_norm__attn-swa_qknorm_gated_full_rope_attention_ffn-swiglu_ffn_silu_clamped_norm-rmsnorm|mlp.gate_proj": {
+          "decided_by": "reference",
+          "framework": "split"
+        },
+        "pre_norm__attn-swa_qknorm_gated_full_rope_attention_ffn-swiglu_ffn_silu_clamped_norm-rmsnorm|mlp.up_proj": {
+          "decided_by": "reference",
+          "framework": "split"
+        },
+        "step5_moe_block__attn-gqa_qknorm_partial_rope_gated_region_sparse_attention|input_layernorm": {
+          "decided_by": "reference",
+          "framework": "replicated"
+        },
+        "step5_moe_block__attn-gqa_qknorm_partial_rope_gated_region_sparse_attention|moe.experts.down_proj": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "step5_moe_block__attn-gqa_qknorm_partial_rope_gated_region_sparse_attention|moe.experts.gate_proj": {
+          "decided_by": "reference",
+          "framework": "split"
+        },
+        "step5_moe_block__attn-gqa_qknorm_partial_rope_gated_region_sparse_attention|moe.experts.up_proj": {
+          "decided_by": "reference",
+          "framework": "split"
+        },
+        "step5_moe_block__attn-gqa_qknorm_partial_rope_gated_region_sparse_attention|moe.gate": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "step5_moe_block__attn-gqa_qknorm_partial_rope_gated_region_sparse_attention|moe.router_bias": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "step5_moe_block__attn-gqa_qknorm_partial_rope_gated_region_sparse_attention|post_attention_layernorm": {
+          "decided_by": "reference",
+          "framework": "replicated"
+        },
+        "step5_moe_block__attn-gqa_qknorm_partial_rope_gated_region_sparse_attention|self_attn.g_proj": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "step5_moe_block__attn-gqa_qknorm_partial_rope_gated_region_sparse_attention|self_attn.k_norm": {
+          "decided_by": "reference",
+          "framework": "replicated"
+        },
+        "step5_moe_block__attn-gqa_qknorm_partial_rope_gated_region_sparse_attention|self_attn.k_proj": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "step5_moe_block__attn-gqa_qknorm_partial_rope_gated_region_sparse_attention|self_attn.o_proj": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "step5_moe_block__attn-gqa_qknorm_partial_rope_gated_region_sparse_attention|self_attn.q_norm": {
+          "decided_by": "reference",
+          "framework": "replicated"
+        },
+        "step5_moe_block__attn-gqa_qknorm_partial_rope_gated_region_sparse_attention|self_attn.q_proj": {
+          "decided_by": "reference",
+          "framework": "split"
+        },
+        "step5_moe_block__attn-gqa_qknorm_partial_rope_gated_region_sparse_attention|self_attn.sparse_indexer_k": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "step5_moe_block__attn-gqa_qknorm_partial_rope_gated_region_sparse_attention|self_attn.sparse_indexer_k_norm": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "step5_moe_block__attn-gqa_qknorm_partial_rope_gated_region_sparse_attention|self_attn.sparse_indexer_q": {
+          "decided_by": "vllm",
+          "framework": "split",
+          "reason": "vLLM and the reference both split the indexer's Q and W by DSA provider group, the same partition as the KV groups (num_provider_groups = 4): at TP=8 each rank holds one group's 4 of 16 heads (step5/nvidia/model.py Step5FusedQKVIndexerLinear index_q shard, Step5SparseIndexerIndexTPLinear; reference model.py:1437-1446). The spec now splits them the same way: the draft writes the indexer head axis `n_kv_heads * n_indexer_group_heads` on the `attention` world with `fit: replica_cells` (components/drafts/gqa_qknorm_partial_rope_gated_region_sparse_attention.yaml), so TP partitions it by KV group exactly as it partitions k_proj, and the measurement agrees (Q 33554432 -> 8388608 B, W 262144 -> 65536 B per rank per layer)"
+        },
+        "step5_moe_block__attn-gqa_qknorm_partial_rope_gated_region_sparse_attention|self_attn.sparse_indexer_q_norm": {
+          "decided_by": "reference",
+          "framework": "replicated"
+        },
+        "step5_moe_block__attn-gqa_qknorm_partial_rope_gated_region_sparse_attention|self_attn.sparse_indexer_w": {
+          "decided_by": "vllm",
+          "framework": "split",
+          "reason": "vLLM and the reference both split the indexer's Q and W by DSA provider group, the same partition as the KV groups (num_provider_groups = 4): at TP=8 each rank holds one group's 4 of 16 heads (step5/nvidia/model.py Step5FusedQKVIndexerLinear index_q shard, Step5SparseIndexerIndexTPLinear; reference model.py:1437-1446). The spec now splits them the same way: the draft writes the indexer head axis `n_kv_heads * n_indexer_group_heads` on the `attention` world with `fit: replica_cells` (components/drafts/gqa_qknorm_partial_rope_gated_region_sparse_attention.yaml), so TP partitions it by KV group exactly as it partitions k_proj, and the measurement agrees (Q 33554432 -> 8388608 B, W 262144 -> 65536 B per rank per layer)"
+        },
+        "step5_moe_block__attn-gqa_qknorm_partial_rope_gated_region_sparse_attention|self_attn.sparse_indexer_z": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "step5_moe_block__attn-gqa_qknorm_partial_rope_gated_region_sparse_attention|self_attn.ssmax_s": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "step5_moe_block__attn-gqa_qknorm_partial_rope_gated_region_sparse_attention|self_attn.v_proj": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "step5_moe_block__attn-gqa_qknorm_partial_rope_gated_region_sparse_attention|share_expert.down_proj": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "step5_moe_block__attn-gqa_qknorm_partial_rope_gated_region_sparse_attention|share_expert.gate_proj": {
+          "decided_by": "reference",
+          "framework": "split"
+        },
+        "step5_moe_block__attn-gqa_qknorm_partial_rope_gated_region_sparse_attention|share_expert.up_proj": {
+          "decided_by": "reference",
+          "framework": "split"
+        },
+        "step5_moe_block__attn-swa_qknorm_gated_full_rope_attention|input_layernorm": {
+          "decided_by": "reference",
+          "framework": "replicated"
+        },
+        "step5_moe_block__attn-swa_qknorm_gated_full_rope_attention|moe.experts.down_proj": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "step5_moe_block__attn-swa_qknorm_gated_full_rope_attention|moe.experts.gate_proj": {
+          "decided_by": "reference",
+          "framework": "split"
+        },
+        "step5_moe_block__attn-swa_qknorm_gated_full_rope_attention|moe.experts.up_proj": {
+          "decided_by": "reference",
+          "framework": "split"
+        },
+        "step5_moe_block__attn-swa_qknorm_gated_full_rope_attention|moe.gate": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "step5_moe_block__attn-swa_qknorm_gated_full_rope_attention|moe.router_bias": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "step5_moe_block__attn-swa_qknorm_gated_full_rope_attention|post_attention_layernorm": {
+          "decided_by": "reference",
+          "framework": "replicated"
+        },
+        "step5_moe_block__attn-swa_qknorm_gated_full_rope_attention|share_expert.down_proj": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "step5_moe_block__attn-swa_qknorm_gated_full_rope_attention|share_expert.gate_proj": {
+          "decided_by": "reference",
+          "framework": "split"
+        },
+        "step5_moe_block__attn-swa_qknorm_gated_full_rope_attention|share_expert.up_proj": {
+          "decided_by": "reference",
+          "framework": "split"
+        }
+      },
+      "source": "vLLM fc84883 vllm/models/step5/nvidia/model.py, then the publisher's inference/model.py at the snapshot: embed_tokens VocabParallelEmbedding, lm_head ParallelLMHead; Step5Attention fuses q/k/v with the indexer's q/k/z and g into Step5FusedQKVIndexerLinear (a QKVParallelLinear: q and g by head, k/v by KV head with replication below 4 ranks, index_q by provider group, the single-head index_k / index_z replicated), sparse_indexer_w Step5SparseIndexerIndexTPLinear (provider groups), o_proj RowParallelLinear, norms and ssmax_s replicated; Step5MoE gate GateLinear (a ReplicatedLinear), router_bias replicated, experts FusedMoE, share_expert and the dense mlp Step5MLP (MergedColumn gate_up / RowParallel down)",
+      "verdict": "framework_split"
+    },
+    "mtp": {
+      "citations": {
+        "step5_mtp_block@mtp|layer.transformer.mlp.down_proj": "vllm/models/step5/nvidia/model.py:811 RowParallelLinear",
+        "step5_mtp_block@mtp|layer.transformer.mlp.gate_proj": "model.py:1862 ColumnParallelLinear",
+        "step5_mtp_block@mtp|layer.transformer.mlp.up_proj": "model.py:1863 ColumnParallelLinear"
+      },
+      "encoder": false,
+      "nodes": {
+        "step5_mtp_block@mtp|layer.transformer.mlp.down_proj": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "step5_mtp_block@mtp|layer.transformer.mlp.gate_proj": {
+          "decided_by": "reference",
+          "framework": "split"
+        },
+        "step5_mtp_block@mtp|layer.transformer.mlp.up_proj": {
+          "decided_by": "reference",
+          "framework": "split"
+        }
+      },
+      "source": "vLLM 40210d8317bbad8d05124b260e75677daf33e091; stepfun-ai/Step-5-Preview's own implementation at snapshot sha256:8a87f1038d9163d826bdf78b2d976ff21382155838eea03172621b4a89546699: each node's assignment, read by tools/corpus_pins/decisions/framework_split.py",
+      "verdict": "framework_split"
+    },
+    "vision": {
+      "encoder": true,
+      "nodes": {
+        "perception_encoder_rope2d_tower@vision|vision_model.conv1": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "perception_encoder_rope2d_tower@vision|vision_model.ln_pre": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "perception_encoder_rope2d_tower@vision|vision_model.positional_embedding": {
+          "decided_by": "reference",
+          "framework": "replicated"
+        },
+        "perception_encoder_rope2d_tower@vision|vision_model.transformer.resblocks.attn.in_proj": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "perception_encoder_rope2d_tower@vision|vision_model.transformer.resblocks.attn.out_proj": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "perception_encoder_rope2d_tower@vision|vision_model.transformer.resblocks.ln_1": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "perception_encoder_rope2d_tower@vision|vision_model.transformer.resblocks.ln_2": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "perception_encoder_rope2d_tower@vision|vision_model.transformer.resblocks.ls_1.gamma": {
+          "decided_by": "reference",
+          "framework": "replicated"
+        },
+        "perception_encoder_rope2d_tower@vision|vision_model.transformer.resblocks.ls_2.gamma": {
+          "decided_by": "reference",
+          "framework": "replicated"
+        },
+        "perception_encoder_rope2d_tower@vision|vision_model.transformer.resblocks.mlp.c_fc": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "perception_encoder_rope2d_tower@vision|vision_model.transformer.resblocks.mlp.c_proj": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "perception_encoder_rope2d_tower@vision|vision_model.vit_downsampler1": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "perception_encoder_rope2d_tower@vision|vision_model.vit_downsampler2": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "perception_encoder_rope2d_tower@vision|vit_large_projector": {
+          "decided_by": "vllm",
+          "framework": "split",
+          "reason": "vLLM builds vit_large_projector as ColumnParallelLinear(4 * width, hidden, gather_output=True) (model_executor/models/step3p7.py:60); its output axis is the text width d_model, which no world may split, so the spec keeps it replicated and leaves out the all_gather gather_output adds after it, as the Qwen3.8 MTP fc entries do",
+          "spec": "replicated"
+        }
+      },
+      "source": "vLLM fc84883 model_executor/models/step_vl.PerceptionEncoder (Step5ForConditionalGeneration inherits it through step3p7): conv1 / vit_downsampler1 / vit_downsampler2 Conv2dLayer, ln_pre / ln_1 / ln_2 LayerNorm, positional_embedding and LayerScale gammas replicated; PerceptionEncoderVisionAttention QKVParallelLinear qkv_proj (in_proj) / RowParallelLinear out_proj; PerceptionEncoderMLP ColumnParallelLinear fc1 (c_fc) / RowParallelLinear fc2 (c_proj); vit_large_projector ColumnParallelLinear(gather_output=True), step3p7.py:60",
+      "verdict": "framework_split"
+    }
+  },
+  "tencent__HunyuanOCR": {
+    "": {
+      "encoder": false,
+      "nodes": {
+        "embed_tokens": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "norm": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        }
+      },
+      "source": "hunyuan_v1.HunYuanModel: embed_tokens VocabParallelEmbedding, norm RMSNorm; lm_head ParallelLMHead tied to embed_tokens (hunyuan_vision.py skips the stored lm_head.weight when tie_word_embeddings)",
+      "verdict": "framework_split"
+    },
+    "vit": {
+      "encoder": true,
+      "nodes": {},
+      "source": "hunyuan_vision.HunYuanVisionTransformer: HunYuanVisionBlock attention QKVParallelLinear qkv / RowParallelLinear o_proj and HunYuanVisionMLP ColumnParallelLinear dense_h_to_4h / RowParallelLinear dense_4h_to_h split; HunYuanVisionPatchMerger (nn.Conv2d proj, nn.Linear mlp, RMSNorm, image_newline/begin/end parameters) replicated. Every weight node is a library component's (hunyuan_vit_block, hunyuan_vit_mlp -> clip_vision_mlp, hunyuan_vl_vision_tower), which declare the same placements",
+      "verdict": "framework_split"
+    }
+  },
+  "tencent__Hy3": {
+    "": {
+      "encoder": false,
+      "nodes": {
+        "embed_tokens": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "lm_head": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "norm": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        }
+      },
+      "source": "hy_v3.HYV3Model: embed_tokens VocabParallelEmbedding, norm RMSNorm; HYV3ForCausalLM lm_head ParallelLMHead",
+      "verdict": "framework_split"
+    }
+  },
+  "tencent__Hy4-preview": {
+    "": {
+      "encoder": false,
+      "nodes": {
+        "embed_tokens": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "hc_head.hc_head_base": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_head.hc_head_fn": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_head.hc_head_scale": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_independent_pre_norm_block__attn-mla_dsa_gated_sink_attention_ffn-moe_ffn_gate_routing_bias_packed_clamped|hc_attn_layer.hc_pre.hc_base": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_independent_pre_norm_block__attn-mla_dsa_gated_sink_attention_ffn-moe_ffn_gate_routing_bias_packed_clamped|hc_attn_layer.hc_pre.hc_fn": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_independent_pre_norm_block__attn-mla_dsa_gated_sink_attention_ffn-moe_ffn_gate_routing_bias_packed_clamped|hc_attn_layer.hc_pre.hc_scale": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_independent_pre_norm_block__attn-mla_dsa_gated_sink_attention_ffn-moe_ffn_gate_routing_bias_packed_clamped|hc_mlp_layer.hc_pre.hc_base": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_independent_pre_norm_block__attn-mla_dsa_gated_sink_attention_ffn-moe_ffn_gate_routing_bias_packed_clamped|hc_mlp_layer.hc_pre.hc_fn": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_independent_pre_norm_block__attn-mla_dsa_gated_sink_attention_ffn-moe_ffn_gate_routing_bias_packed_clamped|hc_mlp_layer.hc_pre.hc_scale": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_independent_pre_norm_block__attn-mla_dsa_gated_sink_attention_ffn-moe_ffn_gate_routing_bias_packed_clamped|input_layernorm": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_independent_pre_norm_block__attn-mla_dsa_gated_sink_attention_ffn-moe_ffn_gate_routing_bias_packed_clamped|mlp.experts.down_proj": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "hc_independent_pre_norm_block__attn-mla_dsa_gated_sink_attention_ffn-moe_ffn_gate_routing_bias_packed_clamped|mlp.experts.gate_up_proj": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "hc_independent_pre_norm_block__attn-mla_dsa_gated_sink_attention_ffn-moe_ffn_gate_routing_bias_packed_clamped|post_attention_layernorm": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_independent_pre_norm_block__attn-mla_dsa_gated_sink_attention_ffn-moe_ffn_gate_routing_bias_packed_clamped|self_attn.indexer.k_norm": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_independent_pre_norm_block__attn-mla_dsa_gated_sink_attention_ffn-moe_ffn_gate_routing_bias_packed_clamped|self_attn.indexer.weights_proj": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_independent_pre_norm_block__attn-mla_dsa_gated_sink_attention_ffn-moe_ffn_gate_routing_bias_packed_clamped|self_attn.indexer.wk": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_independent_pre_norm_block__attn-mla_dsa_gated_sink_attention_ffn-moe_ffn_gate_routing_bias_packed_clamped|self_attn.indexer.wq_b": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_independent_pre_norm_block__attn-mla_dsa_gated_sink_attention_ffn-moe_ffn_gate_routing_bias_packed_clamped|self_attn.kv_a_layernorm": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_independent_pre_norm_block__attn-mla_dsa_gated_sink_attention_ffn-moe_ffn_gate_routing_bias_packed_clamped|self_attn.kv_a_proj_with_mqa": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_independent_pre_norm_block__attn-mla_dsa_gated_sink_attention_ffn-moe_ffn_gate_routing_bias_packed_clamped|self_attn.kv_b_proj": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "hc_independent_pre_norm_block__attn-mla_dsa_gated_sink_attention_ffn-moe_ffn_gate_routing_bias_packed_clamped|self_attn.learnable_sink_param": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "hc_independent_pre_norm_block__attn-mla_dsa_gated_sink_attention_ffn-moe_ffn_gate_routing_bias_packed_clamped|self_attn.linear_gate": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "hc_independent_pre_norm_block__attn-mla_dsa_gated_sink_attention_ffn-moe_ffn_gate_routing_bias_packed_clamped|self_attn.o_proj": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "hc_independent_pre_norm_block__attn-mla_dsa_gated_sink_attention_ffn-moe_ffn_gate_routing_bias_packed_clamped|self_attn.q_a_layernorm": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_independent_pre_norm_block__attn-mla_dsa_gated_sink_attention_ffn-moe_ffn_gate_routing_bias_packed_clamped|self_attn.q_a_proj": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_independent_pre_norm_block__attn-mla_dsa_gated_sink_attention_ffn-moe_ffn_gate_routing_bias_packed_clamped|self_attn.q_b_proj": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "hc_independent_pre_norm_block__attn-mla_dsa_gated_sink_attention_ffn-swiglu_ffn|hc_attn_layer.hc_pre.hc_base": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_independent_pre_norm_block__attn-mla_dsa_gated_sink_attention_ffn-swiglu_ffn|hc_attn_layer.hc_pre.hc_fn": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_independent_pre_norm_block__attn-mla_dsa_gated_sink_attention_ffn-swiglu_ffn|hc_attn_layer.hc_pre.hc_scale": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_independent_pre_norm_block__attn-mla_dsa_gated_sink_attention_ffn-swiglu_ffn|hc_mlp_layer.hc_pre.hc_base": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_independent_pre_norm_block__attn-mla_dsa_gated_sink_attention_ffn-swiglu_ffn|hc_mlp_layer.hc_pre.hc_fn": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_independent_pre_norm_block__attn-mla_dsa_gated_sink_attention_ffn-swiglu_ffn|hc_mlp_layer.hc_pre.hc_scale": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_independent_pre_norm_block__attn-mla_dsa_gated_sink_attention_ffn-swiglu_ffn|input_layernorm": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_independent_pre_norm_block__attn-mla_dsa_gated_sink_attention_ffn-swiglu_ffn|post_attention_layernorm": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_independent_pre_norm_block__attn-mla_dsa_gated_sink_attention_ffn-swiglu_ffn|self_attn.indexer.k_norm": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_independent_pre_norm_block__attn-mla_dsa_gated_sink_attention_ffn-swiglu_ffn|self_attn.indexer.weights_proj": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_independent_pre_norm_block__attn-mla_dsa_gated_sink_attention_ffn-swiglu_ffn|self_attn.indexer.wk": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_independent_pre_norm_block__attn-mla_dsa_gated_sink_attention_ffn-swiglu_ffn|self_attn.indexer.wq_b": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_independent_pre_norm_block__attn-mla_dsa_gated_sink_attention_ffn-swiglu_ffn|self_attn.kv_a_layernorm": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_independent_pre_norm_block__attn-mla_dsa_gated_sink_attention_ffn-swiglu_ffn|self_attn.kv_a_proj_with_mqa": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_independent_pre_norm_block__attn-mla_dsa_gated_sink_attention_ffn-swiglu_ffn|self_attn.kv_b_proj": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "hc_independent_pre_norm_block__attn-mla_dsa_gated_sink_attention_ffn-swiglu_ffn|self_attn.learnable_sink_param": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "hc_independent_pre_norm_block__attn-mla_dsa_gated_sink_attention_ffn-swiglu_ffn|self_attn.linear_gate": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "hc_independent_pre_norm_block__attn-mla_dsa_gated_sink_attention_ffn-swiglu_ffn|self_attn.o_proj": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "hc_independent_pre_norm_block__attn-mla_dsa_gated_sink_attention_ffn-swiglu_ffn|self_attn.q_a_layernorm": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_independent_pre_norm_block__attn-mla_dsa_gated_sink_attention_ffn-swiglu_ffn|self_attn.q_a_proj": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_independent_pre_norm_block__attn-mla_dsa_gated_sink_attention_ffn-swiglu_ffn|self_attn.q_b_proj": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "hc_independent_pre_norm_block__attn-mla_dsa_gated_sink_attention_shared_ffn-moe_ffn_gate_routing_bias_packed_clamped|hc_attn_layer.hc_pre.hc_base": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_independent_pre_norm_block__attn-mla_dsa_gated_sink_attention_shared_ffn-moe_ffn_gate_routing_bias_packed_clamped|hc_attn_layer.hc_pre.hc_fn": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_independent_pre_norm_block__attn-mla_dsa_gated_sink_attention_shared_ffn-moe_ffn_gate_routing_bias_packed_clamped|hc_attn_layer.hc_pre.hc_scale": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_independent_pre_norm_block__attn-mla_dsa_gated_sink_attention_shared_ffn-moe_ffn_gate_routing_bias_packed_clamped|hc_mlp_layer.hc_pre.hc_base": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_independent_pre_norm_block__attn-mla_dsa_gated_sink_attention_shared_ffn-moe_ffn_gate_routing_bias_packed_clamped|hc_mlp_layer.hc_pre.hc_fn": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_independent_pre_norm_block__attn-mla_dsa_gated_sink_attention_shared_ffn-moe_ffn_gate_routing_bias_packed_clamped|hc_mlp_layer.hc_pre.hc_scale": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_independent_pre_norm_block__attn-mla_dsa_gated_sink_attention_shared_ffn-moe_ffn_gate_routing_bias_packed_clamped|input_layernorm": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_independent_pre_norm_block__attn-mla_dsa_gated_sink_attention_shared_ffn-moe_ffn_gate_routing_bias_packed_clamped|mlp.experts.down_proj": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "hc_independent_pre_norm_block__attn-mla_dsa_gated_sink_attention_shared_ffn-moe_ffn_gate_routing_bias_packed_clamped|mlp.experts.gate_up_proj": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "hc_independent_pre_norm_block__attn-mla_dsa_gated_sink_attention_shared_ffn-moe_ffn_gate_routing_bias_packed_clamped|post_attention_layernorm": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_independent_pre_norm_block__attn-mla_dsa_gated_sink_attention_shared_ffn-moe_ffn_gate_routing_bias_packed_clamped|self_attn.kv_a_layernorm": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_independent_pre_norm_block__attn-mla_dsa_gated_sink_attention_shared_ffn-moe_ffn_gate_routing_bias_packed_clamped|self_attn.kv_a_proj_with_mqa": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_independent_pre_norm_block__attn-mla_dsa_gated_sink_attention_shared_ffn-moe_ffn_gate_routing_bias_packed_clamped|self_attn.kv_b_proj": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "hc_independent_pre_norm_block__attn-mla_dsa_gated_sink_attention_shared_ffn-moe_ffn_gate_routing_bias_packed_clamped|self_attn.learnable_sink_param": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "hc_independent_pre_norm_block__attn-mla_dsa_gated_sink_attention_shared_ffn-moe_ffn_gate_routing_bias_packed_clamped|self_attn.linear_gate": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "hc_independent_pre_norm_block__attn-mla_dsa_gated_sink_attention_shared_ffn-moe_ffn_gate_routing_bias_packed_clamped|self_attn.o_proj": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "hc_independent_pre_norm_block__attn-mla_dsa_gated_sink_attention_shared_ffn-moe_ffn_gate_routing_bias_packed_clamped|self_attn.q_a_layernorm": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_independent_pre_norm_block__attn-mla_dsa_gated_sink_attention_shared_ffn-moe_ffn_gate_routing_bias_packed_clamped|self_attn.q_a_proj": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_independent_pre_norm_block__attn-mla_dsa_gated_sink_attention_shared_ffn-moe_ffn_gate_routing_bias_packed_clamped|self_attn.q_b_proj": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "lm_head": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "norm": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        }
+      },
+      "source": "vllm.models.hy_v4 (nvidia): embed_tokens VocabParallelEmbedding, norm RMSNorm, lm_head ParallelLMHead; attention.py MLA q_a_proj + kv_a_proj_with_mqa fused_qkv_a_proj MergedColumnParallelLinear(disable_tp=True) / ReplicatedLinear, q_b_proj / kv_b_proj / linear_gate ColumnParallelLinear, o_proj RowParallelLinear, q_a/kv_a_layernorm RMSNorm, learnable_sink_param per local head; indexer wq_b ReplicatedLinear, wk + weights_proj MergedColumnParallelLinear(disable_tp=True), k_norm LayerNorm; hc.py hc_fn / hc_head_fn ReplicatedLinear, hc_scale / hc_base / hc_head_* full nn.Parameter; moe.py routed experts FusedMoEFactory (TP/EP)",
+      "verdict": "framework_split"
+    },
+    "mtp": {
+      "encoder": false,
+      "nodes": {
+        "hy4_mtp_block@mtp|layer.transformer.mlp.experts.down_proj": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "hy4_mtp_block@mtp|layer.transformer.mlp.experts.gate_up_proj": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "hy4_mtp_block@mtp|layer.transformer.self_attn.indexer.k_norm": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hy4_mtp_block@mtp|layer.transformer.self_attn.indexer.weights_proj": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hy4_mtp_block@mtp|layer.transformer.self_attn.indexer.wk": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hy4_mtp_block@mtp|layer.transformer.self_attn.indexer.wq_b": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hy4_mtp_block@mtp|layer.transformer.self_attn.kv_a_layernorm": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hy4_mtp_block@mtp|layer.transformer.self_attn.kv_a_proj_with_mqa": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hy4_mtp_block@mtp|layer.transformer.self_attn.kv_b_proj": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "hy4_mtp_block@mtp|layer.transformer.self_attn.learnable_sink_param": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "hy4_mtp_block@mtp|layer.transformer.self_attn.linear_gate": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "hy4_mtp_block@mtp|layer.transformer.self_attn.o_proj": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "hy4_mtp_block@mtp|layer.transformer.self_attn.q_a_layernorm": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hy4_mtp_block@mtp|layer.transformer.self_attn.q_a_proj": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hy4_mtp_block@mtp|layer.transformer.self_attn.q_b_proj": {
+          "decided_by": "vllm",
+          "framework": "split"
+        }
+      },
+      "source": "vllm.models.hy_v4.nvidia.mtp: enorm / hnorm / final_layernorm RMSNorm, eh_proj nn.Linear (unsharded); shared_head ParallelLMHead tied to the target lm_head; the inner decoder layer as in the backbone (attention.py, moe.py)",
+      "verdict": "framework_split"
+    }
+  },
+  "zai-org__GLM-5.3": {
+    "": {
+      "encoder": false,
+      "nodes": {
+        "embed_tokens": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "lm_head": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "norm": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        }
+      },
+      "source": "deepseek_v32 DeepseekV32ForCausalLM (GlmMoeDsaForCausalLM): embed_tokens make_input_embedding -> VocabParallelEmbedding (replicated only under VLLM_REPLICATE_EMBED), norm RMSNorm, lm_head ParallelLMHead (deepseek_v2.DeepseekV2ForCausalLM)",
+      "verdict": "framework_split"
+    }
+  },
+  "zai-org__GLM-5.3-Flash": {
+    "": {
+      "encoder": false,
+      "nodes": {
+        "hc_sinkhorn_pre_norm_block__attn-kda_perhead_decay_lowrank_gate_attention_ffn-moe_ffn_gate_routing_bias_clamped_norm-rmsnorm|hc_attn_base": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_sinkhorn_pre_norm_block__attn-kda_perhead_decay_lowrank_gate_attention_ffn-moe_ffn_gate_routing_bias_clamped_norm-rmsnorm|hc_attn_fn": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_sinkhorn_pre_norm_block__attn-kda_perhead_decay_lowrank_gate_attention_ffn-moe_ffn_gate_routing_bias_clamped_norm-rmsnorm|hc_attn_scale": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_sinkhorn_pre_norm_block__attn-kda_perhead_decay_lowrank_gate_attention_ffn-moe_ffn_gate_routing_bias_clamped_norm-rmsnorm|hc_ffn_base": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_sinkhorn_pre_norm_block__attn-kda_perhead_decay_lowrank_gate_attention_ffn-moe_ffn_gate_routing_bias_clamped_norm-rmsnorm|hc_ffn_fn": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_sinkhorn_pre_norm_block__attn-kda_perhead_decay_lowrank_gate_attention_ffn-moe_ffn_gate_routing_bias_clamped_norm-rmsnorm|hc_ffn_scale": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_sinkhorn_pre_norm_block__attn-kda_perhead_decay_lowrank_gate_attention_ffn-moe_ffn_gate_routing_bias_clamped_norm-rmsnorm|input_layernorm": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_sinkhorn_pre_norm_block__attn-kda_perhead_decay_lowrank_gate_attention_ffn-moe_ffn_gate_routing_bias_clamped_norm-rmsnorm|post_attention_layernorm": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_sinkhorn_pre_norm_block__attn-kda_perhead_decay_lowrank_gate_attention_ffn-moe_ffn_gate_routing_bias_clamped_norm-rmsnorm|self_attn.A_log": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "hc_sinkhorn_pre_norm_block__attn-kda_perhead_decay_lowrank_gate_attention_ffn-moe_ffn_gate_routing_bias_clamped_norm-rmsnorm|self_attn.b_proj": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "hc_sinkhorn_pre_norm_block__attn-kda_perhead_decay_lowrank_gate_attention_ffn-moe_ffn_gate_routing_bias_clamped_norm-rmsnorm|self_attn.dt_bias": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "hc_sinkhorn_pre_norm_block__attn-kda_perhead_decay_lowrank_gate_attention_ffn-moe_ffn_gate_routing_bias_clamped_norm-rmsnorm|self_attn.f_a_proj": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_sinkhorn_pre_norm_block__attn-kda_perhead_decay_lowrank_gate_attention_ffn-moe_ffn_gate_routing_bias_clamped_norm-rmsnorm|self_attn.f_b_proj": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "hc_sinkhorn_pre_norm_block__attn-kda_perhead_decay_lowrank_gate_attention_ffn-moe_ffn_gate_routing_bias_clamped_norm-rmsnorm|self_attn.g_a_proj": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_sinkhorn_pre_norm_block__attn-kda_perhead_decay_lowrank_gate_attention_ffn-moe_ffn_gate_routing_bias_clamped_norm-rmsnorm|self_attn.g_b_proj": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "hc_sinkhorn_pre_norm_block__attn-kda_perhead_decay_lowrank_gate_attention_ffn-moe_ffn_gate_routing_bias_clamped_norm-rmsnorm|self_attn.k_conv1d": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "hc_sinkhorn_pre_norm_block__attn-kda_perhead_decay_lowrank_gate_attention_ffn-moe_ffn_gate_routing_bias_clamped_norm-rmsnorm|self_attn.k_proj": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "hc_sinkhorn_pre_norm_block__attn-kda_perhead_decay_lowrank_gate_attention_ffn-moe_ffn_gate_routing_bias_clamped_norm-rmsnorm|self_attn.o_norm": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_sinkhorn_pre_norm_block__attn-kda_perhead_decay_lowrank_gate_attention_ffn-moe_ffn_gate_routing_bias_clamped_norm-rmsnorm|self_attn.o_proj": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "hc_sinkhorn_pre_norm_block__attn-kda_perhead_decay_lowrank_gate_attention_ffn-moe_ffn_gate_routing_bias_clamped_norm-rmsnorm|self_attn.q_conv1d": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "hc_sinkhorn_pre_norm_block__attn-kda_perhead_decay_lowrank_gate_attention_ffn-moe_ffn_gate_routing_bias_clamped_norm-rmsnorm|self_attn.q_proj": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "hc_sinkhorn_pre_norm_block__attn-kda_perhead_decay_lowrank_gate_attention_ffn-moe_ffn_gate_routing_bias_clamped_norm-rmsnorm|self_attn.v_conv1d": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "hc_sinkhorn_pre_norm_block__attn-kda_perhead_decay_lowrank_gate_attention_ffn-moe_ffn_gate_routing_bias_clamped_norm-rmsnorm|self_attn.v_proj": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "hc_sinkhorn_pre_norm_block__attn-kda_perhead_decay_lowrank_gate_attention_ffn-swiglu_ffn_clamped_norm-rmsnorm|hc_attn_base": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_sinkhorn_pre_norm_block__attn-kda_perhead_decay_lowrank_gate_attention_ffn-swiglu_ffn_clamped_norm-rmsnorm|hc_attn_fn": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_sinkhorn_pre_norm_block__attn-kda_perhead_decay_lowrank_gate_attention_ffn-swiglu_ffn_clamped_norm-rmsnorm|hc_attn_scale": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_sinkhorn_pre_norm_block__attn-kda_perhead_decay_lowrank_gate_attention_ffn-swiglu_ffn_clamped_norm-rmsnorm|hc_ffn_base": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_sinkhorn_pre_norm_block__attn-kda_perhead_decay_lowrank_gate_attention_ffn-swiglu_ffn_clamped_norm-rmsnorm|hc_ffn_fn": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_sinkhorn_pre_norm_block__attn-kda_perhead_decay_lowrank_gate_attention_ffn-swiglu_ffn_clamped_norm-rmsnorm|hc_ffn_scale": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_sinkhorn_pre_norm_block__attn-kda_perhead_decay_lowrank_gate_attention_ffn-swiglu_ffn_clamped_norm-rmsnorm|input_layernorm": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_sinkhorn_pre_norm_block__attn-kda_perhead_decay_lowrank_gate_attention_ffn-swiglu_ffn_clamped_norm-rmsnorm|post_attention_layernorm": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_sinkhorn_pre_norm_block__attn-kda_perhead_decay_lowrank_gate_attention_ffn-swiglu_ffn_clamped_norm-rmsnorm|self_attn.A_log": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "hc_sinkhorn_pre_norm_block__attn-kda_perhead_decay_lowrank_gate_attention_ffn-swiglu_ffn_clamped_norm-rmsnorm|self_attn.b_proj": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "hc_sinkhorn_pre_norm_block__attn-kda_perhead_decay_lowrank_gate_attention_ffn-swiglu_ffn_clamped_norm-rmsnorm|self_attn.dt_bias": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "hc_sinkhorn_pre_norm_block__attn-kda_perhead_decay_lowrank_gate_attention_ffn-swiglu_ffn_clamped_norm-rmsnorm|self_attn.f_a_proj": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_sinkhorn_pre_norm_block__attn-kda_perhead_decay_lowrank_gate_attention_ffn-swiglu_ffn_clamped_norm-rmsnorm|self_attn.f_b_proj": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "hc_sinkhorn_pre_norm_block__attn-kda_perhead_decay_lowrank_gate_attention_ffn-swiglu_ffn_clamped_norm-rmsnorm|self_attn.g_a_proj": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_sinkhorn_pre_norm_block__attn-kda_perhead_decay_lowrank_gate_attention_ffn-swiglu_ffn_clamped_norm-rmsnorm|self_attn.g_b_proj": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "hc_sinkhorn_pre_norm_block__attn-kda_perhead_decay_lowrank_gate_attention_ffn-swiglu_ffn_clamped_norm-rmsnorm|self_attn.k_conv1d": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "hc_sinkhorn_pre_norm_block__attn-kda_perhead_decay_lowrank_gate_attention_ffn-swiglu_ffn_clamped_norm-rmsnorm|self_attn.k_proj": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "hc_sinkhorn_pre_norm_block__attn-kda_perhead_decay_lowrank_gate_attention_ffn-swiglu_ffn_clamped_norm-rmsnorm|self_attn.o_norm": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_sinkhorn_pre_norm_block__attn-kda_perhead_decay_lowrank_gate_attention_ffn-swiglu_ffn_clamped_norm-rmsnorm|self_attn.o_proj": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "hc_sinkhorn_pre_norm_block__attn-kda_perhead_decay_lowrank_gate_attention_ffn-swiglu_ffn_clamped_norm-rmsnorm|self_attn.q_conv1d": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "hc_sinkhorn_pre_norm_block__attn-kda_perhead_decay_lowrank_gate_attention_ffn-swiglu_ffn_clamped_norm-rmsnorm|self_attn.q_proj": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "hc_sinkhorn_pre_norm_block__attn-kda_perhead_decay_lowrank_gate_attention_ffn-swiglu_ffn_clamped_norm-rmsnorm|self_attn.v_conv1d": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "hc_sinkhorn_pre_norm_block__attn-kda_perhead_decay_lowrank_gate_attention_ffn-swiglu_ffn_clamped_norm-rmsnorm|self_attn.v_proj": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "hc_sinkhorn_pre_norm_block__attn-mla_dsa_kpool_nope_attention_ffn-moe_ffn_gate_routing_bias_clamped_norm-rmsnorm|hc_attn_base": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_sinkhorn_pre_norm_block__attn-mla_dsa_kpool_nope_attention_ffn-moe_ffn_gate_routing_bias_clamped_norm-rmsnorm|hc_attn_fn": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_sinkhorn_pre_norm_block__attn-mla_dsa_kpool_nope_attention_ffn-moe_ffn_gate_routing_bias_clamped_norm-rmsnorm|hc_attn_scale": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_sinkhorn_pre_norm_block__attn-mla_dsa_kpool_nope_attention_ffn-moe_ffn_gate_routing_bias_clamped_norm-rmsnorm|hc_ffn_base": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_sinkhorn_pre_norm_block__attn-mla_dsa_kpool_nope_attention_ffn-moe_ffn_gate_routing_bias_clamped_norm-rmsnorm|hc_ffn_fn": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_sinkhorn_pre_norm_block__attn-mla_dsa_kpool_nope_attention_ffn-moe_ffn_gate_routing_bias_clamped_norm-rmsnorm|hc_ffn_scale": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_sinkhorn_pre_norm_block__attn-mla_dsa_kpool_nope_attention_ffn-moe_ffn_gate_routing_bias_clamped_norm-rmsnorm|input_layernorm": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_sinkhorn_pre_norm_block__attn-mla_dsa_kpool_nope_attention_ffn-moe_ffn_gate_routing_bias_clamped_norm-rmsnorm|post_attention_layernorm": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_sinkhorn_pre_norm_block__attn-mla_dsa_kpool_nope_attention_ffn-moe_ffn_gate_routing_bias_clamped_norm-rmsnorm|self_attn.indexer.index_kpool_compress_ape": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_sinkhorn_pre_norm_block__attn-mla_dsa_kpool_nope_attention_ffn-moe_ffn_gate_routing_bias_clamped_norm-rmsnorm|self_attn.indexer.index_kpool_compress_gate": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_sinkhorn_pre_norm_block__attn-mla_dsa_kpool_nope_attention_ffn-moe_ffn_gate_routing_bias_clamped_norm-rmsnorm|self_attn.indexer.k_norm": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_sinkhorn_pre_norm_block__attn-mla_dsa_kpool_nope_attention_ffn-moe_ffn_gate_routing_bias_clamped_norm-rmsnorm|self_attn.indexer.weights_proj": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_sinkhorn_pre_norm_block__attn-mla_dsa_kpool_nope_attention_ffn-moe_ffn_gate_routing_bias_clamped_norm-rmsnorm|self_attn.indexer.wk": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_sinkhorn_pre_norm_block__attn-mla_dsa_kpool_nope_attention_ffn-moe_ffn_gate_routing_bias_clamped_norm-rmsnorm|self_attn.indexer.wq_b": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_sinkhorn_pre_norm_block__attn-mla_dsa_kpool_nope_attention_ffn-moe_ffn_gate_routing_bias_clamped_norm-rmsnorm|self_attn.kv_a_layernorm": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_sinkhorn_pre_norm_block__attn-mla_dsa_kpool_nope_attention_ffn-moe_ffn_gate_routing_bias_clamped_norm-rmsnorm|self_attn.kv_a_proj_with_mqa": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_sinkhorn_pre_norm_block__attn-mla_dsa_kpool_nope_attention_ffn-moe_ffn_gate_routing_bias_clamped_norm-rmsnorm|self_attn.kv_b_proj": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "hc_sinkhorn_pre_norm_block__attn-mla_dsa_kpool_nope_attention_ffn-moe_ffn_gate_routing_bias_clamped_norm-rmsnorm|self_attn.o_proj": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "hc_sinkhorn_pre_norm_block__attn-mla_dsa_kpool_nope_attention_ffn-moe_ffn_gate_routing_bias_clamped_norm-rmsnorm|self_attn.q_a_layernorm": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_sinkhorn_pre_norm_block__attn-mla_dsa_kpool_nope_attention_ffn-moe_ffn_gate_routing_bias_clamped_norm-rmsnorm|self_attn.q_a_proj": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "hc_sinkhorn_pre_norm_block__attn-mla_dsa_kpool_nope_attention_ffn-moe_ffn_gate_routing_bias_clamped_norm-rmsnorm|self_attn.q_b_proj": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "lm_head": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "model.language_model.embed_tokens": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "model.language_model.norm": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        }
+      },
+      "source": "glm5next.model.Glm5NextForCausalLM: embed_tokens VocabParallelEmbedding, lm_head ParallelLMHead, norms RMSNorm replicated; KDA (glm5next.kda): in_proj_qkvbfg_a is _Glm5NextMergedColumnParallelLinear, q/k/v/b shards split and f_a/g_a replicated (replicated_shard_ids=(4,5)), {q,k,v}_conv1d ColumnParallel, A_log/dt_bias sharded over heads, f_b/g_b ColumnParallel, o_proj RowParallel; MLA+DSA (glm5next.attention): fused_qkv_a_proj DeepSeekV2FusedQkvAProjLinear(disable_tp=True), q_b/kv_b ColumnParallel, o_proj RowParallel, indexer wq_b ReplicatedLinear, wk_weights_proj MergedColumnParallelLinear(disable_tp=True), kpool tables plain nn.Parameter; hc_* plain nn.Parameter, replicated",
+      "verdict": "framework_split"
+    },
+    "mtp": {
+      "encoder": false,
+      "nodes": {
+        "mtp_block_shared_head__inner-pre_norm__attn-mla_dsa_kpool_nope_attention_ffn-moe_ffn_gate_routing_bias_clamped_norm-rmsnorm|transformer.self_attn.indexer.index_kpool_compress_ape": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "mtp_block_shared_head__inner-pre_norm__attn-mla_dsa_kpool_nope_attention_ffn-moe_ffn_gate_routing_bias_clamped_norm-rmsnorm|transformer.self_attn.indexer.index_kpool_compress_gate": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "mtp_block_shared_head__inner-pre_norm__attn-mla_dsa_kpool_nope_attention_ffn-moe_ffn_gate_routing_bias_clamped_norm-rmsnorm|transformer.self_attn.indexer.k_norm": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "mtp_block_shared_head__inner-pre_norm__attn-mla_dsa_kpool_nope_attention_ffn-moe_ffn_gate_routing_bias_clamped_norm-rmsnorm|transformer.self_attn.indexer.weights_proj": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "mtp_block_shared_head__inner-pre_norm__attn-mla_dsa_kpool_nope_attention_ffn-moe_ffn_gate_routing_bias_clamped_norm-rmsnorm|transformer.self_attn.indexer.wk": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "mtp_block_shared_head__inner-pre_norm__attn-mla_dsa_kpool_nope_attention_ffn-moe_ffn_gate_routing_bias_clamped_norm-rmsnorm|transformer.self_attn.indexer.wq_b": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "mtp_block_shared_head__inner-pre_norm__attn-mla_dsa_kpool_nope_attention_ffn-moe_ffn_gate_routing_bias_clamped_norm-rmsnorm|transformer.self_attn.kv_a_layernorm": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "mtp_block_shared_head__inner-pre_norm__attn-mla_dsa_kpool_nope_attention_ffn-moe_ffn_gate_routing_bias_clamped_norm-rmsnorm|transformer.self_attn.kv_a_proj_with_mqa": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "mtp_block_shared_head__inner-pre_norm__attn-mla_dsa_kpool_nope_attention_ffn-moe_ffn_gate_routing_bias_clamped_norm-rmsnorm|transformer.self_attn.kv_b_proj": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "mtp_block_shared_head__inner-pre_norm__attn-mla_dsa_kpool_nope_attention_ffn-moe_ffn_gate_routing_bias_clamped_norm-rmsnorm|transformer.self_attn.o_proj": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "mtp_block_shared_head__inner-pre_norm__attn-mla_dsa_kpool_nope_attention_ffn-moe_ffn_gate_routing_bias_clamped_norm-rmsnorm|transformer.self_attn.q_a_layernorm": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "mtp_block_shared_head__inner-pre_norm__attn-mla_dsa_kpool_nope_attention_ffn-moe_ffn_gate_routing_bias_clamped_norm-rmsnorm|transformer.self_attn.q_a_proj": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "mtp_block_shared_head__inner-pre_norm__attn-mla_dsa_kpool_nope_attention_ffn-moe_ffn_gate_routing_bias_clamped_norm-rmsnorm|transformer.self_attn.q_b_proj": {
+          "decided_by": "vllm",
+          "framework": "split"
+        }
+      },
+      "source": "glm5next.mtp.Glm5NextMTP builds the same MLA+DSA attention block as the backbone (glm5next.attention), with the same split semantics",
+      "verdict": "framework_split"
+    },
+    "vision": {
+      "encoder": true,
+      "nodes": {
+        "model.visual.downsample": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "model.visual.merger.down_proj": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "model.visual.merger.gate_proj": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "model.visual.merger.post_projection_norm": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "model.visual.merger.proj": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "model.visual.merger.up_proj": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "model.visual.patch_embed.proj": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "model.visual.post_layernorm": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "vit_qknorm_clamped_swiglu_block|attn.k_norm": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "vit_qknorm_clamped_swiglu_block|attn.proj": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "vit_qknorm_clamped_swiglu_block|attn.q_norm": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "vit_qknorm_clamped_swiglu_block|attn.qkv": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "vit_qknorm_clamped_swiglu_block|mlp.down_proj": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "vit_qknorm_clamped_swiglu_block|mlp.gate_proj": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "vit_qknorm_clamped_swiglu_block|mlp.up_proj": {
+          "decided_by": "vllm",
+          "framework": "split"
+        },
+        "vit_qknorm_clamped_swiglu_block|norm1": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        },
+        "vit_qknorm_clamped_swiglu_block|norm2": {
+          "decided_by": "vllm",
+          "framework": "replicated"
+        }
+      },
+      "source": "glm5next.multimodal.Glm5NextVisionTransformer: attn.qkv QKVParallelLinear, attn.proj RowParallel, mlp gate_up/down MergedColumn/RowParallel, merger proj ColumnParallel(gather_output=True) and gate_up/down MergedColumn/RowParallel \u2014 all with disable_tp=is_vit_use_data_parallel(), weights (TP) mode by default; patch_embed/downsample convs and every norm replicated",
+      "verdict": "framework_split"
+    }
+  }
+}

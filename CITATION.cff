@@ -1,0 +1,26 @@
+cff-version: 1.2.0
+message: "If you use HuggingArch, please cite it as below."
+title: "HuggingArch: Automating Model Architecture Analysis"
+type: software
+authors:
+  - family-names: Shen
+    given-names: Han
+    alias: shenh10
+repository-code: "https://github.com/shenh10/HuggingArch"
+url: "https://www.huggingarch.com"
+license: MIT
+date-released: "2026-10-08"
+keywords:
+  - large language models
+  - inference
+  - cost model
+  - roofline
+  - model architecture
+preferred-citation:
+  type: blog
+  title: "HuggingArch: Automating Model Architecture Analysis"
+  authors:
+    - family-names: Shen
+      given-names: Han
+  year: 2026
+  url: "https://shenhan.cc/blog/huggingarch"

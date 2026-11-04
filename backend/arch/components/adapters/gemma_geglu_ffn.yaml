@@ -1,0 +1,19 @@
+# Gemma GeGLU FFN: gated_ffn bound to the tanh approximation of GELU.
+#
+# Gemma2MLP / Gemma 4 MLP compute down_proj(act_fn(gate_proj(x)) * up_proj(x))
+# with act_fn = ACT2FN[config.hidden_activation], and every Gemma 2 / Gemma 4
+# config sets `gelu_pytorch_tanh`; vLLM gemma2.py refuses any other value and
+# builds GeluAndMul(approximate="tanh"). `geglu_ffn` is the exact (erf) GELU
+# form, so the family binds `gated_ffn` with act `gelu_tanh` instead. Weight
+# names are gated_ffn's (gate_proj / up_proj / down_proj), which is Gemma's.
+role: ffn_dense
+description: "Gemma GeGLU FFN: gated_ffn with tanh-approximate GELU (hidden_activation gelu_pytorch_tanh)."
+
+graph:
+  ffn:
+    module: null
+    op: gated_ffn
+    in: x
+    params:
+      act: gelu_tanh
+outputs: [ffn]

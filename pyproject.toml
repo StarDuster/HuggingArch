@@ -1,0 +1,148 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "huggingarch"
+version = "0.2.0"
+description = "HuggingFace model architecture analyzer — structure, FLOPs, memory, multi-version transformers"
+readme = "README.md"
+requires-python = ">=3.13"
+license = { text = "MIT" }
+dependencies = [
+    "torch>=2.0.0",
+    "transformers>=5.20.0",
+    "accelerate>=0.24.0",
+    "huggingface-hub>=0.19.0",
+    # einops is imported at *construction* time by many models' trust_remote_code
+    # modeling files (e.g. Kimi/DeepSeek variants); without it the skeleton build
+    # fails with ImportError and spec-gen needlessly falls back to the coding agent.
+    "einops>=0.7.0",
+    "sympy",
+    "packaging",
+    "fastapi>=0.104.0",
+    "uvicorn[standard]>=0.24.0",
+    "pydantic>=2.5.0",
+    "python-dotenv>=1.0.0",
+    "pyjwt[crypto]>=2.8.0",
+    "httpx>=0.25.0",
+    "python-multipart>=0.0.9",
+    # Kernel Bench measurements live in a DuckLake (docs/measured_calibration.md §4).
+    "duckdb>=1.5.6",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-httpx>=0.30.0",
+    "pytest-subtests",
+    "ruff",
+    "playwright",  # frontend regression test (tests/frontend/test_compare_frontend.py); skips if chromium/dev-server absent
+]
+# The measured-kernel producer (`hbench`), for running on a target GPU box:
+#   pip install "huggingarch[bench]"
+# The engine (plan) is torch-free; each provider library is measured in its own
+# isolated `uv` env (kernel_bench/envs/*.txt), so the box brings its own
+# CUDA-matched torch per env — nothing GPU-specific is pinned here. `uv` is the
+# env-isolation driver `run-all` shells out to.
+bench = [
+    "uv>=0.5",
+]
+
+[project.scripts]
+huggingarch = "backend.cli:main"
+hbench = "kernel_bench.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["backend", "kernel_bench"]
+
+[tool.hatch.build.targets.sdist]
+include = ["backend", "kernel_bench", "web"]
+
+[tool.uv]
+dev-dependencies = [
+    "pytest",
+    "pytest-httpx>=0.30.0",
+    "pytest-subtests",
+    "ruff",
+    "playwright",
+    "pytest-xdist>=3.8.0",
+    "pytest-timeout>=2.3",
+]
+
+# ---------------------------------------------------------------------------
+# Ruff config.
+#
+# Philosophy unchanged from when this was F-only: the gate catches *bugs and
+# latent defects*, not aesthetic non-uniformity. What changed: the net is no
+# longer just pyflakes. We now also run the correctness-oriented families —
+# bugbear (B), pylint errors/warnings (PLE/PLW), simplify (SIM), perflint
+# (PERF), flake8-pie (PIE) and ruff's own lints (RUF). Together they surface
+# real footguns that F can't see: lost exception chains (B904), silently
+# length-truncating zip() over arrays asserted parallel (B905), call-in-
+# default-arg (B008), redefined loop vars (PLW2901), implicit Optional in
+# signatures (RUF013), plus dead imports/vars (F401/F841).
+#
+# Pure-aesthetic families stay OFF on purpose — line length (E501), import
+# order (I), trailing commas (COM), whitespace (W), naming (N, which would
+# fight our deliberate math notation N/D/Sq/Lq/TP). They'd bury the signal
+# under thousands of taste-only diffs. Modernization (UP: PEP-585/604) is
+# also kept out of the gate — it's ~2.3k mechanical rewrites; run
+# `ruff check backend --select UP --fix` as a standalone one-shot if the team
+# wants it, don't fold churn of that size into a bug gate.
+#
+# The original motivating bug: a missing `from collections import Counter` in
+# validate/_matching.py sat unnoticed from the first commit inside an
+# unexercised path — silently breaking Phase 4 of every spec-gen run for
+# ~a year. F821 catches that whole class statically in milliseconds.
+# ---------------------------------------------------------------------------
+[tool.ruff]
+extend-exclude = [".venv"]
+
+[tool.ruff.lint]
+select = ["F", "B", "PLE", "PLW", "SIM", "PERF", "PIE", "RUF"]
+ignore = [
+    "F541",     # f-string without placeholders — harmless, prevalent in log lines
+    # --- deliberate repo conventions, not defects ---
+    "RUF001",   # "ambiguous" unicode in strings — false alarm on our em-dashes
+    "RUF002",   # ditto in docstrings
+    "RUF003",   # ditto in comments (the codebase is Chinese-commented throughout)
+    "B023",     # loop-var-in-closure — our loop-local helper closures (_add, _key)
+                # are invoked synchronously within the same iteration, never stored
+                # and deferred, so every current hit is a false positive for that
+                # idiom. Re-audit if a genuinely deferred closure ever trips it.
+    "PLW0603",  # `global` for module-level caches (snapshot / process-pool) is intentional
+    "PLW2901",  # redefined-loop-var — every hit is the transform-in-place idiom
+                # (`line = line.strip()`, `match = _absorb(match)`): the value is
+                # consumed within the same iteration and the `for` rebinds fresh
+                # next round. Renaming it would be anti-idiomatic churn, not a fix.
+    "SIM105",   # contextlib.suppress isn't clearer than a 2-line try/except/pass here
+]
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI's dependency-injection markers are *designed* to be called in an
+# argument default — Depends/File/Query/… are how the framework wires request
+# params and auth. B008 ("no function call in a default arg") is a false
+# positive for them; whitelist so B008 still catches genuine mutable-default
+# footguns (e.g. `def f(x=[])`) elsewhere.
+extend-immutable-calls = [
+    "fastapi.Depends", "fastapi.File", "fastapi.Query", "fastapi.Header",
+    "fastapi.Form", "fastapi.Cookie", "fastapi.Path", "fastapi.Body",
+    "fastapi.Security",
+]
+
+[tool.pytest.ini_options]
+# `regression` marks the tests that check every model (they walk every
+# snapshot under backend/arch/snapshots, or a whole cohort of them) and the
+# minutes-long files (`tests/kernel_bench/test_kernel_bench.py`). They are
+# most of the suite's time and little of what one change can break, so
+# `addopts` deselects them: the default run, the push / PR CI and the deploy
+# gate run the rest. Run them on purpose with `-m regression` — locally, or
+# through the `regression` workflow (manual trigger).
+# A parametrised test also runs only its first case by default: every other
+# case is marked `regression` at collection (tests/conftest.py), except under
+# tests/meta, whose cases are the repo's rule gates.
+markers = [
+    "regression: checks every model, takes minutes, or is a parametrised test's non-first case; deselected by default, run with `-m regression`",
+]
+addopts = "-m 'not regression'"

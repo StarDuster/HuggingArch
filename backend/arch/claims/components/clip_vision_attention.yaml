@@ -1,0 +1,8 @@
+schema: huggingarch.claims/v1
+subject: clip_vision_attention
+axioms:
+  checks:
+  - kind: kv_growth
+    storage: none
+    src: ViT encoder — bidirectional single-pass over all image tokens; no autoregressive
+      decode, so no KV cache.

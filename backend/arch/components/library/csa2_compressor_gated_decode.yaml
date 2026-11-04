@@ -1,0 +1,76 @@
+# CSA2 KV compressor, the pooled branch (compress_ratio > 1) — decode form.
+#
+# The decode branch of `Compressor.forward` (source/model.py:464-485):
+#
+#   kv, score = self.wkv(x), self.wgate(x)               # every step (:465)
+#   should_compress = (start_pos + 1) % ratio == 0       # (:477)
+#   slot = start_pos % ratio
+#   self.kv_state[:bsz, slot] = kv.squeeze(1)            # every step (:479-480)
+#   self.score_state[:bsz, slot] = score.squeeze(1)
+#   if should_compress:                                  # once per group (:481-482)
+#       kv = (self.kv_state[:bsz] * self.score_state[:bsz].softmax(dim=1)).sum(dim=1, keepdim=True)
+#   if not should_compress: return None                  # (:483-484)
+#   return self.norm(kv.to(dtype))                       # (:485)
+#
+# So the two projections run on the step's token every step, and the softmax
+# pool over the `ratio` state rows and the norm run once every `ratio` steps.
+# The steps in between return None, and `Attention._compress_kv` then skips
+# the RoPE and the compressed-cache write (source/model.py:751-761) and the
+# indexer skips its key projection and its key-cache write (:536-548), so the
+# rows downstream of this latent are also once per group. vLLM does the same:
+# `fused_save_compress_norm` (vllm/models/deepseek_v41/common/ops/
+# fused_compress_quant_cache.py:138-191) saves every token's [kv, score] row to
+# the per-request ring and pools a group only at the token that closes it
+# (`(position + 1) % 2 == 0`, :150).
+#
+# The frame says that as the prefill form does, a slot axis and a window
+# axis, with no tail: `view_split axis: 1` turns [B, S, D] into
+# [B, S/ratio, ratio, D]. The window axis is the `ratio` state rows the
+# softmax and the sum run over (`axis: 2`); the slot axis is the groups a
+# step completes, `s_ctx / compress_ratio`. That is exact, the Rational
+# average a one-token step makes (one group per `ratio` tokens), the same
+# reading as `dsv4_compressor_no_overlap_decode`. The window ops then cost
+# `ratio` rows once per `ratio` tokens, and the pooled row's norm, and what
+# the attention and the indexer do with it, cost one row once per `ratio`
+# tokens.
+#
+# Same tensors as the prefill form (wkv / wgate / norm, same roles), same
+# cache entries.
+#
+# Required dims: d_model, d_head, compress_ratio.
+
+description: "CSA2 KV compressor, ratio > 1, decode form: one token per step projected into the ratio-row state; the group pooled and normalized once every compress_ratio steps."
+# The ring is read when a window completes — `reads:`, the same windows a
+# step completes as the slot axis below — not every token: the carriers'
+# own work is that share of a step, and so is their read of the state.
+cache:
+  entries:
+    - { state: kv_state,    kind: compressor_state, carrier: weighted, shape: [compress_ratio, d_head], reads: "s_ctx / compress_ratio", dtype: fp32 }
+    - { state: score_state, kind: compressor_state, carrier: smax,     shape: [compress_ratio, d_head], reads: "s_ctx / compress_ratio", dtype: fp32 }
+graph:
+  wkv:      { op: linear, role: attention_compressor, in: x, dims: { in: d_model, out: d_head }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  wgate:    { op: linear, role: attention_compressor, in: x, dims: { in: d_model, out: d_head }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  # The group the step's token joins: [B, S, D] → [B, S/ratio, ratio, D].
+  kv_win:   { op: view_split, in: wkv,   axis: 1, dims: { s_slots: "s_ctx / compress_ratio", window: compress_ratio } }
+  gate_win: { op: view_split, in: wgate, axis: 1, dims: { s_slots: "s_ctx / compress_ratio", window: compress_ratio } }
+  # source/model.py:482 `self.score_state[:bsz].softmax(dim=1)`: over the
+  # ratio state rows, per channel, once per group.
+  smax:
+    op: softmax_act
+    in: gate_win
+    dim: compress_ratio
+    axis: 2
+    formula: "w[b, slot, p, d] = exp(score_state[b, p, d]) / Σ_{p'<ratio} exp(score_state[b, p', d])   (over the ratio state rows, once per ratio tokens)"
+  weighted:
+    op: mul
+    in: [kv_win, smax]
+    dim: d_head
+    formula: "y[b, slot, p, d] = kv_state[b, p, d] · w[b, slot, p, d]"
+  pooled:
+    op: sum_reduce
+    in: weighted
+    axis: 2
+    dims: { in: compress_ratio }
+    formula: "y[b, slot, d] = Σ_{p<ratio} weighted[b, slot, p, d]   (one latent row per group)"
+  norm:     { op: rmsnorm, role: attention_compressor, in: pooled, dim: d_head, weight_axes: [{ replicated: true }] }
+outputs: [norm]

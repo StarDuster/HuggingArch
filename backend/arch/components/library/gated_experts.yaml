@@ -1,0 +1,39 @@
+# A routed expert bank of gated FFNs, one tensor per projection.
+#
+# Every weight leads with the expert axis: `shape: [n_expert_copies, out, in]`.
+# The activation `permute` writes is `[n_expert_copies, M, d_model]`, where
+# `M` is the MEAN rows one expert receives, and each `linear` contracts expert
+# e's matrix with slice e of it (`torch.matmul`'s batch rule,
+# `ops.weight_leading_axes`). So each projection is one node over the whole
+# bank, the way the forward runs it:
+#
+#   transformers `Qwen3MoeExperts` (models/qwen3_moe/modeling_qwen3_moe.py:210)
+#     gate_up_proj: [E, 2·I, H], down_proj: [E, H, I]
+#   y_e = down_proj[e] · (act(gate_proj[e] · x_e) * (up_proj[e] · x_e))
+#
+# Gate and up are written separately, the way an unrolled checkpoint stores
+# them (`experts.{e}.gate_proj`). transformers' `gate_up_proj` is a
+# concatenation it does at load (`conversion_mapping.py`), which belongs to
+# fusion, not to the spec.
+#
+# How the checkpoint stores the expert axis is the caller's `expert_weight:`
+# (`unrolled`: one entry per expert; `leading_axis`: one entry). Module names
+# other than gate_proj / up_proj / down_proj are mapped with `inner_modules:`
+# (Mixtral / MiniMax / DeepSeek-V4's w1 / w3 / w2).
+#
+# `act` is the gate's activation: silu (SwiGLU) unless the caller binds
+# another (Kimi-K3: situ).
+#
+# Required dims: d_model, d_ffn (the expert width), n_expert_copies.
+
+role: ffn_moe
+description: "Routed expert bank of gated FFNs (gate_proj, up_proj, act, down_proj), every weight [n_expert_copies, out, in] over the [n_expert_copies, M, d_model] dispatch buffer. Qwen3-MoE, DeepSeek, Kimi, GLM, MiniMax experts."
+params:
+  act: { kind: component, default: silu }
+graph:
+  gate_proj: { op: linear, in: x, dims: { in: d_model, out: d_ffn }, shape: [n_expert_copies, d_ffn, d_model], weight_axes: [{ world: moe_copies, parts: n_expert_copies, fit: exact }, { world: moe_expert, parts: d_ffn, fit: exact }, { replicated: true }] }
+  up_proj:   { op: linear, in: x, dims: { in: d_model, out: d_ffn }, shape: [n_expert_copies, d_ffn, d_model], weight_axes: [{ world: moe_copies, parts: n_expert_copies, fit: exact }, { world: moe_expert, parts: d_ffn, fit: exact }, { replicated: true }] }
+  act:       { op: <act>, in: gate_proj, dim: d_ffn }
+  gate_mul:  { op: mul, in: [act, up_proj], dim: d_ffn }
+  down_proj: { op: linear, in: gate_mul, dims: { in: d_ffn, out: d_model }, shape: [n_expert_copies, d_model, d_ffn], weight_axes: [{ world: moe_copies, parts: n_expert_copies, fit: exact }, { replicated: true }, { world: moe_expert, parts: d_ffn, fit: exact }] }
+outputs: [down_proj]

@@ -1,0 +1,72 @@
+# ViT encoder layer with per-head Q/K RMSNorm and a biased CLAMPED SwiGLU MLP.
+#
+# Pre-norm block (Glm5NextVisionBlock.forward:1690-1696):
+#   hidden_states = hidden_states + attn(norm1(hidden_states), ...)   # :1690-1695
+#   hidden_states = hidden_states + mlp(norm2(hidden_states))         # :1696
+#
+# Attention (Glm5NextVisionAttention.forward:1598-1667):
+#   q, k, v = qkv(x).reshape(S, 3, num_heads, -1).permute(1,0,2,3).unbind(0)  # :1607-1609
+#   q = q_norm(q);  k = k_norm(k)                                             # :1611-1612  ← per-HEAD RMSNorm
+#   q, k = apply_rotary_pos_emb_vision(q, k, cos, sin)                        # :1615       ← 2-D (h,w) rope AFTER the norms
+#   out  = proj(sdpa(q, k, v, is_causal=False))                               # :1639/:1658, :1666
+#
+# MLP (Glm5NextVisionMLP.forward:1508-1514): clamped SwiGLU, bias=config.attention_bias
+# (true for this vision config, :1676), so gate_proj / up_proj / down_proj all
+# carry a bias — `swiglu_ffn_clamped` is bias-free and cannot express it.
+#
+# Not reachable from either existing ViT block component:
+#   * `qwen35_vision_block` — right fused-qkv/biased shape, but LayerNorm
+#     norm1/norm2, no q_norm/k_norm, and a single-matrix tanh-GELU MLP
+#     (linear_fc1/linear_fc2) instead of a clamped SwiGLU triple.
+#   * `kimi_k3_vision_block` — right RMSNorm, but bias-free, no q_norm/k_norm,
+#     node names norm0/wqkv/wo/mlp.fc0/mlp.fc1, and a plain GELU MLP.
+# The Q/K norms are parameters that exist in the checkpoint
+# (`model.visual.blocks.N.attn.{q,k}_norm.weight`, [64]) and the clamps sit
+# between the projections and the gating, where no call site can reach.
+#
+# Required dims: d_vis_model, n_vis_heads, d_vis_head, d_vis_ffn, vis_clamp_limit
+# (the tower's own bound, `vision_config.swiglu_limit`: its clamps rebind
+# `clamp_limit` to it, so they never read the backbone's).
+
+role: block
+description: "ViT encoder layer: pre-RMSNorm, biased fused QKV with per-head Q/K RMSNorm before 2-D vision RoPE, bidirectional attention, biased output projection, biased clamped-SwiGLU MLP."
+
+# The vision tower runs once per image/video over its patch sequence and keeps
+# no autoregressive state: `Glm5NextVisionAttention.forward` takes no Cache and
+# `Glm5NextVisionBlock.forward` only threads cu_seqlens / position_embeddings.
+
+graph:
+  norm1:         { op: rmsnorm, in: x, dim: d_vis_model, weight_axes: [{ replicated: true }] }
+  attn.qkv:      { op: linear, in: norm1, dims: { in: d_vis_model, out: "3 * d_vis_model", bias: "1" }, weight_axes: [{ segments: [{ segment: q, extent: "n_vis_heads * d_vis_head", world: attention, parts: n_vis_heads, fit: replica_cells }, { segment: k, extent: "n_vis_heads * d_vis_head", world: attention, parts: n_vis_heads, fit: replica_cells }, { segment: v, extent: "n_vis_heads * d_vis_head", world: attention, parts: n_vis_heads, fit: replica_cells }] }, { replicated: true }] }
+  attn.q_slice:  { op: slice, in: attn.qkv, dims: { in: "3 * d_vis_model", out: d_vis_model, start: "0" } }
+  attn.k_slice:  { op: slice, in: attn.qkv, dims: { in: "3 * d_vis_model", out: d_vis_model, start: d_vis_model } }
+  attn.v_slice:  { op: slice, in: attn.qkv, dims: { in: "3 * d_vis_model", out: d_vis_model, start: "2 * d_vis_model" } }
+  attn.q_split_heads: { op: head_split, in: attn.q_slice, dims: { n_heads: n_vis_heads, d_head: d_vis_head } }
+  attn.k_split_heads: { op: head_split, in: attn.k_slice, dims: { n_heads: n_vis_heads, d_head: d_vis_head } }
+  attn.v_split_heads: { op: head_split, in: attn.v_slice, dims: { n_heads: n_vis_heads, d_head: d_vis_head } }
+  # Per-head RMSNorm on Q and K (:1595-1596, width head_dim = d_vis_head),
+  # applied BEFORE the rope (:1611-1615) — the opposite order of the models
+  # that norm the flat projection.
+  attn.q_norm:   { op: rmsnorm, in: attn.q_split_heads, dim: d_vis_head, weight_axes: [{ replicated: true }] }
+  attn.k_norm:   { op: rmsnorm, in: attn.k_split_heads, dim: d_vis_head, weight_axes: [{ replicated: true }] }
+  attn.q_rope:   { op: rope_2d, in: attn.q_norm, dim: d_vis_head }
+  attn.k_rope:   { op: rope_2d, in: attn.k_norm, dim: d_vis_head }
+  # Bidirectional within each image: `self.is_causal = False` (:1594) and every
+  # attention call passes `is_causal=False` (:1639, :1658); packing is by
+  # cu_seqlens, so a query sees only its own image's keys.
+  attn.qk_score: { op: attention_score, in: [attn.q_rope, attn.k_rope], dims: { is_causal: "0", n_heads: n_vis_heads, d_head: d_vis_head } }
+  attn.softmax:  { op: softmax, in: attn.qk_score, dims: { is_causal: "0", n_heads: n_vis_heads } }
+  attn.apply:    { op: attention_apply, in: [attn.softmax, attn.v_split_heads], dims: { is_causal: "0", n_heads: n_vis_heads, d_head: d_vis_head } }
+  attn.merge:    { op: head_merge, in: attn.apply, dims: { n_heads: n_vis_heads, d_head: d_vis_head } }
+  attn.proj:     { op: linear, in: attn.merge, dims: { in: "n_vis_heads * d_vis_head", out: d_vis_model, bias: "1" }, weight_axes: [{ replicated: true }, { world: attention, parts: n_vis_heads, fit: replica_cells }] }
+  attn_residual: { op: add, in: [x, attn.proj], dim: d_vis_model }
+  norm2:         { op: rmsnorm, in: attn_residual, dim: d_vis_model, weight_axes: [{ replicated: true }] }
+  mlp.gate_proj: { op: linear, in: norm2, dims: { in: d_vis_model, out: d_vis_ffn, bias: "1" }, weight_axes: [{ world: dense_ffn, parts: d_vis_ffn, fit: exact }, { replicated: true }] }
+  mlp.up_proj:   { op: linear, in: norm2, dims: { in: d_vis_model, out: d_vis_ffn, bias: "1" }, weight_axes: [{ world: dense_ffn, parts: d_vis_ffn, fit: exact }, { replicated: true }] }
+  mlp.gate_clamp: { op: clamp, in: mlp.gate_proj, dims: { dim: d_vis_ffn, clamp_limit: vis_clamp_limit }, formula: "y = min(gate_proj, vis_clamp_limit)   (:1512, vision_config.swiglu_limit = 10.0)" }
+  mlp.up_clamp:   { op: clamp, in: mlp.up_proj, dims: { dim: d_vis_ffn, clamp_limit: vis_clamp_limit }, formula: "y = min(max(up_proj, −vis_clamp_limit), vis_clamp_limit)   (:1513)" }
+  mlp.act:       { op: silu, in: mlp.gate_clamp, dim: d_vis_ffn }
+  mlp.gate_mul:  { op: mul, in: [mlp.act, mlp.up_clamp], dim: d_vis_ffn }
+  mlp.down_proj: { op: linear, in: mlp.gate_mul, dims: { in: d_vis_ffn, out: d_vis_model, bias: "1" }, weight_axes: [{ replicated: true }, { world: dense_ffn, parts: d_vis_ffn, fit: exact }] }
+  out:           { op: add, in: [attn_residual, mlp.down_proj], dim: d_vis_model }
+outputs: [out]

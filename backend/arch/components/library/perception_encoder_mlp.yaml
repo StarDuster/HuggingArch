@@ -1,0 +1,12 @@
+# Perception Encoder ViT MLP — 2-linear biased GELU.
+# Used by: Step-3.7-Flash vision tower, inside perception_encoder_block.
+#
+# Required dims: d_vis_model, d_vis_ffn
+
+role: ffn_dense
+description: "PE-style biased 2-linear GELU MLP (c_fc + c_proj)."
+graph:
+  c_fc:     { op: linear, in: x, dims: { in: d_vis_model, out: d_vis_ffn, bias: "1" }, weight_axes: [{ world: dense_ffn, parts: d_vis_ffn, fit: exact }, { replicated: true }] }
+  gelu:     { op: gelu, in: c_fc, dim: d_vis_ffn }
+  c_proj:   { op: linear, in: gelu, dims: { in: d_vis_ffn, out: d_vis_model, bias: "1" }, weight_axes: [{ replicated: true }, { world: dense_ffn, parts: d_vis_ffn, fit: exact }] }
+outputs: [c_proj]

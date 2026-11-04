@@ -1,0 +1,11 @@
+# Box override for marlin on the H100 SXM box (kernel driver 575.57.08, CUDA 12.9).
+#
+# marlin ships inside vLLM, so this file exists for the same reason as the vllm
+# one beside it and says the same thing: the generated env unchanged, and the
+# box-wide `torch==2.8.0+cu128` pin not taken, because the vLLM release pins
+# its own torch and that pin only exists as a CUDA-13 build. Runs against the
+# forward-compatibility user-mode driver from `[library_env.marlin]`.
+#
+# The old pin (`vllm==0.11.0`) and the reason given for it are retired: see the
+# vllm override for what was wrong with it.
+-r ../marlin.txt

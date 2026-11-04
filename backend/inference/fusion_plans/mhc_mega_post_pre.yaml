@@ -1,0 +1,52 @@
+# DeepInfer's Mega-MHC launch for DeepSeek-V4.1's shifted hyper-connection
+# seam: the previous sublayer's post-mix, the current sublayer's coefficient
+# projection, and the current sublayer's carried-pre reduce + RMSNorm, all
+# in one DeepGEMM kernel.
+#
+# This is the delayed V4.1 seam, not V4's same-sublayer schedule. The launch
+# consumes the PREVIOUS sublayer's `pre`; it computes the CURRENT sublayer's
+# mix vector and publishes its `pre` for the next seam. The graph therefore
+# has three pieces that a same-sublayer plan cannot join:
+#
+#   residual' = post ⊙ sublayer + comb ⊗ residual
+#   mixes     = mix_weight @ rms_unscaled(flatten(residual'))
+#   y         = rmsnorm(Σ_c pre_c · residual'_c)
+#
+# The coefficient split remains an exposed graph node. The launch computes
+# it, but the V4.1 graph has three readers of its ports (`pre`, `post`, and
+# `comb`), and the split itself is only `[tokens, 24]` beside the
+# `[tokens, hc, d]` residual the launch moves; leaving it billed is the same
+# conservative residual the other mHC plans state.
+#
+# Where the sublayer's reader is an MXFP8 GEMM, the same launch also writes
+# the normed input as FP8 with its per-32 scales (`y_fp8` / `y_gemm_sf`,
+# DeepInfer hc.py:262-266) beside the BF16 row, so the activation cast is an
+# optional member, as on `fused_add_rmsnorm`.
+
+fused_op: mhc_mega_post_pre
+
+naive_pattern:
+  nodes:
+    post_broadcast:     { op: broadcast,           inputs: [external.post] }
+    sublayer_broadcast: { op: broadcast,           inputs: [external.sublayer] }
+    post_term:          { op: mul,                 inputs: [post_broadcast.out, sublayer_broadcast.out] }
+    comb_mix:           { op: hc_mix,              inputs: [external.comb, external.residual] }
+    residual_add:       { op: add,                 inputs: [post_term.out, comb_mix.out] }
+    residual_flat:      { op: view_merge,          inputs: [residual_add.out] }
+    norm:               { op: rmsnorm_unscaled,    inputs: [residual_flat.out] }
+    mixes:              { op: linear_external_weight, inputs: [norm.out, external.mix_weight] }
+    pre_broadcast:      { op: broadcast,           inputs: [external.pre] }
+    residual_weighted:  { op: mul,                 inputs: [residual_add.out, pre_broadcast.out] }
+    reduced:            { op: sum_reduce,          inputs: [residual_weighted.out] }
+    layer_norm:         { op: rmsnorm,             inputs: [reduced.out] }
+    quant:              { op: quantise_activation, inputs: [layer_norm.out], optional: true }
+  io_mapping:
+    post:         external.post
+    sublayer:     external.sublayer
+    comb:         external.comb
+    residual:     external.residual
+    pre:          external.pre
+    mix_weight:   external.mix_weight
+    output:       quant.out
+    mixes_out:    mixes.out
+    residual_out: residual_add.out

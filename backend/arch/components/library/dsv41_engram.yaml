@@ -1,0 +1,157 @@
+# DeepSeek-V4.1-Flash Engram — n-gram hash retrieval written into the
+# Hyper-Connection residual stream. Present on backbone layers 1 and 14
+# (`engram_layer_ids: [1, 14]`; `layers.X.engram.*` ×2 in pattern_counts).
+#
+# Forward (source/model.py:350-365):
+#   kv = self.wkv(self.embed(hash_ids).flatten(-2))
+#   key, value = kv.split([self.hc_mult * self.dim, self.dim], dim=-1)
+#   key = key.float().unflatten(-1, (self.hc_mult, self.dim))
+#   weight = self.q_weight.float() * self.k_weight.float()   # only ever used as a product
+#   rstd = torch.rsqrt(h.square().mean(-1) + eps) * torch.rsqrt(key.square().mean(-1) + eps)
+#   dot  = (h * weight * key).sum(-1) * rstd * self.dim**-0.5
+#   gate = torch.sigmoid(torch.copysign(dot.abs().clamp_min(1e-6).sqrt(), dot))
+#   return (h + gate.unsqueeze(-1) * value.float().unsqueeze(-2)).to(x.dtype)
+#
+# `x` is the HC stream as it crosses block boundaries — the n_hidden_copies
+# copies flattened, [B, s_ctx, n_hidden_copies · d_model] — and the output is the
+# same stream WIDENED, [B, s_ctx, n_hidden_copies, d_model]: the engram adds one
+# shared value into every hc copy, scaled by that copy's own gate ("normalized
+# per (token, hc copy) over `dim`, NOT jointly over the copies",
+# source/model.py:358).
+#
+# Why not `library/qwen_ple.yaml` (read in full, 119 lines): same family —
+# hash_embedding → key/value projection → normalized dot → signed_sqrt →
+# sigmoid → gated value — but three structural differences make it unusable:
+#   1. PLE has two separate projections (key_proj, value_proj) and three
+#      grouped RMSNorms with learned gains. V4.1 has ONE fused `wkv`
+#      (dim·(hc_mult+1) wide, split after the GEMM) and NO norm weights at all
+#      — the normalization is the parameter-free `rstd` product above, which is
+#      why `pattern_counts` lists only engram.{embed,wkv,q_weight,k_weight}.
+#   2. V4.1 carries a per-copy elementwise `q_weight ⊙ k_weight` [hc_mult, dim]
+#      pair that PLE has no analogue for.
+#   3. PLE ends in a depthwise causal conv1d with a decode conv state; V4.1 has
+#      no conv and no decode state (every buffer in source/engram.py:151-157 is
+#      `persistent=False` and holds only token ids).
+#
+# The two `rsqrt` factors are folded into the two operands they normalize:
+# `(h·rstd_h) · weight · (key·rstd_k)` summed is identical to the source's
+# `(h·weight·key).sum · rstd_h · rstd_k`, which is why the graph reads
+# rmsnorm_unscaled on each side rather than materializing a separate rstd.
+#
+# The dims live in the model spec: d_ngram_head (= engram_head_dim = 256) and
+# n_ngram_heads (= (engram_max_ngram_size - 1) * engram_n_heads = 24).
+# The table height IS a vocabulary, so it binds the registered `n_vocab`, which
+# the caller rebinds per layer: engram_num_embeddings = [384006168, 384016682]
+# for layers 1 and 14 respectively.
+#
+# Required dims: d_model, n_hidden_copies, n_vocab (the layer's table height),
+# d_ngram_head, n_ngram_heads, d_engram_kv (= d_model·(n_hidden_copies + 1)).
+
+role: memory
+description: "DSv4.1 Engram: 24-column n-gram hash lookup → fused wkv → per-hc-copy key/value, gated by a parameter-free normalized dot (signed sqrt + sigmoid) and added into every copy of the HC residual stream. Flattened [B,s,hc·d] in, widened [B,s,hc,d] out."
+# `x` is the flattened HC stream; `input_ids` the token ids the n-gram hash
+# reads (`layer.engram(h, engram_hashes[:, :, layer.engram.layer_hash_index, :],
+# engram_mask)`, source/model.py:1258 — the hashes derive from the token ids).
+inputs: [x, input_ids]
+graph:
+  # One fp8 table of `n_vocab` rows × 256. Each position hashes its 2-, 3- and
+  # 4-grams over 8 heads = 24 ids into disjoint prime-sized bucket ranges
+  # (source/engram.py:86-126 EngramLayout, :179-184 the rolling XOR hash), so a
+  # single lookup gathers 24 rows. `embed.scale` ([rows, 256/32]) is the fp8
+  # block-scale metadata, declared in the model's quant_context, not a param.
+  embed:
+    op: hash_embedding
+    in: input_ids
+    dims: { n_vocab: n_vocab, d_model: d_ngram_head, rows: n_ngram_heads }
+    # Each TP rank holds 1/TP of the table's rows. vLLM's
+    # `ParallelEngramEmbedding` picks them by hash column (ceil(24 / tp)
+    # columns and their bucket rows, models/deepseek_v41/common/engram.py:
+    # 988-1001) and all-gathers the looked-up rows over the column axis
+    # (:1673, :1181); sglang's `EngramEmbedding` cuts the rows evenly and
+    # all-reduces the zero-filled lookups (srt/layers/engram.py:760-765,
+    # :864-875). Both read the table split evenly, padded; the cut is written
+    # on the rows, so the lookup is a pending sum — sglang's all-reduce of the
+    # 24·256 lookup, which `wkv` (column-parallel, it wants its input whole)
+    # forces before the projection. vLLM's form, an all-gather of the same
+    # 6144 values, says which rows a column owns, which the config does not
+    # state (the per-column prime bucket sizes are computed at load).
+    weight_axes: [{ world: attention, parts: n_vocab, fit: pad }, { replicated: true }]
+    host_offload: >-
+      vLLM EngramConfig.cpu_offload, on by default (VLLM_PLE_CPU_OFFLOAD=1):
+      the table and its scales in pinned host memory, gathered over UVA
+      (vllm/config/engram.py:26-47, models/deepseek_v41/nvidia/engram.py:245-290)
+  # `.flatten(-2)` → [B, L, n_ngram_heads * d_ngram_head = 6144]
+  emb_flat:   { op: view_merge, in: embed }
+  # Linear(n_hash_cols * head_dim, dim * (hc_mult + 1)) — source/model.py:345.
+  # Its output width is `d_engram_kv` (= d_model·(n_hidden_copies + 1)).
+  # vLLM builds it ColumnParallelLinear(gather_output=True)
+  # (models/deepseek_v41/common/engram.py:1552-1563: "Without sequence
+  # parallelism every TP rank holds every token, so shard the output columns
+  # instead of replicating the projection"), so each rank holds and reads
+  # 1/TP of the weight and the output is all-gathered before the key/value
+  # split. sglang keeps it ReplicatedLinear (srt/layers/engram.py:996-1002).
+  # Placement is one per spec, so this follows the default framework, vLLM;
+  # an sglang deployment is billed vLLM's split (docs/known_limitations.md §1.3).
+  wkv:        { op: linear, in: emb_flat, dims: { in: "n_ngram_heads * d_ngram_head", out: d_engram_kv }, weight_axes: [{ world: attention, parts: d_engram_kv, fit: exact }, { replicated: true }] }
+  key_flat:   { op: slice, in: wkv, dims: { in: d_engram_kv, out: "n_hidden_copies * d_model", start: "0" } }
+  value:      { op: slice, in: wkv, dims: { in: d_engram_kv, out: d_model, start: "n_hidden_copies * d_model" } }
+  key:        { op: view_split, in: key_flat, axis: -1, dims: { in: "n_hidden_copies * d_model", n_heads: n_hidden_copies, d_head: d_model } }
+
+  # `weight = self.q_weight.float() * self.k_weight.float()  # only ever used as
+  # a product` — two [hc_mult, dim] parameters, both initialized to ones.
+  # Each gain multiplies the side it belongs to rather than the other gain:
+  # (h·q_weight)·(key·k_weight) summed over `dim` is the same scalar as the
+  # source's (h·(q_weight·k_weight)·key).sum, because every factor is
+  # elementwise over the same [hc_mult, dim] layout. Written this way because a
+  # `mul` of two parameters is a weight-only node — its work does not grow with
+  # the batch, while every FLOP a block reports must — so the product is formed
+  # against the activations it is applied to.
+  #
+  # Each gain multiplies an `rmsnorm_unscaled` output below, so with it the
+  # pair is an RMSNorm and the gain is that norm's weight, one row per hc
+  # copy: `role: norm`. The checkpoint stores them BF16 beside the FP8 table
+  # and `wkv`, which is the norm role's precision, not the memory's.
+  q_weight:   { op: parameter_tensor, role: norm, shape: [n_hidden_copies, d_model], weight_axes: [{ replicated: true }, { replicated: true }] }
+  k_weight:   { op: parameter_tensor, role: norm, shape: [n_hidden_copies, d_model], weight_axes: [{ replicated: true }, { replicated: true }] }
+
+  # `h` is the source's `x`, "[B, L, hc_mult, dim]" (source/model.py:351), and
+  # every op below is per-copy — so the copy axis has to be re-exposed. It
+  # arrives flattened (the layout the HC stream crosses block boundaries in),
+  # and the split reads it there: a view, zero params, zero FLOPs.
+  x_copies:   { op: view_split, in: x, axis: -1, dims: { n_heads: n_hidden_copies, d_head: d_model } }
+
+  h_rms:      { op: rmsnorm_unscaled, in: x_copies, dim: d_model, formula: "h · rsqrt(mean(h², -1) + eps)   (the rstd_h factor of source/model.py:359)" }
+  key_rms:    { op: rmsnorm_unscaled, in: key, dim: d_model, formula: "key · rsqrt(mean(key², -1) + eps)   (the rstd_k factor of source/model.py:359)" }
+  hw:         { op: mul, in: [h_rms, q_weight], dim: d_model, formula: "h · rstd_h · q_weight   (the q side of `weight = q_weight * k_weight`, source/model.py:357)" }
+  kw:         { op: mul, in: [key_rms, k_weight], dim: d_model, formula: "key · rstd_k · k_weight   (the k side of the same product)" }
+  hwk:        { op: mul, in: [hw, kw], dim: d_model }
+  dot:        { op: sum_reduce, in: hwk, dims: { in: d_model } }
+  dot_scale:  { op: scale_const, in: dot, dims: { in: n_hidden_copies }, formula: "y = dot / sqrt(d_model)   (`* self.dim**-0.5`)" }
+  # `torch.copysign(dot.abs().clamp_min(1e-6).sqrt(), dot)` — the registered
+  # `signed_sqrt`; the clamp_min is a numerical floor, not an axis.
+  gate_sqrt:  { op: signed_sqrt, in: dot_scale, dim: n_hidden_copies }
+  gate:       { op: sigmoid, in: gate_sqrt, dim: n_hidden_copies }
+
+  # `gate.unsqueeze(-1) * value.float().unsqueeze(-2)` — one shared value
+  # broadcast across the hc copies, each scaled by its own gate.
+  gate_exp:    { op: broadcast, in: gate, axis: -1, dims: { width: d_model } }
+  value_bcast: { op: broadcast, in: value, axis: -2, dims: { width: n_hidden_copies } }
+  gated_value: { op: mul, in: [value_bcast, gate_exp], dim: d_model }
+  # `return (h + gate.unsqueeze(-1) * value.float().unsqueeze(-2)).to(x.dtype)`
+  # — per-copy add. The output stays WIDENED: the caller feeds it straight into
+  # `hc_weighted_reduce` / `hc_post`, which both want the copy axis, and
+  # re-flattens it only for `hc_mixes`.
+  out:         { op: add, in: [x_copies, gated_value], dim: d_model }
+outputs: [out]
+
+# No `axioms:` block, for the same reason the HC blocks state none: the Engram
+# registers no buffer of its own (see the note at the bottom of this file), and
+# `storage: none` would instead ask the checker to evaluate the component
+# standalone, where the re-exposed copy axis collides with s_ctx.
+#
+# For the record, the engram holds no per-request KV: `NgramHashState` does
+# carry a token-id cache, but every one of its buffers is `persistent=False`
+# and holds int64 ids, not activations — and it lives outside the Engram module
+# (source/engram.py:155-157 `self.register_buffer("cache", torch.empty(
+# args.max_batch_size, args.max_seq_len, dtype=torch.int64), persistent=False)`;
+# Engram itself registers no buffer — source/model.py:335-348).

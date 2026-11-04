@@ -1,0 +1,54 @@
+# Identity file for tencent/Hy3
+base: hunyuan_v3
+match:
+  model_id: [tencent/Hy3]
+
+# The checkpoint stores the router linear as `mlp.router.gate.weight`; the draft
+# is a pure naming adapter over the library MoE component (no graph change).
+drafts:
+  - moe_ffn_router_gate_expert_bias_shared
+
+blocks:
+  # DeepSeek-style MTP head (checkpoint layer 80: enorm / hnorm / eh_proj / final_layernorm;
+  # modeling_hy_v3.py:438-439 drops these keys on load, so no HF forward exists).
+  # `inputs_embeds` is the shared embed_tokens lookup of the shifted input token (no private
+  # table: model.layers.80.embed_tokens is absent); `x` is the previous hidden state.
+  hy_v3_mtp_block:
+    inputs: [x, inputs_embeds]
+    graph:
+      layer: { op: mtp_block_shared_head, in: [x, inputs_embeds], module: null,
+               params: { inner: { template: pre_norm, params: { attn: gqa_qknorm_attention, ffn: moe_ffn_router_gate_expert_bias_shared } } },
+               inner_modules: { shared_head.norm: final_layernorm } }
+    outputs: [layer]
+
+model_inputs:
+  input_ids: { kind: tokens }
+
+# The transformers base model's tensors sit under `model.`; the LM head
+# beside it declares its own path.
+checkpoint: { root: model }
+
+model:
+  - { name: embed_tokens, inputs: [input_ids], op: embedding, boundary_role: input_embedding, dims: { n_vocab: n_vocab, d_model: d_model }, weight_axes: [{ world: attention, parts: n_vocab, fit: pad }, { replicated: true }] }
+  - name: layers
+    inputs: [embed_tokens]
+    repeat: n_layers
+    streams:
+      hidden: { carries: true }
+    per_layer:
+      assign:
+        - { type: dense, range: ["0", "n_dense_layers - 1"] }
+        - { type: moe,   range: [n_dense_layers, "n_layers - 1"] }
+      map:
+        dense: { attention: gqa_qknorm_attention, ffn: swiglu_ffn }
+        moe:   { attention: gqa_qknorm_attention, ffn: moe_ffn_router_gate_expert_bias_shared }
+  - { name: norm, op: rmsnorm, dim: d_model, weight_axes: [{ replicated: true }] , inputs: [layers]}
+  - { name: lm_head, op: linear, checkpoint: { path: lm_head }, boundary_role: output_head, dims: { in: d_model, out: n_vocab }, weight_axes: [{ world: attention, parts: n_vocab, fit: pad }, { replicated: true }], tied_weight: { to: embed_tokens, when: config.tie_word_embeddings } , inputs: [norm]}
+  - name: mtp
+    group: true
+    aux_kind: mtp
+    checkpoint: { prefix: model.layers, index: { after: backbone } }
+    inputs: [norm]
+    layers:
+      - { name: layers, repeat: n_mtp_layers, template: hy_v3_mtp_block , inputs: [norm, embed_tokens], streams: { hidden: { carries: true } }}
+      - { name: mtp_logits, op: linear, boundary_role: output_head, repeat: n_mtp_layers, dims: { in: d_model, out: n_vocab }, weight_axes: [{ world: attention, parts: n_vocab, fit: pad }, { replicated: true }], tied_weight: { to: lm_head } , inputs: [layers]}

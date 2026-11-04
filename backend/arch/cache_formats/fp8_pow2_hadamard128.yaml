@@ -1,0 +1,5 @@
+description: "FP8 (E4M3) with one power-of-two scale per 128 channels (stored F32), Hadamard-128 rotated before the write."
+source: "GLM-5.3 k-pool index cache: vLLM nvidia/ops/kpool_compress.py:19-45, :221-230; sglang kpool_fp8_index.py:1197-1209"
+dtype: F8_E4M3
+scale: { granularity: per-group, group: 128, dtype: F32, power_of_two: true }
+transform: hadamard

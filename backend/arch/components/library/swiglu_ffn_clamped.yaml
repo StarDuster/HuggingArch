@@ -1,0 +1,36 @@
+# SwiGLU FFN with clamped pre-activations.
+# First observed in: DeepSeek-V4 (routed and shared experts).
+#
+# transformers modeling_deepseek_v4.py, DeepseekV4MLP.forward (the shared
+# expert) and DeepseekV4Experts._apply_gate (the routed experts):
+#   gate = gate_proj(x).clamp(max=limit)
+#   up   = up_proj(x).clamp(min=-limit, max=limit)
+#   out  = down_proj(silu(gate) * up)             # limit = config.swiglu_limit
+# vLLM runs the two clamps, the SiLU and the multiply as one kernel,
+# SiluAndMulWithClamp (model_executor/layers/activation.py), for the shared
+# expert, and passes `activation_clamp=swiglu_limit` to the fused-MoE kernel
+# for the routed experts (models/deepseek_v4/nvidia/model.py). sglang's
+# `silu_and_mul_clamp` is the same launch.
+#
+# Same topology as `swiglu_ffn` plus the two bounds, which is what makes it a
+# component of its own: the clamps sit between the projections and the
+# gating, where no call site can reach. The bound is `clamp_limit`, the
+# `clamp` op's function constant (dims.yaml kind `constant`): the model's
+# `dims:` binds it where its config publishes it (`config.swiglu_limit`,
+# `config.text_config.swiglu_limit`), and a call site may rebind it with
+# `dims: { clamp_limit: … }`.
+#
+# Required dims: d_model, d_ffn, clamp_limit
+# Module name pattern: {gate_proj, up_proj, down_proj}
+
+role: ffn_dense
+description: "SwiGLU FFN with clamped pre-activations: min(gate_proj, limit) → silu, clamp(up_proj, ±limit), multiply, down_proj. DeepSeek-V4 experts."
+graph:
+  gate_proj:  { op: linear, in: x, dims: { in: d_model, out: d_ffn }, weight_axes: [{ placement_by_symbol: { d_ffn: { world: dense_ffn, parts: d_ffn, fit: exact }, d_ffn_expert: { world: moe_expert, parts: d_ffn, fit: exact }, d_ffn_shared: { world: dense_ffn, parts: d_ffn, fit: exact } } }, { replicated: true }] }
+  up_proj:    { op: linear, in: x, dims: { in: d_model, out: d_ffn }, weight_axes: [{ placement_by_symbol: { d_ffn: { world: dense_ffn, parts: d_ffn, fit: exact }, d_ffn_expert: { world: moe_expert, parts: d_ffn, fit: exact }, d_ffn_shared: { world: dense_ffn, parts: d_ffn, fit: exact } } }, { replicated: true }] }
+  gate_clamp: { op: clamp, in: gate_proj, dim: d_ffn, formula: "y = min(gate_proj, clamp_limit)" }
+  up_clamp:   { op: clamp, in: up_proj, dim: d_ffn, formula: "y = min(max(up_proj, −clamp_limit), clamp_limit)" }
+  silu:       { op: silu, in: gate_clamp, dim: d_ffn }
+  gate_mul:   { op: mul, in: [silu, up_clamp], dim: d_ffn }
+  down_proj:  { op: linear, in: gate_mul, dims: { in: d_ffn, out: d_model }, weight_axes: [{ replicated: true }, { placement_by_symbol: { d_ffn: { world: dense_ffn, parts: d_ffn, fit: exact }, d_ffn_expert: { world: moe_expert, parts: d_ffn, fit: exact }, d_ffn_shared: { world: dense_ffn, parts: d_ffn, fit: exact } } }] }
+outputs: [down_proj]

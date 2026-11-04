@@ -1,0 +1,4 @@
+# Identity file for IQuestLab/IQuest-Coder-V1-40B-Instruct
+base: llama
+match:
+  model_id: [IQuestLab/IQuest-Coder-V1-40B-Instruct]

@@ -1,0 +1,47 @@
+# NVFP4 — E2M1 values packed two per byte, one E4M3 scale per 16 elements
+# and one F32 scale per tensor (NVIDIA modelopt NVFP4 layout:
+# `.weight` U8, `.weight_scale` F8_E4M3 [out, in/16], `.weight_scale_2` F32).
+#
+# Used as a DEPLOYMENT format: a precision profile may run any matrix at
+# NVFP4 whatever the checkpoint saved. No corpus checkpoint selects it by
+# quant_method (modelopt NVFP4 checkpoints say `modelopt`).
+description: "NVFP4 — E2M1 packed 2-per-U8 + E4M3 scale per 16 + F32 per tensor."
+
+num_bits:
+  fixed: 4
+badge: NVFP4
+
+format_variants:
+  default:
+    packing_factor: 2
+    storage_dtype: U8
+    weight_storage_suffix: ".weight"
+
+numeric_format: [fp_e2m1]
+numeric_format_resolver:
+  - { when: "true", format: fp_e2m1 }
+
+scale_strategy: [group]
+
+metadata_siblings:
+  - suffix: ".weight_scale"
+    kind: scale
+    shape_per_strategy:
+      group: ["out", "(in + group_size - 1) // group_size"]
+    dtype: F8_E4M3
+  - suffix: ".weight_scale_2"
+    kind: scale
+    shape: ["1"]
+    dtype: F32
+
+required_fields: [group_size]
+valid_status: [compressed, frozen]
+
+# A deployment's NVFP4 weight: 16-element blocks. W4A4 quantises the
+# activation operand to NVFP4 too and runs the FP4 MMA; W4A16 dequantises
+# the weight in the kernel and runs at the activation's dtype.
+deployment_fields:
+  group_size: 16
+activation_options:
+  w4a4: nvfp4_dynamic
+  w4a16: none

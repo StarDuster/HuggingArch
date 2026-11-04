@@ -1,0 +1,39 @@
+# HunYuanVL ViT encoder layer (HunYuanVLVisionBlock).
+# Pre-norm (LayerNorm) + biased MHA + LayerNorm + biased GELU MLP.
+# forward:
+#   residual = x; x = layer_norm1(x); x = self_attn(x); x = residual + x
+#   residual = x; x = layer_norm2(x); x = mlp(x);       x = residual + x
+# This checkpoint names the two norms input_layernorm / post_attention_layernorm.
+#
+#
+# Attention (HunYuanVLVisionAttention) is written inline under `self_attn.*`
+# (as library qwen35_vision_block does), not as a separate role: attention
+# component: separate biased q_proj / k_proj / v_proj / o_proj, plain MHA
+# (num_key_value_groups=1), no RoPE (variable-length via cu_seqlens).
+#   q = q_proj(x); k = k_proj(x); v = v_proj(x)   (all biased)
+#   attn = softmax(qk / sqrt(d_vis_head)) @ v ; o = o_proj(attn)  (biased)
+# The encoder is non-causal (modeling_hunyuan_vl.py:346 `self.is_causal = False`)
+# and the ViT layer loop passes no cache (:714-720), so it keeps no KV cache.
+#
+# Required dims: d_vis_model, n_vis_heads, d_vis_head, d_vis_ffn
+role: block
+description: "HunYuanVL ViT encoder layer: pre-norm LayerNorm + inline biased non-causal MHA (no KV cache) + biased GELU MLP."
+graph:
+  input_layernorm:          { op: layernorm, in: x, dim: d_vis_model, weight_axes: [{ replicated: true }] }
+  self_attn.q_proj:         { op: linear, in: input_layernorm, dims: { in: d_vis_model, out: "n_vis_heads * d_vis_head", bias: "1" }, weight_axes: [{ world: attention, parts: n_vis_heads, fit: replica_cells }, { replicated: true }] }
+  self_attn.k_proj:         { op: linear, in: input_layernorm, dims: { in: d_vis_model, out: "n_vis_heads * d_vis_head", bias: "1" }, weight_axes: [{ world: attention, parts: n_vis_heads, fit: replica_cells }, { replicated: true }] }
+  self_attn.v_proj:         { op: linear, in: input_layernorm, dims: { in: d_vis_model, out: "n_vis_heads * d_vis_head", bias: "1" }, weight_axes: [{ world: attention, parts: n_vis_heads, fit: replica_cells }, { replicated: true }] }
+  self_attn.q_split_heads:  { op: head_split, in: self_attn.q_proj, dims: { n_heads: n_vis_heads, d_head: d_vis_head } }
+  self_attn.k_split_heads:  { op: head_split, in: self_attn.k_proj, dims: { n_heads: n_vis_heads, d_head: d_vis_head } }
+  self_attn.v_split_heads:  { op: head_split, in: self_attn.v_proj, dims: { n_heads: n_vis_heads, d_head: d_vis_head } }
+  # Bidirectional: every query sees every key of its image (modeling_hunyuan_vl.py:346 `is_causal = False`; vLLM hunyuan_vision.py HunYuanVisionAttention runs MMEncoderAttention, non-causal per cu_seqlens chunk).
+  self_attn.qk_score:       { op: attention_score, in: [self_attn.q_split_heads, self_attn.k_split_heads], dims: { is_causal: "0", n_heads: n_vis_heads, d_head: d_vis_head } }
+  self_attn.softmax:        { op: softmax, in: self_attn.qk_score, dims: { is_causal: "0", n_heads: n_vis_heads } }
+  self_attn.attn_apply:     { op: attention_apply, in: [self_attn.softmax, self_attn.v_split_heads], dims: { is_causal: "0", n_heads: n_vis_heads, d_head: d_vis_head } }
+  self_attn.o_merge_heads:  { op: head_merge, in: self_attn.attn_apply, dims: { n_heads: n_vis_heads, d_head: d_vis_head } }
+  self_attn.o_proj:         { op: linear, in: self_attn.o_merge_heads, dims: { in: "n_vis_heads * d_vis_head", out: d_vis_model, bias: "1" }, weight_axes: [{ replicated: true }, { world: attention, parts: n_vis_heads, fit: replica_cells }] }
+  post_attn_add:            { op: add, in: [x, self_attn.o_proj], dim: d_vis_model }
+  post_attention_layernorm: { op: layernorm, in: post_attn_add, dim: d_vis_model, weight_axes: [{ replicated: true }] }
+  mlp:                      { op: hunyuan_vit_mlp, in: post_attention_layernorm }
+  out:                      { op: add, in: [post_attn_add, mlp], dim: d_vis_model }
+outputs: [out]

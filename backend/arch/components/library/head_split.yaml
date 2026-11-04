@@ -1,0 +1,21 @@
+# Head-split: per-token feature dim → per-head 4-D layout.
+#
+# Standard `qkv_proj` → split-heads idiom factored into one compound:
+#   [B, s_ctx, n_heads·d_head]   --view_split-->   [B, s_ctx, n_heads, d_head]   --transpose-->   [B, n_heads, s_ctx, d_head]
+#
+# Used wherever attention spec needs to go from a flat projection
+# output to the canonical (B, n_heads, s_ctx, d_head) head-major layout. Same
+# component covers MHA, MQA (n_kv_heads=1), GQA (n_kv_heads<n_heads), MLA's nope branches,
+# vision attention — wherever PyTorch source writes `.view(B, s_ctx, n_heads,
+# d_head).transpose(1, 2)`.
+#
+# Required dims at call site: n_heads (head count), d_head (head dim).
+# Caller binds via `dims: { in: <flat_size>, n_heads: ..., d_head: ... }`. Most
+# callers pass `in: n_heads*d_head`, but specs that pre-fuse Q+K+V and slice
+# beforehand can pass any compatible last-dim size.
+
+description: "Split last axis into (n_heads, d_head) and transpose to (B, n_heads, s_ctx, d_head). 1-line head_split replacing inline view_split + transpose."
+graph:
+  unflatten: { op: view_split, in: x, axis: -1, dims: { in: "n_heads * d_head", n_heads: n_heads, d_head: d_head } }
+  permute:   { op: transpose, in: unflatten, axes: [0, 2, 1, 3] }
+outputs: [permute]

@@ -1,0 +1,57 @@
+# RMSNorm then a rotation of the last d_qk_rope dims, in one launch — the
+# DeepSeek-V4 latent-KV row and compressed-KV entry as sglang prepares them.
+#
+# Naive subgraph (dsv4_*_attention `kv_norm` .. `kv_concat`, and the
+# compressor's `norm` .. `roped` after its pool):
+#
+#   kv_n           = rmsnorm(kv)
+#   kv_pe, kv_nope = slice(kv_n), slice(kv_n)
+#   kv_out         = concat(kv_nope, rope_emb(kv_pe))
+#
+# sglang v0.5.22 normalises and rotates each in one launch that reads the row
+# once and writes it once:
+#   - the SWA latent KV: `fused_k_norm_rope_flashmla`
+#     (python/sglang/kernels/ops/attention/dsv4/elementwise.py:307), which also
+#     writes the FlashMLA paged cache, from
+#     `DeepSeekV4TokenToKVPool.set_swa_key_buffer_radix_fused_norm_rope`
+#     (python/sglang/srt/mem_cache/deepseek_v4_memory_pool.py:2041, call :2065),
+#     reached from `_compute_kv_to_cache` (srt/models/deepseek_v4.py:1420);
+#     the trtllm uniform-FP8 pool's `fused_k_norm_rope_uniform_fp8`
+#     (kernels/ops/attention/dsv4/kv_norm_rope_store.py:57, call :2055) also
+#     stores in the one launch; prefill context parallelism runs the same
+#     norm + rope with the store split off (`fused_norm_rope_inplace` at
+#     deepseek_v4.py:1476);
+#   - the compressor: `compress_forward` pools, then
+#     `compress_fused_norm_rope_inplace`
+#     (python/sglang/kernels/ops/attention/dsv4/compress_old.py:271) norms and
+#     rotates the pooled entry in place
+#     (python/sglang/srt/layers/attention/dsv4/compressor.py:141, :151). vLLM's
+#     overlap compressor kernel also takes the pool
+#     (`fused_overlap_compress_norm_rope_store`).
+#   - the DeepSeek-V4.1 indexer key (csa2_index_keys `k_norm` .. `k_roped`)
+#     is not bound here: vLLM v0.32.0 also quantises and stores the row in
+#     the same launch (`indexer_k_norm_rope_store`), which is the larger
+#     `fused_compress_norm_rope_store` pattern with the `k_cache` store. sglang
+#     fuses the same chain (`index_k_norm_rope_pack_store`,
+#     kernels/ops/attention/dsv4/fp4_indexer_rope.py:53) on SM100+
+#     (`use_fused_compress`, srt/layers/attention/dsv4/dsv41_sparse.py:130)
+#     in decode, static verify and eager non-speculative extend
+#     (srt/layers/attention/deepseek_v4_backend.py:3069, :3083, :3095; launch
+#     :3262); a prefill replayed in the breakable prefill CUDA graph (:3013-3025),
+#     prefill context parallelism and other verify runs `k_norm`, then the
+#     rope + pack (:3352-3384) — not bound (one `when:` cannot also keep V4's
+#     all-SM latent-KV binding).
+# The query track is `fused_qnorm_rope.yaml`.
+
+fused_op: fused_norm_rope
+
+naive_pattern:
+  nodes:
+    norm:         { op: rmsnorm,  inputs: [external.x] }
+    rope_slice:   { op: slice,    inputs: [norm.out] }
+    norope_slice: { op: slice,    inputs: [norm.out] }
+    rope:         { op: rope_emb, inputs: [rope_slice.out] }
+    concat:       { op: concat,   inputs: [norope_slice.out, rope.out] }
+  io_mapping:
+    x:      external.x
+    output: concat.out

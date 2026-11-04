@@ -1,0 +1,149 @@
+# DeepSeek-V4.1-Flash DSpark (MTP) attention — `compress_ratios[40:43] == [0,0,0]`.
+#
+# `DSparkAttention(Attention)` overrides only `forward` (source/model.py:1032),
+# so the parameter set is byte-identical to the backbone attention — which is
+# exactly what `pattern_counts` shows (`mtp.X.attn.{attn_sink,wq_a,wq_b,q_norm,
+# wo_a,wkv,kv_norm,wo_b}` ×3 each, snapshot:2352-2359, and no mtp
+# compressor/indexer tensor at all). What differs is the dataflow, and it
+# differs enough that `library/dsv4_swa_only_attention.yaml` (read in full) is
+# not a faithful stand-in:
+#
+# `forward` (source/model.py:1033-1074) calls `self.wkv` / `self.kv_norm` TWICE
+# per step, on two different tensors:
+#
+#     main_kv = self.kv_norm(self.wkv(main_x))         # the verified stream
+#     apply_rotary_emb(main_kv[..., -rd:], main_freqs_cis)
+#     ... if start_pos == 0: seed window_kv_cache; return x     # prefill only seeds
+#     qr = self.q_norm(self.wq_a(x));  q = self.wq_b(qr)...     # the DRAFT block
+#     kv = self.kv_norm(self.wkv(x))                   # the draft's own KV
+#     topk_idxs = get_dspark_topk_idxs(win, bsz, block_size, start_pos)
+#     self.window_kv_cache[:bsz, start_pos % win] = main_kv.squeeze(1)
+#     kv = torch.cat([self.window_kv_cache[:bsz], kv], dim=1)
+#     o = sparse_attn(q, kv, self.attn_sink, topk_idxs, self.softmax_scale)
+#
+# So the keys are the sliding window of MAIN-model latents plus the draft
+# block's own `block_size` latents, and every one of those window+block
+# positions is attended (`get_dspark_topk_idxs`, source/model.py:1021-1029,
+# enumerates them all — the "sparse" call is dense over that union). The second
+# `wkv`/`kv_norm` application is modelled with `tied_weight` so the GEMM is
+# priced twice and the parameter once.
+#
+# The graph below is the decode path, which is the only one that computes: at
+# `start_pos == 0` the method returns `x` after seeding the ring buffer
+# (source/model.py:1044-1052), and `DSparkBlock.forward` skips the rest of the
+# block entirely in that case (source/model.py:1123-1125).
+#
+# Spelling the shared application: `tied_weight` is a model-layer field, not a
+# graph-node one, so the two applications of `wkv` / `kv_norm` are written as
+# explicit parameter nodes (`wkv.weight`, `kv_norm.weight`, whose node names are
+# the literal checkpoint keys) consumed twice — `linear_external_weight` for the
+# GEMM (the `library/hc_pre.yaml:31` spelling) and `rmsnorm_unscaled` + `mul`
+# for the norm, which is the definition of `rmsnorm`. Parameters counted once,
+# FLOPs priced twice.
+#
+# Required dims: d_model, n_heads, d_head, d_qk_rope, d_q_lora, d_out_lora,
+#                n_out_lora_groups, d_out_lora_group_in, s_window, s_ctx
+#                (the rows the caller lands), s_dspark_block (the configured
+#                draft-block cap).
+
+role: attention
+description: "DSv4.1 DSpark MTP attention: actual draft rows over (sliding window of main-model latents ∪ at most one draft block), per-head sink, shared wkv/kv_norm applied to both streams, grouped o-LoRA."
+inputs: [x, main_x]
+cache:
+  family: SWA
+  # `main_kv_concat` is the ring buffer of main-model latents (one slot per
+  # accepted token, modulo the window) and the only tensor this module keeps
+  # across steps — `self.window_kv_cache` is the module's single buffer. The
+  # draft block's own latents are not listed: they are recomputed from `x` every
+  # step and live only inside the one `sparse_attn` call (`kv_live`, read and
+  # not stored).
+  entries:
+    - { node: main_kv_concat, kind: kv }
+graph:
+  # ---- the shared wkv / kv_norm, applied to BOTH streams --------------------
+  # `main_kv = self.kv_norm(self.wkv(main_x))` (source/model.py:1040) and
+  # `kv = self.kv_norm(self.wkv(x))` (source/model.py:1057) are the SAME Linear
+  # and the SAME RMSNorm, called twice per step on two tensors: the verified
+  # token's hidden state and the draft block's. One matrix over both token sets
+  # is one matrix over their concatenation, which is how it is written here —
+  # `concat` on the token axis (the `library/hunyuan_vl_vision_tower.yaml:67`
+  # spelling), one `linear` + one `rmsnorm`, then the two halves sliced back
+  # apart. Both views are free, the GEMM is priced over every token of both
+  # streams, and the pair is stored exactly once.
+  #
+  # The alternative spelling — `parameter_tensor` + two
+  # `linear_external_weight`s — cannot be used for a QUANTIZED weight: a
+  # parameter node's checkpoint key is its node name, so the node must be called
+  # `wkv.weight`, and its FP8 scale sibling is then derived as
+  # `mtp.X.attn.wkv.weight.scale`, while the checkpoint stores
+  # `mtp.X.attn.wkv.scale` — the name a `linear` node's scale gets.
+  kv_in:             { op: concat, in: [main_x, x], axis: 1, dims: { in_a: s_ctx, in_b: s_ctx, out: "2 * s_ctx" }, formula: "y = cat([main_x, x], dim=1)   (not a source line: the token-axis union over which the one shared wkv/kv_norm pair is applied, main_x's verified token first, then the draft block's)" }
+  wkv:               { op: linear, in: kv_in, dims: { in: d_model, out: d_head }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  kv_norm:           { op: rmsnorm, in: wkv, dim: d_head, weight_axes: [{ replicated: true }] }
+
+  # ---- the verified stream's half: main_kv -----------------------------------
+  main_kv_norm:      { op: slice, in: kv_norm, axis: 1, dims: { out: s_ctx }, formula: "y = kv_norm[:, :s_main]   (the main_x half of the shared projection — the leading token positions of the concatenation)" }
+  main_kv_pe_slice:  { op: slice, in: main_kv_norm, dims: { in: d_head, out: d_qk_rope, start: "d_head - d_qk_rope" } }
+  main_kv_nope_slice: { op: slice, in: main_kv_norm, dims: { in: d_head, out: "d_head - d_qk_rope", start: "0" } }
+  main_kv_pe_rope:   { op: rope_emb, in: main_kv_pe_slice, dim: d_qk_rope }
+  main_kv_concat:    { op: concat, in: [main_kv_nope_slice, main_kv_pe_rope], dims: { in_a: "d_head - d_qk_rope", in_b: d_qk_rope, out: d_head } }
+  # `self.window_kv_cache[:bsz, start_pos % win] = main_kv.squeeze(1)` — the ring
+  # buffer this module owns holds MAIN-model latents, one per accepted token.
+
+  # ---- the draft block's query ----------------------------------------------
+  wq_a:          { op: linear, in: x, dims: { in: d_model, out: d_q_lora }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  q_norm:        { op: rmsnorm, in: wq_a, dim: d_q_lora, weight_axes: [{ replicated: true }] }
+  wq_b:          { op: linear, in: q_norm, dims: { in: d_q_lora, out: "n_heads * d_head" }, weight_axes: [{ world: attention, parts: n_heads, fit: replica_cells }, { replicated: true }] }
+  q_split:       { op: head_split, in: wq_b, dims: { n_heads: n_heads, d_head: d_head } }
+  q_pe_slice:    { op: slice, in: q_split, dims: { in: d_head, out: d_qk_rope, start: "d_head - d_qk_rope" } }
+  q_nope_slice:  { op: slice, in: q_split, dims: { in: d_head, out: "d_head - d_qk_rope", start: "0" } }
+  q_pe_rope:     { op: rope_emb, in: q_pe_slice, dim: d_qk_rope }
+  q_concat:      { op: concat, in: [q_nope_slice, q_pe_rope], dims: { in_a: "d_head - d_qk_rope", in_b: d_qk_rope, out: d_head } }
+
+  # ---- the draft block's own KV: kv = self.kv_norm(self.wkv(x)) -------------
+  # The trailing half of the same shared projection.
+  draft_kv_norm: { op: slice, in: kv_norm, axis: 1, dims: { out: s_ctx }, formula: "y = kv_norm[:, s_main:]   (the draft block's half of the shared projection — the trailing token positions of the concatenation)" }
+  kv_pe_slice:   { op: slice, in: draft_kv_norm, dims: { in: d_head, out: d_qk_rope, start: "d_head - d_qk_rope" } }
+  kv_nope_slice: { op: slice, in: draft_kv_norm, dims: { in: d_head, out: "d_head - d_qk_rope", start: "0" } }
+  kv_pe_rope:    { op: rope_emb, in: kv_pe_slice, dim: d_qk_rope }
+  kv_concat:     { op: concat, in: [kv_nope_slice, kv_pe_rope], dims: { in_a: "d_head - d_qk_rope", in_b: d_qk_rope, out: d_head } }
+
+  # `kv = torch.cat([self.window_kv_cache[:bsz], kv], dim=1)` (source/model.py:1066)
+  # — the ring buffer of MAIN-model latents followed by the draft block's own
+  # rows, joined on the token axis and read as ONE key by the single
+  # sparse_attn call below: a union of two streams (the `dsv4_csa_attention`
+  # spelling). The ring keeps the last s_window main-model latents; the draft
+  # rows are recomputed from `x` every step and never written to any buffer
+  # (`step_kv`: read, not stored). Their read length is the token axis that
+  # arrived, capped at one configured draft block.
+  # `get_dspark_topk_idxs` (source/model.py:1021-1029) is generated from the
+  # configured block size and lists at most that many live rows for each query;
+  # the marker takes the smaller of that cap and the rows that arrived.
+  # Decode therefore follows `n_verify` (one row by default, `s_verify` when
+  # speculation verifies a block), while a longer prefill still reads no more
+  # than one draft block.
+  kv_window:     { op: sliding_window_kv, in: main_kv_concat, dims: { s_window: s_window } }
+  kv_live:       { op: step_kv, in: kv_concat, dims: { s_live: "Min(s_ctx, s_dspark_block)" } }
+  kv_union:      { op: kv_stream_concat, in: [kv_window, kv_live] }
+  kv_broadcast:  { op: head_broadcast, in: kv_union, dims: { n_heads: n_heads } }
+  # Dense over the union: get_dspark_topk_idxs lists every window slot and every
+  # block position, so there is no selection to carry.
+  qk_score:      { op: attention_score, in: [q_concat, kv_broadcast], dims: { n_heads: n_heads, d_head: d_head } }
+  attn_sink:     { op: parameter_vector, dim: n_heads, weight_axes: [{ world: attention, parts: n_heads, fit: replica_cells }] }
+  softmax:       { op: softmax_with_sink, in: [qk_score, attn_sink], dims: { n_heads: n_heads } }
+  attn_apply:    { op: attention_apply, in: [softmax, kv_broadcast], dims: { n_heads: n_heads, d_head: d_head } }
+
+  o_pe_slice:    { op: slice, in: attn_apply, dims: { in: d_head, out: d_qk_rope, start: "d_head - d_qk_rope" } }
+  o_nope_slice:  { op: slice, in: attn_apply, dims: { in: d_head, out: "d_head - d_qk_rope", start: "0" } }
+  o_pe_inverse_rope: { op: rope_emb_inverse, in: o_pe_slice, dim: d_qk_rope }
+  o_concat:      { op: concat, in: [o_nope_slice, o_pe_inverse_rope], dims: { in_a: "d_head - d_qk_rope", in_b: d_qk_rope, out: d_head } }
+  o_merge:       { op: head_merge, in: o_concat, dims: { n_heads: n_heads, d_head: d_head } }
+  o_group_split: { op: head_split, in: o_merge, dims: { n_heads: n_out_lora_groups, d_head: d_out_lora_group_in } }
+  wo_a:          { op: per_head_linear, in: o_group_split, dims: { n_heads: n_out_lora_groups, in: d_out_lora_group_in, out: d_out_lora }, weight_axes: [{ world: attention, parts: n_out_lora_groups, fit: replica_cells }, { replicated: true }, { replicated: true }] }
+  wo_a_merge:    { op: head_merge, in: wo_a, dims: { n_heads: n_out_lora_groups, d_head: d_out_lora } }
+  wo_b:          { op: linear, in: wo_a_merge, dims: { in: "n_out_lora_groups * d_out_lora", out: d_model }, weight_axes: [{ replicated: true }, { world: attention, parts: n_out_lora_groups, fit: replica_cells }] }
+outputs: [wo_b]
+
+# The window ring buffer (source/model.py:663-668, written modulo the window at
+# :1065) is the only per-request state; the sliding window is stated in the
+# graph over the cached stream.

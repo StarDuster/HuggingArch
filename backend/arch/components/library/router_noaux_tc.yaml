@@ -1,0 +1,71 @@
+# Aux-loss-free top-k router with grouped selection (`topk_method: noaux_tc`,
+# `scoring_func: sigmoid`).  Encapsulates the routing pipeline shared by
+# DeepseekV3MoE.route_tokens_to_experts (DSv3, V3.2), MoEGate (Kimi-K2,
+# K2.5), MiMoV2MoEGate, and Moonlight / GLM-MoE-DSA.
+#
+# Forward source (DSv3 / Kimi-K2 / MiMo-V2 are byte-equivalent):
+#
+#   logits = gate(x)                              # linear, no bias
+#   scores = logits.sigmoid()                     # element-wise
+#   biased = scores + e_score_correction_bias     # n_experts-vector parameter
+#   # group routing — degenerates to identity when n_expert_groups = 1
+#   group_scores = biased.view(n_expert_groups, -1).topk(2)[0].sum(-1)   # [n_expert_groups]
+#                                       ^^^ paper constant, NOT config-driven
+#   group_idx    = topk(group_scores, n_groups_active)         # [n_groups_active]
+#   masked       = group_mask_apply(biased, group_idx)
+#   topk_indices = topk(masked, n_experts_active)                # [n_experts_active]
+#   topk_weights = scores.gather(topk_indices)    # gather from sigmoid scores
+#   if norm_topk_prob: topk_weights = topk_weights / sum(...)
+#   topk_weights = topk_weights * routed_scaling_factor
+#   return (topk_indices, topk_weights)
+#
+# Every node is a primitive registered in `ops.py` (topk / gather /
+# group_top2_sum / group_mask_apply / normalize_sum_one / scale_const) —
+# hover any node in the UI for its formula.
+#
+# Dimension glossary:
+#   d_model  — hidden size (input).
+#   n_route_targets — the destinations the router scores (derived: n_experts + n_zero_experts).
+#   n_expert_groups — number of expert groups the routed experts are split into.
+#        From config.n_group; defaults to 1 (no grouping).
+#   experts per group — n_route_targets / n_expert_groups. Not a dim: group_top2_sum reshapes
+#        n_route_targets → (n_expert_groups, n_route_targets / n_expert_groups) internally.
+#   n_groups_active — top groups picked per token. From config.topk_group; defaults to n_expert_groups
+#        (i.e. all groups, which makes grouped routing a no-op).
+#   n_experts_active  — top-K experts picked per token (= config.num_experts_per_tok).
+#
+# Required dims: d_model, n_route_targets, n_expert_groups (config.n_group),
+# n_groups_active (config.topk_group).
+# Optional dims: n_experts_active.
+# When n_expert_groups = 1, group_top2_sum / group_topk / group_mask_apply survive in
+# the graph but their FLOPs collapse to small constants.
+
+role: router
+description: "Aux-loss-free top-K router: sigmoid + e_score_correction_bias + grouped top-n_groups_active-of-n_expert_groups + token-level top-K + gather + norm + scale. DSv3, Kimi-K2/K2.5, MiMo-V2, Moonlight, GLM-MoE-DSA."
+graph:
+  # Score: sigmoid(linear(x)).  No bias on the linear; the additive
+  # bias is a separate parameter applied after sigmoid.
+  # Primary: this Linear IS the routing gate nn.Module in HF (`mlp.gate`).
+  # Sibling Parameters / inline ops are flat siblings of `linear`; the
+  # parent MoE component is wrapped under role:router so they all land
+  # under the HF `mlp.gate.` namespace by way of weight_name composition.
+  linear:                    { op: linear, in: x, dims: { in: d_model, out: n_route_targets, bias: "0" }, module: null, weight_axes: [{ replicated: true }, { replicated: true }] }
+  sigmoid:                   { op: sigmoid, in: linear, dim: n_route_targets }
+  e_score_correction_bias:   { op: parameter_vector, dim: n_route_targets, weight_axes: [{ replicated: true }] }
+  scores_biased:             { op: add, in: [sigmoid, e_score_correction_bias], dim: n_route_targets }
+
+  # Grouped top-n_groups_active selection over n_expert_groups groups (n_route_targets / n_expert_groups experts each).
+  # When n_expert_groups = 1 these reduce to trivial identity but stay as graph nodes
+  # so the diagram matches the forward source.
+  group_top2_sum: { op: group_top2_sum, in: scores_biased, dims: { in: n_route_targets, n_expert_groups: n_expert_groups } }
+  group_topk:     { op: topk,           in: group_top2_sum, dims: { in: n_expert_groups, k: n_groups_active } }
+  group_mask:     { op: group_mask_apply, in: [scores_biased, group_topk], dims: { in: n_route_targets, n_groups_active: n_groups_active } }
+
+  # Token-level top-K over masked scores, then gather original sigmoid
+  # scores at the chosen indices, normalize, and scale.
+  topk_indices:  { op: topk,              in: group_mask, dims: { in: n_route_targets, k: n_experts_active } }
+  topk_gather:   { op: gather,            in: [sigmoid, topk_indices], dims: { in: n_route_targets, k: n_experts_active } }
+  topk_norm:     { op: normalize_sum_one, in: topk_gather, dims: { in: n_experts_active } }
+  topk_scale:    { op: scale_const,       in: topk_norm,   dims: { in: n_experts_active } }
+
+outputs: [topk_scale]

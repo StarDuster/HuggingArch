@@ -1,0 +1,37 @@
+# LongCat-Flash top-k router (modeling_longcat_flash.py::LongcatFlashTopkRouter,
+# vLLM longcat_flash.py::LongcatRouter + FusedMoE):
+#
+#   logits  = classifier(x)                                  # fp32
+#   scores  = logits.softmax(dim=-1)                         # over n_route_targets
+#   indices = topk(scores + e_score_correction_bias, k)      # bias only selects
+#   weights = scores.gather(indices)
+#   if norm_topk_prob: weights /= weights.sum(-1)            # config switch
+#   weights *= routed_scaling_factor
+#
+# No expert grouping. The projection is its own `classifier` submodule and the
+# correction bias sits beside it, so invoked as `router` the checkpoint names
+# are `router.classifier.weight` + `router.e_score_correction_bias`:
+#
+#   mlp.router.classifier.weight            (the d_model→n_route_targets projection)
+#   mlp.router.e_score_correction_bias      (sibling of `classifier`, not under it)
+#
+# Required dims: d_model, n_route_targets, n_experts_active, n_topk_renorm
+# (bind `config.norm_topk_prob ?? "0"`: the config class defaults it to False).
+
+role: router
+description: "LongCat-Flash router: classifier → softmax → bias-shifted top-k → gather → optional renormalization → scale."
+graph:
+  classifier:                { op: linear, in: x, dims: { in: d_model, out: n_route_targets, bias: "0" }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  # LongcatFlashTopkRouter.forward: `scores = router_logits.softmax(dim=-1)`.
+  softmax:                   { op: softmax_act, in: classifier, dim: n_route_targets }
+  e_score_correction_bias:   { op: parameter_vector, dim: n_route_targets, weight_axes: [{ replicated: true }] }
+  scores_biased:             { op: add, in: [softmax, e_score_correction_bias], dim: n_route_targets }
+
+  topk_indices:  { op: topk,              in: scores_biased, dims: { in: n_route_targets, k: n_experts_active } }
+  topk_gather:   { op: gather,            in: [softmax, topk_indices], dims: { in: n_route_targets, k: n_experts_active } }
+  # `if self.norm_topk_prob: topk_weights /= topk_weights.sum(...)` —
+  # config-switched; off, the gathered scores go straight to the scale.
+  topk_norm:     { op: normalize_sum_one, in: topk_gather, dims: { in: n_experts_active }, when: n_topk_renorm }
+  topk_scale:    { op: scale_const,       in: topk_norm,   dims: { in: n_experts_active } }
+
+outputs: [topk_scale]

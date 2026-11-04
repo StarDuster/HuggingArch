@@ -1,0 +1,84 @@
+# CSA2 indexer, the key-owning form that is also the CANDIDATE SOURCE —
+# `Indexer` at `candidate_source_layer_id` (source/model.py:503, 569-572).
+#
+# Everything `csa2_indexer` does, plus level one of the two-level top-k, run
+# once here and reused by every later index source:
+#
+#     if self.is_candidate_source:
+#         shared_attn.candidates = select_candidate_blocks(
+#             index_score, compress_lens, self.candidate_topk_blocks,
+#             self.candidate_block_size)
+#
+# `select_candidate_blocks` (source/model.py:583-610) is, verbatim, a grouped
+# amax followed by a top-G group pick and a mask of everything outside the
+# winning groups:
+#
+#     scores = F.pad(logits, (0, -width % block_size), value=-inf)
+#     scores = scores.unflatten(-1, (-1, block_size)).amax(dim=-1)
+#     top    = scores.topk(min(topk_blocks, num_blocks), dim=-1)
+#     keep   = zeros_like(scores, bool).scatter_(-1, top.indices, top.values > -inf)
+#     return keep.repeat_interleave(block_size, dim=-1)[..., :width]
+#
+# which is exactly DeepSeek-V2's group limit (`library/router_softmax_topk`):
+# partition the last axis into groups, score each by its max, keep the top
+# `n_groups_active` and mask the rest — `group_max`, a group `topk`,
+# `group_mask_apply`. The groups here are candidate blocks of
+# `s_sparse_block` compressed positions and `n_groups_active` is
+# `n_topk_blocks`, so the primitives are reused rather than a new op invented.
+# The `-inf` pad and the pin of the query's own partly-filled block are
+# masking details that move no data and add no axis. The pick is over the
+# blocks that EXIST at this step — `num_blocks = scores.size(-1)` of the
+# compressed positions reached so far, `s_kv // compress_ratio //
+# s_sparse_block` — not over the buffer's capacity: at one decode step the
+# kernel ranks the blocks of the cache, not the million-token slot range.
+#
+# This layer publishes the mask and does NOT apply it to its own score: the
+# `is_candidate_source` branch only publishes and the masking is the
+# `uses_candidates` elif (source/model.py:569-575), so the top-K below runs
+# over the raw index score. The layers that read the stream
+# (`csa2_indexer_shared_keys`) are the ones that mask.
+#
+# A component of its own rather than a switch inside `csa2_indexer`: a
+# `when:` switch removes a step, and this one also PUBLISHES a stream, which
+# a component declares for every layer that runs it.
+#
+# Required dims: `csa2_indexer`'s, plus n_topk_blocks and s_sparse_block.
+
+description: "CSA2 indexer, key-owning + candidate-source form: as csa2_indexer plus level one of the two-level top-K (candidate blocks). Publishes index_k, candidates and csa_topk."
+inputs: [x, q_norm, latent]
+cache:
+  entries:
+    - { node: k_cache, kind: index_key }
+stream_out:
+  index_k: k_read
+  candidates: cand_group_topk
+  csa_topk: topk_idx
+graph:
+  keys: { op: csa2_index_keys, in: latent, module: null }
+  k_cache:
+    op: token_pool_compressor
+    in: keys
+    dim: d_indexer_head
+    dims: { compress_ratio: compress_ratio }
+    formula: "self.k_cache = zeros(max_batch_size, max_seq_len // compress_ratio, index_head_dim)   (source/model.py:519-525)"
+  k_read:
+    op: kv_cache_view
+    in: k_cache
+    formula: "shared_attn.index_k[:bsz, : end_pos // compress_ratio]   (source/model.py:548 publishes self.k_cache, :554 is the read)"
+  score: { op: csa2_index_score, in: [x, q_norm, k_read], module: null }
+
+  # ---- level one: select_candidate_blocks ---------------------------------
+  cand_group_max:  { op: group_max, in: score, dims: { in: "s_kv // compress_ratio", out: "s_kv // compress_ratio // s_sparse_block" } }
+  # What it publishes is the block list itself: `n_topk_blocks` block ids of
+  # `s_sparse_block` compressed positions each per query — sglang
+  # `v41_indexer/sparse_table.py:174-230` (`publish_decode`: its own top-k
+  # plus `amax_topk_blocks`, 2048 blocks × 8 = 16,384 candidates). The
+  # reference (source/model.py:575) expands it to an s_kv/ratio-wide mask for
+  # a dense masked_fill; the later layers score only the candidates instead
+  # (`csa2_indexer_shared_keys`), so no mask is built.
+  cand_group_topk: { op: topk, in: cand_group_max, dims: { in: "s_kv // compress_ratio // s_sparse_block", k: n_topk_blocks } }
+  # This layer's own selection is over the UNMASKED score: the mask it just
+  # published is the `elif` branch's, read by the later index sources
+  # (source/model.py:569-579).
+  topk_idx: { op: topk, in: score, dims: { in: "s_ctx // compress_ratio", k: n_topk_keys } }
+outputs: [topk_idx]

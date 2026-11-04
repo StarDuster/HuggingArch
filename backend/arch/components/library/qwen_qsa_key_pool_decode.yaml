@@ -1,0 +1,51 @@
+# Qwen QSA indexer key pool — decode form.
+#
+# One token per step joins the pending block's ring; when the block
+# completes (once every compress_ratio steps) the ring's compress_ratio raw
+# keys are mean-pooled, k_layernorm'd, roped at the block's first position and
+# appended to the pooled cache as one row (vLLM v0.32.0
+# models/qwen4_exp/common/qsa_cache.py:801-876; sglang v0.5.22
+# srt/mem_cache/qsa_kv_pool.py:58-69). HF instead re-pools every complete
+# block of its raw-key cache for every query (modeling_qwen4_exp.py:708,
+# :734); see `qwen_qsa_key_pool` for why the results are bit-identical.
+#
+# This is the law vLLM replays: a key work item exists only for a group the
+# step completed (`qsa_cache.py:639-645`, `:679-703`). sglang's CUDA-graph
+# decode compresses every decoded row every step and dumps the rows that
+# complete no block, so its launch is not bound here — see
+# `fusion_plans/qsa_index_k_compress_store.yaml`.
+#
+# The frame is the DSv4 compressor's decode form: `view_split axis: 1` turns
+# [B, S, D] into [B, S/m, m, D] with no tail, the slot axis is the blocks a
+# step completes — `s_ctx / compress_ratio`, the Rational average one token
+# makes — so the pool, the norm, the rotation and the cache append cost one
+# block once per compress_ratio tokens.
+#
+# Required dims: as `qwen_qsa_key_pool`. Same tensors, same cache entries.
+
+description: "Qwen QSA indexer key pool, decode form — one token per step into the ring; the block pooled, normed, roped and cached once every compress_ratio steps."
+inputs: [raw_key]
+cache:
+  entries:
+    - { node: pooled_out, kind: index_key }
+    # Read when a block completes — the same blocks a step completes as the
+    # slot axis below — not every token.
+    - { state: key_state, kind: compressor_state, carrier: index_k_sum, shape: [compress_ratio, d_indexer_head], reads: "s_ctx / compress_ratio", dtype: bf16 }
+graph:
+  index_k_win:     { op: view_split, in: raw_key, axis: 1, dims: { s_slots: "s_ctx / compress_ratio", window: compress_ratio } }
+  index_k_sum:     { op: sum_reduce, in: index_k_win, axis: 2, dims: { in: compress_ratio } }
+  index_k_pooled:  { op: scale_const, in: index_k_sum, dims: { in: d_indexer_head }, formula: "y = x / compress_ratio   (block sum → mean, once per compress_ratio tokens)" }
+  indexer.k_layernorm.rms:    { op: rmsnorm_unscaled, in: index_k_pooled, dim: d_indexer_head }
+  indexer.k_layernorm.weight: { op: parameter_vector, dim: d_indexer_head, weight_axes: [{ replicated: true }] }
+  indexer.k_layernorm:        { op: mul, in: [indexer.k_layernorm.rms, indexer.k_layernorm.weight], dim: d_indexer_head, formula: "y = norm · (1 + w)" }
+  index_k_pe:      { op: slice, in: indexer.k_layernorm, dims: { in: d_indexer_head, out: d_rope } }
+  index_k_nope:    { op: slice, in: indexer.k_layernorm, dims: { in: d_indexer_head, out: "d_indexer_head - d_rope" } }
+  index_k_pe_rope: { op: mrope, in: index_k_pe, dims: { dim: d_rope } }
+  index_k_rope:    { op: concat, in: [index_k_pe_rope, index_k_nope], dims: { in_a: d_rope, in_b: "d_indexer_head - d_rope", out: d_indexer_head } }
+  pooled_out:
+    op: token_pool_compressor
+    in: index_k_rope
+    dim: d_indexer_head
+    dims: { compress_ratio: compress_ratio }
+    formula: "cached pooled key = index_k_rope   (one row per compress_ratio tokens; storage ⌈s_kv/m⌉, read ⌊s_kv/m⌋ complete blocks)"
+outputs: [pooled_out]

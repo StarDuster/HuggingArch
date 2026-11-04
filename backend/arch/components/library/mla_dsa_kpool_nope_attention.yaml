@@ -1,0 +1,188 @@
+# MLA (NoPE) + DSA indexer that scores POOLED keys ("k-pool"), not single tokens.
+#
+# Two structural departures from `mla_dsa_attention`, both forced by the
+# checkpoint and unreachable by binding dims on that component:
+#
+#   1. NoPE MLA. `config.mla_use_nope` is true and `qk_rope_head_dim` is 0, so
+#      there is no rope anywhere on the main path and no k_pe lane at all:
+#        Glm5NextTextAttention.forward:1173-1176
+#          compressed_kv = self.kv_a_proj_with_mqa(hidden_states)
+#          kv_pass, k_rot = torch.split(compressed_kv, [kv_lora_rank, qk_rope_head_dim], dim=-1)
+#        → `k_rot` is width 0; `kv_a_proj_with_mqa.weight` is [512, 4096] in the
+#        checkpoint (d_kv_lora only), `q_b_proj.weight` is [16384, 1536]
+#        (= n_heads · d_qk_nope), and the decoder passes
+#        `position_embeddings=None` to these layers (:1486). Binding
+#        d_qk_rope = 0 on `mla_dsa_attention` would leave rope / concat /
+#        head_broadcast nodes on zero-width tensors and an indexer rope split
+#        that cannot exist.
+#
+#   2. The indexer scores COMPRESSED POOLS of `compress_ratio` (config.index_kpool)
+#      consecutive keys instead of individual keys, and the pooled key is a
+#      LEARNED softmax average over the pool, gated by a bare
+#      `index_kpool_compress_gate` parameter and an absolute-position table
+#      `index_kpool_compress_ape` (Glm5NextTextIndexer.get_pooled_states:902-975).
+#      This is the DSv4 compressor's pooling law applied to a DSA indexer:
+#      the candidate axis is s_kv / compress_ratio, the top-k budget is
+#      `index_topk // index_kpool` POOLS (:850), and each selected pool expands
+#      back to `compress_ratio` raw token indices (:863) plus the incomplete
+#      tail (:871-872). `mla_dsa_attention` has no pooling and no ape/gate
+#      parameters; `dsv4_indexer` pools but through a `dsv4_compressor_*`
+#      sub-component whose own wkv/wgate/norm/rope tensor names this checkpoint
+#      does not have.
+#
+# Forward (Glm5NextTextAttention.forward:1158-1259):
+#   q_resid      = q_a_layernorm(q_a_proj(x))                      # :1170
+#   query        = q_b_proj(q_resid)                               # :1171, [B,H,S,d_qk_nope]
+#   kv_pass      = kv_a_layernorm(kv_a_proj_with_mqa(x))           # :1173-1175, [B,1,S,512]
+#   key, value   = expand_kv(kv_pass)  = split(kv_b_proj(kv_pass)) # :1139-1156
+#   topk_indices = indexer(x, q_resid, ...)                        # :1184-1190
+#   mask         = build_attention_mask_from_topk(topk_indices)    # :1196-1200
+#   out          = o_proj(sdpa(query, key, value, mask))           # :1210-1259
+#
+# Indexer forward (Glm5NextTextIndexer.forward:776-880):
+#   q            = wq_b(q_resid).view(B,S,H,128)                   # :800
+#   k            = k_norm(wk(x))                                   # :801
+#   gate_scores  = F.linear(x, index_kpool_compress_gate)          # :803 — bare Parameter, no Linear module
+#   packed       = cat([k, gate_scores, valid_channel], -1)        # :806  → HF caches this, :813
+#   pool_keys    = softmax(grouped_gate_scores + ape, dim=2) · grouped_keys .sum(2)   # :965-970
+#                  (HF: every step over the whole cache, :827; serving and this
+#                   component: once per pool, cached — `glm_kpool_compressor`)
+#   scores       = relu(q @ pool_keys^T · head_dim^-0.5)           # :828-829
+#   index_scores = (weights_proj(x) · n_heads^-0.5) @ scores       # :832-833
+#   selected     = index_scores.topk(index_topk // index_kpool)    # :850-855
+#
+# REFERENCE DISAGREEMENT (KV cache contents). HF caches the EXPANDED per-head
+# key/value — `expand_kv` runs before the cache write
+# (:1178 `key_states, value_states = self.expand_kv(k_pass, k_rot)`,
+#  :1182 `past_key_values.update(key_states, value_states, self.layer_idx)`),
+# i.e. n_heads · (d_qk_nope + d_v_head) = 32768 floats per token per layer.
+# vLLM and sglang cache the 512-wide MLA latent and absorb `kv_b_proj` into the
+# q/o projections at decode. This component follows the serving stacks (the
+# `cache: family: MLA` entry is `kv_a_layernorm`), the same resolution
+# `mla_dsa_attention` already takes for DSv3.2/GLM-5.x; HF's expanded write is
+# an eager-path materialization, not the deployed KV law.
+#
+# Required dims: d_model, n_heads, d_qk_nope, d_v_head, d_kv_lora, d_q_lora,
+#   n_topk_keys (index_topk), n_indexer_heads (index_n_heads),
+#   d_indexer_head (index_head_dim), compress_ratio (index_kpool).
+# All linears bias-free (config.attention_bias is false for the text tower);
+# only `indexer.k_norm` is a LayerNorm and carries a bias.
+
+role: attention
+# Roles follow the checkpoint's precision split (GLM-5.3-Flash): q_a / q_b / kv_a / o_proj
+# are FP8 under `attention`; the KV up-projection (`attention_kv_up`) and every
+# indexer projection and k-pool parameter (`attention_indexer`) are BF16.
+description: "MLA without RoPE (NoPE latent attention) + a DSA indexer that scores learned-pooled key groups: gate/ape-weighted softmax pooling of compress_ratio keys, relu head-weighted scores, top-(index_topk // index_kpool) pools expanded back to raw indices plus the visible tail."
+attn_variant: DSA
+# Decode reads the KV in latent space: vLLM and sglang absorb kv_b_proj into
+# the query and output sides at decode, so the sparse attention scores and
+# weights the 512-wide latent itself. That graph is its own component.
+decode_variant: mla_dsa_kpool_nope_attention_absorbed
+# A query reads its top-k rows of the cached latent, so serving prefills
+# it absorbed too, through the sparse MLA kernel decode uses.
+variant_phases: [prefill, decode]
+cache:
+  family: MLA
+  entries:
+    # The 512-wide MLA latent, one row per token (shared across all heads).
+    - { node: kv_a_layernorm, kind: latent }
+    # The indexer's cache, as vLLM and sglang keep it: one pooled key per
+    # complete pool of compress_ratio tokens, plus the pending pool's raw K /
+    # gate ring — both declared by the `index_kpool` sub-component
+    # (`glm_kpool_compressor`). HF caches the raw per-token [k, gate] state
+    # instead (:806, :813) and re-pools the whole cache every step (:827); the
+    # pooled keys are bit-identical once a pool is complete. Same resolution
+    # as the latent entry above.
+    - { node: index_kpool, kind: index_key }
+
+# KV growth: linear. The MLA latent appends one row per token (d_kv_lora,
+# MQA); the indexer appends one pooled key (d_indexer_head) per
+# compress_ratio tokens. DSA bounds the READ (top-k pools) but not the
+# storage: the indexer must keep every past pool to score it.
+
+graph:
+  # ===================== MLA, NoPE =====================
+  q_a_proj:           { op: linear, in: x, dims: { in: d_model, out: d_q_lora }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  q_a_layernorm:      { op: rmsnorm, in: q_a_proj, dim: d_q_lora, weight_axes: [{ replicated: true }] }
+  # qk_rope_head_dim = 0 → the query head is pure nope, no split, no rope.
+  q_b_proj:           { op: linear, in: q_a_layernorm, dims: { in: d_q_lora, out: "n_heads * d_qk_nope" }, weight_axes: [{ world: attention, parts: n_heads, fit: replica_cells }, { replicated: true }] }
+  q_split_heads:      { op: head_split, in: q_b_proj, dims: { n_heads: n_heads, d_head: d_qk_nope } }
+  # No k_pe lane: the `[kv_lora_rank, qk_rope_head_dim]` split at :1174 has a
+  # zero-width second part, so the projection is exactly the latent.
+  kv_a_proj_with_mqa: { op: linear, in: x, dims: { in: d_model, out: d_kv_lora }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  kv_a_layernorm:     { op: rmsnorm, in: kv_a_proj_with_mqa, dim: d_kv_lora, weight_axes: [{ replicated: true }] }
+  kv_b_proj:          { op: linear, role: attention_kv_up, in: kv_a_layernorm, dims: { in: d_kv_lora, out: "n_heads * (d_qk_nope + d_v_head)" }, weight_axes: [{ world: attention, parts: n_heads, fit: replica_cells }, { replicated: true }] }
+  kv_split_heads:     { op: head_split, in: kv_b_proj, dims: { n_heads: n_heads, d_head: "d_qk_nope + d_v_head" } }
+  k_nope_slice:       { op: slice, in: kv_split_heads, dims: { in: "d_qk_nope + d_v_head", out: d_qk_nope } }
+  value_slice:        { op: slice, in: kv_split_heads, dims: { in: "d_qk_nope + d_v_head", out: d_v_head } }
+
+  # ===================== DSA indexer with k-pool compression =====================
+  # Lightweight index projections, built WHOLE on every tensor-parallel rank
+  # (replicated: its 32 heads are 32 heads per rank and its logits are
+  # recomputed identically on each).
+  indexer.wq_b:        { op: linear, role: attention_indexer, in: q_a_layernorm, dims: { in: d_q_lora, out: "n_indexer_heads * d_indexer_head" }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  indexer.wk:          { op: linear, role: attention_indexer, in: x, dims: { in: d_model, out: d_indexer_head }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  # nn.LayerNorm(index_head_dim, eps=1e-6) — weight AND bias (:766).
+  indexer.k_norm:      { op: layernorm, role: attention_indexer, in: indexer.wk, dim: d_indexer_head, weight_axes: [{ replicated: true }] }
+  indexer.weights_proj: { op: linear, role: attention_indexer, in: x, dims: { in: d_model, out: n_indexer_heads }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  # `index_kpool_compress_gate` is a BARE nn.Parameter [d_indexer_head, d_model]
+  # (:774) applied as `F.linear(hidden_states, self.index_kpool_compress_gate)`
+  # (:803) — a weight with no owning Linear module, so it is declared as a
+  # tensor and consumed by linear_external_weight (the hc_pre `fn` idiom).
+  indexer.index_kpool_compress_gate: { op: parameter_tensor, role: attention_indexer, shape: [d_indexer_head, d_model], weight_axes: [{ replicated: true }, { replicated: true }] }
+  indexer.gate_scores: { op: linear_external_weight, in: [x, indexer.index_kpool_compress_gate], dims: { in: d_model, out: d_indexer_head } }
+
+  # --- Pooling (Glm5NextTextIndexer.get_pooled_states:902-975) ---
+  # Each complete pool of compress_ratio keys becomes one softmax(gate + ape)
+  # weighted key, computed ONCE, when the pool completes, and cached — the
+  # serving layout (`glm_kpool_compressor`; vLLM Glm5NextIndexerCache /
+  # Glm5NextTailCache, sglang's tail buffers). HF caches the raw [k, gate]
+  # state and re-pools all of it every step (:806, :813, :827); the pooled
+  # keys are bit-identical once a pool is complete. The trailing incomplete
+  # pool is not a candidate (`pool_valid`, :961) — its tokens are the visible
+  # tail. `module: null`: its tensor (`indexer.index_kpool_compress_ape`) is
+  # this attention's own.
+  index_kpool:          { op: glm_kpool_compressor, in: [indexer.k_norm, indexer.gate_scores], module: null }
+  # The score reads the cached pooled keys: ⌊s_kv / compress_ratio⌋ complete
+  # pools, the step's own at prefill and the whole history at decode.
+  indexer.pool_cache:   { op: kv_cache_view, in: index_kpool }
+
+  # --- Scoring over pools ---
+  indexer.q_split_heads: { op: head_split, in: indexer.wq_b, dims: { n_heads: n_indexer_heads, d_head: d_indexer_head } }
+  # The pooled key is shared across index heads (MQA): `pool_keys.unsqueeze(1)`
+  # at :828 fans it out to the n_indexer_heads query heads.
+  indexer.k_broadcast:   { op: head_broadcast, in: indexer.pool_cache, dims: { n_heads: n_indexer_heads } }
+  # The candidate axis is the POOL count of the CACHED keys, the length the
+  # pooled stream carries — not the query length. At decode s_query = 1 while s_kv is the whole
+  # history, and `s_query // compress_ratio` would collapse the scan to 0.
+  indexer.score:         { op: attention_score, in: [indexer.q_split_heads, indexer.k_broadcast], dims: { n_heads: n_indexer_heads, d_head: d_indexer_head } }
+  # :829 `scores = F.relu(scores * self.softmax_scale)` — the relu is part of
+  # the logits the fused kernel computes, so it is a node.
+  indexer.score_relu:    { op: relu, in: indexer.score, dim: n_indexer_heads }
+  # Both positive constants (softmax_scale = d_indexer_head^-0.5 at :768 and
+  # n_heads^-0.5 at :832) fold into the [B, S, H] head weights — H values per
+  # token instead of an H x P matrix, which is where the serving stacks apply them.
+  indexer.weights_scaled: { op: scale_const, in: indexer.weights_proj, dims: { in: n_indexer_heads }, formula: "w = weights_proj(x) · d_indexer_head^-0.5 · n_indexer_heads^-0.5" }
+  # weights_proj is [B,S,H]; the score is [B,H,S,P]. Make the source's
+  # `weights.unsqueeze(-2) @ scores` (:833) alignment explicit.
+  indexer.weights_heads: { op: transpose, in: indexer.weights_scaled, axes: [0, 2, 1] }
+  indexer.weights_full:  { op: broadcast, in: indexer.weights_heads, axis: -1, dims: { width: "1" } }
+  indexer.weighted:      { op: mul, in: [indexer.score_relu, indexer.weights_full], dim: n_indexer_heads }
+  # Sum over the index heads (axis 1 of [B, n_indexer_heads, s_query, P]) → [B, s_query, P].
+  indexer.reduced:       { op: sum_reduce, in: indexer.weighted, axis: 1, dims: { in: n_indexer_heads } }
+  # Budget in POOLS: `select_k = index_topk // index_kpool` (:850).
+  indexer.topk_pools:    { op: topk, in: indexer.reduced, dims: { in: n_indexer_heads, k: "n_topk_keys // compress_ratio" } }
+
+  # ===================== Sparse attention over the selected tokens =====================
+  # Each selected pool expands back to `compress_ratio` raw token indices
+  # (:863 `topk_indices = selected_indices.flatten(-2)`, width
+  # select_k · index_kpool = index_topk), and with
+  # `index_kpool_always_select_tail` the incomplete tail adds up to
+  # `index_kpool - 1` more (:870-872 `output_width += self.index_kpool - 1`).
+  # So the attended key budget is n_topk_keys + compress_ratio - 1.
+  qk_score:      { op: dsa_attention_score, in: [q_split_heads, k_nope_slice, indexer.topk_pools], dims: { n_heads: n_heads, d_head: d_qk_nope, k: "n_topk_keys + compress_ratio - 1" } }
+  softmax:       { op: dsa_softmax, in: qk_score, dims: { n_heads: n_heads, k: "n_topk_keys + compress_ratio - 1" } }
+  attn_apply:    { op: dsa_attention_apply, in: [softmax, value_slice], dims: { n_heads: n_heads, d_head: d_v_head, k: "n_topk_keys + compress_ratio - 1" } }
+  o_merge_heads: { op: head_merge, in: attn_apply, dims: { n_heads: n_heads, d_head: d_v_head } }
+  o_proj:        { op: linear, in: o_merge_heads, dims: { in: "n_heads * d_v_head", out: d_model }, weight_axes: [{ replicated: true }, { world: attention, parts: n_heads, fit: replica_cells }] }
+outputs: [o_proj]

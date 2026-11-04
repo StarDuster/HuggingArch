@@ -1,0 +1,13 @@
+# Inkling dmel audio encoder — self-contained, invoked ONCE as a singleton
+# wrapper. Discrete-mel tokens (n_mel_vocab = n_mel_bins * mel_vocab_size = 1280)
+# are embedded into the decoder hidden size d_model, then normalized. Node ids are
+# the full HF sub-paths under `model.`.
+#
+#   audio.encoder    [n_mel_vocab, d_model]   discrete-mel embedding
+#   audio.final_norm [d_model]
+role: aux_block
+description: "Inkling dmel audio encoder: discrete-mel embedding (n_mel_vocab->d_model) + final norm."
+graph:
+  audio.encoder:    { op: embedding, in: x, dims: { n_vocab: n_mel_vocab, d_model: d_model }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  audio.final_norm: { op: rmsnorm, in: audio.encoder, dim: d_model, weight_axes: [{ replicated: true }] }
+outputs: [audio.final_norm]

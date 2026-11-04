@@ -1,0 +1,18 @@
+# SwiGLU FFN with w1 (gate) / w3 (up) / w2 (down) tensor naming.
+# Used by: MiniMax-M3 MoE experts (block_sparse_moe.experts.X.w1/w3/w2).
+#
+# Identical topology to swiglu_ffn; the only difference is the checkpoint
+# tensor naming (Mixtral / MiniMax expert convention w1/w2/w3 instead of
+# gate_proj / up_proj / down_proj), which cannot be renamed from a model
+# spec, so a dedicated expert component is required.
+#
+# Required dims: d_model, d_ffn
+role: ffn_dense
+description: "SwiGLU FFN with w1(gate)/w3(up)/w2(down) tensor naming (Mixtral/MiniMax expert convention)."
+graph:
+  w1:       { op: linear, in: x, dims: { in: d_model, out: d_ffn }, weight_axes: [{ placement_by_symbol: { d_ffn: { world: dense_ffn, parts: d_ffn, fit: exact }, d_ffn_expert: { world: moe_expert, parts: d_ffn, fit: exact }, d_ffn_shared: { world: dense_ffn, parts: d_ffn, fit: exact } } }, { replicated: true }] }
+  w3:       { op: linear, in: x, dims: { in: d_model, out: d_ffn }, weight_axes: [{ placement_by_symbol: { d_ffn: { world: dense_ffn, parts: d_ffn, fit: exact }, d_ffn_expert: { world: moe_expert, parts: d_ffn, fit: exact }, d_ffn_shared: { world: dense_ffn, parts: d_ffn, fit: exact } } }, { replicated: true }] }
+  silu:     { op: silu, in: w1, dim: d_ffn }
+  gate_mul: { op: mul, in: [silu, w3], dim: d_ffn }
+  w2:       { op: linear, in: gate_mul, dims: { in: d_ffn, out: d_model }, weight_axes: [{ replicated: true }, { placement_by_symbol: { d_ffn: { world: dense_ffn, parts: d_ffn, fit: exact }, d_ffn_expert: { world: moe_expert, parts: d_ffn, fit: exact }, d_ffn_shared: { world: dense_ffn, parts: d_ffn, fit: exact } } }] }
+outputs: [w2]

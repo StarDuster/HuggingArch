@@ -1,0 +1,45 @@
+# Sliding Window Attention + QK-RMSNorm
+# Used by: Gemma 4 (sliding_attention layers) — `gemma4_unified`; no other
+# model wires it.
+# Adds per-head Q/K/V RMSNorm to standard SWA.
+#
+# `Gemma4Attention` builds all three norms outside the k_eq_v branch, so
+# the sliding layers carry the V norm too:
+#
+#     self.v_norm = Gemma4RMSNorm(self.head_dim, ..., with_scale=False)
+#     ...
+#     value_states = self.v_norm(value_states)
+#     past_key_values.update(key_states, value_states, self.layer_idx)
+#
+# `with_scale=False` means no learnable weight — no checkpoint tensor and
+# no parameter bytes, just the elementwise pass. The NORMED value is what
+# reaches the cache, so `v_norm` is the cache entry, not `v_split_heads`.
+#
+# Required dims: d_model, n_heads, n_kv_heads, d_head, s_window
+
+role: attention
+description: "SWA + Q/K RMSNorm and a weightless V RMSNorm. Gemma-4 sliding layers."
+cache:
+  family: SWA
+  entries:
+    - { node: k_rope, kind: kv }
+    - { node: v_norm, kind: kv }
+graph:
+  q_proj:          { op: linear, in: x, dims: { in: d_model, out: "n_heads * d_head" }, weight_axes: [{ placement_by_symbol: { n_heads: { world: attention, parts: n_heads, fit: replica_cells } } }, { replicated: true }] }
+  k_proj:          { op: linear, in: x, dims: { in: d_model, out: "n_kv_heads * d_head" }, weight_axes: [{ placement_by_symbol: { n_kv_heads: { world: attention, parts: n_kv_heads, fit: replica_cells } } }, { replicated: true }] }
+  v_proj:          { op: linear, in: x, dims: { in: d_model, out: "n_kv_heads * d_head" }, weight_axes: [{ placement_by_symbol: { n_kv_heads: { world: attention, parts: n_kv_heads, fit: replica_cells } } }, { replicated: true }] }
+  q_split_heads:      { op: head_split, in: q_proj, dims: { n_heads: n_heads, d_head: d_head } }
+  k_split_heads:      { op: head_split, in: k_proj, dims: { n_heads: n_kv_heads, d_head: d_head } }
+  v_split_heads:      { op: head_split, in: v_proj, dims: { n_heads: n_kv_heads, d_head: d_head } }
+  q_norm:          { op: rmsnorm, in: q_split_heads, dim: d_head, weight_axes: [{ replicated: true }] }
+  k_norm:          { op: rmsnorm, in: k_split_heads, dim: d_head, weight_axes: [{ replicated: true }] }
+  # `Gemma4RMSNorm(..., with_scale=False)` — a norm with no learnable weight.
+  v_norm:          { op: rmsnorm_unscaled, in: v_split_heads, dim: d_head }
+  q_rope:          { op: rope, in: q_norm, dim: d_head }
+  k_rope:          { op: rope, in: k_norm, dim: d_head }
+  qk_score:        { op: swa_attention_score, in: [q_rope, k_rope], dims: { n_heads: n_heads, d_head: d_head, s_window: s_window } }
+  softmax:         { op: swa_softmax, in: qk_score, dims: { n_heads: n_heads, s_window: s_window } }
+  attn_apply:      { op: swa_attention_apply, in: [softmax, v_norm], dims: { n_heads: n_heads, d_head: d_head, s_window: s_window } }
+  o_merge_heads:      { op: head_merge, in: attn_apply, dims: { n_heads: n_heads, d_head: d_head } }
+  o_proj:          { op: linear, in: o_merge_heads, dims: { in: "n_heads * d_head", out: d_model }, weight_axes: [{ replicated: true }, { placement_by_symbol: { n_heads: { world: attention, parts: n_heads, fit: replica_cells } } }] }
+outputs: [o_proj]

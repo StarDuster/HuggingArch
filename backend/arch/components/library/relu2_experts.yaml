@@ -1,0 +1,24 @@
+# A routed expert bank of non-gated squared-ReLU FFNs, one tensor per
+# projection.
+#
+# Every weight leads with the expert axis, `shape: [n_expert_copies, out,
+# in]`, over the `[n_expert_copies, M, d_model]` dispatch buffer (see
+# `gated_experts`):
+#
+#   transformers `NemotronHExperts` (models/nemotron_h/modeling_nemotron_h.py:610)
+#     up_proj: [E, I, H], down_proj: [E, H, I]
+#   y_e = down_proj[e] · relu(up_proj[e] · x_e)²
+#
+# Nemotron-H's latent MoE runs it in the latent width (the caller binds
+# `d_model: d_moe_latent`). Checkpoint encoding is the caller's
+# `expert_weight:`.
+#
+# Required dims: d_model, d_ffn (the expert width), n_expert_copies.
+
+role: ffn_moe
+description: "Routed expert bank of squared-ReLU FFNs (up_proj, relu², down_proj), every weight [n_expert_copies, out, in]. Nemotron-H experts."
+graph:
+  up_proj:      { op: linear, in: x, dims: { in: d_model, out: d_ffn, bias: "0" }, shape: [n_expert_copies, d_ffn, d_model], weight_axes: [{ world: moe_copies, parts: n_expert_copies, fit: exact }, { world: moe_expert, parts: d_ffn, fit: exact }, { replicated: true }] }
+  relu_squared: { op: relu_squared, in: up_proj, dim: d_ffn }
+  down_proj:    { op: linear, in: relu_squared, dims: { in: d_ffn, out: d_model, bias: "0" }, shape: [n_expert_copies, d_model, d_ffn], weight_axes: [{ world: moe_copies, parts: n_expert_copies, fit: exact }, { replicated: true }, { world: moe_expert, parts: d_ffn, fit: exact }] }
+outputs: [down_proj]

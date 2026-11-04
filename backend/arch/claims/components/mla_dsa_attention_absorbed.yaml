@@ -1,0 +1,26 @@
+schema: huggingarch.claims/v1
+subject: mla_dsa_attention_absorbed
+axioms:
+  checks:
+  - kind: kv_growth
+    storage: per_token
+    src: 'Absorption is a read-side rewrite, so the cache contract is the one
+      mla_dsa_attention declares: model.py::MLA.forward stores the full latent KV
+      per token (`self.kv_cache[:, start:end] = kv`, no eviction) and the top-K is
+      read-side only. Both streams still grow per token.'
+  - kind: kv_growth
+    node: kv_a_layernorm
+    storage: per_token
+    expect: d_kv_lora
+    src: 'What absorption buys is that this latent IS the value — `v_absorbed`
+      folds W_uv onto the O side, so nothing materialises per-head V from
+      kv_b_proj. One d_kv_lora vector per position, read MQA across n_heads.'
+  - kind: kv_growth
+    node: indexer.key_concat
+    storage: per_token
+    expect: d_indexer_head
+    src: 'model.py::Indexer.__init__ `self.register_buffer("k_cache", zeros(max_batch,
+      max_seq_len, self.head_dim, dtype=float8_e4m3))` — the lightning-indexer key
+      is untouched by absorption, which rewrites the MLA path and not the indexer.
+      MQA, one d_indexer_head vector per position, FP8, stored full-length, and
+      cached after its RoPE (the rotated half concatenated back in front).'

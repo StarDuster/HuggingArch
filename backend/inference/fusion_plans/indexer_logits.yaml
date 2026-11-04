@@ -1,0 +1,86 @@
+# Fused lightning-indexer logits — collapses the torch-level decomposition
+# (ReLU(score), optionally weighted per head, summed over n_indexer_heads →
+# [B,s_query,s_kv] logits) so the [B,n_indexer_heads,s_query,s_kv] score
+# matrix never lands in HBM.
+# Matching the naive subgraph fuses ANY indexer authored that way; the spec
+# stays plain torch ops (attention_score / relu / mul / sum_reduce), so a
+# hand-written indexer can't silently diverge from the fused kernel's cost.
+#
+# Forms of the one kernel, one plan:
+#   * weighted — DSA / DeepSeek-V4 / V4.1 / the GLM kpool drafts:
+#     Σ_h w[h]·ReLU(q_h·k). deep_gemm fp8 (paged) MQA logits (vLLM
+#     `sparse_attn_indexer.py`, sglang `dsa_indexer.py`; the bindings cite
+#     the lines).
+#   * unweighted — Qwen QSA: Σ_h ReLU(q_h·k), no head weights. The same MQA
+#     logits shape with w ≡ 1: sglang v0.5.22
+#     `srt/layers/attention/qsa/mqa.py:140-197` (TileLang prefill kernel:
+#     max(score, 0) at :189, `T.reduce_sum` over heads at :190, one fp32
+#     [rows, keys] store at :192) and `:225-303` (decode); vLLM v0.32.0
+#     `models/qwen4_exp/nvidia/ops/qsa_indexer.py:111-220`
+#     (`_qsa_mqa_paged_prefill_kernel`, `tl.sum(tl.maximum(scores, 0.0),
+#     axis=2)` at :208) and `:19-108` (decode).
+#   Hence `score_weighted` is an optional node: present, it is absorbed with w;
+#   absent, `head_sum` reads `relu` directly.
+#   * grouped — Step-5 (stepfun-ai/Step-5-Preview): the same weighted-ReLU
+#     sum, but per PROVIDER GROUP rather than over every indexer head at
+#     once. The publisher's Triton kernel
+#     (`_indexer_logits_kernel`, snapshot
+#     backend/arch/snapshots/stepfun-ai__Step-5-Preview.json
+#     inference/kernel.py:427-499, wrapper `indexer_logits` :518-571) is one
+#     launch per (query tile, key tile, group): score + relu + head-weighted
+#     group sum, `score[q,r] = sum_h relu(dot(q_qh, k_r)) * w_qh` (its own
+#     docstring, :446-452), writing the fp32 logits group-major
+#     [groups * seq_q, seq_k] — the per-head score never lands in HBM. The
+#     naive graph spells the grouping as views around the sum: heads moved
+#     last (`heads_last`), split into (group, head-in-group)
+#     (`group_split`), the inner axis summed, the group axis put back in
+#     front (`logits`). All three are optional nodes: present, they are
+#     absorbed with the sum; absent, the chain is the flat form above. The
+#     top-k is a SECOND launch family (`region_topk_*`,
+#     kernel.py:605-713, wrappers :814/:852) and stays out of the fusion — as it does for the
+#     flat form.
+#
+# Not absorbed: QSA's trailing `/ sqrt(d_indexer_head)` (`scale_const`).
+# The frameworks differ: sglang's prefill applies it as its own in-place pass
+# over the fp32 logits (`logits.div_(...)`, qsa/mqa.py:355) and its decode
+# kernel folds it in (:300); vLLM never applies it (top-k is scale-invariant;
+# qwen4_exp/nvidia/ops/qsa_indexer.py has no scale). One plan serves both:
+# a vLLM-only plan absorbing the scale would need a second fused-op name, and
+# that name would lose this one's registration (the canonical MQA shape the
+# fused leaf is rebased from, and its fp32 output declaration). So the
+# sglang prefill form stands for both: the scale is a separate pass, and it
+# reads and writes the logits at their fp32 width
+# (`traffic.declared_width`). sglang's second in-place pass, the mask kernel
+# (mqa.py:356), is not in the graph.
+#
+# The fused launch writes its logits fp32: that is the registered
+# `indexer_logits` op's declaration (`output_dtype`), carried
+# by the fused node, not stated again here.
+#
+# `fused_op: indexer_logits` names a REGISTERED primitive op (see ops.py), so
+# The shape layer rebases the fused leaf from that op's
+# canonical MQA shape_in rather than the matched siblings' (already CP-sharded)
+# consumer views. That is what makes the key read as the real kernel does —
+# once per compressed position, no per-head `n_indexer_heads` axis — and keeps per-rank
+# access identical across CP schemes (ulysses head-shard ≡ ring seq-shard). The
+# sibling boundary-walk alone leaked an `n_indexer_heads` axis onto k under ring only.
+fused_op: indexer_logits
+naive_pattern:
+  nodes:
+    score:          { op: attention_score,  inputs: [external.q, external.k] }
+    relu:           { op: relu,             inputs: [score.out] }
+    score_weighted: { op: mul,              inputs: [relu.out, external.w], optional: true }
+    # The grouped form's view shell around the head sum (Step-5): heads
+    # last, (group, head-in-group) split, group axis back in front. Views
+    # cost nothing inside the launch — the kernel indexes q and w by
+    # (group, head) directly — so each is optional and the flat chain
+    # matches with all three absent.
+    heads_last:    { op: transpose,        inputs: [score_weighted.out], optional: true }
+    group_split:   { op: view_split,       inputs: [heads_last.out], optional: true }
+    head_sum:      { op: sum_reduce,       inputs: [group_split.out] }
+    logits:        { op: transpose,        inputs: [head_sum.out], optional: true }
+  io_mapping:
+    q:      external.q
+    k:      external.k
+    w:      external.w
+    output: logits.out

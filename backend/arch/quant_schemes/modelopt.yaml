@@ -1,0 +1,77 @@
+# NVIDIA modelopt — NOT in transformers `main_classes/quantization`.
+# This is NVIDIA's own quantization toolkit which emits checkpoints
+# declaring `quant_method: "modelopt"`. It piggybacks on the
+# compressed-tensors config schema (`config_groups[*].weights.num_bits`)
+# and reuses most of compressed-tensors' on-disk tensor naming.
+#
+# The closest HF-canonical equivalent is `transformers.QuarkConfig`
+# (NVIDIA's other / upstreamed offering) — but in-the-wild modelopt
+# checkpoints declare `"modelopt"`, so we keep this scheme distinct
+# rather than aliasing.
+#
+# On-disk variants:
+#   - FP8: weight stored directly as F8_E4M3 (no packing); scale in
+#     `weight_scale`.
+#   - INT4: weight stored as `weight_packed`; scale in `weight_scale`.
+# Differs from compressed-tensors in that modelopt doesn't emit
+# `weight_shape`.
+description: "NVIDIA modelopt — non-HF; FP8 (unpacked F8_E4M3) or INT4 (packed) using compressed-tensors-style config."
+
+num_bits:
+  nested_field: [config_groups, "*", weights, num_bits]
+badge: MODELOPT
+
+format_variants:
+  fp8:
+    # FP8: unpacked F8_E4M3 storage, no packing.
+    packing_factor: 1
+    storage_dtype: F8_E4M3
+    weight_storage_suffix: ".weight"
+  int4-packed:
+    # INT4: packed into I32 word, 8 elements per word.
+    packing_factor: 8
+    storage_dtype: I32
+    weight_storage_suffix: ".weight_packed"
+
+numeric_format: [fp_e4m3, int_sym, int_asym]
+numeric_format_resolver:
+  - { when: "type == 'float' and num_bits == 8", format: fp_e4m3 }
+  - { when: "type == 'int' and symmetric == true",  format: int_sym }
+  - { when: "type == 'int' and symmetric == false", format: int_asym }
+
+scale_strategy: [tensor, channel, group, tile_2d]
+
+metadata_siblings:
+  - suffix: ".weight_scale"
+    kind: scale
+    when: "dynamic == false"
+    cardinality_per_strategy:
+      tensor:   "1"
+      channel:  "out"
+      group:    "(in * out) / group_size"
+      # Block quantisation pads each axis INDEPENDENTLY, so the count is a
+      # product of two ceil-divisions and not a ceil of the product. The plain
+      # division dropped the final partial block of any axis that is not a
+      # multiple of the block size — DeepSeek's `kv_a_proj_with_mqa` is
+      # [576, 7168] against a 128 block, so 576/128 = 4.5 became 4 where the
+      # checkpoint stores 5, and the file's own scale shape says [5, 56].
+      # 28 scales x 4 bytes x 62 layers = 6,944 bytes, exactly the diff.
+    shape_per_strategy:
+      tile_2d: ["(out + block_h - 1) // block_h", "(in + block_w - 1) // block_w"]
+    dtype: F32
+  # modelopt FP8 typically also ships a per-tensor input scale for
+  # activation quant alignment.
+  - suffix: ".input_scale"
+    kind: activation_scale
+    when: "type == 'float' and num_bits == 8"
+    cardinality: "1"
+    dtype: F32
+
+required_fields: [num_bits, type, format]
+optional_fields: [group_size, block_h, block_w]
+valid_status: [compressed, frozen]
+
+default_fields:
+  dynamic: false
+  symmetric: true
+  strategy: tensor    # modelopt FP8 default is per-tensor scale

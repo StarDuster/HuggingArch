@@ -1,0 +1,4 @@
+# Identity file for Qwen/Qwen2.5-7B
+base: qwen2
+match:
+  model_id: [Qwen/Qwen2.5-7B]

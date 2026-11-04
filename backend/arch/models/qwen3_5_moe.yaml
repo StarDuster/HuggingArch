@@ -1,0 +1,174 @@
+# Qwen3.5-MoE multimodal family
+# Hybrid text backbone: 3x linear-attention MoE blocks followed by 1x full
+# gated-attention MoE block, repeated 10 times. Includes the visual encoder,
+# visual merger, and one auxiliary MTP block.
+match:
+  model_type: [qwen3_5_moe]
+
+components:
+  norm: rmsnorm
+
+dims:
+  s_max: config.text_config.max_position_embeddings   # published context length
+  d_model:    config.text_config.hidden_size
+  n_heads:    config.text_config.num_attention_heads
+  n_kv_heads:   config.text_config.num_key_value_heads
+  d_head:    config.text_config.head_dim
+  d_rope:   "d_head // 4"
+  d_nope:   "d_head - d_rope"
+  d_ffn_expert:   config.text_config.moe_intermediate_size
+  d_ffn_shared:   config.text_config.shared_expert_intermediate_size ?? "512"  # Qwen3_5MoeTextConfig's default when the field is absent (transformers 5.17.0 qwen3_5_moe/configuration_qwen3_5_moe.py:111)
+  n_vocab:    config.text_config.vocab_size
+  n_layers:    config.text_config.num_hidden_layers
+  n_experts:    config.text_config.num_experts
+  n_experts_active:    config.text_config.num_experts_per_tok
+  # Qwen3_5MoeTopKRouter renormalizes the top-k weights unconditionally and the
+  # config carries no norm_topk_prob; vLLM reads getattr(config,
+  # "norm_topk_prob", True). The field, when present, decides.
+  n_topk_renorm: config.text_config.norm_topk_prob ?? "1"
+  # Qwen3_5MoeTopKRouter.forward (modeling_qwen3_5_moe.py:787-795) has no
+  # group limit and no routed_scaling_factor multiply; the config has neither
+  # n_group nor routed_scaling_factor.
+  n_expert_groups: "1"
+  n_groups_active: "1"
+  n_routed_scale: "0"
+  n_lin_k_heads:  config.text_config.linear_num_key_heads
+  d_lin_k_head:  config.text_config.linear_key_head_dim
+  n_lin_v_heads:  config.text_config.linear_num_value_heads
+  d_lin_v_head:  config.text_config.linear_value_head_dim
+  s_conv_kernel:   config.text_config.linear_conv_kernel_dim
+  n_mtp_layers: config.text_config.mtp_num_hidden_layers ?? "0"
+  d_vis_model:   config.vision_config.hidden_size
+  n_vis_heads:   config.vision_config.num_heads
+  d_vis_head:   "d_vis_model // n_vis_heads"
+  d_vis_ffn:   config.vision_config.intermediate_size
+  n_vis_layers:   config.vision_config.depth
+  n_vis_pos_vocab:   config.vision_config.num_position_embeddings
+  n_vis_channels:   config.vision_config.in_channels
+  s_patch:   config.vision_config.patch_size
+  s_patch_temporal:   config.vision_config.temporal_patch_size
+  n_spatial_merge:   config.vision_config.spatial_merge_size
+  d_vis_merge:   "n_spatial_merge * n_spatial_merge * d_vis_model"
+  d_proj_out:  config.vision_config.out_hidden_size
+
+view:
+  rope_theta: config.rope_theta
+  rope_scaling: config.rope_scaling
+  hidden_act: config.hidden_act
+  norm.eps: config.rms_norm_eps
+
+# Block topologies live in components/adapters/ and components/library/:
+#   - qwen35_full_moe_block:   pre_norm wrapper around fused-QZ sigmoid-gated GQA
+#                              + the packed fused expert FFN (backbone layers)
+#   - qwen35_linear_moe_block: pre_norm around gated_delta_net_attention, with
+#                              the attention slot renamed to `linear_attn`
+#   - qwen35_mtp_inner_block:  MTP transformer layer (non-fused per-expert Linears)
+#   - qwen35_vision_block:     ViT encoder layer
+#
+# MTP checkpoint layout matches LongCat's head: wrapper tensors sit
+# unindexed under `mtp.` (`pre_fc_norm_embedding`, `pre_fc_norm_hidden`,
+# `fc`, `norm`); the inner decoder is `mtp.layers.X.*`. The group
+# `repeat: n_mtp_layers` drops the whole head when the config field is 0.
+# This head is written as group leaves rather than `mtp_block_shared_head`
+# because a group has one checkpoint address and cannot name both the
+# unindexed wrapper and the indexed inner; n_mtp_layers is 1 on known
+# checkpoints — wrapper tensors are per-head, not per-layer.
+
+model_inputs:
+  input_ids: { kind: tokens }
+  # Images per request, then each image's size as the processor hands it to
+  # the tower (after its smart_resize to a multiple of 32).
+  pixel_values: { kind: image, axes: [n_img, img_h, img_w] }
+  # Videos per request, then each video's sampled frames and processed
+  # size; the forward reads `pixel_values_videos` through the image tower
+  # (transformers 5.17 qwen3_5/modeling_qwen3_5.py:1474-1481 get_video_features runs get_image_features, :1626-1630).
+  pixel_values_videos: { kind: video, axes: [n_vid, vid_frames, vid_h, vid_w] }
+
+model:
+  - { name: model.language_model.embed_tokens, inputs: [input_ids], op: embedding, boundary_role: input_embedding, dims: { n_vocab: n_vocab, d_model: d_model }, weight_axes: [{ world: attention, parts: n_vocab, fit: pad }, { replicated: true }] }
+  # --- Vision tower + merger (aux group; renders as auxiliary module) ---
+  - name: vision
+    group: true
+    aux_kind: vision
+    checkpoint: { root: model.visual }
+    layers:
+      # The processor resizes each image to a multiple of
+      # patch_size * merge_size = 16 * 2 = 32, repeats it into
+      # temporal_patch_size = 2 frames and cuts 16x16x2 patches of 3
+      # channels, one row each, each 2x2 merge window contiguous; one
+      # attention segment per temporal patch, which for an image is the
+      # whole image.
+      - name: model.visual.patchify
+        op: patchify
+        inputs: [pixel_values]
+        dims: { patch: s_patch, temporal: s_patch_temporal, channels: n_vis_channels, align: "s_patch * n_spatial_merge" }
+        segment: temporal_patch
+        source_anchor: "transformers 5.17 qwen2_vl/image_processing_qwen2_vl.py:62-88 smart_resize, factor = patch_size * merge_size (:226); :164-198 patchify, a still image expanded to temporal_patch_size (:189-191); vision_utils.py:42-65 cu_seqlens one segment per temporal patch (an image has one)"
+      # patch_embed -> + interpolated pos_embed -> blocks -> merger.
+      - { name: model.visual, inputs: [model.visual.patchify], template: qwen35_vision_tower }
+  # The videos, through the same tower with the same weights in a call of
+  # their own, one attention segment per temporal patch (the processor
+  # repeats the last frame to a whole temporal patch).
+  - { name: video, call: vision, inputs: [pixel_values_videos] }
+
+  # The merged image features replace the image-token rows of the embedding
+  # stream before the decoder runs (`inputs_embeds.masked_scatter`).
+  - name: model.language_model.embed_merge
+    op: scatter_rows_replace
+    inputs: [model.language_model.embed_tokens, model.visual, model.video]
+    prompt_slots:
+      model.visual: { domain: pixel_values, defines: true, source_anchor: "vLLM models/utils.py:636-672 _merge_multimodal_embeddings inputs_embeds[is_multimodal] = mm_embeds_flat (qwen3_5.py embeds through Qwen3VL's embed_input_ids); transformers qwen3_5_moe/modeling_qwen3_5_moe.py inputs_embeds.masked_scatter(image_mask, image_embeds)" }
+      model.video: { domain: pixel_values_videos, defines: true, source_anchor: "vLLM v0.30.0 models/qwen3_vl.py:2363-2365 grid_t*h*w/merge^2 rows per video, merged with the images by models/utils.py _merge_multimodal_embeddings (the video token positions); transformers qwen3_5/modeling_qwen3_5.py:1626-1640 masked_scatter(video_mask, video_embeds)" }
+  - name: model.language_model.layers
+    inputs: [model.language_model.embed_merge]
+    repeat: n_layers
+    streams:
+      hidden: { carries: true }
+    per_layer:
+      assign:
+        - { type: full,   layers: ["3", "7", "11", "15", "19", "23", "27", "31", "35", "39"] }
+        - { type: linear, rest: true }
+      map:
+        full:   { template: qwen35_full_moe_block }
+        linear: { template: qwen35_linear_moe_block }
+  - { name: model.language_model.norm, op: rmsnorm, dim: d_model, weight_axes: [{ replicated: true }] , inputs: [model.language_model.layers]}
+  - { name: lm_head, op: linear, boundary_role: output_head, dims: { in: d_model, out: n_vocab }, weight_axes: [{ world: attention, parts: n_vocab, fit: pad }, { replicated: true }], tied_weight: { to: model.language_model.embed_tokens, when: config.tie_word_embeddings } , inputs: [model.language_model.norm]}
+
+  # --- MTP head (aux group) ---
+  # Wrapper tensors are unindexed (`mtp.fc.weight`, three norms). The
+  # inner decoder is `mtp.layers.X.*` and stores per-expert nn.Linears
+  # (moe_ffn_scaled_shared_gate), not the backbone's packed fused bank.
+  # enorm reads the token embedding; hnorm reads the backbone hidden.
+  # Inlined here (not the library MTP wrapper) because the group can
+  # declare only one checkpoint prefix. Known checkpoints have one
+  # MTP layer; do not raise n_mtp_layers without splitting wrapper
+  # count from inner-layer count.
+  - name: mtp
+    group: true
+    aux_kind: mtp
+    checkpoint: { prefix: mtp.layers, index: local }
+    inputs: [model.language_model.norm]
+    repeat: n_mtp_layers
+    streams:
+      hidden: { carries: true }
+    layers:
+      - { name: mtp.pre_fc_norm_embedding, op: rmsnorm, dim: d_model, weight_axes: [{ replicated: true }] , inputs: [model.language_model.embed_tokens]}
+      - { name: mtp.pre_fc_norm_hidden, op: rmsnorm, dim: d_model, weight_axes: [{ replicated: true }], inputs: [model.language_model.norm] }
+      - { name: mtp.concat, op: concat, dims: { in_a: d_model, in_b: d_model, out: "2 * d_model" }, inputs: [mtp.pre_fc_norm_embedding, mtp.pre_fc_norm_hidden] }
+      - { name: mtp.fc, op: linear, dims: { in: "2 * d_model", out: d_model }, weight_axes: [{ replicated: true }, { replicated: true }] , inputs: [mtp.concat]}
+      - { name: mtp.layers, template: qwen35_mtp_inner_block, inputs: [mtp.fc] }
+      - { name: mtp.norm, op: rmsnorm, dim: d_model, weight_axes: [{ replicated: true }] , inputs: [mtp.layers]}
+      # MTP logits use the main lm_head (vLLM qwen3_5_mtp.py / qwen3_next_mtp.py compute_logits).
+      - { name: mtp_logits, op: linear, boundary_role: output_head, dims: { in: d_model, out: n_vocab }, weight_axes: [{ world: attention, parts: n_vocab, fit: pad }, { replicated: true }], tied_weight: { to: lm_head } , inputs: [mtp.norm]}
+
+# Backbone is BF16. Linear-attention `A_log` and the gated RMSNorm gain
+# are stored F32 in the Qwen3.5 checkpoint (Qwen3-Next keeps both BF16).
+quant_context:
+  per_role:
+    default: { method: none }
+  default_dtype: BF16
+  overrides:
+    - tensors_re: 'linear_attn\.A_log$'
+      dtype: F32
+    - tensors_re: 'linear_attn\.norm\.weight$'
+      dtype: F32

@@ -1,0 +1,720 @@
+{
+ "dropped": [
+  "sample",
+  "transpose",
+  "view_merge",
+  "view_split"
+ ],
+ "jobs": [
+  {
+   "access_bytes_per_rank": 98336.0,
+   "count_per_step": 1,
+   "dims": {
+    "B": 8,
+    "d_model": 3072,
+    "n_vocab": 128256,
+    "s_query": 1
+   },
+   "dtype_env": {
+    "activation": "bf16",
+    "output": "bf16",
+    "weight": "bf16"
+   },
+   "flops_per_rank": 0.0,
+   "kernel_params": {},
+   "launch_rows": 8,
+   "launch_rows_exact": "8",
+   "model": "meta-llama/Llama-3.2-3B",
+   "moe_block_member": false,
+   "node_spec_id": "embed_tokens",
+   "op": "embedding",
+   "parallel": "tp=1",
+   "phase": "decode",
+   "physical_key": [
+    "embedding",
+    "{\"B\":8,\"d_model\":3072,\"n_vocab\":128256,\"s_query\":1}",
+    "{\"activation\":\"bf16\",\"output\":\"bf16\",\"weight\":\"bf16\"}",
+    "decode"
+   ],
+   "plan_scope": "cardless-shapes",
+   "routed": null,
+   "shape_in": [
+    8,
+    1
+   ],
+   "shape_out": [
+    8,
+    1,
+    3072
+   ],
+   "shape_weight": [
+    128256,
+    3072
+   ],
+   "signature": "embedding",
+   "spec_hash": "b33967c523935115",
+   "tp": 1,
+   "variant": {}
+  },
+  {
+   "access_bytes_per_rank": 104448.0,
+   "count_per_step": 28,
+   "dims": {
+    "B": 8,
+    "d_model": 3072,
+    "s_query": 1
+   },
+   "dtype_env": {
+    "activation": "bf16",
+    "output": "bf16",
+    "weight": "bf16"
+   },
+   "flops_per_rank": 49152.0,
+   "kernel_params": {},
+   "launch_rows": 8,
+   "launch_rows_exact": "8",
+   "model": "meta-llama/Llama-3.2-3B",
+   "moe_block_member": false,
+   "node_spec_id": "block|input_layernorm",
+   "op": "rmsnorm",
+   "parallel": "tp=1",
+   "phase": "decode",
+   "physical_key": [
+    "rmsnorm",
+    "{\"B\":8,\"d_model\":3072,\"s_query\":1}",
+    "{\"activation\":\"bf16\",\"output\":\"bf16\",\"weight\":\"bf16\"}",
+    "decode"
+   ],
+   "plan_scope": "cardless-shapes",
+   "routed": null,
+   "shape_in": [
+    8,
+    1,
+    3072
+   ],
+   "shape_out": [
+    8,
+    1,
+    3072
+   ],
+   "shape_weight": [
+    3072
+   ],
+   "signature": "rmsnorm",
+   "spec_hash": "b33967c523935115",
+   "tp": 1,
+   "variant": {}
+  },
+  {
+   "access_bytes_per_rank": 18972672.0,
+   "count_per_step": 28,
+   "dims": {
+    "B": 8,
+    "d_out": 3072,
+    "d_reduce": 3072,
+    "s_query": 1
+   },
+   "dtype_env": {
+    "activation": "bf16",
+    "output": "bf16",
+    "weight": "bf16"
+   },
+   "flops_per_rank": 150994944.0,
+   "kernel_params": {},
+   "launch_rows": 8,
+   "launch_rows_exact": "8",
+   "model": "meta-llama/Llama-3.2-3B",
+   "moe_block_member": false,
+   "node_spec_id": "block|self_attn.o_proj",
+   "op": "linear",
+   "parallel": "tp=1",
+   "phase": "decode",
+   "physical_key": [
+    "gemm",
+    "{\"B\":8,\"d_out\":3072,\"d_reduce\":3072,\"s_query\":1}",
+    "{\"activation\":\"bf16\",\"output\":\"bf16\",\"weight\":\"bf16\"}",
+    "decode"
+   ],
+   "plan_scope": "cardless-shapes",
+   "routed": null,
+   "shape_in": [
+    8,
+    1,
+    3072
+   ],
+   "shape_out": [
+    8,
+    1,
+    3072
+   ],
+   "shape_weight": [
+    3072,
+    3072
+   ],
+   "signature": "gemm",
+   "spec_hash": "b33967c523935115",
+   "tp": 1,
+   "variant": {}
+  },
+  {
+   "access_bytes_per_rank": 50511872.0,
+   "count_per_step": 28,
+   "dims": {
+    "B": 8,
+    "d_out": 3072,
+    "d_reduce": 8192,
+    "s_query": 1
+   },
+   "dtype_env": {
+    "activation": "bf16",
+    "output": "bf16",
+    "weight": "bf16"
+   },
+   "flops_per_rank": 402653184.0,
+   "kernel_params": {},
+   "launch_rows": 8,
+   "launch_rows_exact": "8",
+   "model": "meta-llama/Llama-3.2-3B",
+   "moe_block_member": false,
+   "node_spec_id": "block|mlp.down_proj",
+   "op": "linear",
+   "parallel": "tp=1",
+   "phase": "decode",
+   "physical_key": [
+    "gemm",
+    "{\"B\":8,\"d_out\":3072,\"d_reduce\":8192,\"s_query\":1}",
+    "{\"activation\":\"bf16\",\"output\":\"bf16\",\"weight\":\"bf16\"}",
+    "decode"
+   ],
+   "plan_scope": "cardless-shapes",
+   "routed": null,
+   "shape_in": [
+    8,
+    1,
+    8192
+   ],
+   "shape_out": [
+    8,
+    1,
+    3072
+   ],
+   "shape_weight": [
+    3072,
+    8192
+   ],
+   "signature": "gemm",
+   "spec_hash": "b33967c523935115",
+   "tp": 1,
+   "variant": {}
+  },
+  {
+   "access_bytes_per_rank": 147456.0,
+   "count_per_step": 28,
+   "dims": {
+    "B": 8,
+    "d_model": 3072,
+    "s_query": 1
+   },
+   "dtype_env": {
+    "activation": "bf16",
+    "output": "bf16"
+   },
+   "flops_per_rank": 24576.0,
+   "kernel_params": {},
+   "launch_rows": 8,
+   "launch_rows_exact": "8",
+   "model": "meta-llama/Llama-3.2-3B",
+   "moe_block_member": false,
+   "node_spec_id": "block|out__block",
+   "op": "add",
+   "parallel": "tp=1",
+   "phase": "decode",
+   "physical_key": [
+    "add",
+    "{\"B\":8,\"d_model\":3072,\"s_query\":1}",
+    "{\"activation\":\"bf16\",\"output\":\"bf16\"}",
+    "decode"
+   ],
+   "plan_scope": "cardless-shapes",
+   "routed": null,
+   "shape_in": [
+    [
+     8,
+     1,
+     3072
+    ],
+    [
+     8,
+     1,
+     3072
+    ]
+   ],
+   "shape_out": [
+    8,
+    1,
+    3072
+   ],
+   "shape_weight": null,
+   "signature": "add",
+   "spec_hash": "b33967c523935115",
+   "tp": 1,
+   "variant": {}
+  },
+  {
+   "access_bytes_per_rank": 104448.0,
+   "count_per_step": 1,
+   "dims": {
+    "B": 8,
+    "d_model": 3072,
+    "s_query": 1
+   },
+   "dtype_env": {
+    "activation": "bf16",
+    "output": "bf16",
+    "weight": "bf16"
+   },
+   "flops_per_rank": 49152.0,
+   "kernel_params": {},
+   "launch_rows": 8,
+   "launch_rows_exact": "8",
+   "model": "meta-llama/Llama-3.2-3B",
+   "moe_block_member": false,
+   "node_spec_id": "norm",
+   "op": "rmsnorm",
+   "parallel": "tp=1",
+   "phase": "decode",
+   "physical_key": [
+    "rmsnorm",
+    "{\"B\":8,\"d_model\":3072,\"s_query\":1}",
+    "{\"activation\":\"bf16\",\"output\":\"bf16\",\"weight\":\"bf16\"}",
+    "decode"
+   ],
+   "plan_scope": "cardless-shapes",
+   "routed": null,
+   "shape_in": [
+    8,
+    1,
+    3072
+   ],
+   "shape_out": [
+    8,
+    1,
+    3072
+   ],
+   "shape_weight": [
+    3072
+   ],
+   "signature": "rmsnorm",
+   "spec_hash": "b33967c523935115",
+   "tp": 1,
+   "variant": {}
+  },
+  {
+   "access_bytes_per_rank": 790106112.0,
+   "count_per_step": 1,
+   "dims": {
+    "B": 8,
+    "d_out": 128256,
+    "d_reduce": 3072,
+    "s_query": 1
+   },
+   "dtype_env": {
+    "activation": "bf16",
+    "output": "bf16",
+    "weight": "bf16"
+   },
+   "flops_per_rank": 6304038912.0,
+   "kernel_params": {},
+   "launch_rows": 8,
+   "launch_rows_exact": "8",
+   "model": "meta-llama/Llama-3.2-3B",
+   "moe_block_member": false,
+   "node_spec_id": "lm_head",
+   "op": "linear",
+   "parallel": "tp=1",
+   "phase": "decode",
+   "physical_key": [
+    "gemm",
+    "{\"B\":8,\"d_out\":128256,\"d_reduce\":3072,\"s_query\":1}",
+    "{\"activation\":\"bf16\",\"output\":\"bf16\",\"weight\":\"bf16\"}",
+    "decode"
+   ],
+   "plan_scope": "cardless-shapes",
+   "routed": null,
+   "shape_in": [
+    8,
+    1,
+    3072
+   ],
+   "shape_out": [
+    8,
+    1,
+    128256
+   ],
+   "shape_weight": [
+    128256,
+    3072
+   ],
+   "signature": "gemm",
+   "spec_hash": "b33967c523935115",
+   "tp": 1,
+   "variant": {}
+  },
+  {
+   "access_bytes_per_rank": 31588352.0,
+   "count_per_step": 28,
+   "dims": {
+    "B": 8,
+    "d_out": 5120,
+    "d_reduce": 3072,
+    "s_query": 1
+   },
+   "dtype_env": {
+    "activation": "bf16",
+    "output": "bf16",
+    "weight": "bf16"
+   },
+   "flops_per_rank": 251658240.0,
+   "kernel_params": {},
+   "launch_rows": 8,
+   "launch_rows_exact": "8",
+   "model": "meta-llama/Llama-3.2-3B",
+   "moe_block_member": false,
+   "node_spec_id": "block|self_attn.k_proj",
+   "op": "qkv_parallel_linear",
+   "parallel": "tp=1",
+   "phase": "decode",
+   "physical_key": [
+    "gemm",
+    "{\"B\":8,\"d_out\":5120,\"d_reduce\":3072,\"s_query\":1}",
+    "{\"activation\":\"bf16\",\"output\":\"bf16\",\"weight\":\"bf16\"}",
+    "decode"
+   ],
+   "plan_scope": "cardless-shapes",
+   "routed": null,
+   "shape_in": [
+    8,
+    1,
+    3072
+   ],
+   "shape_out": [
+    [
+     8,
+     1,
+     1024
+    ],
+    [
+     8,
+     1,
+     3072
+    ],
+    [
+     8,
+     1,
+     1024
+    ]
+   ],
+   "shape_weight": null,
+   "signature": "gemm",
+   "spec_hash": "b33967c523935115",
+   "tp": 1,
+   "variant": {}
+  },
+  {
+   "access_bytes_per_rank": 100974592.0,
+   "count_per_step": 28,
+   "dims": {
+    "B": 8,
+    "d_out": 16384,
+    "d_reduce": 3072,
+    "s_query": 1
+   },
+   "dtype_env": {
+    "activation": "bf16",
+    "output": "bf16",
+    "weight": "bf16"
+   },
+   "flops_per_rank": 805306368.0,
+   "kernel_params": {},
+   "launch_rows": 8,
+   "launch_rows_exact": "8",
+   "model": "meta-llama/Llama-3.2-3B",
+   "moe_block_member": false,
+   "node_spec_id": "block|mlp.gate_proj",
+   "op": "merged_column_parallel_linear",
+   "parallel": "tp=1",
+   "phase": "decode",
+   "physical_key": [
+    "gemm",
+    "{\"B\":8,\"d_out\":16384,\"d_reduce\":3072,\"s_query\":1}",
+    "{\"activation\":\"bf16\",\"output\":\"bf16\",\"weight\":\"bf16\"}",
+    "decode"
+   ],
+   "plan_scope": "cardless-shapes",
+   "routed": null,
+   "shape_in": [
+    8,
+    1,
+    3072
+   ],
+   "shape_out": [
+    [
+     8,
+     1,
+     8192
+    ],
+    [
+     8,
+     1,
+     8192
+    ]
+   ],
+   "shape_weight": null,
+   "signature": "gemm",
+   "spec_hash": "b33967c523935115",
+   "tp": 1,
+   "variant": {}
+  },
+  {
+   "access_bytes_per_rank": 131072.0,
+   "count_per_step": 28,
+   "dims": {
+    "B": 8,
+    "d_rope": 128,
+    "n_heads": 24,
+    "n_kv_heads": 8,
+    "s_query": 1
+   },
+   "dtype_env": {
+    "activation": "bf16",
+    "kv": "bf16",
+    "output": "bf16"
+   },
+   "flops_per_rank": 98304.0,
+   "kernel_params": {},
+   "launch_rows": 192,
+   "launch_rows_exact": "192",
+   "model": "meta-llama/Llama-3.2-3B",
+   "moe_block_member": false,
+   "node_spec_id": "block|self_attn.k_rope__gqa_attention",
+   "op": "fused_qk_rope",
+   "parallel": "tp=1",
+   "phase": "decode",
+   "physical_key": [
+    "rope",
+    "{\"B\":8,\"d_rope\":128,\"n_heads\":24,\"n_kv_heads\":8,\"s_query\":1}",
+    "{\"activation\":\"bf16\",\"kv\":\"bf16\",\"output\":\"bf16\"}",
+    "decode"
+   ],
+   "plan_scope": "cardless-shapes",
+   "routed": null,
+   "shape_in": [
+    [
+     8,
+     24,
+     1,
+     128
+    ],
+    [
+     8,
+     8,
+     1,
+     128
+    ]
+   ],
+   "shape_out": [
+    [
+     8,
+     24,
+     1,
+     128
+    ],
+    [
+     8,
+     8,
+     1,
+     128
+    ]
+   ],
+   "shape_weight": null,
+   "signature": "rope",
+   "spec_hash": "b33967c523935115",
+   "tp": 1,
+   "variant": {}
+  },
+  {
+   "access_bytes_per_rank": 202752.0,
+   "count_per_step": 28,
+   "dims": {
+    "B": 8,
+    "d_model": 3072,
+    "s_query": 1
+   },
+   "dtype_env": {
+    "activation": "bf16",
+    "output": "bf16",
+    "weight": "bf16"
+   },
+   "flops_per_rank": 73728.0,
+   "kernel_params": {},
+   "launch_rows": 8,
+   "launch_rows_exact": "8",
+   "model": "meta-llama/Llama-3.2-3B",
+   "moe_block_member": false,
+   "node_spec_id": "block|post_attention_layernorm",
+   "op": "fused_add_rmsnorm",
+   "parallel": "tp=1",
+   "phase": "decode",
+   "physical_key": [
+    "fused_add_rmsnorm",
+    "{\"B\":8,\"d_model\":3072,\"s_query\":1}",
+    "{\"activation\":\"bf16\",\"output\":\"bf16\",\"weight\":\"bf16\"}",
+    "decode"
+   ],
+   "plan_scope": "cardless-shapes",
+   "routed": null,
+   "shape_in": [
+    [
+     8,
+     1,
+     3072
+    ],
+    [
+     8,
+     1,
+     3072
+    ]
+   ],
+   "shape_out": [
+    8,
+    1,
+    3072
+   ],
+   "shape_weight": null,
+   "signature": "fused_add_rmsnorm",
+   "spec_hash": "b33967c523935115",
+   "tp": 1,
+   "variant": {}
+  },
+  {
+   "access_bytes_per_rank": 393216.0,
+   "count_per_step": 28,
+   "dims": {
+    "B": 8,
+    "d_ffn": 8192,
+    "s_query": 1
+   },
+   "dtype_env": {
+    "activation": "bf16",
+    "output": "bf16"
+   },
+   "flops_per_rank": 327680.0,
+   "kernel_params": {},
+   "launch_rows": 8,
+   "launch_rows_exact": "8",
+   "model": "meta-llama/Llama-3.2-3B",
+   "moe_block_member": false,
+   "node_spec_id": "block|mlp.gate_mul__swiglu_ffn",
+   "op": "silu_and_mul",
+   "parallel": "tp=1",
+   "phase": "decode",
+   "physical_key": [
+    "silu_and_mul",
+    "{\"B\":8,\"d_ffn\":8192,\"s_query\":1}",
+    "{\"activation\":\"bf16\",\"output\":\"bf16\"}",
+    "decode"
+   ],
+   "plan_scope": "cardless-shapes",
+   "routed": null,
+   "shape_in": [
+    [
+     8,
+     1,
+     8192
+    ],
+    [
+     8,
+     1,
+     8192
+    ]
+   ],
+   "shape_out": [
+    8,
+    1,
+    8192
+   ],
+   "shape_weight": null,
+   "signature": "silu_and_mul",
+   "spec_hash": "b33967c523935115",
+   "tp": 1,
+   "variant": {}
+  },
+  {
+   "access_bytes_per_rank": 67207168.0,
+   "count_per_step": 28,
+   "dims": {
+    "B": 8,
+    "d_head": 128,
+    "kv_block_size": 16,
+    "n_heads": 24,
+    "n_kv_heads": 8,
+    "s_kv": 2048,
+    "s_query": 1
+   },
+   "dtype_env": {
+    "activation": "bf16",
+    "kv": "bf16",
+    "output": "bf16"
+   },
+   "flops_per_rank": 203292672.0,
+   "kernel_params": {},
+   "launch_rows": 131072,
+   "launch_rows_exact": "131072",
+   "model": "meta-llama/Llama-3.2-3B",
+   "moe_block_member": false,
+   "node_spec_id": "block|self_attn.attn_apply__gqa_attention",
+   "op": "flash_attention",
+   "parallel": "tp=1",
+   "phase": "decode",
+   "physical_key": [
+    "gqa_attention",
+    "{\"B\":8,\"d_head\":128,\"kv_block_size\":16,\"n_heads\":24,\"n_kv_heads\":8,\"s_kv\":2048,\"s_query\":1}",
+    "{\"activation\":\"bf16\",\"kv\":\"bf16\",\"output\":\"bf16\"}",
+    "decode"
+   ],
+   "plan_scope": "cardless-shapes",
+   "routed": null,
+   "shape_in": [
+    [
+     8,
+     24,
+     1,
+     128
+    ],
+    [
+     8,
+     8,
+     2048,
+     128
+    ],
+    [
+     8,
+     8,
+     2048,
+     128
+    ]
+   ],
+   "shape_out": [
+    8,
+    24,
+    1,
+    128
+   ],
+   "shape_weight": null,
+   "signature": "gqa_attention",
+   "spec_hash": "b33967c523935115",
+   "tp": 1,
+   "variant": {}
+  }
+ ]
+}

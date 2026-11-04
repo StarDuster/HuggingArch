@@ -1,0 +1,106 @@
+# DeepSeek-V4 KV Compressor (overlap variant, compress_ratio=4) — decode form.
+#
+# The decode branch of model.py::Compressor.forward (start_pos > 0, L343-354):
+#   score += ape[start_pos % ratio]                        # every token (L345)
+#   kv_state[ratio + pos % ratio] = kv; score_state[...] = score    (L347-348)
+#   if (start_pos + 1) % ratio == 0:                       # once per window (L344)
+#       pool the 2·ratio rows (previous window's first half + this window's
+#       second half) with softmax(dim=1) and sum; shift the ring (L349-354)
+#       kv = norm(kv); apply_rotary_emb(kv[..., -rd:]); write to the cache
+#
+# The pool runs once every `compress_ratio` tokens, on the 2m rows the ring
+# holds: the previous window's Ca halves and this window's Cb halves. The
+# frame says that as the prefill form does — a slot axis, a window axis, the
+# same regroup into 2m rows — with no tail: `view_split axis: 1` turns
+# [B, S, 2D] into [B, S/m, m, 2D]. The window axis is the state rows the
+# softmax and the sum run over (`axis: 2`); the slot axis is the windows a
+# step completes — `s_ctx / compress_ratio`, exact, the Rational average a
+# step of one token makes (one window per m tokens), as the per-expert token
+# count `M` is the routed tokens' average. The one-slot shift is the ring's
+# first half, which holds the previous window's Ca rows (L353-354 move them
+# there). So the window ops cost 2m rows once per m tokens, and the pooled
+# row's norm, RoPE, and cache append cost one row once per m tokens.
+#
+# Required dims: d_model, Cdim_io (= 2·Cdim_norm), Cdim_norm, Cape, d_qk_rope,
+# compress_ratio, n_compressor_rotate (as the prefill form). Same tensors, same cache entries.
+
+description: "DSv4 KV compressor (overlap variant), decode form — one token per step; the 2m-row pool normalized, roped and cached once every compress_ratio steps."
+# The ring is read when a window completes — `reads:`, the same windows a
+# step completes as the slot axis below — not every token: the carriers'
+# own work is that share of a step, and so is their read of the state.
+cache:
+  entries:
+    - { node: pooled_out, kind: compressed_kv }
+    - { state: kv_state,    kind: compressor_state, carrier: weighted, shape: ["2 * compress_ratio", Cdim_io], reads: "s_ctx / Cape", dtype: fp32 }
+    - { state: score_state, kind: compressor_state, carrier: smax,     shape: ["2 * compress_ratio", Cdim_io], reads: "s_ctx / Cape", dtype: fp32 }
+graph:
+  ape:    { op: parameter_tensor, role: attention_position_embedding, shape: [Cape, Cdim_io], weight_axes: [{ replicated: true }, { replicated: true }] }
+  wkv:    { op: linear, role: attention_compressor, in: x, dims: { in: d_model, out: Cdim_io }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  wgate:  { op: linear, role: attention_compressor, in: x, dims: { in: d_model, out: Cdim_io }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  # The window the step's token joins: [B, S, 2D] → [B, S/m, m, 2D].
+  gate_win: { op: view_split, in: wgate, axis: 1, dims: { s_slots: "s_ctx / Cape", window: Cape } }
+  kv_win:   { op: view_split, in: wkv,   axis: 1, dims: { s_slots: "s_ctx / Cape", window: Cape } }
+  scores:
+    op: position_table_add
+    in: [gate_win, ape]
+    dim: Cdim_io
+    formula: "y[b, slot, p, d] = wgate[b, slot, p, d] + ape[p, d]   (each token's row as it joins score_state; p = pos mod m)"
+  # The overlap regroup, as in the prefill form: a row's Ca half (`[..., :D]`)
+  # joins the NEXT window's pool, its Cb half (`[..., D:]`) this one's
+  # (model.py L350-351: `torch.cat([kv_state[:, :ratio, :d], kv_state[:,
+  # ratio:, d:]], dim=1)`).
+  kv_a:       { op: slice, in: kv_win, dims: { in: Cdim_io, start: "0", out: Cdim_norm }, formula: "Ca = kv_win[..., :D]" }
+  kv_b:       { op: slice, in: kv_win, dims: { in: Cdim_io, start: Cdim_norm, out: Cdim_norm }, formula: "Cb = kv_win[..., D:]" }
+  kv_prev:    { op: shift, in: kv_a, axis: 1, formula: "kv_prev[b, slot] = Ca[b, slot − 1]   (kv_state[:, :ratio, :d], the previous window's rows)" }
+  kv_pair:
+    op: concat
+    in: [kv_prev, kv_b]
+    axis: 2
+    dims: { in_a: Cape, in_b: Cape, out: "2 * Cape" }
+    formula: "kv_state rows = [Ca[b, slot−1] ; Cb[b, slot]]   (2m rows of D)"
+  score_a:    { op: slice, in: scores, dims: { in: Cdim_io, start: "0", out: Cdim_norm }, formula: "the Ca half of gate + ape" }
+  score_b:    { op: slice, in: scores, dims: { in: Cdim_io, start: Cdim_norm, out: Cdim_norm }, formula: "the Cb half of gate + ape" }
+  score_prev: { op: shift, in: score_a, axis: 1, formula: "score_prev[b, slot] = score_Ca[b, slot − 1]   (score_state[:, :ratio, :d])" }
+  score_pair:
+    op: concat
+    in: [score_prev, score_b]
+    axis: 2
+    dims: { in_a: Cape, in_b: Cape, out: "2 * Cape" }
+    formula: "score_state rows = [score_Ca[b, slot−1] ; score_Cb[b, slot]]"
+  # model.py L352: `score_state.softmax(dim=1)` over the 2m rows, once per window.
+  smax:
+    op: softmax_act
+    in: score_pair
+    dim: "2 * Cape"   # the normalized (window) width: 2m rows
+    axis: 2
+    formula: "w[b, slot, r, d] = exp(s[b, slot, r, d]) / Σ_{r'<2m} exp(s[b, slot, r', d])   (over the 2m state rows, once per m tokens)"
+  weighted:
+    op: mul
+    in: [kv_pair, smax]
+    dim: Cdim_norm
+    formula: "y[b, slot, r, d] = kv_state[b, r, d] · w[b, slot, r, d]"
+  pooled:
+    op: sum_reduce
+    in: weighted
+    axis: 2
+    dims: { in: "2 * Cape" }
+    formula: "y[b, slot, d] = Σ_{r<2m} weighted[b, slot, r, d]   (one pooled row per window)"
+  norm:    { op: rmsnorm, role: attention_compressor, in: pooled, dim: Cdim_norm, weight_axes: [{ replicated: true }] }
+  pe_slice:   { op: slice, in: norm, dims: { in: Cdim_norm, out: d_qk_rope } }
+  nope_slice: { op: slice, in: norm, dims: { in: Cdim_norm, out: "Cdim_norm - d_qk_rope" } }
+  pe_rope:    { op: rope_emb, in: pe_slice, dim: d_qk_rope }
+  roped:      { op: concat, in: [nope_slice, pe_rope], dims: { in_a: "Cdim_norm - d_qk_rope", in_b: d_qk_rope, out: Cdim_norm } }
+  # model.py::Compressor.forward L368-369: `if self.rotate: kv =
+  # rotate_activation(kv)` — the whole roped entry, Cdim_norm wide, rotated
+  # before it is quantised (`fp4_act_quant`, L370) and written to the cache
+  # (L373-376), so the cache holds the rotated key. Only the indexer's
+  # compressor rotates (`Compressor(..., True)`, L398); the attention's does
+  # not (L467). Off, the step hands `roped` on.
+  rotated:    { op: hadamard_transform, in: roped, dim: Cdim_norm, when: n_compressor_rotate }
+  pooled_out:
+    op: token_pool_compressor
+    in: rotated
+    dim: Cdim_norm
+    dims: { compress_ratio: compress_ratio }
+    formula: "cached latent = rotated   (identity marker; storage ⌈s_kv/m⌉ — the pending window owns a slot — read ⌊s_kv/m⌋ complete windows)"
+outputs: [pooled_out]

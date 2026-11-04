@@ -1,0 +1,14 @@
+# Provider env: deepinfer — SOURCE BUILD, provisioned OUT OF BAND.
+# GENERATED from the provider registry (`python -m kernel_bench envs`). Edit the provider, not this file.
+# Import gate (what availability checks, and what the build actually needs): deepinfer
+# Providers: deepinfer_bf16_mega_gate, deepinfer_compress_pool_decode, deepinfer_compress_pool_prefill, deepinfer_flashmla_mega_attention, deepinfer_fused_engram_gate, deepinfer_mega_mhc, deepinfer_mega_mhc_mxfp8, deepinfer_mega_moe, deepinfer_swa_norm_rope_store, deepinfer_v41_index_fp4_norm_rope_store
+#
+# build DeepInfer at the commit framework_bindings/deepinfer.yaml audits, from github.com/deepseek-ai/DeepInfer (Python 3.12, CUDA 13, SM100; build.sh also builds its vendored DeepGEMM / FlashMLA / DeepSelect submodules and installs tile-kernels)
+#
+# The lines below are what pip CAN install. If that is only torch, this
+# library is not reproducible from the repo and someone has to build it.
+torch>=2.5
+pydantic
+pyyaml
+huggingface-hub
+httpx

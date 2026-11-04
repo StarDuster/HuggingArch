@@ -1,0 +1,9 @@
+schema: huggingarch.claims/v1
+subject: gqa_partial_rope_vscale_attention
+axioms:
+  checks:
+  - kind: kv_growth
+    storage: per_token
+    expect: n_kv_heads * (d_head + d_v_head)
+    src: GQA with separate V head-dim — K cached at n_kv_heads*d_head, V at n_kv_heads*d_v_head
+      (d_v_head may differ); per token, grows.

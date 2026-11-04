@@ -1,0 +1,33 @@
+# 2-linear merged GEMM — gate+up SwiGLU/GeGLU pre-activation pair, or
+# any 2-sibling linear-pair reading the same external input.
+#
+# Naive subgraph: exactly 2 sibling linears that share one input.
+# Collapsed into one `torch.nn.functional.linear` over a
+# concat-along-output-dim weight (vLLM's
+# `MergedColumnParallelLinear`), saving one kernel launch + one HBM
+# round-trip for the activation.
+#
+# Disjoint from `qkv_parallel_linear` (N=3 attention QKV) by yaml
+# `min_count` / `max_count` so the two parallel-form plans cleanly
+# specialize on the real-world fusion granularities vLLM ships
+# distinct wrapper classes for:
+#   * 2 linears → MergedColumnParallelLinear (gate+up)
+#   * 3 linears → QKVParallelLinear           (attention QKV)
+#   * other N   → no merged-linear wrapper exists; neither matches.
+#
+# The matcher returns ONE PatternMatch per maximal sibling set (no
+# permutation explosion — siblings are interchangeable). The splice
+# produces N positional output ports `output_0`..`output_{N-1}` in
+# spec_id-sort order, so the rewrite is permutation-stable under IR
+# reordering.
+
+fused_op: merged_column_parallel_linear
+
+naive_pattern:
+  parallel:
+    op: linear
+    shared_inputs: [external.x]
+    min_count: 2
+    max_count: 2
+  io_mapping:
+    x: external.x

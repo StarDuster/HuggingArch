@@ -1,0 +1,38 @@
+# DeepInfer / FlashMLA V4.1 mega attention: Q-RoPE, sparse core attention,
+# conjugate O-RoPE, and the output's MXFP8 cast in ONE SM100 launch.
+#
+# V4.1 has no per-head query norm (`enable_q_norm=False`). The launch returns
+# a quantised, Wv-grouped attention result, not a plain BF16 context; the
+# optional quant member is therefore required on this default path.
+
+fused_op: fused_mla_norm_rope_attn_rope_cast
+
+naive_pattern:
+  nodes:
+    q_rope_slice:   { op: slice,    inputs: [external.q] }
+    q_norope_slice: { op: slice,    inputs: [external.q] }
+    q_rope:         { op: rope_emb, inputs: [q_rope_slice.out] }
+    q_concat:       { op: concat,   inputs: [q_norope_slice.out, q_rope.out] }
+    score:
+      op_choices: [attention_score, swa_attention_score]
+      inputs: [q_concat.out, external.kv]
+      optional_inputs: [external.indices]
+    softmax:
+      op_choices: [softmax_with_sink, swa_softmax_with_sink]
+      inputs: [score.out, external.sinks]
+    apply:
+      op_choices: [attention_apply, swa_attention_apply]
+      inputs: [softmax.out, external.kv]
+    o_rope_slice:   { op: slice,            inputs: [apply.out] }
+    o_norope_slice: { op: slice,            inputs: [apply.out] }
+    o_rope:         { op: rope_emb_inverse, inputs: [o_rope_slice.out] }
+    o_concat:       { op: concat,           inputs: [o_norope_slice.out, o_rope.out] }
+    quant:          { op: quantise_activation, inputs: [o_concat.out] }
+  io_mapping:
+    q:        external.q
+    kv:       external.kv
+    indices:  external.indices
+    sinks:    external.sinks
+    output:   quant.out
+
+allocates_output: "flash_mla.fused_norm_rope_attn_rope_cast.prefill / .decode (vendor/FlashMLA/flash_mla/fused_norm_rope_attn_rope_cast.py:12, :86 at the FlashMLA submodule DeepInfer pins), from DeepInfer prefill_attn_varlen_sparse / decode_mla_mqa_sparse (deepinfer/model_executor/layers/attention_backend.py:26, :77): Q-RoPE + sparse attention + conjugate O-RoPE + MXFP8 cast"

@@ -1,0 +1,47 @@
+# Step 3.5 / Step-3.7 MTP layer (vLLM step3p5_mtp.py
+# Step3p5AMultiTokenPredictorLayer, which vLLM also runs for Step-3.7 —
+# config/speculative.py maps model_type step3p7 to step3p5_mtp; sglang
+# step3p5_mtp.py the same):
+#
+#   inputs_embeds → enorm
+#   x             → hnorm                      (in parallel)
+#   concat(enorm, hnorm) → eh_proj → inner block                → (next layer)
+#                                  └→ shared_head.norm → shared_head.output (logits)
+#
+# `x` is the previous hidden state (the backbone's final norm for the first
+# MTP layer), `inputs_embeds` the next token's embedding from the shared
+# embed_tokens (Step3p5AMultiTokenPredictor.embed_tokens; the layer has no
+# private table). The layer returns the inner block's hidden state, which the
+# next MTP layer reads; the shared head is a side output that compute_logits
+# applies to it (`mtp_layer.shared_head(hidden_states)` then
+# `shared_head.head`, the checkpoint's `shared_head.output`). Feeding the
+# vocabulary logits to the next layer would break both its shape and its
+# placement.
+#
+# The checkpoint keeps the head under `transformer.shared_head.*`; whether
+# the inner block's leaves sit under `transformer.` too is the checkpoint's
+# fact, so a consumer whose checkpoint stores them at the layer root (Step-3.7)
+# says `inner_modules: { transformer: null }` at its call site.
+#
+# Required dims: d_model, n_vocab.
+role: aux_block
+description: "Step 3.5 / 3.7 MTP layer: enorm(next-token embedding) and hnorm(hidden) + concat + eh_proj + inner block; transformer.shared_head.{norm,output} logits as a side output."
+
+inputs: [x, inputs_embeds]
+
+params:
+  inner: { kind: component }
+  norm:  { kind: component, default: rmsnorm }
+
+graph:
+  enorm:                          { op: <norm>, in: inputs_embeds, dim: d_model, weight_axes: [{ replicated: true }] }
+  hnorm:                          { op: <norm>, in: x, dim: d_model, weight_axes: [{ replicated: true }] }
+  concat:                         { op: concat, in: [enorm, hnorm], dim: "2 * d_model" }
+  eh_proj:                        { op: linear, in: concat, dims: { in: "2 * d_model", out: d_model }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  transformer:                    { op: <inner>, in: eh_proj }
+  transformer.shared_head.norm:   { op: <norm>, in: transformer, dim: d_model, weight_axes: [{ replicated: true }] }
+  # The draft's logits: vLLM computes them only at the sampled positions
+  # (v1/spec_decode/llm_base_proposer.py:613, `last_hidden_states[token_indices_to_sample]`
+  # before compute_logits), so this is an output head.
+  transformer.shared_head.output: { op: linear, in: transformer.shared_head.norm, dims: { in: d_model, out: n_vocab }, weight_axes: [{ world: attention, parts: n_vocab, fit: pad }, { replicated: true }], boundary_role: output_head }
+outputs: [transformer]

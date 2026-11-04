@@ -1,0 +1,22 @@
+schema: huggingarch.claims/v1
+subject: mla_dsa_kpool_nope_attention
+axioms:
+  checks:
+  - kind: kv_growth
+    node: kv_a_layernorm
+    storage: per_token
+    expect: d_kv_lora
+    src: vLLM / sglang cache the 512-wide MLA latent, one row per token (the component's
+      reference disagreement on HF's expanded per-head K/V).
+  - kind: kv_growth
+    node: index_kpool.pooled_out
+    storage: per_token
+    expect: d_indexer_head
+    src: 'vLLM v0.30.0 models/glm5next/nvidia/attention.py:78-156 `Glm5NextIndexerCache`
+      (`tokens_per_state = index_kpool`: one pooled key per pool), written by
+      model_executor/layers/sparse_attn_indexer_kpool.py:53-97; sglang v0.5.21
+      layers/attention/dsa/dsa_indexer_kpool.py:833-841 reads ⌊seq_len / index_kpool⌋
+      pooled rows. One index_head_dim row per compress_ratio tokens, growing with context.
+      HF instead caches the raw per-token [k, gate] state (modeling_glm5_next.py:806, :813)
+      and re-pools it every step (:827); the pooled keys are bit-identical once a pool is
+      complete.'

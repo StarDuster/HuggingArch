@@ -1,0 +1,4 @@
+# Identity file for Qwen/Qwen3-32B
+base: qwen3
+match:
+  model_id: [Qwen/Qwen3-32B]

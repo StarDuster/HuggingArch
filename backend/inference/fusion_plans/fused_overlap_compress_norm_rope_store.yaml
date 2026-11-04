@@ -1,0 +1,79 @@
+# DeepSeek-V4 overlap KV compressor (compress_ratio 4) — vLLM's
+# compress → norm → RoPE → store kernel, the pool included.
+#
+# Naive subgraph (dsv4_compressor_overlap and its decode form): the 2m state
+# rows of a window — the previous window's Ca half and this window's Cb half,
+# kv and gate score alike — are softmax-pooled over the window axis, and the
+# pooled row is normalized, its last d_qk_rope dims rotated and re-joined, and
+# cached:
+#
+#   kv_pair    = concat(shift(kv_half_a(kv)), kv_half_b(kv))
+#   score_pair = concat(shift(score_half_a(score)), score_half_b(score))
+#   pool       = sum_r(kv_pair · softmax_r(score_pair))
+#   concat     = concat(slice(n), rope_emb(slice(n)))   n = rmsnorm(pool)
+#   rotate     = hadamard_transform(concat)              (the indexer's only)
+#   compress   = token_pool_compressor(rotate)
+#
+# `rotate` is optional: the attention's compressor has no Hadamard, the
+# indexer's has one before its cache write (reference inference/model.py:
+# 368-369, `if self.rotate: kv = rotate_activation(kv)`). vLLM's launch
+# never computes it — the attention Triton kernel
+# `_fused_kv_compress_norm_rope_insert_sparse_attn` and the indexer kernels
+# `_fused_kv_compress_norm_rope_insert_indexer{,_mxfp4}_attn` all go from
+# RoPE straight to the quantised insert, and the indexer query
+# (`fused_indexer_q_rope_quant`) skips it too, so the scores are those of the
+# reference (H is orthogonal and applied to both sides). The node the
+# reference has is absorbed into this same launch rather than billed as a
+# launch vLLM does not make (framework_bindings/vllm.yaml).
+#
+# vLLM (audited at v0.32.0) runs all of it as one launch on the tokens that
+# complete a window (vllm/models/deepseek_v4/compressor.py:200
+# `DeepseekCompressor.forward`, launched at :475): the CuteDSL
+# `SparseAttnCompressNormRopeStore{,Full}C4Kernel` for head_dim 512
+# (nvidia/ops/sparse_attn_compress_cutedsl.py:78, :586, dispatched at :2343
+# when compress_ratio == 4) and the Triton
+# `_fused_kv_compress_norm_rope_insert_sparse_attn` for the indexer's
+# head_dim 128 (common/ops/fused_compress_quant_cache.py:150 — gather of the
+# 2m state rows, `tl.softmax` at :241, weighted sum, RMSNorm, RoPE, quant,
+# cache insert).
+#
+# The kernel's inputs are the state rows: kv as `wkv` wrote them and the
+# score with `ape` already added. Adding `ape` and writing both into the
+# fp32 state cache is the launch before it (`_SAVE_PARTIAL_STATES_KERNEL`,
+# common/ops/save_partial_states.py), so `position_table_add` stays outside
+# the pattern.
+#
+# The no-overlap compressor (compress_ratio 128) is not this kernel on CUDA:
+# `SparseAttnCompressC128Block8Kernel` pools and `SparseAttnNormRopeStore
+# {,Full}Kernel` stores, two launches — `fused_compress_norm_rope_store` is
+# the second. The shift → concat regroup is what only the overlap form has,
+# so the pattern itself tells the two apart; the larger pattern is tried
+# first (`_pattern_specificity`), and the tail plan never sees an overlap
+# compressor's tail.
+
+fused_op: fused_overlap_compress_norm_rope_store
+
+naive_pattern:
+  nodes:
+    kv_half_a:    { op: slice,                 inputs: [external.kv] }
+    kv_half_b:    { op: slice,                 inputs: [external.kv] }
+    kv_prev:      { op: shift,                 inputs: [kv_half_a.out] }
+    kv_pair:      { op: concat,                inputs: [kv_prev.out, kv_half_b.out] }
+    score_half_a: { op: slice,                 inputs: [external.score] }
+    score_half_b: { op: slice,                 inputs: [external.score] }
+    score_prev:   { op: shift,                 inputs: [score_half_a.out] }
+    score_pair:   { op: concat,                inputs: [score_prev.out, score_half_b.out] }
+    softmax:      { op: softmax_act,           inputs: [score_pair.out] }
+    kv_weighted:  { op: mul,                   inputs: [kv_pair.out, softmax.out] }
+    pool:         { op: sum_reduce,            inputs: [kv_weighted.out] }
+    norm:         { op: rmsnorm,               inputs: [pool.out] }
+    rope_slice:   { op: slice,                 inputs: [norm.out] }
+    norope_slice: { op: slice,                 inputs: [norm.out] }
+    rope:         { op: rope_emb,              inputs: [rope_slice.out] }
+    concat:       { op: concat,                inputs: [norope_slice.out, rope.out] }
+    rotate:       { op: hadamard_transform,    inputs: [concat.out], optional: true }
+    compress:     { op: token_pool_compressor, inputs: [rotate.out] }
+  io_mapping:
+    kv:     external.kv
+    score:  external.score
+    output: compress.out

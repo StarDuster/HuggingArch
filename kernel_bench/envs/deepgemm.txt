@@ -1,0 +1,14 @@
+# Provider env: deepgemm — SOURCE BUILD, provisioned OUT OF BAND.
+# GENERATED from the provider registry (`python -m kernel_bench envs`). Edit the provider, not this file.
+# Import gate (what availability checks, and what the build actually needs): deep_gemm
+# Providers: deepgemm_fp8_blockwise, deepgemm_fp8_fp4_m_grouped_contiguous, deepgemm_fp8_fp4_mega_moe, deepgemm_fp8_m_grouped_contiguous, deepgemm_fp8_m_grouped_masked, deepgemm_fp8_paged_mqa_logits, deepgemm_fp8_per_head_masked
+#
+# build from github.com/deepseek-ai/DeepGEMM (no PyPI release)
+#
+# The lines below are what pip CAN install. If that is only torch, this
+# library is not reproducible from the repo and someone has to build it.
+torch>=2.5
+pydantic
+pyyaml
+huggingface-hub
+httpx

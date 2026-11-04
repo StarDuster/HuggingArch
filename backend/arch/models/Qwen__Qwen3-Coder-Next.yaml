@@ -1,0 +1,4 @@
+# Identity file for Qwen/Qwen3-Coder-Next
+base: qwen3_next
+match:
+  model_id: [Qwen/Qwen3-Coder-Next]

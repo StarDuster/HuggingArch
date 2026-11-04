@@ -1,0 +1,266 @@
+# DeepSeek-V4 family (V4-Pro / V4-Flash).
+#
+# Architectural deltas vs DSv3 (in the order they appear in inference/model.py):
+#
+#   1. Hyper-Connections (HC). The hidden state is broadcast to `n_hidden_copies`
+#      parallel residual copies right after the embedding and reduced
+#      back at the head. Every Block (and the MTP block) wraps its attn
+#      and ffn calls with `hc_pre` / `hc_post` — Sinkhorn-projected
+#      learned mixing across the n_hidden_copies copies. Per-block params:
+#        hc_{attn,ffn}_fn   [d_hc_mix, n_hidden_copies*d_model]
+#        hc_{attn,ffn}_base [d_hc_mix]
+#        hc_{attn,ffn}_scale [3]
+#      Top-level head also has hc_head_fn [n_hidden_copies, n_hidden_copies*d_model] + base [n_hidden_copies] +
+#      scale [1].
+#
+#   2. Hybrid CSA / HCA / SWA-only attention chosen per-layer by the
+#      `compress_ratios` array. compress_ratio=4  → CSA (overlap
+#      compressor + sparse top-K Indexer). compress_ratio=128 → HCA
+#      (no-overlap compressor, no indexer). compress_ratio=0 → bare
+#      SWA + sink + q-LoRA + grouped o-LoRA (used only by the MTP head
+#      in V4-Pro). All variants share q-LoRA (d_q_lora=1536), single-head MQA
+#      KV with k_eq_v (d_head=512), per-head sink, partial RoPE on the last
+#      d_qk_rope=64 channels, and per-group LoRA output (n_out_lora_groups=16, d_out_lora=1024).
+#
+#   3. MoE routing variants: first `num_hash_layers` layers (=3 for
+#      V4-Pro) use HASH routing — `gate.tid2eid[input_ids]` looks up
+#      expert indices directly from the input token id, no top-K. The
+#      remaining 58 layers and the MTP block use sqrtsoftplus + per-
+#      expert correction `bias` (top-level under `ffn.`, NOT under
+#      `ffn.gate.`).
+#
+#   4. Mixed precision deployment: routed-expert SwiGLU weights are FP4
+#      (UE8M0 scale, group_size=32, packed in I8 with `.scale`
+#      siblings). Everything else quantized is FP8 — but with the DSv4
+#      `.scale` UE8M0 convention, NOT V3's `.weight_scale_inv` F32.
+#
+#   5. Layer index 60 (last main-backbone layer) has compress_ratio=4
+#      per the config array — i.e. CSA, NOT HCA. The MTP layer (1 nextn
+#      head) sits AFTER n_layers=61 main layers and uses the trailing 0 in
+#      `compress_ratios` (SWA-only).
+#
+# Quant and HC cost are both declared, not approximated:
+#   - FP8 uses `fp8_ue8m0` (`.scale` + F8_E8M0FNU), not DSv3's
+#     `fp8` (`.weight_scale_inv` + F32).
+#   - Hyper-Connections mix via `linear_external_weight` +
+#     `hc_split_sinkhorn`; params live on the caller's parameter_tensor.
+match:
+  model_type: [deepseek_v4]
+
+components:
+  attention: dsv4_csa_attention
+  attention_swa: dsv4_swa_only_attention
+  ffn_dense: swiglu_ffn          # unused (DSv4-Pro has no dense layers)
+  ffn_moe: dsv4_moe_sigmoid
+  norm: rmsnorm
+  block: dsv4_block
+
+dims:
+  d_model:    config.hidden_size
+  # `Attention.forward` RMS-normalizes each query head before RoPE; no config
+  # field states it (dsv4_swa_only_attention's `q_head_norm`).
+  n_q_head_norm: "1"
+  n_heads:    config.num_attention_heads
+  n_kv_heads:   config.num_key_value_heads
+  d_head:    config.head_dim
+  d_qk_rope:    config.qk_rope_head_dim
+  d_q_lora:   config.q_lora_rank
+  d_out_lora:  config.o_lora_rank
+  n_out_lora_groups:   config.o_groups
+  d_out_lora_group_in: "n_heads * d_head // n_out_lora_groups"
+  s_window:    config.sliding_window
+  n_indexer_heads:   config.index_n_heads
+  d_indexer_head:   config.index_head_dim
+  n_topk_keys:   config.index_topk
+  d_ffn_expert:   config.moe_intermediate_size
+  n_vocab:    config.vocab_size
+  n_layers:    config.num_hidden_layers
+  n_experts:    config.n_routed_experts
+  n_experts_active:    config.num_experts_per_tok
+  n_hash_layers:   config.num_hash_layers           # first N layers use hash MoE routing
+  n_shared_experts:   config.n_shared_experts ?? "1"
+  d_ffn_shared:   "d_ffn_expert * n_shared_experts"
+  n_mtp_layers: config.num_nextn_predict_layers ?? "1"
+  # Hyper-Connections dims.
+  n_hidden_copies:   config.hc_mult ?? "4"            # number of parallel residual copies
+  d_hc_mix:   "(2 + n_hidden_copies) * n_hidden_copies"                  # mix_hc — output of hc_pre Linear
+  s_max: config.max_position_embeddings
+  # The clamped SwiGLU bound (Expert.forward `swiglu_limit`), read by every
+  # `clamp` in its frame (swiglu_ffn_clamped).
+  clamp_limit: config.swiglu_limit
+
+view:
+  rope_theta: config.rope_theta
+  rope_scaling: config.rope_scaling
+  hidden_act: config.hidden_act
+  norm.eps: config.rms_norm_eps
+
+model_inputs:
+  input_ids: { kind: tokens }
+
+# Custom block graph for the main backbone — heterogeneous in two axes,
+# both READ FROM CONFIG so the same spec serves every V4 size (Pro 61
+# layers, Flash 43, …) without re-listing indices:
+#   axis A: attention — `config.compress_ratios[i]` picks it per layer
+#           (128 → HCA, 4 → CSA; the trailing 0 is the MTP layer, below).
+#   axis B: MoE routing — the first `config.num_hash_layers` layers use
+#           hash routing, the rest sigmoid.
+#
+# The cross-product is four block kinds, generated as `attention:` + `ffn:`
+# per assignment. Each is selected by INTERSECTING the two axes:
+#   HCA + Hash    = compress_ratios==128 ∩ [0, n_hash_layers-1]
+#   CSA + Hash    = compress_ratios==4   ∩ [0, n_hash_layers-1]
+#   HCA + Sigmoid = compress_ratios==128 (the remaining 128 layers)
+#   CSA + Sigmoid = rest
+# Declaration order gives the two hash generators the first crack at the
+# prefix; the sigmoid pair then claim what is left. For Pro this resolves
+# to {0,1} / {2} / {odd≥3} / {even≥4}.
+model:
+  - { name: embed, inputs: [input_ids], op: embedding, boundary_role: input_embedding, dims: { n_vocab: n_vocab, d_model: d_model }, weight_axes: [{ world: attention, parts: n_vocab, fit: pad }, { replicated: true }] }
+
+  # Network entry: lift [B,s_ctx,d_model] embedding output to [B,s_ctx,n_hidden_copies,d_model] so the
+  # decoder stack runs with n_hidden_copies parallel hidden copies. `broadcast` is
+  # zero-FLOPs / zero-params — just a view replicate along a new axis.
+  - { name: hc_expand, op: broadcast, axis: -2, dims: { width: n_hidden_copies }, inputs: [embed]}
+
+  - name: layers
+    inputs: [hc_expand, input_ids]
+    repeat: n_layers
+    streams:
+      hidden: { carries: true }
+    per_layer:
+      assign:
+        - { type: hca_hash,    from: config.compress_ratios, is: "128", range: ["0", "n_hash_layers - 1"] }
+        - { type: csa_hash,    from: config.compress_ratios, is: "4",   range: ["0", "n_hash_layers - 1"] }
+        - { type: hca_sigmoid, from: config.compress_ratios, is: "128" }
+        - { type: csa_sigmoid, rest: true }
+      # `compress_ratio` is the config's `compress_ratios` entry for these
+      # layers, and it is bound HERE rather than inside the components
+      # because two places need it and they must not be able to disagree:
+      # the compressor stores ⌈s_kv/compress_ratio⌉ latents (the pending
+      # window's slot included), and the CSA indexer scans the ⌊s_kv/compress_ratio⌋
+      # complete ones, at the same ratio. A literal typed into both would let
+      # the scan drift from the storage without a word.
+      map:
+        hca_hash:    { attention: dsv4_hca_attention, ffn: dsv4_moe_hash,    dims: { compress_ratio: "128" } }
+        csa_hash:    { attention: dsv4_csa_attention, ffn: dsv4_moe_hash,    dims: { compress_ratio: "4" } }
+        hca_sigmoid: { attention: dsv4_hca_attention, ffn: dsv4_moe_sigmoid, dims: { compress_ratio: "128" } }
+        csa_sigmoid: { attention: dsv4_csa_attention, ffn: dsv4_moe_sigmoid, dims: { compress_ratio: "4" } }
+
+  # Network exit: reduce [B,s_ctx,n_hidden_copies,d_model] back to [B,s_ctx,d_model] before lm_head.
+  # Three nn.Parameters at model root (flat checkpoint paths
+  # `hc_head_fn` / `hc_head_base` / `hc_head_scale`), then `hc_head`
+  # template invocation passes the residual stream + 3 weight refs
+  # explicitly — same pure-function pattern as `hc_pre` / `hc_post`
+  # / `hc_head` inside `dsv4_block` / `dsv4_mtp_block`. Mirrors
+  # V4-Pro source `ParallelHead.hc_head` consuming Block-attribute
+  # weights as method arguments.
+  - { name: hc_head_fn,    op: parameter_tensor, role: hyper_connection, shape: [n_hidden_copies, "n_hidden_copies * d_model"], weight_axes: [{ replicated: true }, { replicated: true }] }
+  - { name: hc_head_base,  op: parameter_vector, role: hyper_connection, dim: n_hidden_copies, weight_axes: [{ replicated: true }] }
+  - { name: hc_head_scale, op: parameter_vector, role: hyper_connection, dim: "1", weight_axes: [{ replicated: true }] }
+  # `op:`, not `template:` — this is one call of a pure function at the
+  # model root, not a stack of one layer. `template:` carries no `inputs:`
+  # into the IR, which would leave the body's `fn` / `scale` / `base`
+  # unresolved and the three parameters above without a reader.
+  - name: hc_head
+    op: hc_head
+    inputs: [layers, hc_head_fn, hc_head_scale, hc_head_base]   # residual + 3 weights
+
+  - { name: norm, op: rmsnorm, dim: d_model, weight_axes: [{ replicated: true }] , inputs: [hc_head]}
+  - { name: head, op: linear, boundary_role: output_head, dims: { in: d_model, out: n_vocab }, weight_axes: [{ world: attention, parts: n_vocab, fit: pad }, { replicated: true }] , inputs: [norm]}
+
+  # MTP head — single layer in V4-Pro. compress_ratios trailing 0 → SWA-only.
+  # Shares main embed + main lm_head (no private copies).
+  - name: mtp
+    inputs: [layers, embed, input_ids]
+    group: true
+    aux_kind: mtp
+    # MTP tensors ship under the stack's own indexed namespace
+    # (`mtp.0.*`) — the default, declared explicitly.
+    checkpoint: { prefix: mtp, index: local }
+    # The head attaches BEFORE the exit reduce: source passes it
+    # `layers`' output, still [B,s_ctx,n_hidden_copies,d_model], and runs
+    # its own private `hc_head` on it. Second input is the shared
+    # embedding table's output — `MTPBlock.embed` is `Transformer.embed`,
+    # so the next-token feed is that node, not a private copy.
+    inputs: [layers, embed, input_ids]
+    repeat: n_mtp_layers
+    streams:
+      hidden: { carries: true }
+    layers:
+      - { name: mtp, template: dsv4_mtp_block, inputs: [layers, embed, input_ids] }
+      # The MTP logits use the main head (inference/model.py: MTPBlock.forward -> self.head, the Transformer's ParallelHead; vLLM deepseek_v4/nvidia/mtp.py compute_logits).
+      - { name: mtp_logits, op: linear, boundary_role: output_head, dims: { in: d_model, out: n_vocab }, weight_axes: [{ world: attention, parts: n_vocab, fit: pad }, { replicated: true }], tied_weight: { to: head } , inputs: [mtp]}
+
+# Quantization context.
+#   - Routed-expert SwiGLU (`layers.X.ffn.experts.Y.w{1,2,3}.weight`)
+#     stored as FP4 (E2M1) packed 2-per-byte in I8, with per-32 UE8M0
+#     `.scale` siblings — matches `quant_schemes/fp4.yaml`.
+#   - Everything else quantized is FP8-E4M3 with per-128×128 tile
+#     UE8M0 `.scale` siblings (DSv4 convention; DSv3 used F32
+#     `.weight_scale_inv`).
+quant_context:
+  # What the reference forward stores each per-token cache slot at. Every
+  # write is quantised in place before it lands in a BF16 buffer
+  # (`act_quant(..., inplace=True)`), so the buffer's dtype is a container
+  # and the stored values are the quantised ones:
+  #   kv / compressed_kv — `act_quant(kv[..., :-rd], 64, scale_fmt,
+  #     scale_dtype, True)` (inference/model.py:372, :506): FP8 over 64
+  #     channels with an E8M0 scale (`scale_dtype: fp8` in ModelArgs), the
+  #     RoPE tail left BF16.
+  #   index_key — `fp4_act_quant(kv, fp4_block_size, True)` (:370): MXFP4.
+  cache_formats:
+    kv:            fp8_ue8m0_group64_bf16_rope_tail
+    compressed_kv: fp8_ue8m0_group64_bf16_rope_tail
+    index_key:     mxfp4
+  per_role:
+    attention:     { method: fp8_ue8m0, block_h: 128, block_w: 128 }
+    # MTP head's `dsv4_swa_only_attention` is bound under the
+    # `attention_swa` component slot, so its leaves inherit
+    # `attention_swa` as their per-leaf role. Same FP8 quant as the
+    # main backbone — without this entry the MTP attention weights
+    # fall through to `default: { method: none }` and get counted at
+    # BF16 (2 bytes) instead of FP8 (1 byte).
+    attention_swa: { method: fp8_ue8m0, block_h: 128, block_w: 128 }
+    # The MoE layers' shared experts (role ffn_dense) are FP8, not FP4.
+    ffn_dense:     { method: fp8_ue8m0, block_h: 128, block_w: 128 }
+    # MXFP4, not the generic FP4: E2M1 under one UE8M0 exponent per 32 is
+    # the OCP Microscaling recipe — owner's ruling, and the recipe agrees.
+    # Declared per model rather than inferred from the scale and the group;
+    # the scheme is `fp4`'s layout with the MX numeric format, so the bytes
+    # are the same and only the measurement identity moves.
+    ffn_moe:       { method: mxfp4-dot-suffix, group_size: 32 }
+    # The KV compressors' wkv / wgate (also the indexer's own compressor) and
+    # the indexer's weights_proj are BF16; the compressors' ape is F32.
+    attention_compressor:         { method: none }
+    attention_indexer:            { method: none }
+    attention_position_embedding: { method: none, dtype: F32 }
+    # The MoE gate (`ffn.gate.weight`, BF16 on disk) is the router leaf.
+    router:        { method: none }
+    # The Hyper-Connection banks (`hc_{attn,ffn,head}_{fn,base,scale}`) are
+    # F32 on disk despite default_dtype BF16.
+    hyper_connection: { method: none, dtype: F32 }
+    # The hash layers' token-to-expert table: I64 expert ids on disk.
+    router_hash_table: { method: none, dtype: I64 }
+    default:       { method: none }
+  default_dtype: BF16
+  overrides:
+    # ---- F32 parameter banks (sink) ----
+    # Stored as F32 on disk despite default_dtype: BF16. parameter_vector
+    # ops fall through to default_dtype unless overridden.
+    - tensors_re: '\.attn\.attn_sink$'
+      dtype: F32
+    # MoE routing correction-bias (sigmoid-route layers only) — a bare
+    # nn.Parameter on the custom `Gate` module, checkpoint path
+    # `<ffn>.gate.bias`.
+    - tensors_re: '\.ffn\.gate\.bias$'
+      dtype: F32
+    # MTP entry projections (e_proj, h_proj) — FP8 on disk, same as the
+    # main backbone attention bucket. Need an explicit override since
+    # they live inside the aux_block-roled MTP component which falls to
+    # `default: { method: none }`. method so `.scale` siblings emit.
+    - tensors_re: '\.[eh]_proj\.weight$'
+      dtype: F8_E4M3
+      method: fp8_ue8m0
+      block_h: 128
+      block_w: 128

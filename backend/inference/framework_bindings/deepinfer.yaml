@@ -1,0 +1,153 @@
+# DeepInfer framework binding — DeepSeek's production engine for
+# DeepSeek-V4.1-Flash.
+#
+# DeepInfer is deliberately narrower than vLLM / sglang: the audited release
+# serves one model family on NVIDIA SM100 and Ascend 950. This binding states
+# only launches whose boundary is already a fusion-plan concept. Where a
+# DeepInfer launch is larger than any vLLM / sglang one (FlashMLA's
+# mega-attention, MegaGate, Mega-MHC) it has its own plan, rather than being
+# billed as `flash_attention` plus neighbouring plans.
+#
+# Paths are relative to the DeepInfer repository root.
+framework: deepinfer
+audited_at:
+  # The release label is DeepInfer's package version at the pinned commit
+  # (`pyproject.toml` version 0.1.0); the repository had no separate git tag
+  # when audited.
+  repo: deepseek-ai/DeepInfer
+  tag: v0.1.0
+  commit: 553741557a57df44a46fb3ab72b6aafeaf945337
+
+# `ModelMetadata.resolved_tokens_per_block` is fixed at 128 for V4.1
+# (model_metadata_utils.py:134-135); engine args may only assert the same
+# value, never choose another (engine/arg_utils.py:80-97).
+kv_block_size: 128
+
+# DeepInfer serves no Mamba model in this release (ModelMetadata asserts the
+# V4.1 MoE model, model_metadata_utils.py:120-122), so no scan cell can be
+# planned. The loader requires the field, and these are the conventional
+# config spellings; on this binding they are vacuous.
+ssm_chunk_size:
+  from_config: [mamba_chunk_size, chunk_size]
+
+op_implementations:
+  # The whole SM100 core-attention launch: Q-RoPE + sparse attention with
+  # sinks + conjugate O-RoPE + MXFP8 cast. DeepInfer takes it when
+  # `use_fused_norm_rope_attn_rope_cast` holds (attn.py:87-92): a GPU, a
+  # local head count of 64 or 128, and not a dense (index-free) layer
+  # reading packed KV in decode. Assumed here, stated rather than
+  # conditioned: attention is not tensor-parallel (DeepInfer keeps every
+  # head on each rank, `num_heads = cfg.num_attention_heads`, attn.py:73, so
+  # V4.1-Flash's 64 heads qualify), and no V4.1 layer is dense with packed
+  # KV. The provider is declared disabled
+  # until a DeepInfer worker supplies the load-time q_b/Wv permutations, but
+  # the graph boundary is exact.
+  fused_mla_norm_rope_attn_rope_cast:
+    source_anchor: "flash_mla.fused_norm_rope_attn_rope_cast.prefill / .decode (deepinfer/model_executor/layers/attention_backend.py:51, deepinfer/model_executor/layers/attention_backend.py:108), from V4Attention._prefill_attention / _decode_attention (deepinfer/model_executor/models/v4_modules/attn.py:617, deepinfer/model_executor/models/v4_modules/attn.py:660)"
+    when:
+      architectures: [DeepseekV41ForCausalLM]
+      device: [cuda]
+      min_compute_capability: "10.0"
+
+  # The compressor's first launch: softmax pool + fp32 state update. The
+  # following norm/RoPE/store launch is bound separately below. DeepInfer
+  # dispatches on the ratio itself: at ratio 1 `forward_pre_norm` returns the
+  # projected row with no launch (compress.py:89-93), and its loader admits
+  # only ratios 1 and 2 (model_metadata_utils.py:52-53).
+  fused_compress_pool_state:
+    source_anchor: "deepinfer.model_executor.layers.tilelang_ops.compress.compress_and_update_state_prefill / compress_and_update_state_decode (deepinfer/model_executor/layers/tilelang_ops/compress.py:20, deepinfer/model_executor/layers/tilelang_ops/compress.py:74), from Compressor.forward_pre_norm (deepinfer/model_executor/models/v4_modules/compress.py:98, deepinfer/model_executor/models/v4_modules/compress.py:111)"
+    when:
+      architectures: [DeepseekV41ForCausalLM]
+      device: [cuda]
+      min_compute_capability: "10.0"
+      dims: { compress_ratio: [2] }
+
+  # The SWA latent row (`V4Attention._prepare_swa_kv`, attn.py:402-449):
+  # RMSNorm, partial GPT-J RoPE and the cast to the SWA cache record
+  # (`CastArgs("e4m3", 32, sf_format="ue8m0")`, attn.py:411-426 — the spec's
+  # `kv: fp8_ue8m0_group32`) in one TileLang launch. In decode the same
+  # launch writes the page (`KVCacheOutArgs`, :428-432). In prefill it
+  # returns the cast-back BF16 row (`cast_back=True`, :411-418) and the page
+  # is written by a second launch after the cache load (`store_kv_cache`,
+  # :855), so the prefill pair is not this one-launch boundary and is left
+  # unfused. Only the attention's own latent row: the compressor and the
+  # indexer key take the wider `fused_compress_norm_rope_store` below.
+  fused_norm_rope:
+    source_anchor: "deepinfer.model_executor.layers.tilelang_ops.fused_transform.fused_norm_rope_hadamard_cast_store_kvcache (deepinfer/model_executor/layers/tilelang_ops/fused_transform.py:189), from V4Attention._prepare_swa_kv (deepinfer/model_executor/models/v4_modules/attn.py:433)"
+    when:
+      architectures: [DeepseekV41ForCausalLM]
+      phase: [decode]
+      device: [cuda]
+      min_compute_capability: "10.0"
+      roles: { norm: [attention, attention_swa] }
+
+  # The indexer query is also one transform+cast launch (`MQA._quantize_q`,
+  # deepinfer/model_executor/models/v4_modules/index_attn.py:164-167), but
+  # V4.1's graph carries its MXFP4 record inside `indexer_logits` rather
+  # than as a cast node, so no plan states that boundary yet; the rotation
+  # is billed unfused.
+
+  # V4.1's shifted mHC seam: DeepGEMM Mega-MHC performs the previous post,
+  # current coefficient projection, carried-pre reduce and RMSNorm in one
+  # launch. The eligibility check is V4.1's exact geometry on NVIDIA (four
+  # copies, a divisible hidden size); every corpus V4.1 checkpoint passes it.
+  mhc_mega_post_pre:
+    source_anchor: "deep_gemm.mega_mhc, from DeepInfer HCLayerMixin._mega_mhc (deepinfer/model_executor/models/v4_modules/hc.py:229-298; eligibility deepinfer/model_executor/models/v4_modules/hc.py:99-101)"
+    crosses: component
+    when:
+      architectures: [DeepseekV41ForCausalLM]
+      device: [cuda]
+      min_compute_capability: "10.0"
+      dims: { n_hidden_copies: [4] }
+
+  # The V4.1 index key: RMSNorm, partial GPT-J RoPE, the MXFP4 cast and the
+  # paged store in one launch (`MQA.store_index_kv`). The compressed main
+  # row runs the same wrapper (`Compressor.forward_store_kv_cache`,
+  # compress.py:131-160), but V4.1's graph rotates that row after its store
+  # marker (`csa2_compress_store`), which this plan does not match; until a
+  # plan states norm + `fused_compress_rope_store`'s boundary, that row is
+  # billed unfused (more launches than DeepInfer runs).
+  fused_compress_norm_rope_store:
+    source_anchor: "deepinfer.model_executor.layers.tilelang_ops.fused_transform.fused_norm_rope_hadamard_cast_store_kvcache (deepinfer/model_executor/layers/tilelang_ops/fused_transform.py:189), from MQA.store_index_kv (deepinfer/model_executor/models/v4_modules/index_attn.py:146)"
+    crosses: component
+    when:
+      architectures: [DeepseekV41ForCausalLM]
+      device: [cuda]
+      min_compute_capability: "10.0"
+
+  # Engram's post-wkv gate is TileKernels' one launch, called with the fused
+  # q/k weights prepared at load time; the n-gram lookup and wkv GEMM stay
+  # outside the boundary exactly as the plan states.
+  fused_engram_gate:
+    source_anchor: "tile_kernels.engram.engram_gate_fwd (deepinfer/model_executor/models/v4_modules/engram.py:151), weights fused by tile_kernels.engram.fused_weight (deepinfer/model_executor/models/v4_modules/engram.py:134)"
+    when:
+      architectures: [DeepseekV41ForCausalLM]
+      device: [cuda]
+      min_compute_capability: "10.0"
+      activation_dtype: [bf16]
+
+  # The lightning-indexer logits are DeepGEMM's dense or candidate-sparse
+  # MQA kernels, one launch per chunk in both phases.
+  indexer_logits:
+    source_anchor: "deep_gemm.fp8_fp4_mqa_logits / fp8_fp4_sparse_mqa_logits (deepinfer/model_executor/models/v4_modules/index_attn.py:299-324), paged decode forms fp8_fp4_paged_mqa_logits / fp8_fp4_paged_sparse_mqa_logits (deepinfer/model_executor/models/v4_modules/index_attn.py:434-454)"
+    when:
+      architectures: [DeepseekV41ForCausalLM]
+      device: [cuda]
+      min_compute_capability: "10.0"
+
+  # MegaGate includes the router GEMM itself, so it is a larger boundary
+  # than `moe_topk_sqrtsoftplus`. At EP=1 / no EPLB replicas the physical
+  # mapping is identity; that is also the single-kernel measurement surface.
+  moe_mega_gate_sqrtsoftplus:
+    source_anchor: "deep_gemm.bf16_mega_gate (deepinfer/model_executor/models/v4_modules/mlp.py:398), from DeepseekMoE.gate_forward (deepinfer/model_executor/models/v4_modules/mlp.py:359)"
+    when:
+      architectures: [DeepseekV41ForCausalLM]
+      device: [cuda]
+      min_compute_capability: "10.0"
+
+  # On the default NVIDIA path the routed and shared experts run as one
+  # persistent DeepGEMM MegaMoE launch over a symmetric-memory buffer. The
+  # registry's coarse `fused_moe` plan is still a repeated-expert matcher
+  # placeholder, so — as with vLLM's MegaMoE — DeepInfer's launch is
+  # registered as a Kernel Bench provider but not bound here until the plan
+  # can match the real n-expert fan-out.

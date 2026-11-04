@@ -1,0 +1,4 @@
+description: "FP8 (E4M3) with one static F32 scale per cached tensor."
+source: "vLLM `--kv-cache-dtype fp8` (KVQuantMode.FP8_PER_TENSOR, vllm/v1/kv_cache_interface.py:44)"
+dtype: F8_E4M3
+scale: { granularity: per-tensor, dtype: F32 }

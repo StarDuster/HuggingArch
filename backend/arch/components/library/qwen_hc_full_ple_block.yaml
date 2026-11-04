@@ -1,0 +1,82 @@
+# Qwen3.8-Flash-Next full-attention decoder block with the Per-Layer
+# Embedding: QSA full attention + PLE + MoE, all wrapped in Hyper-Connections.
+#
+# A decoder layer's attention kind and its PLE are independent: the layer
+# type comes from config.layer_types (modeling_qwen4_exp.py:1261) and the PLE
+# from `layer_idx + 1 in config.ple_layer_ids` (:1268). This is
+# qwen_hc_full_block with the PLE added to the widened stream before the attn
+# hyper-connection (:1283-1286), as qwen_hc_ple_block does for linear layers.
+#
+# Required dims: d_model, n_hidden_copies, d_hc_mix + everything the
+#   qwen_qsa_attention / qwen_ple / moe_ffn_fused_scaled_shared sub-blocks consume.
+role: block
+description: "Qwen3.8 PLE layer block on a full-attention layer: QSA full attention + PLE n-gram embedding + MoE, with Hyper-Connections."
+# Formals: the widened stream `x`, and the token ids `input_ids` the PLE hashes.
+inputs: [x, input_ids]
+graph:
+  # ===================== PLE (on the widened stream, before attn HC) =====================
+  ple_in:          { op: view_merge, in: x }
+  ple:             { op: qwen_ple, in: [ple_in, input_ids] }
+  ple_view:        { op: view_split, in: ple, axis: -1, dims: { n_heads: n_hidden_copies, d_head: d_model } }
+  x_ple:           { op: add, in: [x, ple_view], dim: d_model }
+  # ===================== ATTN hyper-connection (read) =====================
+  # hc_norm is a GROUPED Qwen4ExpTextRMSNorm(hc*d, group_size=d_model)
+  # (modeling_qwen4_exp.py:1009, class :152-170): RMS per copy over d_model on
+  # the [B,S,hc,d] stream, flattened, then × (1 + weight[hc*d]).
+  attn_hyper_connection.hc_norm_rms:           { op: rmsnorm_unscaled, in: x_ple, dim: d_model }
+  attn_merge:      { op: view_merge, in: attn_hyper_connection.hc_norm_rms }
+  attn_hyper_connection.hc_norm.weight:        { op: parameter_vector, dim: "n_hidden_copies * d_model", weight_axes: [{ replicated: true }] }
+  attn_hyper_connection.hc_norm:               { op: mul, in: [attn_merge, attn_hyper_connection.hc_norm.weight], dim: "n_hidden_copies * d_model", formula: "y = norm · (1 + w)" }
+  attn_hyper_connection.input_mix_weight_down: { op: linear, in: attn_hyper_connection.hc_norm, dims: { in: "n_hidden_copies * d_model", out: d_hc_mix }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  # modeling_qwen4_exp.py:1022 — silu(input_mix_weight_down(normed) / hc_count)
+  attn_mix_scale:  { op: scale_const, in: attn_hyper_connection.input_mix_weight_down, dims: { in: d_hc_mix }, formula: "y = x / n_hidden_copies" }
+  attn_mix_act:    { op: silu, in: attn_mix_scale, dim: d_hc_mix }
+  attn_hyper_connection.input_mix_weight_up:   { op: linear, in: attn_mix_act, dims: { in: d_hc_mix, out: "n_hidden_copies * d_model" }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  attn_read_gate:  { op: sigmoid, in: attn_hyper_connection.input_mix_weight_up, dim: "n_hidden_copies * d_model" }
+  # :1025 — the gate multiplies the NORMED stream and averages over copies (.mean(dim=-2))
+  attn_gated:      { op: mul, in: [attn_hyper_connection.hc_norm, attn_read_gate], dim: "n_hidden_copies * d_model" }
+  attn_gated_view: { op: view_split, in: attn_gated, axis: -1, dims: { n_heads: n_hidden_copies, d_head: d_model } }
+  attn_lane_sum:   { op: sum_reduce, in: attn_gated_view, axis: 2, dims: { in: n_hidden_copies } }
+  attn_lane:       { op: scale_const, in: attn_lane_sum, dims: { in: d_model }, formula: "y = x / n_hidden_copies   (sum → mean over copies)" }
+  # ===================== ATTN sub-block =====================
+  self_attn:       { op: qwen_qsa_attention, in: attn_lane }
+  # ===================== ATTN hyper-connection (write) =====================
+  attn_hyper_connection.block_inject_weight:   { op: linear, in: attn_hyper_connection.hc_norm, dims: { in: "n_hidden_copies * d_model", out: n_hidden_copies }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  attn_bcast:      { op: broadcast, in: self_attn, axis: -2, dims: { width: n_hidden_copies } }
+  # The write gate is per-COPY ([B, s_ctx, n_hidden_copies]); expand it along
+  # d_model before the mul (same idiom as library hc_combine's post_exp) —
+  # a rank-3 gate cannot trailing-broadcast against [B, s_ctx, n_hidden_copies, d_model].
+  # :1030 — injection_weights = 2 * sigmoid(block_inject_weight(normed) / hc_count)
+  attn_inject_scale: { op: scale_const, in: attn_hyper_connection.block_inject_weight, dims: { in: n_hidden_copies }, formula: "y = x / n_hidden_copies" }
+  attn_inject_sig:   { op: sigmoid, in: attn_inject_scale, dim: n_hidden_copies }
+  attn_inject_gate:  { op: scale_const, in: attn_inject_sig, dims: { in: n_hidden_copies }, formula: "y = 2 * x" }
+  attn_inject_exp: { op: broadcast, in: attn_inject_gate, axis: -1, dims: { width: d_model } }
+  attn_write:      { op: mul, in: [attn_bcast, attn_inject_exp], dim: d_model }
+  attn_residual:   { op: add, in: [x_ple, attn_write], dim: d_model }
+  # ===================== MLP hyper-connection (read) =====================
+  # grouped hc_norm (per-copy RMS over d_model, × (1 + w)); see attn side
+  mlp_hyper_connection.hc_norm_rms:            { op: rmsnorm_unscaled, in: attn_residual, dim: d_model }
+  mlp_merge:       { op: view_merge, in: mlp_hyper_connection.hc_norm_rms }
+  mlp_hyper_connection.hc_norm.weight:         { op: parameter_vector, dim: "n_hidden_copies * d_model", weight_axes: [{ replicated: true }] }
+  mlp_hyper_connection.hc_norm:                { op: mul, in: [mlp_merge, mlp_hyper_connection.hc_norm.weight], dim: "n_hidden_copies * d_model", formula: "y = norm · (1 + w)" }
+  mlp_hyper_connection.input_mix_weight_down:  { op: linear, in: mlp_hyper_connection.hc_norm, dims: { in: "n_hidden_copies * d_model", out: d_hc_mix }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  mlp_mix_scale:   { op: scale_const, in: mlp_hyper_connection.input_mix_weight_down, dims: { in: d_hc_mix }, formula: "y = x / n_hidden_copies" }
+  mlp_mix_act:     { op: silu, in: mlp_mix_scale, dim: d_hc_mix }
+  mlp_hyper_connection.input_mix_weight_up:    { op: linear, in: mlp_mix_act, dims: { in: d_hc_mix, out: "n_hidden_copies * d_model" }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  mlp_read_gate:   { op: sigmoid, in: mlp_hyper_connection.input_mix_weight_up, dim: "n_hidden_copies * d_model" }
+  mlp_gated:       { op: mul, in: [mlp_hyper_connection.hc_norm, mlp_read_gate], dim: "n_hidden_copies * d_model" }
+  mlp_gated_view:  { op: view_split, in: mlp_gated, axis: -1, dims: { n_heads: n_hidden_copies, d_head: d_model } }
+  mlp_lane_sum:    { op: sum_reduce, in: mlp_gated_view, axis: 2, dims: { in: n_hidden_copies } }
+  mlp_lane:        { op: scale_const, in: mlp_lane_sum, dims: { in: d_model }, formula: "y = x / n_hidden_copies   (sum → mean over copies)" }
+  # ===================== MLP sub-block =====================
+  mlp:             { op: moe_ffn_fused_scaled_shared, in: mlp_lane }
+  # ===================== MLP hyper-connection (write) =====================
+  mlp_hyper_connection.block_inject_weight:    { op: linear, in: mlp_hyper_connection.hc_norm, dims: { in: "n_hidden_copies * d_model", out: n_hidden_copies }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  mlp_bcast:       { op: broadcast, in: mlp, axis: -2, dims: { width: n_hidden_copies } }
+  mlp_inject_scale: { op: scale_const, in: mlp_hyper_connection.block_inject_weight, dims: { in: n_hidden_copies }, formula: "y = x / n_hidden_copies" }
+  mlp_inject_sig:   { op: sigmoid, in: mlp_inject_scale, dim: n_hidden_copies }
+  mlp_inject_gate:  { op: scale_const, in: mlp_inject_sig, dims: { in: n_hidden_copies }, formula: "y = 2 * x" }
+  mlp_inject_exp:  { op: broadcast, in: mlp_inject_gate, axis: -1, dims: { width: d_model } }
+  mlp_write:       { op: mul, in: [mlp_bcast, mlp_inject_exp], dim: d_model }
+  out:             { op: add, in: [attn_residual, mlp_write], dim: d_model }
+outputs: [out]

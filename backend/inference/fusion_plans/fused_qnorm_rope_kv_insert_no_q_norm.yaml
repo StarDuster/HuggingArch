@@ -1,0 +1,70 @@
+# DeepSeek-V4.1 attention input preparation — vLLM's
+# `fused_deepseek_v4_qnorm_rope_kv_rope_quant_insert` kernel with its query
+# head norm switched off.
+#
+# Naive subgraph (csa2_attention, dsv41_dspark_attention): V4.1 has no
+# per-head query norm (`q_head_norm = False`), so the query side is the
+# `fused_qnorm_rope_kv_insert` pattern without its `rmsnorm_unscaled`:
+#
+#   q_rope_slice, q_norope_slice   = slice(q), slice(q)
+#   q_concat          = concat(q_norope_slice, rope_emb(q_rope_slice))
+#   kv_rope_slice, kv_norope_slice = slice(kv), slice(kv)
+#   kv_concat         = concat(kv_norope_slice, rope_emb(kv_rope_slice))  # the cached SWA row
+#
+# A separate plan rather than an `optional` norm: an optional node stands on
+# one internal edge, and the norm is the query side's first node — it reads
+# the external q.
+#
+# vLLM (audited at v0.32.0) runs it as one launch per layer, prefill and
+# decode alike, BELOW compute capability 10.0: `DeepseekV4Attention._fused_qnorm_rope_kv_insert`
+# (vllm/models/deepseek_v41/attention.py:1011, called from
+# `project_query_and_cache_kv` :856-860) dispatches, by the SWA cache's dtype,
+# to `torch.ops._C.fused_deepseek_v4_qnorm_rope_kv_rope_quant_insert` (:1072,
+# UE8M0 FP8 paged), `..._full_cache_bf16_insert` (:1100) or
+# `..._full_cache_fp8_insert` (:1115), each with `apply_q_norm=False` (the
+# `False` argument at :1082, :1109, :1127). Each one rotates q in place and
+# rotates, quantises and inserts the KV row: q is read and written once,
+# and the rope-slice round trips and the re-joins are inside the kernel.
+# On SM10x the default attention is FlashMLA mega attention
+# (models/deepseek_v41/nvidia/model.py:235-243), which declares
+# `accepts_unnormed_unroped_query`; the same function is then called with
+# `apply_q_rope=False` (attention.py:1084): it rotates, quantises and inserts
+# the KV row only, and the q rotation moves into the attention kernel
+# (`fused_norm_rope_attn_rope_cast_{decode,fwd}`, nvidia/flash_mla_mega_attn.py
+# :345, :449). There this plan's boundary does not exist, and the vLLM
+# binding leaves it unbound (`below_compute_capability: "10.0"`).
+#
+# sglang (audited at v0.5.22) is two launches here on CUDA, as for V4: the query's
+# rope (`fused_q_norm_rope(..., eps=None)` into q_out, else `fused_rope_inplace`,
+# srt/models/deepseek_v4.py:1389-1409) and the latent's norm + rope + store
+# (`fused_norm_rope`, :1420-1462); it does not bind this. (ROCm gfx950 ropes q inside that store, amd/deepseek_v4_hip.py:79-118, deepseek_v4.py:2122-2129.)
+#
+# `feeds` fixes which rope is the query's, as in the normed plan.
+
+# KNOWN BOUNDARY GAP (named 2026-10-22, not yet reconciled) — the same one
+# `fused_qnorm_rope_kv_insert.yaml` carries, in full there. In short: the
+# launch quantises the latent row to UE8M0 FP8 and inserts it into the paged
+# sliding-window cache; this naive pattern stops at the concat, so it prices
+# less work than the kernel does, while the signature declares the cache as a
+# `role="kv"` operand and the torch floor times norm/rope only. A speedup
+# taken from that floor would be inflated, so none has been published. Fix
+# the boundary in one move across pattern, signature and floor, or narrow the
+# span — a plan change with its own review.
+
+fused_op: fused_qnorm_rope_kv_insert_no_q_norm
+
+naive_pattern:
+  nodes:
+    q_rope_slice:    { op: slice,    inputs: [external.q] }
+    q_norope_slice:  { op: slice,    inputs: [external.q] }
+    q_rope:          { op: rope_emb, inputs: [q_rope_slice.out], feeds: q }
+    q_concat:        { op: concat,   inputs: [q_norope_slice.out, q_rope.out] }
+    kv_rope_slice:   { op: slice,    inputs: [external.kv] }
+    kv_norope_slice: { op: slice,    inputs: [external.kv] }
+    kv_rope:         { op: rope_emb, inputs: [kv_rope_slice.out], feeds: k }
+    kv_concat:       { op: concat,   inputs: [kv_norope_slice.out, kv_rope.out] }
+  io_mapping:
+    q:      external.q
+    kv:     external.kv
+    output: q_concat.out
+    k_out:  kv_concat.out

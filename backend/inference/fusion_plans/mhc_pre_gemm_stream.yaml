@@ -1,0 +1,50 @@
+# The hyper-connection PRE-mix projection over the ALREADY-FLATTENED stream —
+# DeepSeek-V4.1's spelling of `mhc_pre_gemm`.
+#
+# V4.1 carries its hyper-connection copies across block boundaries flattened
+# (`hc_expand` / `hc_flat` in the model spec; the real checkpoints flatten at
+# the same place), so its mix-stats method starts from the flat vector with
+# no flatten of its own (source/model.py:949 `x = x.flatten(2).float()` is a
+# view of a stream already stored that way). The naive subgraph is therefore
+# `mhc_pre_gemm`'s minus the `view_merge` leaf:
+#
+#   mixes = mix_weight @ rms_unscaled(flatten(residual))     # [T, d_hc_mix]
+#
+# The launches this bills are the same prenorm projections the V4 seam runs,
+# reached through V4.1's delayed schedule:
+#
+#   vLLM (audited at v0.32.0)    DeepGEMM `tf32_hc_prenorm_gemm` or the
+#     TileLang fallback — the second launch of
+#     `mhc_fused_post_pre_delayed_tilelang`'s large-token path
+#     (model_executor/kernels/mhc/tilelang.py:421-432) and the first of a
+#     standalone `mhc_pre_delayed_tilelang` (:172-182). On the small-token
+#     path the projection is folded into `_MHC_FUSED_TILELANG_KERNEL` instead
+#     — `mhc_fused_post_pre`, the larger pattern, tried first.
+#   sglang (audited at v0.5.22)  the `_mix_stats_impl` dispatch
+#     (srt/models/deepseek_v4_mhc.py:259): `hc_mix_stats_sinkhorn` /
+#     `_bf16x3` / `_deepgemm` (kernels/ops/layernorm/mhc.py:2462/:2622/:2686),
+#     ONE launch for the projection AND the Sinkhorn split.
+#
+# sglang's launch therefore also computes what this graph keeps as the
+# separate `hc_split_sinkhorn` node — the same stated residual
+# `mhc_pre_big_fuse` carries: the split stays billed, about 0.2% of the
+# seam's bytes, because absorbing it would mean a launch publishing three
+# ports of one member and `FusedNode.output_ports` keys a port by its
+# member alone.
+#
+# The fused op maps to the `mhc_pre_gemm` signature (`binds_ops` there): the
+# cell, the operands and the declared output are the projection's, only the
+# in-graph spelling of the flatten differs — a zero-byte view here left
+# naive where a producer emitted one (the FFN-side stats read
+# `attn_out_flat`, which stays a naive node and moves nothing).
+
+fused_op: mhc_pre_gemm_stream
+
+naive_pattern:
+  nodes:
+    norm:  { op: rmsnorm_unscaled,       inputs: [external.residual] }
+    mixes: { op: linear_external_weight, inputs: [norm.out, external.mix_weight] }
+  io_mapping:
+    residual:   external.residual
+    mix_weight: external.mix_weight
+    output:     mixes.out

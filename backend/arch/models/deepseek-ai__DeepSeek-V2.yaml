@@ -1,0 +1,4 @@
+# Identity file for deepseek-ai/DeepSeek-V2
+base: deepseek_v2_qcomp
+match:
+  model_id: [deepseek-ai/DeepSeek-V2]

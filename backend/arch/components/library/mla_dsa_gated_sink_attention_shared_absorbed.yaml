@@ -1,0 +1,65 @@
+# Decode-time ABSORBED form of `mla_dsa_gated_sink_attention_shared` (Hy4), the
+# analog of `mla_dsa_attention_shared_absorbed` for the Hy4 layer: kv_b_proj folds
+# into the Q side (W_uk) and the O side (W_uv) as per-head matmuls, and the
+# sparse attention reads the head-shared latent (d_kv_lora + d_qk_rope) once
+# per selected position — the decode path sglang runs (`models/hunyuan_v4.py`
+# HYV4Attention → DeepseekV2AttentionMLA, sparse MLA forced at :527-535).
+# The Hy4 extras are kept: the sigmoid output gate on the per-head output and
+# the per-head learnable sink in the softmax.
+#
+# Required dims: as `mla_dsa_gated_sink_attention_shared`.
+
+role: attention
+description: "Hy4 MLA + DSA shared-indexer decode-time absorbed form (reuses a full layer's top-K): latent KV read MQA, kv_b_proj folded into Q/O, learnable per-head sinks, sigmoid output gate."
+attn_variant: DSA
+cache:
+  family: MLA
+  entries:
+    - { node: kv_a_layernorm, kind: latent }
+    - { node: k_pe_rope, kind: rope_key }
+reads: [dsa_topk]
+graph:
+  # --- sigmoid output gate (gated_mla), computed from the block input ---
+  linear_gate:        { op: linear, in: x, dims: { in: d_model, out: "n_heads * d_v_head" }, weight_axes: [{ world: attention, parts: n_heads, fit: replica_cells }, { replicated: true }] }
+  # --- Q path: compress → split heads → absorb W_uk (d_qk_nope→d_kv_lora) ---
+  q_a_proj:           { op: linear, in: x, dims: { in: d_model, out: d_q_lora }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  q_a_layernorm:      { op: rmsnorm, in: q_a_proj, dim: d_q_lora, weight_axes: [{ replicated: true }] }
+  q_b_proj:           { op: linear, in: q_a_layernorm, dims: { in: d_q_lora, out: "n_heads * (d_qk_nope + d_qk_rope)" }, weight_axes: [{ world: attention, parts: n_heads, fit: replica_cells }, { replicated: true }] }
+  q_split_heads:      { op: head_split, in: q_b_proj, dims: { n_heads: n_heads, d_head: "d_qk_nope + d_qk_rope" } }
+  q_nope_slice:       { op: slice, in: q_split_heads, dims: { in: "d_qk_nope + d_qk_rope", out: d_qk_nope, start: "0" } }
+  q_pe_slice:         { op: slice, in: q_split_heads, dims: { in: "d_qk_nope + d_qk_rope", out: d_qk_rope, start: d_qk_nope } }
+  q_pe_rope:          { op: rope, in: q_pe_slice, dim: d_qk_rope }
+  kv_b_proj:          { op: parameter_tensor, shape: ["n_heads * (d_qk_nope + d_v_head)", d_kv_lora], tensor_suffix: { weight: .weight }, weight_axes: [{ world: attention, parts: n_heads, fit: replica_cells }, { replicated: true }] }   # the stored kv_b_proj; the per-head GEMMs at its address (`module: kv_b_proj`) run it
+  q_absorbed_nope:    { op: per_head_linear, module: kv_b_proj, in: q_nope_slice, dims: { n_heads: n_heads, in: d_qk_nope, out: d_kv_lora }, weight_axes: [{ world: attention, parts: n_heads, fit: replica_cells }, { replicated: true }, { replicated: true }] }
+  q_concat:           { op: concat, in: [q_absorbed_nope, q_pe_rope], dims: { in_a: d_kv_lora, in_b: d_qk_rope, out: "d_kv_lora + d_qk_rope" } }
+  # --- Latent KV (head-shared): the cached bytes ---
+  kv_a_proj_with_mqa: { op: linear, in: x, dims: { in: d_model, out: "d_kv_lora + d_qk_rope" }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  kv_latent_slice:    { op: slice, in: kv_a_proj_with_mqa, dims: { in: "d_kv_lora + d_qk_rope", out: d_kv_lora, start: "0" } }
+  k_pe_slice:         { op: slice, in: kv_a_proj_with_mqa, dims: { in: "d_kv_lora + d_qk_rope", out: d_qk_rope, start: d_kv_lora } }
+  kv_a_layernorm:     { op: rmsnorm, in: kv_latent_slice, dim: d_kv_lora, weight_axes: [{ replicated: true }] }
+  k_pe_rope:          { op: rope_emb, in: k_pe_slice, dim: d_qk_rope }
+  # One KV head: the cached latent and RoPE key, joined once per position
+  # (the 576-wide entry the sparse/dense MLA kernel reads, `num_heads_k=1`),
+  # then shown to every query head as a zero-byte view. Joining before the
+  # broadcast keeps one copy of each cached position, not n_heads.
+  kv_concat:          { op: concat, in: [kv_a_layernorm, k_pe_rope], dims: { in_a: d_kv_lora, in_b: d_qk_rope, out: "d_kv_lora + d_qk_rope" } }   # (B, s_kv, d_kv_lora+d_qk_rope)
+  k_concat:           { op: head_broadcast, in: kv_concat, dims: { n_heads: n_heads } }   # (B, n_heads, s_kv, d_kv_lora+d_qk_rope), a view
+  k_latent_broadcast: { op: head_broadcast, in: kv_a_layernorm, dims: { n_heads: n_heads } }   # V == the latent, a view
+  # --- Sparse main attention IN LATENT SPACE (V == latent, MQA) ---
+  qk_score:           { op: dsa_attention_score, in: [q_concat, k_concat, dsa_topk], dims: { n_heads: n_heads, d_head: "d_kv_lora + d_qk_rope", k: n_topk_keys } }
+  learnable_sink_param: { op: parameter_vector, dim: n_heads, weight_axes: [{ world: attention, parts: n_heads, fit: replica_cells }] }
+  # The per-head sink joins each head's softmax over its sparse row
+  # (modeling_hy_v4.py:300-308). Absorption changes what the score is
+  # contracted over (the latent), not the score row, so the sink applies as
+  # in the prefill graph.
+  softmax:            { op: dsa_softmax, in: [qk_score, learnable_sink_param], dims: { n_heads: n_heads, k: n_topk_keys } }
+  attn_apply_latent:  { op: dsa_attention_apply, in: [softmax, k_latent_broadcast], dims: { n_heads: n_heads, d_head: d_kv_lora, k: n_topk_keys } }
+  # --- O side: absorb W_uv (d_kv_lora→d_v_head) per-head, gate, project ---
+  v_absorbed:         { op: per_head_linear, module: kv_b_proj, in: attn_apply_latent, dims: { n_heads: n_heads, in: d_kv_lora, out: d_v_head }, weight_axes: [{ world: attention, parts: n_heads, fit: replica_cells }, { replicated: true }, { replicated: true }] }
+  o_merge_heads:      { op: head_merge, in: v_absorbed, dims: { n_heads: n_heads, d_head: d_v_head } }
+  # The gate multiplies the per-head attention output (after W_uv), as in
+  # the prefill graph: `attn_output * sigmoid(gate_proj(x))` before o_proj.
+  g_act:              { op: sigmoid, in: linear_gate, dim: "n_heads * d_v_head" }
+  o_gated:            { op: mul, in: [o_merge_heads, g_act], dim: "n_heads * d_v_head" }
+  o_proj:             { op: linear, in: o_gated, dims: { in: "n_heads * d_v_head", out: d_model }, weight_axes: [{ replicated: true }, { world: attention, parts: n_heads, fit: replica_cells }] }
+outputs: [o_proj]

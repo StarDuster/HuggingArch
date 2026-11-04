@@ -1,0 +1,91 @@
+# Qwen3-Next text-only family.
+# Hybrid backbone: 3x linear-attention MoE blocks (Qwen3NextGatedDeltaNet,
+# fused in_proj_qkvz / in_proj_ba) followed by 1x full-attention MoE block
+# (fused-QZ sigmoid-gated GQA), repeated `full_attention_interval` times. All
+# 48 layers carry the same MoE FFN (n_experts=512 non-fused experts, single shared
+# expert, scalar shared_expert_gate). No vision tower, no MTP head.
+# A checkpoint that ships an MTP stack (Qwen3-Next-80B-A3B-Instruct) takes
+# `qwen3_next_mtp.yaml`, which inherits this file and adds the aux stack.
+match:
+  model_type: [qwen3_next]
+
+components:
+  norm: rmsnorm
+
+dims:
+  d_model:    config.hidden_size
+  n_heads:    config.num_attention_heads
+  n_kv_heads:   config.num_key_value_heads
+  d_head:    config.head_dim
+  d_rope:   "d_head // 4"
+  d_nope:   "d_head - d_rope"
+  d_ffn_expert:   config.moe_intermediate_size
+  d_ffn_shared:   config.shared_expert_intermediate_size ?? "512"  # Qwen3NextConfig's default when the field is absent (transformers 5.17.0 qwen3_next/configuration_qwen3_next.py:116)
+  n_vocab:    config.vocab_size
+  n_layers:    config.num_hidden_layers
+  n_experts:    config.num_experts
+  n_experts_active:    config.num_experts_per_tok
+  n_topk_renorm: config.norm_topk_prob ?? "1"   # Qwen3NextConfig default: True
+  # Qwen3NextTopKRouter.forward (modeling_qwen3_next.py:770-779) is softmax →
+  # topk → optional renorm: no group limit, no routed_scaling_factor multiply,
+  # and the config has neither n_group nor routed_scaling_factor.
+  n_expert_groups: "1"
+  n_groups_active: "1"
+  n_routed_scale: "0"
+  n_lin_k_heads:  config.linear_num_key_heads
+  d_lin_k_head:  config.linear_key_head_dim
+  n_lin_v_heads:  config.linear_num_value_heads
+  d_lin_v_head:  config.linear_value_head_dim
+  s_conv_kernel:   config.linear_conv_kernel_dim
+  full_attn_interval:  config.full_attention_interval ?? "4"
+  s_max: config.max_position_embeddings
+
+view:
+  rope_theta: config.rope_theta
+  hidden_act: config.hidden_act
+  norm.eps: config.rms_norm_eps
+
+# Block topologies live in components/adapters/:
+#   - qwen3_next_linear_moe_block: pre_norm wrapper around gated_delta_net_fused_attention,
+#                                  with self_attn -> linear_attn rename
+# The full-attention layers need no adapter — they are the plain pre_norm
+# binding, stated inline in `map:` below. The linear ones need one only for
+# the `self_attn -> linear_attn` rename, which an assignment cannot express.
+#
+# Layer policy, both spellings HF supports. `Qwen3NextDecoderLayer` reads
+# `config.layer_types[layer_idx]`; the config class synthesizes that list from
+# `full_attention_interval` when the checkpoint doesn't carry it, so a config
+# may present either. The `from: config.layer_types` selector matches nothing
+# when the field is absent and falls through to the strided one, which restates
+# the same rule — every `full_attention_interval`-th layer, counting from the
+# END of each period — off the interval itself. Under interval=4, n_layers=48
+# both land on 3, 7, 11, ..., 47.
+#
+# The interval defaults to HF's own 4 because the config class does not keep it:
+# `__post_init__` reads it with `kwargs.pop("full_attention_interval", 4)` into a
+# local and never assigns it to the instance, so a config round-tripped through
+# `to_dict()` carries `layer_types` and no interval at all. Binding it strictly
+# would fail dim resolution on exactly the configs the list selectors exist for.
+
+model_inputs:
+  input_ids: { kind: tokens }
+
+model:
+  - { name: model.embed_tokens, inputs: [input_ids], op: embedding, boundary_role: input_embedding, dims: { n_vocab: n_vocab, d_model: d_model }, weight_axes: [{ world: attention, parts: n_vocab, fit: pad }, { replicated: true }] }
+  - name: model.layers
+    inputs: [model.embed_tokens]
+    repeat: n_layers
+    streams:
+      hidden: { carries: true }
+    per_layer:
+      assign:
+        - { type: full,   from: "config.layer_types ?? absent", is: full_attention }
+        - { type: linear, from: "config.layer_types ?? absent", is: linear_attention }
+        - { type: full,   stride: full_attn_interval, offset: "full_attn_interval - 1" }
+        - { type: linear, rest: true }
+      map:
+        full:   { attention: gqa_qknorm_partial_rope_sigmoid_gated_attention,
+                  ffn: moe_ffn_scaled_shared_gate }
+        linear: { template: qwen3_next_linear_moe_block }
+  - { name: model.norm, op: rmsnorm, dim: d_model, weight_axes: [{ replicated: true }] , inputs: [model.layers]}
+  - { name: lm_head, op: linear, boundary_role: output_head, dims: { in: d_model, out: n_vocab }, weight_axes: [{ world: attention, parts: n_vocab, fit: pad }, { replicated: true }], tied_weight: { to: model.embed_tokens, when: config.tie_word_embeddings } , inputs: [model.norm]}

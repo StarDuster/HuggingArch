@@ -1,0 +1,37 @@
+# Kimi-K3 MoonViT-3D vision tower + PatchMergerMLPV2 projector.
+#
+# Wraps the entire vision pipeline as a single singleton aux_block so leaves
+# land at bare HF paths (vision_tower.*, mm_projector.*) with no per-layer
+# index injected. Internal transformer stack repeats n_vis_layers INSIDE the wrapper.
+#
+# Forward (MoonViT3dPretrainedModel + PatchMergerMLPV2):
+#   x = vision_tower.patch_embed.proj(patches)     # Conv2d 14x14, bias-free
+#   x = x + vision_tower.patch_embed.pos_emb       # learned 2D pos-emb
+#   for blk in encoder.blocks: x = blk(x)          # n_vis_layers MoonViT blocks
+#   x = encoder.final_layernorm(x)                 # RMSNorm
+#   # PatchMergerMLPV2: 2x2 spatial merge -> d_proj_in = d_vis_model·n_spatial_merge·n_spatial_merge, then:
+#   x = mm_projector.proj.2( gelu( mm_projector.proj.0(x) ) )  # bias-free
+#   x = mm_projector.post_norm(x)                  # RMSNorm at text d_model
+#
+# Required dims: d_vis_model, n_vis_heads, d_vis_qkv, d_vis_head, d_vis_ffn, n_vis_layers, n_vis_channels, s_patch, n_spatial_merge, d_proj_in, PeH, PeW, d_model.
+role: aux_block
+description: "Kimi-K3 MoonViT-3D vision tower + PatchMergerMLPV2 projector. Singleton wrapper — bare HF tensor paths (vision_tower.*, mm_projector.*)."
+graph:
+  vision_tower.patch_embed.proj:        { op: linear, in: x, dims: { in: "n_vis_channels * s_patch * s_patch", out: d_vis_model, bias: "0" }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  vision_tower.patch_embed.pos_emb.weight:     { op: parameter_tensor, shape: [PeH, PeW, d_vis_model], weight_axes: [{ replicated: true }, { replicated: true }, { replicated: true }] }
+  vision_tower.patch_embed.add_pe:
+    op: position_table_add
+    in: [vision_tower.patch_embed.proj, vision_tower.patch_embed.pos_emb.weight]
+    dim: d_vis_model
+    formula: "y[b, (h,w), :] = x[b, (h,w), :] + pos_emb[h, w, :]   (lookup by patch row/col)"
+  vision_tower.encoder.blocks:          { op: kimi_k3_vision_block, in: vision_tower.patch_embed.add_pe, chain: n_vis_layers, checkpoint: { index: local }, role: aux_block }
+  vision_tower.encoder.final_layernorm: { op: rmsnorm, in: vision_tower.encoder.blocks, dim: d_vis_model, weight_axes: [{ replicated: true }] }
+  # PatchMergerMLPV2's 2x2 spatial fold, stated in the graph: tokens /4,
+  # channels x4 (element-conserving view), so proj.0's arriving width IS its
+  # declared d_proj_in rather than an identity the pricing had to trust.
+  mm_projector.spatial_merge:           { op: spatial_merge, in: vision_tower.encoder.final_layernorm, dims: { n_spatial_merge: n_spatial_merge } }
+  mm_projector.proj.0:                  { op: linear, in: mm_projector.spatial_merge, dims: { in: d_proj_in, out: d_proj_in, bias: "0" }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  mm_projector.gelu:                    { op: gelu, in: mm_projector.proj.0, dim: d_proj_in }
+  mm_projector.proj.2:                  { op: linear, in: mm_projector.gelu, dims: { in: d_proj_in, out: d_model, bias: "0" }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  mm_projector.post_norm:               { op: rmsnorm, in: mm_projector.proj.2, dim: d_model, weight_axes: [{ replicated: true }] }
+outputs: [mm_projector.post_norm]

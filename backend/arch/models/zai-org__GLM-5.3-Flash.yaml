@@ -1,0 +1,507 @@
+# GLM-5.3-Flash  (config.model_type == glm5_next,
+#                 architecture Glm5NextForConditionalGeneration)
+#
+# Multimodal hybrid-attention MoE with four architectural axes, none of which
+# the GLM-5.x (glm_moe_dsa) spec covers:
+#
+#   1. mHC — manifold-constrained Hyper-Connections. The residual stream is
+#      widened to `hc_mult` = 4 parallel copies right after the embedding
+#      (modeling_glm5_next.py:1477
+#      `inputs_embeds.unsqueeze(2).expand(-1, -1, self.config.hc_mult, -1)`)
+#      and every one of the 45 blocks wraps BOTH its attention and its FFN in a
+#      Sinkhorn-projected n→1→n round trip (Glm5NextTextDecoderLayer.forward:1295-1329,
+#      Glm5NextTextHyperConnection.forward:268-297). Per-block parameters
+#      hc_{attn,ffn}_{fn,base,scale}; the exit (:1493 `self.norm(self.hc_head(...))`)
+#      is a PARAMETER-FREE mean over the copies.
+#   2. Hybrid attention — 34 KDA linear-attention layers + 11 MLA/DSA full
+#      layers at config.text_config.layer_types == deepseek_sparse_attention
+#      (3, 7, 11, …, 43). The MLA layers are NoPE (qk_rope_head_dim = 0) and
+#      their DSA indexer scores POOLED keys (index_kpool = 4).
+#   3. MoE with clamped SwiGLU experts (swiglu_limit 10.0), 288 routed + 1
+#      shared, noaux_tc sigmoid routing; layers 0-2 are dense
+#      (first_k_dense_replace 3).
+#   4. A 24-layer ViT tower (model.visual.*) with per-head Q/K RMSNorm, a
+#      Conv2d 2x2 spatial downsample into d_model, and a clamped-SwiGLU patch
+#      merger, scattered into the token embeddings before the HC widen.
+#
+# Mixed-precision FP8 checkpoint: only the MLA projections (q_a/q_b/
+# kv_a_proj_with_mqa/o_proj), the dense MLPs and every expert are FP8-E4M3 with
+# 128x128 `weight_scale_inv`; the KDA layers, kv_b_proj and the whole indexer
+# are BF16, and the HC base/scale, A_log, dt_bias and the router correction
+# bias are F32 (see quant_context).
+#
+# REFERENCE DISAGREEMENTS (each also stated at the node/component that carries it):
+#   a. MTP layer 45. The released HF file loads 45 layers and DROPS every
+#      layer-45 tensor (`_keys_to_ignore_on_load_unexpected = [r"layers\.45\.",
+#      r"layers\.\d+\.shared_head\."]`, modeling_glm5_next.py:1362), so there is
+#      no HF forward for it. The checkpoint ships a complete MTP block
+#      (enorm/hnorm/eh_proj + MLA+DSA + MoE + shared_head.norm) and
+#      config.text_config.num_nextn_predict_layers = 1. This spec follows
+#      vLLM/sglang — which build and run the DeepSeek-style MTP draft layer —
+#      and models it as compute inside an `aux_kind: mtp` group, excluded from
+#      the backbone totals. Modeling it as HF does (absent) would lose
+#      ~7.6 G params of shipped weights.
+#   b. KDA short convolutions. HF builds ONE fused depthwise conv over
+#      3*8192 channels (`self.conv1d`, :611-618); the checkpoint ships three
+#      separate `self_attn.{q,k,v}_conv1d.weight` [8192,1,4] tensors (34 each) —
+#      the vLLM/sglang layout. The spec follows the checkpoint.
+#   c. MLA KV contents. HF caches the EXPANDED per-head key/value (:1178-1182),
+#      vLLM/sglang cache the 512-wide latent and absorb kv_b_proj at decode.
+#      The spec follows the serving stacks (`cache: family: MLA`, entry
+#      `kv_a_layernorm`), as library `mla_dsa_attention` already does for
+#      DSv3.2 / GLM-5.x, and decodes on the absorbed form
+#      (`mla_dsa_kpool_nope_attention_absorbed`).
+#   d. Indexer cache contents. HF caches the raw per-token [k, gate] state
+#      (:806, :813) and re-pools it every step (:827). vLLM and sglang, under
+#      this config's `index_kpool_compress: true`, cache one pooled key per
+#      completed pool and keep the incomplete pool's raw K / gate in a
+#      per-request ring. The spec follows the serving stacks
+#      (`glm_kpool_compressor`), as it does for the latent in (c); the pooled
+#      keys are bit-identical once a pool is complete.
+#   e. Indexer cache FORMAT. HF stores the pooled key as the forward computes
+#      it — BF16, unrotated (:777-875: no Hadamard, no quantisation anywhere in
+#      Glm5NextTextIndexer). vLLM v0.32.0 and sglang v0.5.22 both store it FP8
+#      E4M3 with one power-of-two F32 scale per 128 channels, Hadamard-128
+#      rotated before the write, with no flag and on every card (vLLM
+#      models/glm5next/nvidia/ops/kpool_compress.py:219 prefill, :582 decode;
+#      sglang srt/layers/attention/dsa/kpool_fp8_index.py, its store launches).
+#      Like (c) and (d) the default follows serving for this cache:
+#      `quant_context.cache_formats.index_key: fp8_pow2_hadamard128`. The
+#      component stays as HF writes it (no rotation node is authored); the
+#      format's `transform: hadamard` puts the rotation on the graph where
+#      the cache is written, and on the query the score multiplies it with
+#      (`inference/materialize_cast.py`) — both stacks rotate q into the
+#      cached basis (vLLM `fwht128_quant_fp8`, common/attention.py:350;
+#      sglang `rotate_activation`, dsa_indexer_kpool.py:680/:715).
+
+# FORWARD ALIGNMENT — every step of the released forward maps to a node, and
+# every node maps back. Line numbers are source/modeling_glm5_next.py.
+#   Glm5NextModel.forward
+#     :1999 / :2007  get_{image,video}_features → self.visual(…)      → `vision` group
+#     :2004 / :2012  inputs_embeds.masked_scatter(mask, embeds)       → model.language_model.embed_merge
+#   Glm5NextVisionModel.forward
+#     :1842  self.patch_embed(hidden_states)                         → model.visual.patch_embed.proj
+#     :1843  self.rotary_pos_emb(…)                                  → no stored node (both inv_freq buffers are
+#                                                                      persistent=False, :1738-1739); the rotation itself
+#                                                                      is attn.q_rope / attn.k_rope inside each block
+#     :1845-1851  for blk in self.blocks                             → model.visual.blocks ×24
+#     :1853  self.post_layernorm(…)                                  → model.visual.post_layernorm
+#     :1855-1858  view(-1,m,m,D).permute(0,3,1,2)                    → model.visual.merge (spatial_merge)
+#     :1859  self.downsample(…).view(-1, out_hidden_size)            → model.visual.downsample
+#     :1861  self.merger(hidden_states)                              → model.visual.merger.{proj, post_projection_norm,
+#                                                                      act1, gate_proj/up_proj, *_clamp, act, gate_mul, down_proj}
+#     Glm5NextVisionBlock.forward:1690-1696                          → attn_residual / out of vit_qknorm_clamped_swiglu_block
+#     Glm5NextVisionAttention.forward:1607-1666                      → attn.qkv → q/k/v_slice → split → q_norm/k_norm →
+#                                                                      q_rope/k_rope → qk_score/softmax/apply → attn.proj
+#     Glm5NextVisionMLP.forward:1508-1514                            → mlp.{gate_proj, up_proj, gate_clamp, up_clamp, act, gate_mul, down_proj}
+#   Glm5NextTextModel.forward
+#     :1448  self.embed_tokens(input_ids)                            → model.language_model.embed_tokens
+#     :1477  inputs_embeds.unsqueeze(2).expand(-1,-1,hc_mult,-1)     → hc_expand
+#     :1480-1491  for decoder_layer in self.layers[:45]              → model.language_model.layers ×45
+#                                                                      (3 kda_dense + 31 kda_moe + 11 dsa_moe templates)
+#     :1486  position_embeddings=None                                → why no rope node exists on the text path (NoPE)
+#     :1493  self.norm(self.hc_head(hidden_states))                  → hc_head_sum + hc_head → model.language_model.norm
+#     Glm5NextForConditionalGeneration:2151 ff. lm_head              → lm_head
+#   Glm5NextTextDecoderLayer.forward (= hc_sinkhorn_pre_norm_block)
+#     :1295  residual = hidden_states                               → the `x` edge reused by hc_attn_post
+#     :1296  post, comb, hidden = self.attn_hc(hidden_states)        → attn_hc  (hc_pre: flat → norm → mixes → split → reduced)
+#     :1298  self.input_layernorm(…)                                 → input_layernorm
+#     :1300 / :1308  self.self_attn(…)                               → self_attn  (both branches are the same module call;
+#                                                                      which class it is, is the per_layer assignment)
+#     :1318-1320  post·h + combᵀ·residual                            → hc_attn_post
+#     :1322 / :1323 / :1325 / :1326 / :1327-1329                     → (residual) / ffn_hc / post_attention_layernorm / mlp / out
+#     Glm5NextTextHyperConnection.forward:268-297                    → hc_pre's flat (:279), mixes (:280), split
+#                                                                      (hc_split_sinkhorn, :280-292), reduced (:296)
+#     Glm5NextTextHyperHead.forward:302-303 mean(dim=2)              → hc_head_sum + hc_head (parameter-free)
+#   Glm5NextTextLinearAttention.forward (= kda_perhead_decay_lowrank_gate_attention)
+#     :645-652  q_proj / k_proj / v_proj (concatenated)             → q_proj / k_proj / v_proj
+#     :677-686  causal_conv1d_fn(…, activation=self.activation)     → {q,k,v}_conv1d → {q,k,v}_act  (one conv node per
+#                                                                      projection — the checkpoint's layout; see
+#                                                                      disagreement (b))
+#     :688-696  split / view into heads                             → {q,k,v}_split_heads
+#     :699  g = self.forget_gate(hidden_states)  (:320-330)          → f_a_proj → f_b_proj → f_plus_dt(dt_bias) → f_heads →
+#                                                                      A_log/exp_A → g_rate → g_sigmoid → g_decay
+#     :700  beta = sigmoid(self.b_proj(…))                           → b_proj → beta
+#     :712 / :724  use_qk_l2norm_in_kernel=True                      → q_l2norm / k_l2norm
+#     :703-726  {recurrent,chunk}_kimi_delta_attention               → delta_rule (gated_delta_rule)
+#     :729  update_recurrent_state                                   → cache entry recurrent_state
+#     :732  gate = g_b_proj(g_a_proj(x))                             → g_a_proj → g_b_proj → g_act → o_gated
+#     :733  self.o_norm(core_attn_out, gate)  (:348-360)             → o_norm (+ o_gated for the sigmoid gate)
+#     :734  self.o_proj(output)                                      → o_proj
+#   Glm5NextTextAttention.forward (= mla_dsa_kpool_nope_attention)
+#     :1170-1171  q_a_proj → q_a_layernorm → q_b_proj               → q_a_proj / q_a_layernorm / q_b_proj / q_split_heads
+#     :1173-1175  kv_a_proj_with_mqa, split[kv_lora, 0], kv_a_layernorm
+#                                                                    → kv_a_proj_with_mqa / kv_a_layernorm (the second
+#                                                                      split part is zero-width: NoPE)
+#     :1139-1156 expand_kv (kv_b_proj → k, v)                        → kv_b_proj / kv_split_heads / k_nope_slice / value_slice
+#     :1184-1190  self.indexer(…)                                    → indexer.* (below)
+#     :1196-1200  build_attention_mask_from_topk                     → consumed by the dsa_* ops' `k` budget
+#     :1210-1259  sdpa/eager over the selected keys + o_proj         → qk_score / softmax / attn_apply / o_merge_heads / o_proj
+#   Glm5NextTextIndexer.forward / get_pooled_states
+#     :800 / :801 / :803  wq_b, k_norm(wk), F.linear(x, gate param)  → indexer.wq_b / indexer.wk+k_norm / indexer.gate_scores
+#     :806 / :813  cat([k, gate, valid]) + update_indexer            → no node: HF's raw-state cache; the spec caches
+#                                                                      pooled keys instead (disagreement (d))
+#     :827 get_pooled_states → :965-970                              → index_kpool (glm_kpool_compressor: *_usable → *_win →
+#                                                                      pool_logits → pool_probs → pool_weighted → pool_keys →
+#                                                                      pooled_out, once per pool) → indexer.pool_cache
+#     :828-829  relu(q @ pool_keysᵀ · softmax_scale)                 → indexer.k_broadcast / indexer.score / score_relu
+#     :832-833  weights_proj · n_heads^-0.5, then matmul             → weights_scaled / weights_heads / weights_full /
+#                                                                      weighted / reduced
+#     :850-855  topk(index_topk // index_kpool)                      → indexer.topk_pools
+#     :863 / :870-872  pools → raw indices, + visible tail           → the `n_topk_keys + compress_ratio - 1` key budget
+#   MTP: no HF forward at all (disagreement (a)) — enorm / hnorm / eh_proj /
+#     inner pre_norm block / shared_head.norm → the `mtp` group.
+# Nodes with no `self.<name>(…)` call of their own, by construction: the six flat
+# hc_* parameter nodes (nn.Parameters, not modules), hc_attn_post / out (the
+# inline mHC recombination of :1318-1320 / :1327-1329), head_split / head_merge /
+# slice / concat view markers, and hc_expand / hc_head_sum / hc_head (tensor ops
+# at :1477 and :1493). `self_attn` IS called at :1300/:1308, but through the
+# branch `if self.layer_type == "linear_attention"`, which the matcher does not
+# descend into. These account for exactly the 19 remaining structural warnings:
+# per block template, 1 x add_count_mismatch (the forward's two residual adds ARE
+# hc_attn_post / out, expressed as mHC matmul recombinations rather than `add`
+# ops) + 5 x spec_call_not_in_forward (self_attn, hc_attn_fn, hc_attn_post, out,
+# hc_ffn_fn), x 3 templates = 18, plus one `forward_has_branches` note that the
+# spec already answers with three per-layer templates.
+
+match:
+  model_type: [glm5_next]
+  model_id: ["zai-org/GLM-5.3-Flash"]
+
+components:
+  block: hc_sinkhorn_pre_norm_block
+  attention: mla_dsa_kpool_nope_attention
+  # The KDA layers, a slot of their own: the checkpoint stores them BF16
+  # beside the part-FP8 MLA layers.
+  attention_linear: kda_perhead_decay_lowrank_gate_attention
+  ffn_dense: swiglu_ffn_clamped
+  ffn_moe: moe_ffn_gate_routing_bias_clamped
+  norm: rmsnorm
+
+dims:
+  # --- text backbone (config.text_config) ---
+  d_model:            config.text_config.hidden_size              # 4096
+  n_heads:            config.text_config.num_attention_heads      # 64
+  n_kv_heads:           config.text_config.num_key_value_heads
+  n_vocab:            config.text_config.vocab_size               # 154880
+  n_layers:           config.text_config.num_hidden_layers        # 45
+  s_max:              config.text_config.max_position_embeddings  # 1048576
+  # --- MLA (NoPE: qk_rope_head_dim is 0, so there is no d_qk_rope to bind) ---
+  d_q_lora:           config.text_config.q_lora_rank              # 1536
+  d_kv_lora:          config.text_config.kv_lora_rank             # 512
+  d_qk_nope:          config.text_config.qk_nope_head_dim         # 256
+  d_v_head:           config.text_config.v_head_dim               # 256
+  # --- DSA k-pool indexer ---
+  n_indexer_heads:    config.text_config.index_n_heads            # 32
+  d_indexer_head:     config.text_config.index_head_dim           # 128
+  n_topk_keys:        config.text_config.index_topk               # 2048 (raw-token budget)
+  # Pool size: `index_kpool` keys are pooled into one scored candidate, so the
+  # indexer scans floor(s_kv/4) candidates and selects index_topk/4 = 512 pools
+  # (Glm5NextTextIndexer:770, :850). Unlike DSv4's per-layer `compress_ratios`
+  # array this is ONE global config field, so it is bound model-wide; both
+  # readers (the pooling fold and the score's key axis) are inside the same
+  # component and cannot disagree.
+  compress_ratio:     config.text_config.index_kpool              # 4
+  # --- KDA linear attention (config.text_config.linear_attn_config) ---
+  # The nested dict is what the checkpoint's config.json stores; the modeling
+  # code reads FLATTENED aliases that configuration_glm5_next.py:191-199 copies
+  # out of it (head_dim → linear_head_dim, num_heads → linear_num_heads,
+  # short_conv_kernel_size → linear_conv_kernel_dim, gate_lower_bound →
+  # linear_lower_bound). The dims below bind the stored names.
+  n_lin_k_heads:      config.text_config.linear_attn_config.num_heads              # 64
+  n_lin_v_heads:      config.text_config.linear_attn_config.num_heads              # 64
+  d_lin_k_head:       config.text_config.linear_attn_config.head_dim               # 128
+  d_lin_v_head:       config.text_config.linear_attn_config.head_dim               # 128
+  s_conv_kernel:      config.text_config.linear_attn_config.short_conv_kernel_size # 4
+  # The forget gate and the output gate are both low-rank through the same
+  # inner width (f_a_proj / g_a_proj are [128, 4096]).
+  d_gate_lowrank:     config.text_config.linear_attn_config.head_dim               # 128
+  # --- Hyper-Connections ---
+  n_hidden_copies:    config.text_config.hc_mult                  # 4
+  d_hc_mix:           "(2 + n_hidden_copies) * n_hidden_copies"   # 24 = hc_attn_fn's leading axis
+  # --- FFN / MoE ---
+  d_ffn:              config.text_config.intermediate_size        # 12288 (dense layers 0-2)
+  d_ffn_expert:       config.text_config.moe_intermediate_size    # 2048
+  n_experts:          config.text_config.n_routed_experts         # 288
+  n_experts_active:   config.text_config.num_experts_per_tok      # 8
+  n_shared_experts:   config.text_config.n_shared_experts         # 1
+  n_expert_groups:    config.text_config.n_group                  # 1 (grouped routing degenerates)
+  n_groups_active:    config.text_config.topk_group               # 1
+  n_topk_renorm:      config.text_config.norm_topk_prob           # true
+  n_dense_layers:     config.text_config.first_k_dense_replace    # 3
+  n_mtp_layers:       config.text_config.num_nextn_predict_layers # 1
+  # The clamped SwiGLU bound of the dense and expert FFNs (swiglu_ffn_clamped).
+  clamp_limit:        config.text_config.swiglu_limit             # 10.0
+  # --- vision tower (config.vision_config) ---
+  d_vis_model:        config.vision_config.hidden_size            # 1024
+  n_vis_heads:        config.vision_config.num_heads              # 16
+  d_vis_head:         "d_vis_model // n_vis_heads"                # 64 (= attn.q_norm width)
+  d_vis_ffn:          config.vision_config.intermediate_size      # 4096
+  n_vis_layers:       config.vision_config.depth                  # 24
+  n_vis_channels:     config.vision_config.in_channels            # 3
+  s_patch:            config.vision_config.patch_size             # 14
+  s_patch_temporal:   config.vision_config.temporal_patch_size    # 2
+  n_spatial_merge:    config.vision_config.spatial_merge_size     # 2
+  d_proj_out:         config.vision_config.out_hidden_size        # 4096 (= d_model)
+  d_vis_merge_proj:   config.vision_config.out_hidden_size        # 4096 — merger.proj out, column-split
+  d_vis_proj:         config.vision_config.projection_intermediate_size  # 10240
+  # The tower's own clamp bound (Glm5NextVisionMLP :1512, PatchMerger :1535):
+  # its clamps rebind `clamp_limit` to it, so they read the vision scope.
+  vis_clamp_limit:    config.vision_config.swiglu_limit           # 10.0
+
+view:
+  hidden_act: config.text_config.hidden_act
+  norm.eps: config.text_config.rms_norm_eps
+
+# Architecturally-significant config fields intentionally not consumed:
+#   mlp_layer_types           — the dense/sparse split is exactly
+#                               first_k_dense_replace (n_dense_layers): dense at
+#                               0-2, sparse at 3-44, already modeled by the
+#                               dense-prefix assignment.
+#   indexer_types             — all 45 entries are "full" in this checkpoint, so
+#                               there is no shared-indexer layer to model (every
+#                               DSA layer ships its own indexer.* tensors, 12 of
+#                               each counting the MTP block). The cross-layer
+#                               sharing path exists in the source
+#                               (Glm5NextTextAttention:1133 `skip_topk`) but is
+#                               dead for this config; no `dsa_topk` stream is
+#                               declared because no layer reads one.
+#   index_share_for_mtp_iteration — DSA top-k reuse ACROSS draft iterations of
+#                               the MTP head: compute cadence, no parameter or
+#                               KV-geometry footprint (the MTP block ships its
+#                               own indexer either way).
+#   indexer_rope_interleave   — RoPE layout switch for the indexer; with
+#                               qk_rope_head_dim = 0 the indexer applies no rope
+#                               at all (no rope node exists on either path).
+#   index_kpool_compress      — true. HF never reads this boolean; in vLLM /
+#                               sglang it gates write-time pool compression,
+#                               which this spec models as the cache layout
+#                               (reference disagreement (d)); the pooling law
+#                               itself is the same ape/gate chain either way.
+#   hc_eps / hc_sinkhorn_iters / mhc — numerics of the Sinkhorn projection
+#                               inside hc_pre (epsilon, 20 iterations, the mHC
+#                               switch). Shape- and parameter-free constants of
+#                               `hc_split_sinkhorn`.
+#   mla_use_nope / head_dim (0) — the NoPE decision is already structural here:
+#                               qk_rope_head_dim = 0 removes the rope lane from
+#                               the component itself.
+#   routed_scaling_factor / scoring_func / topk_method
+#                             — the noaux_tc sigmoid pipeline of
+#                               `router_noaux_tc` (scale_const, sigmoid,
+#                               normalize_sum_one); only the renorm switch is a dim.
+#   gate_lower_bound (-5.0)   — selects the bounded KDA decay form, which the
+#                               component states directly (no `when:` switch, since
+#                               the softplus branch is unreachable for this family).
+#   index_kpool_always_select_tail — true; folded into the attended key budget
+#                               (n_topk_keys + compress_ratio - 1) at the DSA ops.
+#   image_size / attention_bias
+#                             — preprocessing extent and the bias flags, already
+#                               expressed as `bias: "1"` inside the vision block.
+#                               (vision_config.swiglu_limit IS consumed: it is
+#                               `vis_clamp_limit`, the tower's clamp bound.)
+
+model_inputs:
+  input_ids: { kind: tokens }
+  # Images per request, then each image's size as the processor hands it to
+  # the tower (after its smart_resize to a multiple of 28).
+  pixel_values: { kind: image, axes: [n_img, img_h, img_w] }
+  # Videos per request, then each video's sampled frames and processed
+  # size; the forward reads `pixel_values_videos` through the image tower
+  # (transformers 5.17 glm5_next/modeling_glm5_next.py:2007-2012 get_video_features through the image tower, masked_scatter at the video positions).
+  pixel_values_videos: { kind: video, axes: [n_vid, vid_frames, vid_h, vid_w] }
+
+model:
+  # --- token embedding ---
+  - { name: model.language_model.embed_tokens, inputs: [input_ids], op: embedding, boundary_role: input_embedding, dims: { n_vocab: n_vocab, d_model: d_model }, weight_axes: [{ world: attention, parts: n_vocab, fit: pad }, { replicated: true }] }
+
+  # --- vision tower (aux group) ---
+  # Glm5NextVisionModel.forward:1839-1861:
+  #   patch_embed → rotary_pos_emb (no stored params: both inv_freq buffers are
+  #   persistent=False, :1738-1739) → 24 blocks → post_layernorm → view/permute
+  #   → downsample(Conv2d 2x2) → merger.
+  - name: vision
+    group: true
+    aux_kind: vision
+    checkpoint: { prefix: model.visual.blocks, index: local }
+    repeat: "1"
+    layers:
+      # nn.Conv3d(3, 1024, kernel=stride=[2,14,14]) — non-overlapping, so it is
+      # one GEMM per patch over the flattened (C, T, H, W) patch volume
+      # (:1709, weight [1024, 3, 2, 14, 14]).
+      # The processor resizes each image to a multiple of patch_size *
+      # merge_size * patch_expand_factor = 14 * 2 * 1 = 28, repeats it into
+      # temporal_patch_size = 2 frames and cuts 14x14x2 patches of 3
+      # channels, one row each, each 2x2 merge window contiguous; one
+      # attention segment per temporal patch, which for an image is the
+      # whole image.
+      - name: model.visual.patchify
+        op: patchify
+        inputs: [pixel_values]
+        dims: { patch: s_patch, temporal: s_patch_temporal, channels: n_vis_channels, align: "s_patch * n_spatial_merge" }
+        segment: temporal_patch
+        source_anchor: "transformers 5.17 glm5_next/image_processing_glm5_next.py:59-121 smart_resize to a multiple of factor = patch_size * merge_size * patch_expand_factor (:250, patch_expand_factor 1 :135-140); :185-215 patchify, block-major (:205); modeling_glm5_next.py:1840 cu_seqlens one segment per temporal patch"
+      - { name: model.visual.patch_embed.proj, inputs: [model.visual.patchify], op: linear, dims: { in: "n_vis_channels * s_patch_temporal * s_patch * s_patch", out: d_vis_model, bias: "1" }, weight_axes: [{ replicated: true }, { replicated: true }] }
+      - { name: model.visual.blocks, template: vit_qknorm_clamped_swiglu_block, repeat: n_vis_layers, inputs: [model.visual.patch_embed.proj], streams: { hidden: { carries: true } } }
+      # Glm5NextRMSNorm(hidden_size) — weight only, no bias (:1816).
+      - { name: model.visual.post_layernorm, op: rmsnorm, dim: d_vis_model, weight_axes: [{ replicated: true }], inputs: [model.visual.blocks] }
+      # :1855-1859 — the token axis is folded into (merge, merge) 2x2 blocks,
+      # permuted to NCHW and run through nn.Conv2d(1024, 4096, kernel=stride=2).
+      # Kernel == stride == spatial_merge_size, so the conv is exactly a GEMM
+      # over the 4 merged patches: spatial_merge + one biased linear
+      # (checkpoint weight [4096, 1024, 2, 2] = [d_proj_out, 4*d_vis_model]).
+      - { name: model.visual.merge, op: spatial_merge, dims: { n_spatial_merge: n_spatial_merge }, inputs: [model.visual.post_layernorm] }
+      - { name: model.visual.downsample, op: linear, dims: { in: "n_spatial_merge * n_spatial_merge * d_vis_model", out: d_proj_out, bias: "1" }, weight_axes: [{ replicated: true }, { replicated: true }], inputs: [model.visual.merge] }
+      # Glm5NextVisionPatchMerger.forward:1529-1537 — proj → LayerNorm → GELU →
+      # clamped SwiGLU, every linear bias-free (bias defaults to False, :1518).
+      - { name: model.visual.merger.proj, op: linear, dims: { in: d_proj_out, out: d_vis_merge_proj, bias: "0" }, weight_axes: [{ world: dense_ffn, parts: d_vis_merge_proj, fit: exact }, { replicated: true }], inputs: [model.visual.downsample] }
+      - { name: model.visual.merger.post_projection_norm, op: layernorm, dim: d_proj_out, weight_axes: [{ replicated: true }], inputs: [model.visual.merger.proj] }
+      - { name: model.visual.merger.act1, op: gelu, dim: d_proj_out, inputs: [model.visual.merger.post_projection_norm] }
+      - { name: model.visual.merger.gate_proj, op: linear, dims: { in: d_proj_out, out: d_vis_proj, bias: "0" }, weight_axes: [{ world: dense_ffn, parts: d_vis_proj, fit: exact }, { replicated: true }], inputs: [model.visual.merger.act1] }
+      - { name: model.visual.merger.up_proj, op: linear, dims: { in: d_proj_out, out: d_vis_proj, bias: "0" }, weight_axes: [{ world: dense_ffn, parts: d_vis_proj, fit: exact }, { replicated: true }], inputs: [model.visual.merger.act1] }
+      - { name: model.visual.merger.gate_clamp, op: clamp, dims: { dim: d_vis_proj, clamp_limit: vis_clamp_limit }, inputs: [model.visual.merger.gate_proj] }   # y = min(gate, vis_clamp_limit)   (:1535)
+      - { name: model.visual.merger.up_clamp, op: clamp, dims: { dim: d_vis_proj, clamp_limit: vis_clamp_limit }, inputs: [model.visual.merger.up_proj] }       # y = min(max(up, -vis_clamp_limit), vis_clamp_limit)  (:1536)
+      - { name: model.visual.merger.act, op: silu, dim: d_vis_proj, inputs: [model.visual.merger.gate_clamp] }
+      - { name: model.visual.merger.gate_mul, op: mul, dim: d_vis_proj, inputs: [model.visual.merger.act, model.visual.merger.up_clamp] }
+      - { name: model.visual.merger.down_proj, op: linear, dims: { in: d_vis_proj, out: d_proj_out, bias: "0" }, weight_axes: [{ replicated: true }, { world: dense_ffn, parts: d_vis_proj, fit: exact }], inputs: [model.visual.merger.gate_mul] }
+  # The videos, through the same tower with the same weights in a call of
+  # their own, one attention segment per temporal patch (the processor
+  # repeats the last frame to a whole temporal patch).
+  - { name: video, call: vision, inputs: [pixel_values_videos] }
+
+  # --- vision → text merge, BEFORE the HC widen ---
+  # Glm5NextModel.forward:1999-2012 — `image_embeds = self.get_image_features(…)`
+  # (:1999, video at :2007) then
+  #   `inputs_embeds = inputs_embeds.masked_scatter(image_mask, image_embeds)`
+  #   (:2004, video at :2012): merger rows REPLACE the placeholder-token
+  #   rows of the [B, s, d_model] token embeddings, i.e. on inputs_embeds, before
+  #   the language model expands to hc_mult copies (:1477).
+  - name: model.language_model.embed_merge
+    op: scatter_rows_replace
+    inputs: [model.language_model.embed_tokens, model.visual.merger.down_proj, model.video.merger.down_proj]
+    prompt_slots:
+      model.visual.merger.down_proj: { domain: pixel_values, defines: true, source_anchor: "transformers 5.17 glm5_next/modeling_glm5_next.py:2004 inputs_embeds.masked_scatter(image_mask, image_embeds)" }
+      model.video.merger.down_proj: { domain: pixel_values_videos, defines: true, source_anchor: "transformers 5.17 glm5_next/modeling_glm5_next.py:2012 inputs_embeds.masked_scatter(video_mask, video_embeds); vLLM v0.30.0 models/glm4_1v.py:1928-1930 T*H*W/merge^2 rows per video" }
+
+  # --- Hyper-Connection entry: [B,s,d_model] → [B,s,n_hidden_copies,d_model] ---
+  # :1477 `inputs_embeds.unsqueeze(2).expand(-1, -1, self.config.hc_mult, -1)` —
+  # a zero-FLOP / zero-param view replicate along a new axis.
+  - { name: hc_expand, op: broadcast, axis: -2, dims: { width: n_hidden_copies }, inputs: [model.language_model.embed_merge] }
+
+  # --- decoder stack (widened residual stream in and out) ---
+  - name: model.language_model.layers
+    repeat: n_layers
+    inputs: [hc_expand]
+    streams: { hidden: { carries: true } }
+    # Three block kinds from two config axes, both read from the config so no
+    # layer index is typed here:
+    #   attention: config.text_config.layer_types — 34 `linear_attention` (KDA)
+    #              and 11 `deepseek_sparse_attention` (MLA+DSA at 3,7,…,43).
+    #   ffn:       dense for the first `first_k_dense_replace` layers, MoE after.
+    # The dense prefix is declared FIRST so it claims 0-2 (all three are also
+    # `linear_attention`); the two layer_types generators then split the rest.
+    # Checkpoint agreement: 34 KDA layers x q/k/v_proj+conv1d+A_log…, 11+1 MLA
+    # layers x q_a/q_b/kv_*/indexer, 3 dense mlp.{gate,up,down}_proj, 43
+    # mlp.gate.weight (42 sparse backbone + 1 MTP).
+    per_layer:
+      assign:
+        - { type: kda_dense, range: ["0", "n_dense_layers - 1"] }
+        - { type: kda_moe,   from: config.text_config.layer_types, is: linear_attention }
+        - { type: dsa_moe,   from: config.text_config.layer_types, is: deepseek_sparse_attention }
+      map:
+        kda_dense: { attention: kda_perhead_decay_lowrank_gate_attention, ffn: swiglu_ffn_clamped }
+        kda_moe:   { attention: kda_perhead_decay_lowrank_gate_attention, ffn: moe_ffn_gate_routing_bias_clamped }
+        dsa_moe:   { attention: mla_dsa_kpool_nope_attention,             ffn: moe_ffn_gate_routing_bias_clamped }
+
+  # --- Hyper-Connection exit: reduce the copies back to one d_model lane ---
+  # Glm5NextTextHyperHead.forward:302-303 is `return hidden_streams.mean(dim=2)`
+  # — PARAMETER-FREE, unlike DSv4's learned `hc_head` (fn/base/scale) and
+  # Qwen3.8's gated `hyper_connection_mixer`. The checkpoint has no hc_head_*
+  # tensor of any kind; `model.language_model.norm` immediately follows (:1493).
+  - { name: model.language_model.hc_head_sum, op: sum_reduce, axis: 2, dims: { in: n_hidden_copies }, inputs: [model.language_model.layers] }
+  - { name: model.language_model.hc_head, op: scale_const, dims: { in: d_model }, inputs: [model.language_model.hc_head_sum] }   # y = x / n_hidden_copies (sum → mean over copies)
+
+  - { name: model.language_model.norm, op: rmsnorm, dim: d_model, weight_axes: [{ replicated: true }], inputs: [model.language_model.hc_head] }
+  # Untied: config.text_config.tie_word_embeddings is false and the checkpoint
+  # ships `lm_head.weight` [154880, 4096] (the class-level `_tied_weights_keys`
+  # at :2109 is conditional on the config flag).
+  - { name: lm_head, op: linear, boundary_role: output_head, dims: { in: d_model, out: n_vocab }, weight_axes: [{ world: attention, parts: n_vocab, fit: pad }, { replicated: true }], tied_weight: { to: model.language_model.embed_tokens, when: config.text_config.tie_word_embeddings }, inputs: [model.language_model.norm] }
+
+  # --- MTP speculative head (aux group), checkpoint layer index 45 ---
+  # Extra stored parameters: enorm, hnorm, eh_proj [4096, 8192], one full
+  # MLA+DSA / MoE pre-norm decoder block (NO hc_* tensors — the MTP block is
+  # not hyper-connected, so its inner block is the plain library `pre_norm`,
+  # not this model's HC block), and shared_head.norm. It shares embed_tokens
+  # and lm_head. See disagreement (a) in the header: HF drops these tensors
+  # (:1362), vLLM/sglang run them as the draft layer.
+  - name: mtp
+    group: true
+    aux_kind: mtp
+    checkpoint: { prefix: model.language_model.layers, index: { after: backbone } }
+    inputs: [model.language_model.norm]
+    repeat: n_mtp_layers
+    streams: { hidden: { carries: true } }
+    layers:
+      - name: mtp
+        template: mtp_block_shared_head
+        inputs: [model.language_model.norm, model.language_model.embed_tokens]
+        params:
+          inner: { template: pre_norm, params: { attn: mla_dsa_kpool_nope_attention, ffn: moe_ffn_gate_routing_bias_clamped, norm: rmsnorm } }
+      # No `shared_head.head` in the checkpoint — the target lm_head projects
+      # the draft step (DeepSeek-family MTP: vLLM shares the target head into
+      # the proposer, deepseek_mtp.py compute_logits).
+      - { name: mtp_logits, op: linear, boundary_role: output_head, dims: { in: d_model, out: n_vocab }, weight_axes: [{ world: attention, parts: n_vocab, fit: pad }, { replicated: true }], tied_weight: { to: lm_head }, inputs: [mtp] }
+
+# Quantization: FP8-E4M3 with per-128x128-tile F32 `weight_scale_inv` siblings
+# (quant_schemes/fp8.yaml), but applied to only PART of the attention stack, so
+# the attention role cannot carry it:
+#   FP8 (counts from the snapshot's quant_pattern_counts)
+#     self_attn.q_a_proj / q_b_proj / kv_a_proj_with_mqa   12 each
+#     self_attn.o_proj                                     12  of 46 — only the
+#         11 DSA layers + the MTP block; the 34 KDA o_proj are BF16
+#     mlp.{gate,up,down}_proj (dense layers 0-2)            3 each
+#     mlp.experts.X.{gate,up,down}_proj                12384 each (43 x 288)
+#     mlp.shared_experts.{gate,up,down}_proj               43 each
+#   BF16: everything else, including kv_b_proj (12, no scale sibling), the whole
+#     indexer, every KDA tensor, hc_*_fn, o_norm, mlp.gate.weight and the
+#     entire vision tower.
+#   F32: hc_{attn,ffn}_{base,scale}, self_attn.A_log, self_attn.dt_bias,
+#     mlp.gate.e_score_correction_bias. Three of those (e_score_correction_bias,
+#     dt_bias, A_log) appear in `_keep_in_fp32_modules_strict = [
+#     "e_score_correction_bias", "conv1d", "dt_bias", "A_log"]` (:1361); the
+#     hc base/scale parameters are stored F32 without being listed there.
+#     The list's fourth entry, `conv1d`, is a RUNTIME upcast only — the
+#     `self_attn.{q,k,v}_conv1d.weight` tensors are stored BF16 ([8192,1,4] /
+#     [4096,1,4] x 34 in the snapshot), so they take the default and no
+#     override is emitted for them.
+quant_context:
+  # The index-K cache as both serving stacks store it (disagreement (e)):
+  # FP8 + pow2 F32 scale per 128 channels, Hadamard-128 rotated. HF keeps it
+  # BF16 and unrotated.
+  cache_formats:
+    index_key: fp8_pow2_hadamard128
+  per_role:
+    # The MLA layers' q_a / q_b / kv_a / o_proj (DSA layers 3,7,…,43 + the MTP
+    # block) are the FP8 set. The MLA KV up-projection (`attention_kv_up`: 12
+    # BF16 kv_b_proj, no scale sibling, so the absorbed decode path keeps
+    # precision), the whole indexer (`attention_indexer`) and every KDA layer
+    # (`attention_linear`) are BF16.
+    attention:         { method: fp8, block_h: 128, block_w: 128 }
+    attention_kv_up:   { method: none }
+    attention_indexer: { method: none }
+    attention_linear:  { method: none }
+    ffn_dense: { method: fp8, block_h: 128, block_w: 128 }
+    ffn_moe:   { method: fp8, block_h: 128, block_w: 128 }
+    router:    { method: none }
+    default:   { method: none }
+  default_dtype: BF16
+  overrides:
+    # ---- F32 parameter banks (`_keep_in_fp32_modules_strict`, :1361) ----
+    - tensors_re: 'mlp\.gate\.e_score_correction_bias$'
+      dtype: F32
+    # Hyper-Connection base/scale are F32; hc_*_fn (the GEMM weight) is BF16.
+    - tensors_re: '(?:^|\.)hc_(?:attn|ffn)_(?:base|scale)$'
+      dtype: F32
+    - tensors_re: 'self_attn\.A_log$'
+      dtype: F32
+    - tensors_re: 'self_attn\.dt_bias$'
+      dtype: F32

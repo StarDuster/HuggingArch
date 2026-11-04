@@ -1,0 +1,69 @@
+# Qwen QSA indexer key pool — the pooled index-key cache, as the serving
+# stacks keep it (Qwen3.8-Flash-Next full-attention layers).
+#
+# Pooling law (HF modeling_qwen4_exp.py Qwen4ExpTextQSAIndexer.forward,
+# :734-750): each complete block of compress_ratio raw index keys is
+# mean-pooled, k_layernorm'd (y = norm · (1 + w)) and roped at the block's
+# FIRST token position. The ragged tail (< compress_ratio tokens) is not
+# pooled; the attention always selects it.
+#
+# CACHE LAYOUT (reference disagreement). HF caches the RAW per-token keys
+# (:708 `raw_keys = past_key_values.update_indexer(raw_keys, ...)`) and
+# re-pools every complete block for every query (:734). vLLM and sglang cache
+# the POOLED key instead — one normed, block-first-roped row per
+# compress_ratio tokens — and keep only the incomplete block's raw keys in a
+# per-request ring:
+#   vLLM v0.32.0 models/qwen4_exp/common/qsa_cache.py:801-876
+#     (`QSAKeyStateCache`: raw BF16 key ring of compress_ratio rows, plus the
+#     MRoPE positions; `QSACompressedKeyCache` :865-876: "normed,
+#     group-first-RoPE key at one row per complete group",
+#     `tokens_per_state=compress_ratio`);
+#   sglang v0.5.22 srt/mem_cache/qsa_kv_pool.py:58-69 ("per-token QSA
+#     index-cache cost: compressed keys only; the per-request pending ring is
+#     budgeted with the other per-request buffers").
+# This component models that pooled cache. The two layouts give bit-identical
+# scores: a block's pooled key depends only on its own members, so once a
+# block is complete the key HF recomputes each step equals the cached one.
+# The difference is where the work and the bytes are, which is what this
+# component is for — the same resolution `mla_dsa_attention` takes for the
+# MLA latent (serving caches the latent, HF the expanded per-head K/V).
+#
+# Required dims: d_indexer_head, d_rope, compress_ratio.
+
+description: "Qwen QSA indexer key pool: mean-pool compress_ratio raw index keys, k_layernorm, rope at the block's first position, cache one pooled key per block (the serving layout)."
+# Decode pools once per compress_ratio steps, on the ring's rows.
+decode_variant: qwen_qsa_key_pool_decode
+inputs: [raw_key]
+cache:
+  entries:
+    # One pooled key per complete block: ⌈s_kv/m⌉ rows stored (the pending
+    # block owns a slot), ⌊s_kv/m⌋ readable — `token_pool_compressor`'s laws.
+    - { node: pooled_out, kind: index_key }
+    # The pending block's raw keys (vLLM `QSAKeyStateCache`, a ring of
+    # compress_ratio BF16 rows; its MRoPE position tail is bookkeeping and not
+    # modelled). Billed as read every step, as the DSv4 compressor's ring.
+    - { state: key_state, kind: compressor_state, carrier: index_k_sum, shape: [compress_ratio, d_indexer_head], dtype: bf16 }
+graph:
+  # The step's own complete blocks: tail dropped, then folded into
+  # (block, position-in-block) — [B,S,D] → [B, S//m, m, D].
+  index_k_usable:  { op: slice, in: raw_key, axis: 1, dims: { out: "floor(s_ctx / compress_ratio) * compress_ratio" } }
+  index_k_win:     { op: view_split, in: index_k_usable, axis: 1, dims: { s_slots: "floor(s_ctx / compress_ratio)", window: compress_ratio } }
+  index_k_sum:     { op: sum_reduce, in: index_k_win, axis: 2, dims: { in: compress_ratio } }
+  index_k_pooled:  { op: scale_const, in: index_k_sum, dims: { in: d_indexer_head }, formula: "y = x / compress_ratio   (block sum → mean, :734)" }
+  # k_layernorm is Qwen4ExpTextRMSNorm: y = norm(x) · (1 + w).
+  indexer.k_layernorm.rms:    { op: rmsnorm_unscaled, in: index_k_pooled, dim: d_indexer_head }
+  indexer.k_layernorm.weight: { op: parameter_vector, dim: d_indexer_head, weight_axes: [{ replicated: true }] }
+  indexer.k_layernorm:        { op: mul, in: [indexer.k_layernorm.rms, indexer.k_layernorm.weight], dim: d_indexer_head, formula: "y = norm · (1 + w)" }
+  # Roped at the block's first-token position (:745-750), with the text
+  # model's three-stream rotation.
+  index_k_pe:      { op: slice, in: indexer.k_layernorm, dims: { in: d_indexer_head, out: d_rope } }
+  index_k_nope:    { op: slice, in: indexer.k_layernorm, dims: { in: d_indexer_head, out: "d_indexer_head - d_rope" } }
+  index_k_pe_rope: { op: mrope, in: index_k_pe, dims: { dim: d_rope } }
+  index_k_rope:    { op: concat, in: [index_k_pe_rope, index_k_nope], dims: { in_a: d_rope, in_b: "d_indexer_head - d_rope", out: d_indexer_head } }
+  pooled_out:
+    op: token_pool_compressor
+    in: index_k_rope
+    dim: d_indexer_head
+    dims: { compress_ratio: compress_ratio }
+    formula: "cached pooled key = index_k_rope   (vLLM QSACompressedKeyCache, one row per compress_ratio tokens; storage ⌈s_kv/m⌉, read ⌊s_kv/m⌋ complete blocks)"
+outputs: [pooled_out]

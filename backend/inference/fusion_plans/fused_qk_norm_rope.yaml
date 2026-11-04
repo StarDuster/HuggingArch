@@ -1,0 +1,47 @@
+# QK RMSNorm + RoPE fusion — sglang's `fused_qk_norm_rope` kernel.
+#
+# Naive subgraph (the Qwen3 / Gemma3 / InternS1-Pro pattern — four nodes,
+# two independent per-tensor RMSNorm + RoPE tracks with no edge between
+# them):
+#
+#   q_norm: rmsnorm(q_split_heads)   # per-head RMSNorm on Q
+#   k_norm: rmsnorm(k_split_heads)   # per-head RMSNorm on K
+#   q_rope: rope(q_norm.out)         # rotate Q
+#   k_rope: rope(k_norm.out)         # rotate K
+#
+# The two tracks are mirror images, so op and edges cannot say which one
+# is Q. `feeds` does: q_rope binds only to the rope whose output becomes
+# the attention's query operand, k_rope to the key's.
+#
+# sglang ships ONE CUDA kernel for the whole chain when
+# `enable_fused_qk_norm_rope=True`. vLLM (audited at v0.32.0) has the kernel
+# too (`torch.ops._C.fused_qk_norm_rope`, csrc/fused_qknorm_rope_kernel.cu)
+# and an Inductor pass that rewrites exactly this chain
+# (vllm/compilation/passes/fusion/qk_norm_rope_fusion.py:196), but the pass is
+# opt-in: `enable_qk_norm_rope_fusion` is false at every optimization level
+# (vllm/config/vllm.py:258, :279, :300, :321). A default vLLM deployment runs
+# separate norm and rotary kernels, so only the sglang binding consumes this
+# plan today.
+#
+# Cost preservation: Cost.combine sums each matched cost-layer value. No new arithmetic
+# is introduced — the kernel just spares one full HBM round-trip for
+# the post-norm activations before RoPE.
+#
+# sglang kernel ref:
+#   sgl-kernel/csrc/moe/fused_qknorm_rope_kernel.cu
+#   python/sglang/srt/layers/rotary_embedding/base.py
+#     (dispatches when get_global_server_args().enable_fused_qk_norm_rope)
+
+fused_op: fused_qk_norm_rope
+
+naive_pattern:
+  nodes:
+    q_norm: { op: rmsnorm, inputs: [external.q] }
+    k_norm: { op: rmsnorm, inputs: [external.k] }
+    q_rope: { op: rope,    inputs: [q_norm.out], feeds: q }
+    k_rope: { op: rope,    inputs: [k_norm.out], feeds: k }
+  io_mapping:
+    q:        external.q
+    k:        external.k
+    output: q_rope.out
+    k_out:  k_rope.out

@@ -1,0 +1,67 @@
+# FP8 (DeepSeek-V4 convention) — F8_E4M3 weights with `.scale`
+# UE8M0 sibling tensors (F8_E8M0FNU, 1 byte/elem).
+#
+# Differs from `fp8.yaml` only in the metadata sibling layout:
+#   fp8       : `.weight_scale_inv`, F32  (DSv3 / Kimi-K2 / MiMo-V2 / MiniMax-M2)
+#   fp8_ue8m0 : `.scale`,            F8_E8M0FNU  (DSv4)
+#
+# The DSv4 convention reuses the same `.scale` suffix as FP4 / NVFP4
+# (which also stores E8M0 scales 1 byte/elem). On-disk math: per-block
+# scale = (out / block_h) * (in / block_w) elements at 1 byte each
+# instead of 4 bytes. For a typical 128×128-tile FP8 weight, scale
+# storage is 4× smaller than the legacy `weight_scale_inv` layout.
+#
+# Triggered ONLY via `model.quant_context.per_role[<role>].method =
+# fp8_ue8m0`. There is no separate `quant_method` in HF config (DSv4
+# still reports `quant_method: fp8` in `quantization_config`); model
+# specs select this variant explicitly.
+#
+# Known clients: DeepSeek-V4-Pro / DeepSeek-V4-Flash.
+description: "FP8 — F8_E4M3 weights + `.scale` UE8M0 sibling (DSv4 convention)."
+
+num_bits:
+  fixed: 8
+badge: FP8
+
+format_variants:
+  default:
+    packing_factor: 1
+    storage_dtype: F8_E4M3
+    weight_storage_suffix: ".weight"
+
+numeric_format: [fp_e4m3]
+numeric_format_resolver:
+  - { when: "true", format: fp_e4m3 }
+
+scale_strategy: [tile_2d]
+
+metadata_siblings:
+  - suffix: ".scale"
+    kind: scale
+    shape_per_strategy:
+      # Block quantisation pads each axis INDEPENDENTLY, so the count is a
+      # product of two ceil-divisions and not a ceil of the product. The plain
+      # division dropped the final partial block of any axis that is not a
+      # multiple of the block size — DeepSeek's `kv_a_proj_with_mqa` is
+      # [576, 7168] against a 128 block, so 576/128 = 4.5 became 4 where the
+      # checkpoint stores 5, and the file's own scale shape says [5, 56].
+      # 28 scales x 4 bytes x 62 layers = 6,944 bytes, exactly the diff.
+      tile_2d: ["(out + block_h - 1) // block_h", "(in + block_w - 1) // block_w"]
+    dtype: F8_E8M0FNU
+
+required_fields: [block_h, block_w]
+
+valid_status: [compressed, frozen]
+
+# The activation operand: DeepSeek's reference implementation quantises it to
+# FP8 with UE8M0 scales before every `fp8_gemm` — V4
+# `inference/model.py:108-118` (`act_quant(x, block_size, scale_fmt,
+# scale_dtype)`, the module constants at :17-21 with `scale_fmt: ue8m0` /
+# `scale_dtype: fp8` from the config, :777-778), V4.1 :180-200 with
+# `fp8_block_size = 32` (:27-30). No config field names a treatment here —
+# DSv4 still reports `quant_method: fp8` — so the scheme states the one its
+# repo implements, and the K block it quantises over is the weight's.
+activation:
+  reference:
+    - { when: "block_w == 32", format: fp8_token_group32_ue8m0 }
+    - { when: "true", format: fp8_token_group128_ue8m0 }

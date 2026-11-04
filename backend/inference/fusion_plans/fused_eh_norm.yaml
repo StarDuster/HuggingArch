@@ -1,0 +1,52 @@
+# The MTP block's entry: the next token's embedding and the previous hidden
+# state each RMS-normalised and concatenated for `eh_proj`, in one launch.
+#
+# Naive subgraph (mtp_block_shared_head, mtp_block_with_head):
+#
+#   eh = concat(rmsnorm(inputs_embeds), rmsnorm(prev_hidden))   # [N, 2H]
+#
+# The concat's operand order tells the two norms apart.
+#
+# vLLM (audited at v0.32.0): `fused_eh_norm`, one Triton launch writing the
+# [N, 2H] row (models/deepseek_v32/common/kernels.py:1150, kernel :1116),
+# from the DeepSeek-V3.2 / GLM-5 MTP when its embedding is vocabulary-parallel
+# (models/deepseek_v32/nvidia/mtp.py:127, the gather a launch before it, :233),
+# and GLM-5.3-Flash's
+# own copy (models/glm5next/nvidia/ops/fused_eh_norm.py:52, from
+# glm5next/common/mtp.py:100). DeepSeek-V3's MTP is `enorm`, `hnorm`, then
+# `torch.cat` (model_executor/models/deepseek_mtp.py:124-128), three launches.
+#
+# Not modelled: with the whole, unquantised table on rank (TP 1;
+# `has_full_vocab_on_rank`, model_executor/layers/fused_embed_norm.py:74-82,
+# decided at mtp.py:196) the V3.2 / GLM-5 MTP skips the gather (:226-233) and
+# runs `fused_embed_eh_norm` (fused_embed_norm.py:193, from mtp.py:116), which
+# gathers the rows inside this launch. There the estimate bills the
+# embedding as one launch more, plus its [N, H] round trip; this plan's
+# boundary is a strict part of the real launch, never a wider one. The
+# traffic layer can bill an absorbed lookup's rows on its launch, but the
+# per-row roofline (`inference.phases`) prices a gather's `TableRead` as the
+# row's whole weight read, so a launch that both gathers a table and reads
+# plain (norm) weights cannot be priced without changing that law.
+# Descoped by the user's decision on 2026-10-19: the gap stays as stated.
+#
+# sglang (audited at v0.5.22): `fused_eh_norm`
+# (kernels/ops/layernorm/fused_eh_norm.py:33, one JIT launch), from
+# `DeepseekModelNextN.forward` (srt/models/deepseek_nextn.py:203) on CUDA,
+# fp16 / bf16, hidden size a multiple of 256 in (256, 8192] (:18 — every
+# such checkpoint's). The draft class serves DeepseekV3 / V3.2
+# (srt/configs/model_config.py:929-933), GlmMoeDsa (:935-936, subclass
+# srt/models/glm4_moe.py:1293) and Glm5Next (:970-972,
+# srt/models/glm5_next_nextn.py:24) checkpoints.
+# Prefill and decode take the same call in both.
+
+fused_op: fused_eh_norm
+
+naive_pattern:
+  nodes:
+    embeds_norm: { op: rmsnorm, inputs: [external.inputs_embeds] }
+    hidden_norm: { op: rmsnorm, inputs: [external.hidden] }
+    concat:      { op: concat,  inputs: [embeds_norm.out, hidden_norm.out] }
+  io_mapping:
+    inputs_embeds: external.inputs_embeds
+    hidden:        external.hidden
+    output:        concat.out

@@ -1,0 +1,75 @@
+# DeepSeek-V4 decoder block with Hyper-Connections (HC), fully modeled.
+#
+# Block input/output is [B, s_ctx, n_hidden_copies, d_model] — n_hidden_copies parallel hidden copies (set
+# up at network entry by `hc_expand` and reduced back at the exit by
+# the `hc_head` library compound invocation in the model spec). Per-layer HC pre/post around BOTH attn and ffn
+# performs a learnable n_hidden_copies → 1 → n_hidden_copies round-trip:
+#
+#   hc_pre  : [B,s_ctx,n_hidden_copies,d_model] -- view_merge --> [B,s_ctx,n_hidden_copies·d_model]
+#                       -- rmsnorm_unscaled --> [B,s_ctx,n_hidden_copies·d_model]
+#                       -- linear_external_weight (hc_*_fn) --> [B,s_ctx,d_hc_mix]
+#                       -- hc_split_sinkhorn --> (pre[n_hidden_copies], post[n_hidden_copies], comb[n_hidden_copies,n_hidden_copies])
+#                       -- hc_weighted_reduce(x_hc, pre) --> [B,s_ctx,d_model]
+#   attn / ffn run on the [B,s_ctx,d_model] reduced copy.
+#   hc_post : hc_combine(attn_out, x_hc, post, comb) --> [B,s_ctx,n_hidden_copies,d_model]
+#
+# All weights still match the V4-Pro checkpoint exactly:
+#   attn_norm.weight   → [d_model]
+#   attn.<...>         → DSv4 attention component (CSA / HCA / SWA-only)
+#   ffn_norm.weight    → [d_model]
+#   ffn.<...>          → DSv4 MoE component (hash or sigmoid)
+#   hc_attn_fn         → [d_hc_mix, n_hidden_copies·d_model]   F32   (parameter_tensor: nn.Parameter, no `.weight`; hc_pre's `mixes` is its GEMM)
+#   hc_attn_base       → [d_hc_mix]         F32   (parameter_vector)
+#   hc_attn_scale      → [3]          F32   (parameter_vector)
+#   hc_ffn_fn / base / scale  same shapes (mirror)
+#
+# The hc_*_fn weight participates in a real Linear (B·s_ctx·2·n_hidden_copies·
+# d_model·d_hc_mix FLOPs per HC pre, two of those per block), base/scale feed
+# into the sinkhorn, and pre/post/comb tensors flow through
+# hc_weighted_reduce / hc_combine.
+#
+# Required dims: d_model, n_hidden_copies (hc_mult), d_hc_mix (= (2 + n_hidden_copies) · n_hidden_copies).
+
+role: block
+description: "DeepSeek-V4 decoder block with full Hyper-Connection modelling: hc_pre splits n_hidden_copies parallel copies into 1 hidden copy via sinkhorn, attn/ffn run on that copy, hc_post mixes back into n_hidden_copies copies."
+# `x` arrives as [B, s_ctx, n_hidden_copies, d_model]; `input_ids` are the
+# token ids every Block hands its ffn (model.py Block.forward:
+# `x = self.ffn(x, input_ids)`), which the hash-routed MoE reads.
+inputs: [x, input_ids]
+
+params:
+  attn: { kind: component }
+  ffn:  { kind: component }
+
+graph:
+  # Hyper-Connection parameters — owned at Block scope, mirroring V4-Pro
+  # source `Block.__init__` where these 6 are `self.hc_<*>` nn.Parameters.
+  # Checkpoint paths land flat: `layers.X.hc_attn_fn`, `layers.X.hc_attn_base`, …
+  hc_attn_fn:    { op: parameter_tensor, role: hyper_connection, shape: [d_hc_mix, "n_hidden_copies * d_model"], weight_axes: [{ replicated: true }, { replicated: true }] }
+  hc_attn_base:  { op: parameter_vector, role: hyper_connection, dim: d_hc_mix, weight_axes: [{ replicated: true }] }
+  hc_attn_scale: { op: parameter_vector, role: hyper_connection, dim: "3", weight_axes: [{ replicated: true }] }
+  hc_ffn_fn:     { op: parameter_tensor, role: hyper_connection, shape: [d_hc_mix, "n_hidden_copies * d_model"], weight_axes: [{ replicated: true }, { replicated: true }] }
+  hc_ffn_base:   { op: parameter_vector, role: hyper_connection, dim: d_hc_mix, weight_axes: [{ replicated: true }] }
+  hc_ffn_scale:  { op: parameter_vector, role: hyper_connection, dim: "3", weight_axes: [{ replicated: true }] }
+
+  # ============================================================
+  # ATTN branch — mirrors `Block.forward`'s 4-line attn segment:
+  #   x, post, comb = self.hc_pre(x, hc_attn_fn, hc_attn_scale, hc_attn_base)
+  #   x = self.attn_norm(x)
+  #   x = self.attn(x, ...)
+  #   x = self.hc_post(x, residual, post, comb)
+  # ============================================================
+  hc_attn_pre:   { op: hc_pre, in: [x, hc_attn_fn, hc_attn_scale, hc_attn_base] }
+  attn_norm:     { op: rmsnorm, in: hc_attn_pre, dim: d_model, weight_axes: [{ replicated: true }] }
+  attn:          { op: <attn>, in: attn_norm }
+  hc_attn_post:  { op: hc_post, in: [attn, x, hc_attn_pre.post, hc_attn_pre.comb] }
+
+  # ============================================================
+  # FFN branch — same shape, residual stream is now hc_attn_post.
+  # ============================================================
+  hc_ffn_pre:    { op: hc_pre, in: [hc_attn_post, hc_ffn_fn, hc_ffn_scale, hc_ffn_base] }
+  ffn_norm:      { op: rmsnorm, in: hc_ffn_pre, dim: d_model, weight_axes: [{ replicated: true }] }
+  ffn:           { op: <ffn>, in: [ffn_norm, input_ids] }
+  out:           { op: hc_post, in: [ffn, hc_attn_post, hc_ffn_pre.post, hc_ffn_pre.comb] }
+
+outputs: [out]

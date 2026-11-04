@@ -1,0 +1,40 @@
+# `flash_dsa` with a per-head learnable attention sink — Hy4's sparse MLA
+# (mla_dsa_gated_sink_attention*), whose softmax takes the sink as its
+# second operand:
+#
+#   p = softmax([score, sink])[..., :-1]        # the sink is dropped after
+#   o = p · V
+#
+# One plan of its own rather than an optional input of `flash_dsa`, because
+# the two frameworks do not run it alike:
+#   vLLM (audited at v0.32.0): `HYV4FlashMLASparseImpl` passes `attn_sink`
+#     into both kernels of the sparse backend — `flash_mla_with_kvcache`
+#     (FP8 KV, models/hy_v4/nvidia/flashmla_sparse.py:175-208) and
+#     `flash_mla_sparse_fwd` (BF16 KV, :217-275) — in prefill and decode.
+#   sglang (audited at v0.5.22): passes the sink to the sparse kernel in
+#     both phases (forward_mla.py:709-712 → dsa_backend.py:2115-2133,
+#     :2488-2501 → `_forward_flashmla_sparse` :2741, `flash_mla_sparse_fwd`
+#     :2799). A learnable sink forces BF16 KV and flashmla_sparse for prefill
+#     and decode (srt/arg_groups/overrides.py:502-511, :620-633), and
+#     `HYV4Attention.dispatch_attn_forward_method` resets the backend's
+#     `use_mha` to False every forward (srt/models/hunyuan_v4.py:534-541),
+#     so the one-shot dense MHA prefill (dsa_backend.py:3952-4002, :2179-2193;
+#     threshold srt/arg_groups/model_hook.py:286-292) never runs for Hy4.
+#     sglang binds this plan unconditionally, prefill and decode.
+
+fused_op: flash_dsa_sink
+
+naive_pattern:
+  nodes:
+    score:
+      op: dsa_attention_score
+      inputs: [external.q, external.k]
+      optional_inputs: [external.mask]
+    softmax: { op: dsa_softmax,         inputs: [score.out, external.sinks] }
+    apply:   { op: dsa_attention_apply, inputs: [softmax.out, external.v] }
+  io_mapping:
+    q:       external.q
+    k:       external.k
+    v:       external.v
+    sinks:   external.sinks
+    output:  apply.out

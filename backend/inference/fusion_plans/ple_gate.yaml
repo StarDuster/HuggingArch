@@ -1,0 +1,60 @@
+# Qwen3.8 PLE retrieval gate in one launch: the key and query grouped
+# RMSNorms, their per-copy dot product, the signed-sqrt sigmoid gate, the
+# gated value, and the conv input's grouped RMSNorm.
+#
+#   k_n = rms_g(key) * (1 + w_k);  q_n = rms_g(query) * (1 + w_q)
+#   g   = sigmoid(signed_sqrt(sum(k_n * q_n) / sqrt(d)))
+#   gated  = g * value                (broadcast over copies)
+#   normed = rms_g(gated) * (1 + w_c)
+#
+# Naive subgraph (qwen_ple): k_split, k_rmsnorm, k_merge, k_norm, q_split,
+# q_rmsnorm, q_merge, q_norm, kq_product, kq_split, gate_sum, gate_scale,
+# gate_sqrt, gate_act, gate_broadcast, value_broadcast, gated_value,
+# gated_flat, conv_rmsnorm, conv_merge, conv_norm. Outputs: the gated value
+# (the short conv's residual) and the conv input.
+#
+# vLLM (v0.32.0), both phases: `ple_gate` (models/qwen4_exp/common/ops/
+#   ple.py:304, kernel `_ple_gate_kernel` :186; norms :219-220, gate
+#   :221-229, gated value :231, conv-input norm :234-235), from
+#   models/qwen4_exp/nvidia/ple_layer.py:423 (ROCm: amd/ple_layer.py:696, same kernel).
+# sglang (v0.5.22) runs the norms, the gate and the value product as
+#   separate ops (srt/models/qwen4_exp.py:1349-1386; fused gate kernels only
+#   on target-verify / the decode fast path, partial spans), so it binds
+#   nothing here.
+# The short conv after it (vLLM `ple_conv`, ple.py:575) also adds the
+# block's outer residual, an add outside this component's scope; not a plan.
+
+fused_op: ple_gate
+
+naive_pattern:
+  nodes:
+    k_split:         { op: view_split,       inputs: [external.key] }
+    k_rmsnorm:       { op: rmsnorm_unscaled, inputs: [k_split.out] }
+    k_merge:         { op: view_merge,       inputs: [k_rmsnorm.out] }
+    k_norm:          { op: mul,              inputs: [k_merge.out, external.key_weight] }
+    q_split:         { op: view_split,       inputs: [external.query] }
+    q_rmsnorm:       { op: rmsnorm_unscaled, inputs: [q_split.out] }
+    q_merge:         { op: view_merge,       inputs: [q_rmsnorm.out] }
+    q_norm:          { op: mul,              inputs: [q_merge.out, external.query_weight] }
+    kq_product:      { op: mul,              inputs: [k_norm.out, q_norm.out] }
+    kq_split:        { op: view_split,       inputs: [kq_product.out] }
+    gate_sum:        { op: sum_reduce,       inputs: [kq_split.out] }
+    gate_scale:      { op: scale_const,      inputs: [gate_sum.out] }
+    gate_sqrt:       { op: signed_sqrt,      inputs: [gate_scale.out] }
+    gate_act:        { op: sigmoid,          inputs: [gate_sqrt.out] }
+    gate_broadcast:  { op: broadcast,        inputs: [gate_act.out] }
+    value_broadcast: { op: broadcast,        inputs: [external.value] }
+    gated_value:     { op: mul,              inputs: [value_broadcast.out, gate_broadcast.out] }
+    gated_flat:      { op: view_merge,       inputs: [gated_value.out] }
+    conv_rmsnorm:    { op: rmsnorm_unscaled, inputs: [gated_value.out] }
+    conv_merge:      { op: view_merge,       inputs: [conv_rmsnorm.out] }
+    conv_norm:       { op: mul,              inputs: [conv_merge.out, external.conv_weight] }
+  io_mapping:
+    key:          external.key
+    query:        external.query
+    value:        external.value
+    key_weight:   external.key_weight
+    query_weight: external.query_weight
+    conv_weight:  external.conv_weight
+    gated_out:    gated_flat.out
+    output:       conv_norm.out

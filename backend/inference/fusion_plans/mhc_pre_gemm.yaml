@@ -1,0 +1,46 @@
+# The hyper-connection PRE-mix projection — the GEMM that reads the
+# multi-copy residual and writes this sublayer's mix coefficients.
+#
+# Naive subgraph (`hc_pre`, its first three leaves):
+#
+#   mixes = mix_weight @ rms_unscaled(flatten(residual))     # [T, d_hc_mix]
+#
+# vLLM (audited at v0.32.0) runs it as one launch: DeepGEMM
+# `tf32_hc_prenorm_gemm` where DeepGEMM is available, else the TileLang
+# fallback (model_executor/kernels/mhc/tilelang.py, the second launch of
+# `mhc_fused_post_pre_tilelang`'s large-token path and the first of a
+# standalone pre). sglang (audited at v0.5.22) runs the same boundary, the
+# DeepGEMM path or `gemm_sqrsum` (kernels/ops/layernorm/mhc.py).
+#
+# Two statements this plan does not make, both stated rather than claimed:
+#
+# * **The sum of squares.** The real GEMM writes the UNNORMALISED dots plus a
+#   per-token sum of squares, and the following big-fuse applies the rsqrt.
+#   The graph normalises first and projects the normalised vector, which is
+#   the same function and the same FLOPs, but it has no sum-of-squares leaf.
+#   Fused, this launch reads the residual and writes `mixes`, so the only
+#   difference from the kernel's trace is that `[T]` fp32 partial: a few bytes
+#   per token, under-billed.
+# * **The network exit.** The same three ops open the exit reduce `hc_head`,
+#   which no framework runs as this GEMM (vLLM fuses the whole head,
+#   `fused_hc_head`; sglang fuses it in the backbone and runs it as torch ops
+#   in its NextN draft). The binding entry is `crosses: component`, whose view
+#   holds block occurrences only, so the model-level exit cannot match. The
+#   copy inside a draft block (`dsv4_mtp_block`'s `hh_reduced`) is inside a
+#   block occurrence: there the 9-node `fused_hc_head` takes those leaves
+#   first where it is bound (vLLM, which does run the fused head), and where
+#   it is not (sglang, whose NextN head is torch —
+#   srt/models/deepseek_v4_nextn.py:114-127) this plan under-counts that one
+#   draft-only row by about two launches.
+
+fused_op: mhc_pre_gemm
+
+naive_pattern:
+  nodes:
+    residual_flat: { op: view_merge,            inputs: [external.residual] }
+    norm:          { op: rmsnorm_unscaled,      inputs: [residual_flat.out] }
+    mixes:         { op: linear_external_weight, inputs: [norm.out, external.mix_weight] }
+  io_mapping:
+    residual:   external.residual
+    mix_weight: external.mix_weight
+    output:     mixes.out

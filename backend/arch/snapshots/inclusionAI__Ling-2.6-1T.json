@@ -1,0 +1,1750 @@
+{
+  "schema_version": 4,
+  "model_id": "inclusionAI/Ling-2.6-1T",
+  "config": {
+    "architectures": [
+      "BailingMoeV2_5ForCausalLM"
+    ],
+    "attention_dropout": 0.0,
+    "auto_map": {
+      "AutoConfig": "configuration_bailing_moe_v2_5.BailingMoeV2_5Config",
+      "AutoModel": "modeling_bailing_moe_v2_5.BailingMoeV2_5Model",
+      "AutoModelForCausalLM": "modeling_bailing_moe_v2_5.BailingMoeV2_5ForCausalLM"
+    },
+    "embedding_dropout": 0.0,
+    "eos_token_id": 156895,
+    "first_k_dense_replace": 4,
+    "group_norm_size": 8,
+    "head_dim": 128,
+    "hidden_act": "silu",
+    "hidden_size": 8192,
+    "initializer_range": 0.02,
+    "intermediate_size": 18432,
+    "kv_lora_rank": 512,
+    "layer_group_size": 8,
+    "linear_silu": false,
+    "max_position_embeddings": 262144,
+    "max_window_layers": 20,
+    "model_type": "bailing_hybrid",
+    "moe_intermediate_size": 2048,
+    "moe_router_enable_expert_bias": true,
+    "moe_shared_expert_intermediate_size": 2048,
+    "mtp_loss_scaling_factor": 0,
+    "n_group": 8,
+    "num_attention_heads": 64,
+    "num_experts": 256,
+    "num_experts_per_tok": 8,
+    "num_hidden_layers": 80,
+    "num_key_value_heads": 64,
+    "num_kv_heads_for_linear_attn": 64,
+    "num_nextn_predict_layers": 1,
+    "num_shared_experts": 1,
+    "output_dropout": 0.0,
+    "output_router_logits": false,
+    "pad_token_id": 156892,
+    "partial_rotary_factor": 0.5,
+    "q_lora_rank": 1536,
+    "qk_head_dim": 192,
+    "qk_nope_head_dim": 128,
+    "qk_rope_head_dim": 64,
+    "quantization_config": {
+      "config_groups": {
+        "FP8_DYNAMIC": {
+          "format": "float-quantized",
+          "input_activations": {
+            "actorder": null,
+            "block_structure": null,
+            "dynamic": true,
+            "group_size": null,
+            "num_bits": 8,
+            "observer": null,
+            "observer_kwargs": {},
+            "strategy": "token",
+            "symmetric": true,
+            "type": "float"
+          },
+          "output_activations": null,
+          "targets": [
+            "Linear"
+          ],
+          "weights": {
+            "actorder": null,
+            "block_structure": null,
+            "dynamic": false,
+            "group_size": null,
+            "num_bits": 8,
+            "observer": "static_minmax",
+            "observer_kwargs": {},
+            "strategy": "channel",
+            "symmetric": true,
+            "type": "float"
+          }
+        }
+      },
+      "format": "float-quantized",
+      "global_compression_ratio": null,
+      "ignore": [
+        "model.layers.74.mlp.gate",
+        "model.layers.75.mlp.gate",
+        "model.layers.76.mlp.gate",
+        "model.layers.77.mlp.gate",
+        "model.layers.10.mlp.gate",
+        "model.layers.11.mlp.gate",
+        "model.layers.12.mlp.gate",
+        "model.layers.13.mlp.gate",
+        "model.layers.14.mlp.gate",
+        "model.layers.15.mlp.gate",
+        "model.layers.16.mlp.gate",
+        "model.layers.17.mlp.gate",
+        "model.layers.34.mlp.gate",
+        "model.layers.35.mlp.gate",
+        "model.layers.36.mlp.gate",
+        "model.layers.37.mlp.gate",
+        "model.layers.38.mlp.gate",
+        "model.layers.39.mlp.gate",
+        "model.layers.40.mlp.gate",
+        "model.layers.41.mlp.gate",
+        "model.layers.66.mlp.gate",
+        "model.layers.67.mlp.gate",
+        "model.layers.68.mlp.gate",
+        "model.layers.69.mlp.gate",
+        "model.layers.4.mlp.gate",
+        "model.layers.5.mlp.gate",
+        "model.word_embeddings",
+        "model.layers.6.mlp.gate",
+        "model.layers.7.mlp.gate",
+        "model.layers.8.mlp.gate",
+        "model.layers.9.mlp.gate",
+        "model.layers.70.mlp.gate",
+        "model.layers.71.mlp.gate",
+        "model.layers.72.mlp.gate",
+        "model.layers.73.mlp.gate",
+        "model.layers.30.mlp.gate",
+        "model.layers.31.mlp.gate",
+        "model.layers.32.mlp.gate",
+        "model.layers.33.mlp.gate",
+        "model.layers.26.mlp.gate",
+        "model.layers.27.mlp.gate",
+        "model.layers.28.mlp.gate",
+        "model.layers.29.mlp.gate",
+        "model.layers.58.mlp.gate",
+        "model.layers.59.mlp.gate",
+        "model.layers.60.mlp.gate",
+        "model.layers.61.mlp.gate",
+        "model.layers.50.mlp.gate",
+        "model.layers.51.mlp.gate",
+        "model.layers.52.mlp.gate",
+        "model.layers.53.mlp.gate",
+        "lm_head",
+        "model.layers.78.mlp.gate",
+        "model.layers.79.mlp.gate",
+        "model.layers.18.mlp.gate",
+        "model.layers.19.mlp.gate",
+        "model.layers.20.mlp.gate",
+        "model.layers.21.mlp.gate",
+        "model.layers.54.mlp.gate",
+        "model.layers.55.mlp.gate",
+        "model.layers.56.mlp.gate",
+        "model.layers.57.mlp.gate",
+        "model.layers.62.mlp.gate",
+        "model.layers.63.mlp.gate",
+        "model.layers.64.mlp.gate",
+        "model.layers.65.mlp.gate",
+        "model.layers.22.mlp.gate",
+        "model.layers.23.mlp.gate",
+        "model.layers.24.mlp.gate",
+        "model.layers.25.mlp.gate",
+        "model.layers.46.mlp.gate",
+        "model.layers.47.mlp.gate",
+        "model.layers.48.mlp.gate",
+        "model.layers.49.mlp.gate",
+        "model.layers.42.mlp.gate",
+        "model.layers.43.mlp.gate",
+        "model.layers.44.mlp.gate",
+        "model.layers.45.mlp.gate",
+        "model.layers.80.attention.dense",
+        "model.layers.80.attention.kv_a_proj_with_mqa",
+        "model.layers.80.attention.kv_b_proj",
+        "model.layers.80.attention.q_a_proj",
+        "model.layers.80.attention.q_b_proj",
+        "model.layers.80.eh_proj",
+        "model.layers.80.mlp.gate",
+        "model.layers.80.mlp.shared_experts.down_proj",
+        "model.layers.80.mlp.shared_experts.gate_proj",
+        "model.layers.80.mlp.shared_experts.up_proj",
+        "model.layers.80.mlp.experts.0.gate_proj",
+        "model.layers.80.mlp.experts.0.up_proj",
+        "model.layers.80.mlp.experts.1.gate_proj",
+        "model.layers.80.mlp.experts.1.up_proj",
+        "model.layers.80.mlp.experts.10.gate_proj",
+        "model.layers.80.mlp.experts.10.up_proj",
+        "model.layers.80.mlp.experts.100.gate_proj",
+        "model.layers.80.mlp.experts.100.up_proj",
+        "model.layers.80.mlp.experts.101.gate_proj",
+        "model.layers.80.mlp.experts.101.up_proj",
+        "model.layers.80.mlp.experts.102.gate_proj",
+        "model.layers.80.mlp.experts.102.up_proj",
+        "model.layers.80.mlp.experts.103.gate_proj",
+        "model.layers.80.mlp.experts.103.up_proj",
+        "model.layers.80.mlp.experts.104.gate_proj",
+        "model.layers.80.mlp.experts.104.up_proj",
+        "model.layers.80.mlp.experts.105.gate_proj",
+        "model.layers.80.mlp.experts.105.up_proj",
+        "model.layers.80.mlp.experts.106.gate_proj",
+        "model.layers.80.mlp.experts.106.up_proj",
+        "model.layers.80.mlp.experts.107.gate_proj",
+        "model.layers.80.mlp.experts.107.up_proj",
+        "model.layers.80.mlp.experts.108.gate_proj",
+        "model.layers.80.mlp.experts.108.up_proj",
+        "model.layers.80.mlp.experts.109.gate_proj",
+        "model.layers.80.mlp.experts.109.up_proj",
+        "model.layers.80.mlp.experts.11.gate_proj",
+        "model.layers.80.mlp.experts.11.up_proj",
+        "model.layers.80.mlp.experts.110.gate_proj",
+        "model.layers.80.mlp.experts.110.up_proj",
+        "model.layers.80.mlp.experts.111.gate_proj",
+        "model.layers.80.mlp.experts.111.up_proj",
+        "model.layers.80.mlp.experts.112.gate_proj",
+        "model.layers.80.mlp.experts.112.up_proj",
+        "model.layers.80.mlp.experts.113.gate_proj",
+        "model.layers.80.mlp.experts.113.up_proj",
+        "model.layers.80.mlp.experts.114.gate_proj",
+        "model.layers.80.mlp.experts.114.up_proj",
+        "model.layers.80.mlp.experts.115.gate_proj",
+        "model.layers.80.mlp.experts.115.up_proj",
+        "model.layers.80.mlp.experts.116.gate_proj",
+        "model.layers.80.mlp.experts.116.up_proj",
+        "model.layers.80.mlp.experts.117.gate_proj",
+        "model.layers.80.mlp.experts.117.up_proj",
+        "model.layers.80.mlp.experts.118.gate_proj",
+        "model.layers.80.mlp.experts.118.up_proj",
+        "model.layers.80.mlp.experts.119.gate_proj",
+        "model.layers.80.mlp.experts.119.up_proj",
+        "model.layers.80.mlp.experts.12.gate_proj",
+        "model.layers.80.mlp.experts.12.up_proj",
+        "model.layers.80.mlp.experts.120.gate_proj",
+        "model.layers.80.mlp.experts.120.up_proj",
+        "model.layers.80.mlp.experts.121.gate_proj",
+        "model.layers.80.mlp.experts.121.up_proj",
+        "model.layers.80.mlp.experts.122.gate_proj",
+        "model.layers.80.mlp.experts.122.up_proj",
+        "model.layers.80.mlp.experts.123.gate_proj",
+        "model.layers.80.mlp.experts.123.up_proj",
+        "model.layers.80.mlp.experts.124.gate_proj",
+        "model.layers.80.mlp.experts.124.up_proj",
+        "model.layers.80.mlp.experts.125.gate_proj",
+        "model.layers.80.mlp.experts.125.up_proj",
+        "model.layers.80.mlp.experts.126.gate_proj",
+        "model.layers.80.mlp.experts.126.up_proj",
+        "model.layers.80.mlp.experts.127.gate_proj",
+        "model.layers.80.mlp.experts.127.up_proj",
+        "model.layers.80.mlp.experts.128.gate_proj",
+        "model.layers.80.mlp.experts.128.up_proj",
+        "model.layers.80.mlp.experts.129.gate_proj",
+        "model.layers.80.mlp.experts.129.up_proj",
+        "model.layers.80.mlp.experts.13.gate_proj",
+        "model.layers.80.mlp.experts.13.up_proj",
+        "model.layers.80.mlp.experts.130.gate_proj",
+        "model.layers.80.mlp.experts.130.up_proj",
+        "model.layers.80.mlp.experts.131.gate_proj",
+        "model.layers.80.mlp.experts.131.up_proj",
+        "model.layers.80.mlp.experts.132.gate_proj",
+        "model.layers.80.mlp.experts.132.up_proj",
+        "model.layers.80.mlp.experts.133.gate_proj",
+        "model.layers.80.mlp.experts.133.up_proj",
+        "model.layers.80.mlp.experts.134.gate_proj",
+        "model.layers.80.mlp.experts.134.up_proj",
+        "model.layers.80.mlp.experts.135.gate_proj",
+        "model.layers.80.mlp.experts.135.up_proj",
+        "model.layers.80.mlp.experts.136.gate_proj",
+        "model.layers.80.mlp.experts.136.up_proj",
+        "model.layers.80.mlp.experts.137.gate_proj",
+        "model.layers.80.mlp.experts.137.up_proj",
+        "model.layers.80.mlp.experts.138.gate_proj",
+        "model.layers.80.mlp.experts.138.up_proj",
+        "model.layers.80.mlp.experts.139.gate_proj",
+        "model.layers.80.mlp.experts.139.up_proj",
+        "model.layers.80.mlp.experts.14.gate_proj",
+        "model.layers.80.mlp.experts.14.up_proj",
+        "model.layers.80.mlp.experts.140.gate_proj",
+        "model.layers.80.mlp.experts.140.up_proj",
+        "model.layers.80.mlp.experts.141.gate_proj",
+        "model.layers.80.mlp.experts.141.up_proj",
+        "model.layers.80.mlp.experts.142.gate_proj",
+        "model.layers.80.mlp.experts.142.up_proj",
+        "model.layers.80.mlp.experts.143.gate_proj",
+        "model.layers.80.mlp.experts.143.up_proj",
+        "model.layers.80.mlp.experts.144.gate_proj",
+        "model.layers.80.mlp.experts.144.up_proj",
+        "model.layers.80.mlp.experts.145.gate_proj",
+        "model.layers.80.mlp.experts.145.up_proj",
+        "model.layers.80.mlp.experts.146.gate_proj",
+        "model.layers.80.mlp.experts.146.up_proj",
+        "model.layers.80.mlp.experts.147.gate_proj",
+        "model.layers.80.mlp.experts.147.up_proj",
+        "model.layers.80.mlp.experts.148.gate_proj",
+        "model.layers.80.mlp.experts.148.up_proj",
+        "model.layers.80.mlp.experts.149.gate_proj",
+        "model.layers.80.mlp.experts.149.up_proj",
+        "model.layers.80.mlp.experts.15.gate_proj",
+        "model.layers.80.mlp.experts.15.up_proj",
+        "model.layers.80.mlp.experts.150.gate_proj",
+        "model.layers.80.mlp.experts.150.up_proj",
+        "model.layers.80.mlp.experts.151.gate_proj",
+        "model.layers.80.mlp.experts.151.up_proj",
+        "model.layers.80.mlp.experts.152.gate_proj",
+        "model.layers.80.mlp.experts.152.up_proj",
+        "model.layers.80.mlp.experts.153.gate_proj",
+        "model.layers.80.mlp.experts.153.up_proj",
+        "model.layers.80.mlp.experts.154.gate_proj",
+        "model.layers.80.mlp.experts.154.up_proj",
+        "model.layers.80.mlp.experts.155.gate_proj",
+        "model.layers.80.mlp.experts.155.up_proj",
+        "model.layers.80.mlp.experts.156.gate_proj",
+        "model.layers.80.mlp.experts.156.up_proj",
+        "model.layers.80.mlp.experts.157.gate_proj",
+        "model.layers.80.mlp.experts.157.up_proj",
+        "model.layers.80.mlp.experts.158.gate_proj",
+        "model.layers.80.mlp.experts.158.up_proj",
+        "model.layers.80.mlp.experts.159.gate_proj",
+        "model.layers.80.mlp.experts.159.up_proj",
+        "model.layers.80.mlp.experts.16.gate_proj",
+        "model.layers.80.mlp.experts.16.up_proj",
+        "model.layers.80.mlp.experts.160.gate_proj",
+        "model.layers.80.mlp.experts.160.up_proj",
+        "model.layers.80.mlp.experts.161.gate_proj",
+        "model.layers.80.mlp.experts.161.up_proj",
+        "model.layers.80.mlp.experts.162.gate_proj",
+        "model.layers.80.mlp.experts.162.up_proj",
+        "model.layers.80.mlp.experts.163.gate_proj",
+        "model.layers.80.mlp.experts.163.up_proj",
+        "model.layers.80.mlp.experts.164.gate_proj",
+        "model.layers.80.mlp.experts.164.up_proj",
+        "model.layers.80.mlp.experts.165.gate_proj",
+        "model.layers.80.mlp.experts.165.up_proj",
+        "model.layers.80.mlp.experts.166.gate_proj",
+        "model.layers.80.mlp.experts.166.up_proj",
+        "model.layers.80.mlp.experts.167.gate_proj",
+        "model.layers.80.mlp.experts.167.up_proj",
+        "model.layers.80.mlp.experts.168.gate_proj",
+        "model.layers.80.mlp.experts.168.up_proj",
+        "model.layers.80.mlp.experts.169.gate_proj",
+        "model.layers.80.mlp.experts.169.up_proj",
+        "model.layers.80.mlp.experts.17.gate_proj",
+        "model.layers.80.mlp.experts.17.up_proj",
+        "model.layers.80.mlp.experts.170.gate_proj",
+        "model.layers.80.mlp.experts.170.up_proj",
+        "model.layers.80.mlp.experts.171.gate_proj",
+        "model.layers.80.mlp.experts.171.up_proj",
+        "model.layers.80.mlp.experts.172.gate_proj",
+        "model.layers.80.mlp.experts.172.up_proj",
+        "model.layers.80.mlp.experts.173.gate_proj",
+        "model.layers.80.mlp.experts.173.up_proj",
+        "model.layers.80.mlp.experts.174.gate_proj",
+        "model.layers.80.mlp.experts.174.up_proj",
+        "model.layers.80.mlp.experts.175.gate_proj",
+        "model.layers.80.mlp.experts.175.up_proj",
+        "model.layers.80.mlp.experts.176.gate_proj",
+        "model.layers.80.mlp.experts.176.up_proj",
+        "model.layers.80.mlp.experts.177.gate_proj",
+        "model.layers.80.mlp.experts.177.up_proj",
+        "model.layers.80.mlp.experts.178.gate_proj",
+        "model.layers.80.mlp.experts.178.up_proj",
+        "model.layers.80.mlp.experts.179.gate_proj",
+        "model.layers.80.mlp.experts.179.up_proj",
+        "model.layers.80.mlp.experts.18.gate_proj",
+        "model.layers.80.mlp.experts.18.up_proj",
+        "model.layers.80.mlp.experts.180.gate_proj",
+        "model.layers.80.mlp.experts.180.up_proj",
+        "model.layers.80.mlp.experts.181.gate_proj",
+        "model.layers.80.mlp.experts.181.up_proj",
+        "model.layers.80.mlp.experts.182.gate_proj",
+        "model.layers.80.mlp.experts.182.up_proj",
+        "model.layers.80.mlp.experts.183.gate_proj",
+        "model.layers.80.mlp.experts.183.up_proj",
+        "model.layers.80.mlp.experts.184.gate_proj",
+        "model.layers.80.mlp.experts.184.up_proj",
+        "model.layers.80.mlp.experts.185.gate_proj",
+        "model.layers.80.mlp.experts.185.up_proj",
+        "model.layers.80.mlp.experts.186.gate_proj",
+        "model.layers.80.mlp.experts.186.up_proj",
+        "model.layers.80.mlp.experts.187.gate_proj",
+        "model.layers.80.mlp.experts.187.up_proj",
+        "model.layers.80.mlp.experts.188.gate_proj",
+        "model.layers.80.mlp.experts.188.up_proj",
+        "model.layers.80.mlp.experts.189.gate_proj",
+        "model.layers.80.mlp.experts.189.up_proj",
+        "model.layers.80.mlp.experts.19.gate_proj",
+        "model.layers.80.mlp.experts.19.up_proj",
+        "model.layers.80.mlp.experts.190.gate_proj",
+        "model.layers.80.mlp.experts.190.up_proj",
+        "model.layers.80.mlp.experts.191.gate_proj",
+        "model.layers.80.mlp.experts.191.up_proj",
+        "model.layers.80.mlp.experts.192.gate_proj",
+        "model.layers.80.mlp.experts.192.up_proj",
+        "model.layers.80.mlp.experts.193.gate_proj",
+        "model.layers.80.mlp.experts.193.up_proj",
+        "model.layers.80.mlp.experts.194.gate_proj",
+        "model.layers.80.mlp.experts.194.up_proj",
+        "model.layers.80.mlp.experts.195.gate_proj",
+        "model.layers.80.mlp.experts.195.up_proj",
+        "model.layers.80.mlp.experts.196.gate_proj",
+        "model.layers.80.mlp.experts.196.up_proj",
+        "model.layers.80.mlp.experts.197.gate_proj",
+        "model.layers.80.mlp.experts.197.up_proj",
+        "model.layers.80.mlp.experts.198.gate_proj",
+        "model.layers.80.mlp.experts.198.up_proj",
+        "model.layers.80.mlp.experts.199.gate_proj",
+        "model.layers.80.mlp.experts.199.up_proj",
+        "model.layers.80.mlp.experts.2.gate_proj",
+        "model.layers.80.mlp.experts.2.up_proj",
+        "model.layers.80.mlp.experts.20.gate_proj",
+        "model.layers.80.mlp.experts.20.up_proj",
+        "model.layers.80.mlp.experts.200.gate_proj",
+        "model.layers.80.mlp.experts.200.up_proj",
+        "model.layers.80.mlp.experts.201.gate_proj",
+        "model.layers.80.mlp.experts.201.up_proj",
+        "model.layers.80.mlp.experts.202.gate_proj",
+        "model.layers.80.mlp.experts.202.up_proj",
+        "model.layers.80.mlp.experts.203.gate_proj",
+        "model.layers.80.mlp.experts.203.up_proj",
+        "model.layers.80.mlp.experts.204.gate_proj",
+        "model.layers.80.mlp.experts.204.up_proj",
+        "model.layers.80.mlp.experts.205.gate_proj",
+        "model.layers.80.mlp.experts.205.up_proj",
+        "model.layers.80.mlp.experts.206.gate_proj",
+        "model.layers.80.mlp.experts.206.up_proj",
+        "model.layers.80.mlp.experts.207.gate_proj",
+        "model.layers.80.mlp.experts.207.up_proj",
+        "model.layers.80.mlp.experts.208.gate_proj",
+        "model.layers.80.mlp.experts.208.up_proj",
+        "model.layers.80.mlp.experts.209.gate_proj",
+        "model.layers.80.mlp.experts.209.up_proj",
+        "model.layers.80.mlp.experts.21.gate_proj",
+        "model.layers.80.mlp.experts.21.up_proj",
+        "model.layers.80.mlp.experts.210.gate_proj",
+        "model.layers.80.mlp.experts.210.up_proj",
+        "model.layers.80.mlp.experts.211.gate_proj",
+        "model.layers.80.mlp.experts.211.up_proj",
+        "model.layers.80.mlp.experts.212.gate_proj",
+        "model.layers.80.mlp.experts.212.up_proj",
+        "model.layers.80.mlp.experts.213.gate_proj",
+        "model.layers.80.mlp.experts.213.up_proj",
+        "model.layers.80.mlp.experts.214.gate_proj",
+        "model.layers.80.mlp.experts.214.up_proj",
+        "model.layers.80.mlp.experts.215.gate_proj",
+        "model.layers.80.mlp.experts.215.up_proj",
+        "model.layers.80.mlp.experts.216.gate_proj",
+        "model.layers.80.mlp.experts.216.up_proj",
+        "model.layers.80.mlp.experts.217.gate_proj",
+        "model.layers.80.mlp.experts.217.up_proj",
+        "model.layers.80.mlp.experts.218.gate_proj",
+        "model.layers.80.mlp.experts.218.up_proj",
+        "model.layers.80.mlp.experts.219.gate_proj",
+        "model.layers.80.mlp.experts.219.up_proj",
+        "model.layers.80.mlp.experts.22.gate_proj",
+        "model.layers.80.mlp.experts.22.up_proj",
+        "model.layers.80.mlp.experts.220.gate_proj",
+        "model.layers.80.mlp.experts.220.up_proj",
+        "model.layers.80.mlp.experts.221.gate_proj",
+        "model.layers.80.mlp.experts.221.up_proj",
+        "model.layers.80.mlp.experts.222.gate_proj",
+        "model.layers.80.mlp.experts.222.up_proj",
+        "model.layers.80.mlp.experts.223.gate_proj",
+        "model.layers.80.mlp.experts.223.up_proj",
+        "model.layers.80.mlp.experts.224.gate_proj",
+        "model.layers.80.mlp.experts.224.up_proj",
+        "model.layers.80.mlp.experts.225.gate_proj",
+        "model.layers.80.mlp.experts.225.up_proj",
+        "model.layers.80.mlp.experts.226.gate_proj",
+        "model.layers.80.mlp.experts.226.up_proj",
+        "model.layers.80.mlp.experts.227.gate_proj",
+        "model.layers.80.mlp.experts.227.up_proj",
+        "model.layers.80.mlp.experts.228.gate_proj",
+        "model.layers.80.mlp.experts.228.up_proj",
+        "model.layers.80.mlp.experts.229.gate_proj",
+        "model.layers.80.mlp.experts.229.up_proj",
+        "model.layers.80.mlp.experts.23.gate_proj",
+        "model.layers.80.mlp.experts.23.up_proj",
+        "model.layers.80.mlp.experts.230.gate_proj",
+        "model.layers.80.mlp.experts.230.up_proj",
+        "model.layers.80.mlp.experts.231.gate_proj",
+        "model.layers.80.mlp.experts.231.up_proj",
+        "model.layers.80.mlp.experts.232.gate_proj",
+        "model.layers.80.mlp.experts.232.up_proj",
+        "model.layers.80.mlp.experts.233.gate_proj",
+        "model.layers.80.mlp.experts.233.up_proj",
+        "model.layers.80.mlp.experts.234.gate_proj",
+        "model.layers.80.mlp.experts.234.up_proj",
+        "model.layers.80.mlp.experts.235.gate_proj",
+        "model.layers.80.mlp.experts.235.up_proj",
+        "model.layers.80.mlp.experts.236.gate_proj",
+        "model.layers.80.mlp.experts.236.up_proj",
+        "model.layers.80.mlp.experts.237.gate_proj",
+        "model.layers.80.mlp.experts.237.up_proj",
+        "model.layers.80.mlp.experts.238.gate_proj",
+        "model.layers.80.mlp.experts.238.up_proj",
+        "model.layers.80.mlp.experts.239.gate_proj",
+        "model.layers.80.mlp.experts.239.up_proj",
+        "model.layers.80.mlp.experts.24.gate_proj",
+        "model.layers.80.mlp.experts.24.up_proj",
+        "model.layers.80.mlp.experts.240.gate_proj",
+        "model.layers.80.mlp.experts.240.up_proj",
+        "model.layers.80.mlp.experts.241.gate_proj",
+        "model.layers.80.mlp.experts.241.up_proj",
+        "model.layers.80.mlp.experts.242.gate_proj",
+        "model.layers.80.mlp.experts.242.up_proj",
+        "model.layers.80.mlp.experts.243.gate_proj",
+        "model.layers.80.mlp.experts.243.up_proj",
+        "model.layers.80.mlp.experts.244.gate_proj",
+        "model.layers.80.mlp.experts.244.up_proj",
+        "model.layers.80.mlp.experts.245.gate_proj",
+        "model.layers.80.mlp.experts.245.up_proj",
+        "model.layers.80.mlp.experts.246.gate_proj",
+        "model.layers.80.mlp.experts.246.up_proj",
+        "model.layers.80.mlp.experts.247.gate_proj",
+        "model.layers.80.mlp.experts.247.up_proj",
+        "model.layers.80.mlp.experts.248.gate_proj",
+        "model.layers.80.mlp.experts.248.up_proj",
+        "model.layers.80.mlp.experts.249.gate_proj",
+        "model.layers.80.mlp.experts.249.up_proj",
+        "model.layers.80.mlp.experts.25.gate_proj",
+        "model.layers.80.mlp.experts.25.up_proj",
+        "model.layers.80.mlp.experts.250.gate_proj",
+        "model.layers.80.mlp.experts.250.up_proj",
+        "model.layers.80.mlp.experts.251.gate_proj",
+        "model.layers.80.mlp.experts.251.up_proj",
+        "model.layers.80.mlp.experts.252.gate_proj",
+        "model.layers.80.mlp.experts.252.up_proj",
+        "model.layers.80.mlp.experts.253.gate_proj",
+        "model.layers.80.mlp.experts.253.up_proj",
+        "model.layers.80.mlp.experts.254.gate_proj",
+        "model.layers.80.mlp.experts.254.up_proj",
+        "model.layers.80.mlp.experts.255.gate_proj",
+        "model.layers.80.mlp.experts.255.up_proj",
+        "model.layers.80.mlp.experts.26.gate_proj",
+        "model.layers.80.mlp.experts.26.up_proj",
+        "model.layers.80.mlp.experts.27.gate_proj",
+        "model.layers.80.mlp.experts.27.up_proj",
+        "model.layers.80.mlp.experts.28.gate_proj",
+        "model.layers.80.mlp.experts.28.up_proj",
+        "model.layers.80.mlp.experts.29.gate_proj",
+        "model.layers.80.mlp.experts.29.up_proj",
+        "model.layers.80.mlp.experts.3.gate_proj",
+        "model.layers.80.mlp.experts.3.up_proj",
+        "model.layers.80.mlp.experts.30.gate_proj",
+        "model.layers.80.mlp.experts.30.up_proj",
+        "model.layers.80.mlp.experts.31.gate_proj",
+        "model.layers.80.mlp.experts.31.up_proj",
+        "model.layers.80.mlp.experts.32.gate_proj",
+        "model.layers.80.mlp.experts.32.up_proj",
+        "model.layers.80.mlp.experts.33.gate_proj",
+        "model.layers.80.mlp.experts.33.up_proj",
+        "model.layers.80.mlp.experts.34.gate_proj",
+        "model.layers.80.mlp.experts.34.up_proj",
+        "model.layers.80.mlp.experts.35.gate_proj",
+        "model.layers.80.mlp.experts.35.up_proj",
+        "model.layers.80.mlp.experts.36.gate_proj",
+        "model.layers.80.mlp.experts.36.up_proj",
+        "model.layers.80.mlp.experts.37.gate_proj",
+        "model.layers.80.mlp.experts.37.up_proj",
+        "model.layers.80.mlp.experts.38.gate_proj",
+        "model.layers.80.mlp.experts.38.up_proj",
+        "model.layers.80.mlp.experts.39.gate_proj",
+        "model.layers.80.mlp.experts.39.up_proj",
+        "model.layers.80.mlp.experts.4.gate_proj",
+        "model.layers.80.mlp.experts.4.up_proj",
+        "model.layers.80.mlp.experts.40.gate_proj",
+        "model.layers.80.mlp.experts.40.up_proj",
+        "model.layers.80.mlp.experts.41.gate_proj",
+        "model.layers.80.mlp.experts.41.up_proj",
+        "model.layers.80.mlp.experts.42.gate_proj",
+        "model.layers.80.mlp.experts.42.up_proj",
+        "model.layers.80.mlp.experts.43.gate_proj",
+        "model.layers.80.mlp.experts.43.up_proj",
+        "model.layers.80.mlp.experts.44.gate_proj",
+        "model.layers.80.mlp.experts.44.up_proj",
+        "model.layers.80.mlp.experts.45.gate_proj",
+        "model.layers.80.mlp.experts.45.up_proj",
+        "model.layers.80.mlp.experts.46.gate_proj",
+        "model.layers.80.mlp.experts.46.up_proj",
+        "model.layers.80.mlp.experts.47.gate_proj",
+        "model.layers.80.mlp.experts.47.up_proj",
+        "model.layers.80.mlp.experts.48.gate_proj",
+        "model.layers.80.mlp.experts.48.up_proj",
+        "model.layers.80.mlp.experts.49.gate_proj",
+        "model.layers.80.mlp.experts.49.up_proj",
+        "model.layers.80.mlp.experts.5.gate_proj",
+        "model.layers.80.mlp.experts.5.up_proj",
+        "model.layers.80.mlp.experts.50.gate_proj",
+        "model.layers.80.mlp.experts.50.up_proj",
+        "model.layers.80.mlp.experts.51.gate_proj",
+        "model.layers.80.mlp.experts.51.up_proj",
+        "model.layers.80.mlp.experts.52.gate_proj",
+        "model.layers.80.mlp.experts.52.up_proj",
+        "model.layers.80.mlp.experts.53.gate_proj",
+        "model.layers.80.mlp.experts.53.up_proj",
+        "model.layers.80.mlp.experts.54.gate_proj",
+        "model.layers.80.mlp.experts.54.up_proj",
+        "model.layers.80.mlp.experts.55.gate_proj",
+        "model.layers.80.mlp.experts.55.up_proj",
+        "model.layers.80.mlp.experts.56.gate_proj",
+        "model.layers.80.mlp.experts.56.up_proj",
+        "model.layers.80.mlp.experts.57.gate_proj",
+        "model.layers.80.mlp.experts.57.up_proj",
+        "model.layers.80.mlp.experts.58.gate_proj",
+        "model.layers.80.mlp.experts.58.up_proj",
+        "model.layers.80.mlp.experts.59.gate_proj",
+        "model.layers.80.mlp.experts.59.up_proj",
+        "model.layers.80.mlp.experts.6.gate_proj",
+        "model.layers.80.mlp.experts.6.up_proj",
+        "model.layers.80.mlp.experts.60.gate_proj",
+        "model.layers.80.mlp.experts.60.up_proj",
+        "model.layers.80.mlp.experts.61.gate_proj",
+        "model.layers.80.mlp.experts.61.up_proj",
+        "model.layers.80.mlp.experts.62.gate_proj",
+        "model.layers.80.mlp.experts.62.up_proj",
+        "model.layers.80.mlp.experts.63.gate_proj",
+        "model.layers.80.mlp.experts.63.up_proj",
+        "model.layers.80.mlp.experts.64.gate_proj",
+        "model.layers.80.mlp.experts.64.up_proj",
+        "model.layers.80.mlp.experts.65.gate_proj",
+        "model.layers.80.mlp.experts.65.up_proj",
+        "model.layers.80.mlp.experts.66.gate_proj",
+        "model.layers.80.mlp.experts.66.up_proj",
+        "model.layers.80.mlp.experts.67.gate_proj",
+        "model.layers.80.mlp.experts.67.up_proj",
+        "model.layers.80.mlp.experts.68.gate_proj",
+        "model.layers.80.mlp.experts.68.up_proj",
+        "model.layers.80.mlp.experts.69.gate_proj",
+        "model.layers.80.mlp.experts.69.up_proj",
+        "model.layers.80.mlp.experts.7.gate_proj",
+        "model.layers.80.mlp.experts.7.up_proj",
+        "model.layers.80.mlp.experts.70.gate_proj",
+        "model.layers.80.mlp.experts.70.up_proj",
+        "model.layers.80.mlp.experts.71.gate_proj",
+        "model.layers.80.mlp.experts.71.up_proj",
+        "model.layers.80.mlp.experts.72.gate_proj",
+        "model.layers.80.mlp.experts.72.up_proj",
+        "model.layers.80.mlp.experts.73.gate_proj",
+        "model.layers.80.mlp.experts.73.up_proj",
+        "model.layers.80.mlp.experts.74.gate_proj",
+        "model.layers.80.mlp.experts.74.up_proj",
+        "model.layers.80.mlp.experts.75.gate_proj",
+        "model.layers.80.mlp.experts.75.up_proj",
+        "model.layers.80.mlp.experts.76.gate_proj",
+        "model.layers.80.mlp.experts.76.up_proj",
+        "model.layers.80.mlp.experts.77.gate_proj",
+        "model.layers.80.mlp.experts.77.up_proj",
+        "model.layers.80.mlp.experts.78.gate_proj",
+        "model.layers.80.mlp.experts.78.up_proj",
+        "model.layers.80.mlp.experts.79.gate_proj",
+        "model.layers.80.mlp.experts.79.up_proj",
+        "model.layers.80.mlp.experts.8.gate_proj",
+        "model.layers.80.mlp.experts.8.up_proj",
+        "model.layers.80.mlp.experts.80.gate_proj",
+        "model.layers.80.mlp.experts.80.up_proj",
+        "model.layers.80.mlp.experts.81.gate_proj",
+        "model.layers.80.mlp.experts.81.up_proj",
+        "model.layers.80.mlp.experts.82.gate_proj",
+        "model.layers.80.mlp.experts.82.up_proj",
+        "model.layers.80.mlp.experts.83.gate_proj",
+        "model.layers.80.mlp.experts.83.up_proj",
+        "model.layers.80.mlp.experts.84.gate_proj",
+        "model.layers.80.mlp.experts.84.up_proj",
+        "model.layers.80.mlp.experts.85.gate_proj",
+        "model.layers.80.mlp.experts.85.up_proj",
+        "model.layers.80.mlp.experts.86.gate_proj",
+        "model.layers.80.mlp.experts.86.up_proj",
+        "model.layers.80.mlp.experts.87.gate_proj",
+        "model.layers.80.mlp.experts.87.up_proj",
+        "model.layers.80.mlp.experts.88.gate_proj",
+        "model.layers.80.mlp.experts.88.up_proj",
+        "model.layers.80.mlp.experts.89.gate_proj",
+        "model.layers.80.mlp.experts.89.up_proj",
+        "model.layers.80.mlp.experts.9.gate_proj",
+        "model.layers.80.mlp.experts.9.up_proj",
+        "model.layers.80.mlp.experts.90.gate_proj",
+        "model.layers.80.mlp.experts.90.up_proj",
+        "model.layers.80.mlp.experts.91.gate_proj",
+        "model.layers.80.mlp.experts.91.up_proj",
+        "model.layers.80.mlp.experts.92.gate_proj",
+        "model.layers.80.mlp.experts.92.up_proj",
+        "model.layers.80.mlp.experts.93.gate_proj",
+        "model.layers.80.mlp.experts.93.up_proj",
+        "model.layers.80.mlp.experts.94.gate_proj",
+        "model.layers.80.mlp.experts.94.up_proj",
+        "model.layers.80.mlp.experts.95.gate_proj",
+        "model.layers.80.mlp.experts.95.up_proj",
+        "model.layers.80.mlp.experts.96.gate_proj",
+        "model.layers.80.mlp.experts.96.up_proj",
+        "model.layers.80.mlp.experts.97.gate_proj",
+        "model.layers.80.mlp.experts.97.up_proj",
+        "model.layers.80.mlp.experts.98.gate_proj",
+        "model.layers.80.mlp.experts.98.up_proj",
+        "model.layers.80.mlp.experts.99.gate_proj",
+        "model.layers.80.mlp.experts.99.up_proj",
+        "model.layers.80.mlp.experts.0.down_proj",
+        "model.layers.80.mlp.experts.1.down_proj",
+        "model.layers.80.mlp.experts.10.down_proj",
+        "model.layers.80.mlp.experts.100.down_proj",
+        "model.layers.80.mlp.experts.101.down_proj",
+        "model.layers.80.mlp.experts.102.down_proj",
+        "model.layers.80.mlp.experts.103.down_proj",
+        "model.layers.80.mlp.experts.104.down_proj",
+        "model.layers.80.mlp.experts.105.down_proj",
+        "model.layers.80.mlp.experts.106.down_proj",
+        "model.layers.80.mlp.experts.107.down_proj",
+        "model.layers.80.mlp.experts.108.down_proj",
+        "model.layers.80.mlp.experts.109.down_proj",
+        "model.layers.80.mlp.experts.11.down_proj",
+        "model.layers.80.mlp.experts.110.down_proj",
+        "model.layers.80.mlp.experts.111.down_proj",
+        "model.layers.80.mlp.experts.112.down_proj",
+        "model.layers.80.mlp.experts.113.down_proj",
+        "model.layers.80.mlp.experts.114.down_proj",
+        "model.layers.80.mlp.experts.115.down_proj",
+        "model.layers.80.mlp.experts.116.down_proj",
+        "model.layers.80.mlp.experts.117.down_proj",
+        "model.layers.80.mlp.experts.118.down_proj",
+        "model.layers.80.mlp.experts.119.down_proj",
+        "model.layers.80.mlp.experts.12.down_proj",
+        "model.layers.80.mlp.experts.120.down_proj",
+        "model.layers.80.mlp.experts.121.down_proj",
+        "model.layers.80.mlp.experts.122.down_proj",
+        "model.layers.80.mlp.experts.123.down_proj",
+        "model.layers.80.mlp.experts.124.down_proj",
+        "model.layers.80.mlp.experts.125.down_proj",
+        "model.layers.80.mlp.experts.126.down_proj",
+        "model.layers.80.mlp.experts.127.down_proj",
+        "model.layers.80.mlp.experts.128.down_proj",
+        "model.layers.80.mlp.experts.129.down_proj",
+        "model.layers.80.mlp.experts.13.down_proj",
+        "model.layers.80.mlp.experts.130.down_proj",
+        "model.layers.80.mlp.experts.131.down_proj",
+        "model.layers.80.mlp.experts.132.down_proj",
+        "model.layers.80.mlp.experts.133.down_proj",
+        "model.layers.80.mlp.experts.134.down_proj",
+        "model.layers.80.mlp.experts.135.down_proj",
+        "model.layers.80.mlp.experts.136.down_proj",
+        "model.layers.80.mlp.experts.137.down_proj",
+        "model.layers.80.mlp.experts.138.down_proj",
+        "model.layers.80.mlp.experts.139.down_proj",
+        "model.layers.80.mlp.experts.14.down_proj",
+        "model.layers.80.mlp.experts.140.down_proj",
+        "model.layers.80.mlp.experts.141.down_proj",
+        "model.layers.80.mlp.experts.142.down_proj",
+        "model.layers.80.mlp.experts.143.down_proj",
+        "model.layers.80.mlp.experts.144.down_proj",
+        "model.layers.80.mlp.experts.145.down_proj",
+        "model.layers.80.mlp.experts.146.down_proj",
+        "model.layers.80.mlp.experts.147.down_proj",
+        "model.layers.80.mlp.experts.148.down_proj",
+        "model.layers.80.mlp.experts.149.down_proj",
+        "model.layers.80.mlp.experts.15.down_proj",
+        "model.layers.80.mlp.experts.150.down_proj",
+        "model.layers.80.mlp.experts.151.down_proj",
+        "model.layers.80.mlp.experts.152.down_proj",
+        "model.layers.80.mlp.experts.153.down_proj",
+        "model.layers.80.mlp.experts.154.down_proj",
+        "model.layers.80.mlp.experts.155.down_proj",
+        "model.layers.80.mlp.experts.156.down_proj",
+        "model.layers.80.mlp.experts.157.down_proj",
+        "model.layers.80.mlp.experts.158.down_proj",
+        "model.layers.80.mlp.experts.159.down_proj",
+        "model.layers.80.mlp.experts.16.down_proj",
+        "model.layers.80.mlp.experts.160.down_proj",
+        "model.layers.80.mlp.experts.161.down_proj",
+        "model.layers.80.mlp.experts.162.down_proj",
+        "model.layers.80.mlp.experts.163.down_proj",
+        "model.layers.80.mlp.experts.164.down_proj",
+        "model.layers.80.mlp.experts.165.down_proj",
+        "model.layers.80.mlp.experts.166.down_proj",
+        "model.layers.80.mlp.experts.167.down_proj",
+        "model.layers.80.mlp.experts.168.down_proj",
+        "model.layers.80.mlp.experts.169.down_proj",
+        "model.layers.80.mlp.experts.17.down_proj",
+        "model.layers.80.mlp.experts.170.down_proj",
+        "model.layers.80.mlp.experts.171.down_proj",
+        "model.layers.80.mlp.experts.172.down_proj",
+        "model.layers.80.mlp.experts.173.down_proj",
+        "model.layers.80.mlp.experts.174.down_proj",
+        "model.layers.80.mlp.experts.175.down_proj",
+        "model.layers.80.mlp.experts.176.down_proj",
+        "model.layers.80.mlp.experts.177.down_proj",
+        "model.layers.80.mlp.experts.178.down_proj",
+        "model.layers.80.mlp.experts.179.down_proj",
+        "model.layers.80.mlp.experts.18.down_proj",
+        "model.layers.80.mlp.experts.180.down_proj",
+        "model.layers.80.mlp.experts.181.down_proj",
+        "model.layers.80.mlp.experts.182.down_proj",
+        "model.layers.80.mlp.experts.183.down_proj",
+        "model.layers.80.mlp.experts.184.down_proj",
+        "model.layers.80.mlp.experts.185.down_proj",
+        "model.layers.80.mlp.experts.186.down_proj",
+        "model.layers.80.mlp.experts.187.down_proj",
+        "model.layers.80.mlp.experts.188.down_proj",
+        "model.layers.80.mlp.experts.189.down_proj",
+        "model.layers.80.mlp.experts.19.down_proj",
+        "model.layers.80.mlp.experts.190.down_proj",
+        "model.layers.80.mlp.experts.191.down_proj",
+        "model.layers.80.mlp.experts.192.down_proj",
+        "model.layers.80.mlp.experts.193.down_proj",
+        "model.layers.80.mlp.experts.194.down_proj",
+        "model.layers.80.mlp.experts.195.down_proj",
+        "model.layers.80.mlp.experts.196.down_proj",
+        "model.layers.80.mlp.experts.197.down_proj",
+        "model.layers.80.mlp.experts.198.down_proj",
+        "model.layers.80.mlp.experts.199.down_proj",
+        "model.layers.80.mlp.experts.2.down_proj",
+        "model.layers.80.mlp.experts.20.down_proj",
+        "model.layers.80.mlp.experts.200.down_proj",
+        "model.layers.80.mlp.experts.201.down_proj",
+        "model.layers.80.mlp.experts.202.down_proj",
+        "model.layers.80.mlp.experts.203.down_proj",
+        "model.layers.80.mlp.experts.204.down_proj",
+        "model.layers.80.mlp.experts.205.down_proj",
+        "model.layers.80.mlp.experts.206.down_proj",
+        "model.layers.80.mlp.experts.207.down_proj",
+        "model.layers.80.mlp.experts.208.down_proj",
+        "model.layers.80.mlp.experts.209.down_proj",
+        "model.layers.80.mlp.experts.21.down_proj",
+        "model.layers.80.mlp.experts.210.down_proj",
+        "model.layers.80.mlp.experts.211.down_proj",
+        "model.layers.80.mlp.experts.212.down_proj",
+        "model.layers.80.mlp.experts.213.down_proj",
+        "model.layers.80.mlp.experts.214.down_proj",
+        "model.layers.80.mlp.experts.215.down_proj",
+        "model.layers.80.mlp.experts.216.down_proj",
+        "model.layers.80.mlp.experts.217.down_proj",
+        "model.layers.80.mlp.experts.218.down_proj",
+        "model.layers.80.mlp.experts.219.down_proj",
+        "model.layers.80.mlp.experts.22.down_proj",
+        "model.layers.80.mlp.experts.220.down_proj",
+        "model.layers.80.mlp.experts.221.down_proj",
+        "model.layers.80.mlp.experts.222.down_proj",
+        "model.layers.80.mlp.experts.223.down_proj",
+        "model.layers.80.mlp.experts.224.down_proj",
+        "model.layers.80.mlp.experts.225.down_proj",
+        "model.layers.80.mlp.experts.226.down_proj",
+        "model.layers.80.mlp.experts.227.down_proj",
+        "model.layers.80.mlp.experts.228.down_proj",
+        "model.layers.80.mlp.experts.229.down_proj",
+        "model.layers.80.mlp.experts.23.down_proj",
+        "model.layers.80.mlp.experts.230.down_proj",
+        "model.layers.80.mlp.experts.231.down_proj",
+        "model.layers.80.mlp.experts.232.down_proj",
+        "model.layers.80.mlp.experts.233.down_proj",
+        "model.layers.80.mlp.experts.234.down_proj",
+        "model.layers.80.mlp.experts.235.down_proj",
+        "model.layers.80.mlp.experts.236.down_proj",
+        "model.layers.80.mlp.experts.237.down_proj",
+        "model.layers.80.mlp.experts.238.down_proj",
+        "model.layers.80.mlp.experts.239.down_proj",
+        "model.layers.80.mlp.experts.24.down_proj",
+        "model.layers.80.mlp.experts.240.down_proj",
+        "model.layers.80.mlp.experts.241.down_proj",
+        "model.layers.80.mlp.experts.242.down_proj",
+        "model.layers.80.mlp.experts.243.down_proj",
+        "model.layers.80.mlp.experts.244.down_proj",
+        "model.layers.80.mlp.experts.245.down_proj",
+        "model.layers.80.mlp.experts.246.down_proj",
+        "model.layers.80.mlp.experts.247.down_proj",
+        "model.layers.80.mlp.experts.248.down_proj",
+        "model.layers.80.mlp.experts.249.down_proj",
+        "model.layers.80.mlp.experts.25.down_proj",
+        "model.layers.80.mlp.experts.250.down_proj",
+        "model.layers.80.mlp.experts.251.down_proj",
+        "model.layers.80.mlp.experts.252.down_proj",
+        "model.layers.80.mlp.experts.253.down_proj",
+        "model.layers.80.mlp.experts.254.down_proj",
+        "model.layers.80.mlp.experts.255.down_proj",
+        "model.layers.80.mlp.experts.26.down_proj",
+        "model.layers.80.mlp.experts.27.down_proj",
+        "model.layers.80.mlp.experts.28.down_proj",
+        "model.layers.80.mlp.experts.29.down_proj",
+        "model.layers.80.mlp.experts.3.down_proj",
+        "model.layers.80.mlp.experts.30.down_proj",
+        "model.layers.80.mlp.experts.31.down_proj",
+        "model.layers.80.mlp.experts.32.down_proj",
+        "model.layers.80.mlp.experts.33.down_proj",
+        "model.layers.80.mlp.experts.34.down_proj",
+        "model.layers.80.mlp.experts.35.down_proj",
+        "model.layers.80.mlp.experts.36.down_proj",
+        "model.layers.80.mlp.experts.37.down_proj",
+        "model.layers.80.mlp.experts.38.down_proj",
+        "model.layers.80.mlp.experts.39.down_proj",
+        "model.layers.80.mlp.experts.4.down_proj",
+        "model.layers.80.mlp.experts.40.down_proj",
+        "model.layers.80.mlp.experts.41.down_proj",
+        "model.layers.80.mlp.experts.42.down_proj",
+        "model.layers.80.mlp.experts.43.down_proj",
+        "model.layers.80.mlp.experts.44.down_proj",
+        "model.layers.80.mlp.experts.45.down_proj",
+        "model.layers.80.mlp.experts.46.down_proj",
+        "model.layers.80.mlp.experts.47.down_proj",
+        "model.layers.80.mlp.experts.48.down_proj",
+        "model.layers.80.mlp.experts.49.down_proj",
+        "model.layers.80.mlp.experts.5.down_proj",
+        "model.layers.80.mlp.experts.50.down_proj",
+        "model.layers.80.mlp.experts.51.down_proj",
+        "model.layers.80.mlp.experts.52.down_proj",
+        "model.layers.80.mlp.experts.53.down_proj",
+        "model.layers.80.mlp.experts.54.down_proj",
+        "model.layers.80.mlp.experts.55.down_proj",
+        "model.layers.80.mlp.experts.56.down_proj",
+        "model.layers.80.mlp.experts.57.down_proj",
+        "model.layers.80.mlp.experts.58.down_proj",
+        "model.layers.80.mlp.experts.59.down_proj",
+        "model.layers.80.mlp.experts.6.down_proj",
+        "model.layers.80.mlp.experts.60.down_proj",
+        "model.layers.80.mlp.experts.61.down_proj",
+        "model.layers.80.mlp.experts.62.down_proj",
+        "model.layers.80.mlp.experts.63.down_proj",
+        "model.layers.80.mlp.experts.64.down_proj",
+        "model.layers.80.mlp.experts.65.down_proj",
+        "model.layers.80.mlp.experts.66.down_proj",
+        "model.layers.80.mlp.experts.67.down_proj",
+        "model.layers.80.mlp.experts.68.down_proj",
+        "model.layers.80.mlp.experts.69.down_proj",
+        "model.layers.80.mlp.experts.7.down_proj",
+        "model.layers.80.mlp.experts.70.down_proj",
+        "model.layers.80.mlp.experts.71.down_proj",
+        "model.layers.80.mlp.experts.72.down_proj",
+        "model.layers.80.mlp.experts.73.down_proj",
+        "model.layers.80.mlp.experts.74.down_proj",
+        "model.layers.80.mlp.experts.75.down_proj",
+        "model.layers.80.mlp.experts.76.down_proj",
+        "model.layers.80.mlp.experts.77.down_proj",
+        "model.layers.80.mlp.experts.78.down_proj",
+        "model.layers.80.mlp.experts.79.down_proj",
+        "model.layers.80.mlp.experts.8.down_proj",
+        "model.layers.80.mlp.experts.80.down_proj",
+        "model.layers.80.mlp.experts.81.down_proj",
+        "model.layers.80.mlp.experts.82.down_proj",
+        "model.layers.80.mlp.experts.83.down_proj",
+        "model.layers.80.mlp.experts.84.down_proj",
+        "model.layers.80.mlp.experts.85.down_proj",
+        "model.layers.80.mlp.experts.86.down_proj",
+        "model.layers.80.mlp.experts.87.down_proj",
+        "model.layers.80.mlp.experts.88.down_proj",
+        "model.layers.80.mlp.experts.89.down_proj",
+        "model.layers.80.mlp.experts.9.down_proj",
+        "model.layers.80.mlp.experts.90.down_proj",
+        "model.layers.80.mlp.experts.91.down_proj",
+        "model.layers.80.mlp.experts.92.down_proj",
+        "model.layers.80.mlp.experts.93.down_proj",
+        "model.layers.80.mlp.experts.94.down_proj",
+        "model.layers.80.mlp.experts.95.down_proj",
+        "model.layers.80.mlp.experts.96.down_proj",
+        "model.layers.80.mlp.experts.97.down_proj",
+        "model.layers.80.mlp.experts.98.down_proj",
+        "model.layers.80.mlp.experts.99.down_proj"
+      ],
+      "kv_cache_scheme": null,
+      "quant_method": "compressed-tensors",
+      "quantization_status": "compressed",
+      "sparsity_config": {},
+      "transform_config": {},
+      "version": "0.13.0"
+    },
+    "rms_norm_eps": 1e-06,
+    "rope_interleave": true,
+    "rope_scaling": null,
+    "rope_theta": 6000000,
+    "rotary_dim": 64,
+    "routed_scaling_factor": 2.5,
+    "router_dtype": "fp32",
+    "score_function": "sigmoid",
+    "scoring_func": "sigmoid",
+    "seq_aux": true,
+    "tie_word_embeddings": false,
+    "topk_group": 4,
+    "topk_method": "noaux_tc",
+    "torch_dtype": "bfloat16",
+    "transformers_version": "4.45.0",
+    "use_bias": false,
+    "use_cache": true,
+    "use_qk_norm": true,
+    "use_qkv_bias": false,
+    "v_head_dim": 128,
+    "vocab_size": 157184
+  },
+  "metadata": {
+    "header": {
+      "revision": "07b9e26bb1f97494b4fd62eed83f22722ffd560a",
+      "total_size": 1041821259008,
+      "tensors": [
+        {
+          "name": "lm_head.weight",
+          "dtype": "BF16",
+          "shape": [
+            157184,
+            8192
+          ]
+        },
+        {
+          "name": "model.layers.{}.attention.dense.weight",
+          "dtype": "BF16",
+          "shape": [
+            8192,
+            8192
+          ],
+          "index": [
+            [
+              "80"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.attention.dense.weight",
+          "dtype": "F8_E4M3",
+          "shape": [
+            8192,
+            8192
+          ],
+          "index": [
+            [
+              "0-79"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.attention.dense.weight_scale",
+          "dtype": "BF16",
+          "shape": [
+            8192,
+            1
+          ],
+          "index": [
+            [
+              "0-79"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.attention.g_norm.weight",
+          "dtype": "BF16",
+          "shape": [
+            8192
+          ],
+          "index": [
+            [
+              "0-6,8-14,16-22,24-30,32-38,40-46,48-54,56-62,64-70,72-78"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.attention.g_proj.weight",
+          "dtype": "F8_E4M3",
+          "shape": [
+            8192,
+            8192
+          ],
+          "index": [
+            [
+              "0-6,8-14,16-22,24-30,32-38,40-46,48-54,56-62,64-70,72-78"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.attention.g_proj.weight_scale",
+          "dtype": "BF16",
+          "shape": [
+            8192,
+            1
+          ],
+          "index": [
+            [
+              "0-6,8-14,16-22,24-30,32-38,40-46,48-54,56-62,64-70,72-78"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.attention.key_layernorm.weight",
+          "dtype": "BF16",
+          "shape": [
+            128
+          ],
+          "index": [
+            [
+              "0-6,8-14,16-22,24-30,32-38,40-46,48-54,56-62,64-70,72-78"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.attention.kv_a_layernorm.weight",
+          "dtype": "BF16",
+          "shape": [
+            512
+          ],
+          "index": [
+            [
+              "7,15,23,31,39,47,55,63,71,79-80"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.attention.kv_a_proj_with_mqa.weight",
+          "dtype": "BF16",
+          "shape": [
+            576,
+            8192
+          ],
+          "index": [
+            [
+              "80"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.attention.kv_a_proj_with_mqa.weight",
+          "dtype": "F8_E4M3",
+          "shape": [
+            576,
+            8192
+          ],
+          "index": [
+            [
+              "7,15,23,31,39,47,55,63,71,79"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.attention.kv_a_proj_with_mqa.weight_scale",
+          "dtype": "BF16",
+          "shape": [
+            576,
+            1
+          ],
+          "index": [
+            [
+              "7,15,23,31,39,47,55,63,71,79"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.attention.kv_b_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            16384,
+            512
+          ],
+          "index": [
+            [
+              "80"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.attention.kv_b_proj.weight",
+          "dtype": "F8_E4M3",
+          "shape": [
+            16384,
+            512
+          ],
+          "index": [
+            [
+              "7,15,23,31,39,47,55,63,71,79"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.attention.kv_b_proj.weight_scale",
+          "dtype": "BF16",
+          "shape": [
+            16384,
+            1
+          ],
+          "index": [
+            [
+              "7,15,23,31,39,47,55,63,71,79"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.attention.q_a_layernorm.weight",
+          "dtype": "BF16",
+          "shape": [
+            1536
+          ],
+          "index": [
+            [
+              "7,15,23,31,39,47,55,63,71,79-80"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.attention.q_a_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            1536,
+            8192
+          ],
+          "index": [
+            [
+              "80"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.attention.q_a_proj.weight",
+          "dtype": "F8_E4M3",
+          "shape": [
+            1536,
+            8192
+          ],
+          "index": [
+            [
+              "7,15,23,31,39,47,55,63,71,79"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.attention.q_a_proj.weight_scale",
+          "dtype": "BF16",
+          "shape": [
+            1536,
+            1
+          ],
+          "index": [
+            [
+              "7,15,23,31,39,47,55,63,71,79"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.attention.q_b_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            12288,
+            1536
+          ],
+          "index": [
+            [
+              "80"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.attention.q_b_proj.weight",
+          "dtype": "F8_E4M3",
+          "shape": [
+            12288,
+            1536
+          ],
+          "index": [
+            [
+              "7,15,23,31,39,47,55,63,71,79"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.attention.q_b_proj.weight_scale",
+          "dtype": "BF16",
+          "shape": [
+            12288,
+            1
+          ],
+          "index": [
+            [
+              "7,15,23,31,39,47,55,63,71,79"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.attention.query_key_value.weight",
+          "dtype": "F8_E4M3",
+          "shape": [
+            24576,
+            8192
+          ],
+          "index": [
+            [
+              "0-6,8-14,16-22,24-30,32-38,40-46,48-54,56-62,64-70,72-78"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.attention.query_key_value.weight_scale",
+          "dtype": "BF16",
+          "shape": [
+            24576,
+            1
+          ],
+          "index": [
+            [
+              "0-6,8-14,16-22,24-30,32-38,40-46,48-54,56-62,64-70,72-78"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.attention.query_layernorm.weight",
+          "dtype": "BF16",
+          "shape": [
+            128
+          ],
+          "index": [
+            [
+              "0-6,8-14,16-22,24-30,32-38,40-46,48-54,56-62,64-70,72-78"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.eh_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            8192,
+            16384
+          ],
+          "index": [
+            [
+              "80"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.enorm.weight",
+          "dtype": "BF16",
+          "shape": [
+            8192
+          ],
+          "index": [
+            [
+              "80"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.final_layernorm.weight",
+          "dtype": "BF16",
+          "shape": [
+            8192
+          ],
+          "index": [
+            [
+              "80"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.hnorm.weight",
+          "dtype": "BF16",
+          "shape": [
+            8192
+          ],
+          "index": [
+            [
+              "80"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.input_layernorm.weight",
+          "dtype": "BF16",
+          "shape": [
+            8192
+          ],
+          "index": [
+            [
+              "0-80"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.mlp.down_proj.weight",
+          "dtype": "F8_E4M3",
+          "shape": [
+            8192,
+            18432
+          ],
+          "index": [
+            [
+              "0-3"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.mlp.down_proj.weight_scale",
+          "dtype": "BF16",
+          "shape": [
+            8192,
+            1
+          ],
+          "index": [
+            [
+              "0-3"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.mlp.experts.{}.down_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            8192,
+            2048
+          ],
+          "index": [
+            [
+              "80",
+              "0-255"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.mlp.experts.{}.down_proj.weight",
+          "dtype": "F8_E4M3",
+          "shape": [
+            8192,
+            2048
+          ],
+          "index": [
+            [
+              "4-79",
+              "0-255"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.mlp.experts.{}.down_proj.weight_scale",
+          "dtype": "BF16",
+          "shape": [
+            8192,
+            1
+          ],
+          "index": [
+            [
+              "4-79",
+              "0-255"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.mlp.experts.{}.gate_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            2048,
+            8192
+          ],
+          "index": [
+            [
+              "80",
+              "0-255"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.mlp.experts.{}.gate_proj.weight",
+          "dtype": "F8_E4M3",
+          "shape": [
+            2048,
+            8192
+          ],
+          "index": [
+            [
+              "4-79",
+              "0-255"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.mlp.experts.{}.gate_proj.weight_scale",
+          "dtype": "BF16",
+          "shape": [
+            2048,
+            1
+          ],
+          "index": [
+            [
+              "4-79",
+              "0-255"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.mlp.experts.{}.up_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            2048,
+            8192
+          ],
+          "index": [
+            [
+              "80",
+              "0-255"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.mlp.experts.{}.up_proj.weight",
+          "dtype": "F8_E4M3",
+          "shape": [
+            2048,
+            8192
+          ],
+          "index": [
+            [
+              "4-79",
+              "0-255"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.mlp.experts.{}.up_proj.weight_scale",
+          "dtype": "BF16",
+          "shape": [
+            2048,
+            1
+          ],
+          "index": [
+            [
+              "4-79",
+              "0-255"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.mlp.gate.expert_bias",
+          "dtype": "F32",
+          "shape": [
+            256
+          ],
+          "index": [
+            [
+              "4-80"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.mlp.gate.weight",
+          "dtype": "BF16",
+          "shape": [
+            256,
+            8192
+          ],
+          "index": [
+            [
+              "4-80"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.mlp.gate_proj.weight",
+          "dtype": "F8_E4M3",
+          "shape": [
+            18432,
+            8192
+          ],
+          "index": [
+            [
+              "0-3"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.mlp.gate_proj.weight_scale",
+          "dtype": "BF16",
+          "shape": [
+            18432,
+            1
+          ],
+          "index": [
+            [
+              "0-3"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.mlp.shared_experts.down_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            8192,
+            2048
+          ],
+          "index": [
+            [
+              "80"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.mlp.shared_experts.down_proj.weight",
+          "dtype": "F8_E4M3",
+          "shape": [
+            8192,
+            2048
+          ],
+          "index": [
+            [
+              "4-79"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.mlp.shared_experts.down_proj.weight_scale",
+          "dtype": "BF16",
+          "shape": [
+            8192,
+            1
+          ],
+          "index": [
+            [
+              "4-79"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.mlp.shared_experts.gate_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            2048,
+            8192
+          ],
+          "index": [
+            [
+              "80"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.mlp.shared_experts.gate_proj.weight",
+          "dtype": "F8_E4M3",
+          "shape": [
+            2048,
+            8192
+          ],
+          "index": [
+            [
+              "4-79"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.mlp.shared_experts.gate_proj.weight_scale",
+          "dtype": "BF16",
+          "shape": [
+            2048,
+            1
+          ],
+          "index": [
+            [
+              "4-79"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.mlp.shared_experts.up_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            2048,
+            8192
+          ],
+          "index": [
+            [
+              "80"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.mlp.shared_experts.up_proj.weight",
+          "dtype": "F8_E4M3",
+          "shape": [
+            2048,
+            8192
+          ],
+          "index": [
+            [
+              "4-79"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.mlp.shared_experts.up_proj.weight_scale",
+          "dtype": "BF16",
+          "shape": [
+            2048,
+            1
+          ],
+          "index": [
+            [
+              "4-79"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.mlp.up_proj.weight",
+          "dtype": "F8_E4M3",
+          "shape": [
+            18432,
+            8192
+          ],
+          "index": [
+            [
+              "0-3"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.mlp.up_proj.weight_scale",
+          "dtype": "BF16",
+          "shape": [
+            18432,
+            1
+          ],
+          "index": [
+            [
+              "0-3"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.post_attention_layernorm.weight",
+          "dtype": "BF16",
+          "shape": [
+            8192
+          ],
+          "index": [
+            [
+              "0-80"
+            ]
+          ]
+        },
+        {
+          "name": "model.norm.weight",
+          "dtype": "BF16",
+          "shape": [
+            8192
+          ]
+        },
+        {
+          "name": "model.word_embeddings.weight",
+          "dtype": "BF16",
+          "shape": [
+            157184,
+            8192
+          ]
+        }
+      ]
+    },
+    "quant_scheme": "compressed-tensors",
+    "num_bits": 8
+  },
+  "forward_source": {
+    "source": "hf_modeling_files",
+    "paths": [
+      "hf-cache/inclusionAI/Ling-2.6-1T/configuration_bailing_moe_v2_5.py",
+      "hf-cache/inclusionAI/Ling-2.6-1T/modeling_bailing_moe_v2_5.py"
+    ],
+    "files": [
+      {
+        "path": "hf-cache/inclusionAI/Ling-2.6-1T/configuration_bailing_moe_v2_5.py",
+        "text": "\"\"\"Bailing MoE V2 model configuration\"\"\"\n\nfrom transformers.configuration_utils import PretrainedConfig\n\n\nclass BailingMoeV2_5Config(PretrainedConfig):\n\n    def __init__(\n        self,\n        vocab_size=157184,\n        hidden_size=2048,\n        intermediate_size=5120,\n        num_hidden_layers=20,\n        num_attention_heads=16,\n        num_key_value_heads=4,\n        hidden_act=\"silu\",\n        use_qkv_bias=False,  # bailing only\n        use_bias=False,  # bailing only\n        rms_norm_eps=1e-06,\n        tie_word_embeddings=False,  # PretrainedConfig key, here change default value.\n        embedding_dropout=0.0,\n        attention_dropout=0.0,\n        output_dropout=0.0,\n        initializer_range=0.02,\n        max_position_embeddings=32768,\n        rope_theta=600000.0,\n        use_cache=True,\n        max_window_layers=20,\n        rope_scaling=None,\n        pad_token_id=156892,\n        eos_token_id=156892,\n        num_experts=256,\n        num_shared_experts=1,\n        num_experts_per_tok=8,\n        n_group=8,\n        topk_group=4,\n        moe_intermediate_size=512,\n        first_k_dense_replace=1,\n        head_dim=128,\n        output_router_logits=False,\n        use_qk_norm=True,\n        num_nextn_predict_layers=0,\n        mtp_loss_scaling_factor=0,\n        moe_router_enable_expert_bias=True,\n        routed_scaling_factor=1.0,\n        layer_group_size=5,\n        group_norm_size=4,\n        linear_silu=False,\n        kv_lora_rank=512,\n        q_lora_rank=None,\n        qk_rope_head_dim=64,\n        v_head_dim=128,\n        qk_nope_head_dim=128,\n        rope_interleave=True,\n        partial_rotary_factor=0.5,\n        score_function=\"sigmoid\",\n        scoring_func=\"sigmoid\",\n        seq_aux=True,\n        topk_method=\"noaux_tc\",\n        router_dtype=\"fp32\",\n        **kwargs,\n    ):\n        self.num_hidden_layers = num_hidden_layers\n        self.vocab_size = vocab_size\n        self.hidden_size = hidden_size\n        self.intermediate_size = intermediate_size\n        self.num_attention_heads = num_attention_heads\n        self.num_key_value_heads = num_key_value_heads\n        self.hidden_act = hidden_act\n        self.use_qkv_bias = use_qkv_bias\n        self.use_bias = use_bias\n        self.rms_norm_eps = rms_norm_eps\n        self.embedding_dropout = embedding_dropout\n        self.attention_dropout = attention_dropout\n        self.output_dropout = output_dropout\n        self.num_nextn_predict_layers = num_nextn_predict_layers\n        self.mtp_loss_scaling_factor = mtp_loss_scaling_factor\n        self.initializer_range = initializer_range\n        self.max_position_embeddings = max_position_embeddings\n        self.rope_theta = rope_theta\n        self.use_cache = use_cache\n        self.max_window_layers = max_window_layers\n        self.head_dim = head_dim or self.hidden_size // self.num_attention_heads\n        self.rope_scaling = rope_scaling\n        self.use_qk_norm = use_qk_norm\n        self.moe_router_enable_expert_bias = moe_router_enable_expert_bias\n        self.routed_scaling_factor = routed_scaling_factor\n\n        # MoE configs\n        self.num_experts = num_experts\n        self.num_shared_experts = num_shared_experts\n        self.num_experts_per_tok = num_experts_per_tok\n        self.n_group = n_group\n        self.topk_group = topk_group\n        self.moe_intermediate_size = moe_intermediate_size\n        self.first_k_dense_replace = first_k_dense_replace\n        self.output_router_logits = output_router_logits\n\n        # Linear configs\n        self.layer_group_size = layer_group_size\n        self.group_norm_size = group_norm_size\n        self.linear_silu = linear_silu\n        # mla\n        self.kv_lora_rank = kv_lora_rank\n        self.q_lora_rank = q_lora_rank\n        self.qk_rope_head_dim = qk_rope_head_dim\n\n        self.score_function = score_function\n        self.scoring_func = scoring_func\n        self.seq_aux = seq_aux\n        self.topk_method = topk_method\n        self.v_head_dim = v_head_dim\n        self.qk_nope_head_dim = qk_nope_head_dim\n        self.qk_head_dim = qk_nope_head_dim + qk_rope_head_dim\n        self.rope_interleave = rope_interleave\n        self.router_dtype = router_dtype\n        self.partial_rotary_factor = partial_rotary_factor\n        super().__init__(\n            pad_token_id=pad_token_id, eos_token_id=eos_token_id, tie_word_embeddings=tie_word_embeddings, **kwargs\n        )\n"
+      },
+      {
+        "path": "hf-cache/inclusionAI/Ling-2.6-1T/modeling_bailing_moe_v2_5.py",
+        "text": "# coding=utf-8\n# Copyright 2025 Antgroup and The HuggingFace Inc. team. All rights reserved.\n#\n# This code is based on EleutherAI's GPT-NeoX library and the GPT-NeoX\n# and OPT implementations in this library. It has been modified from its\n# original forms to accommodate minor architectural differences compared\n# to GPT-NeoX and OPT used by the Meta AI team that trained the model.\n#\n# Licensed under the Apache License, Version 2.0 (the \"License\");\n# you may not use this file except in compliance with the License.\n# You may obtain a copy of the License at\n#\n#     http://www.apache.org/licenses/LICENSE-2.0\n#\n# Unless required by applicable law or agreed to in writing, software\n# distributed under the License is distributed on an \"AS IS\" BASIS,\n# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n# See the License for the specific language governing permissions and\n# limitations under the License.\n\"\"\"PyTorch BailingMoE model.\"\"\"\n\nimport math\nimport warnings\nfrom typing import List, Optional, Tuple, Union, Callable\n\nimport torch\nimport torch.nn.functional as F\nfrom torch import nn\n\nfrom transformers.activations import ACT2FN\nfrom transformers.cache_utils import Cache, DynamicCache\nfrom transformers.modeling_attn_mask_utils import (\n    AttentionMaskConverter,\n    _prepare_4d_attention_mask,\n    _prepare_4d_causal_attention_mask,\n    _prepare_4d_causal_attention_mask_for_sdpa,\n)\nfrom transformers.modeling_outputs import MoeModelOutputWithPast\nfrom transformers.modeling_rope_utils import ROPE_INIT_FUNCTIONS, dynamic_rope_update\nfrom transformers.modeling_utils import PreTrainedModel\nfrom transformers.pytorch_utils import ALL_LAYERNORM_LAYERS, is_torch_greater_or_equal_than_1_13\nfrom transformers.utils import (\n    add_start_docstrings,\n    add_start_docstrings_to_model_forward,\n    logging,\n    replace_return_docstrings,\n)\nfrom transformers.utils.import_utils import is_torch_fx_available\nfrom .configuration_bailing_moe_v2_5 import BailingMoeV2_5Config\nfrom transformers.generation.utils import GenerationMixin\nfrom dataclasses import dataclass\nfrom transformers.utils import ModelOutput\nfrom transformers import DynamicLayer\nfrom transformers.processing_utils import Unpack\nfrom transformers.utils import TransformersKwargs\nfrom transformers.utils.deprecation import deprecate_kwarg\nfrom transformers.modeling_flash_attention_utils import FlashAttentionKwargs\n\nfrom fla.ops.simple_gla.fused_recurrent import fused_recurrent_simple_gla\nfrom fla.ops.simple_gla.chunk import chunk_simple_gla\n\n\n# This makes `_prepare_4d_causal_attention_mask` a leaf function in the FX graph.\n# It means that the function will not be traced through and simply appear as a node in the graph.\nif is_torch_fx_available():\n    if not is_torch_greater_or_equal_than_1_13:\n        import torch.fx\n\n    _prepare_4d_causal_attention_mask = torch.fx.wrap(_prepare_4d_causal_attention_mask)\n\n\nlogger = logging.get_logger(__name__)\n\n_CONFIG_FOR_DOC = \"BailingMoeV2_5Config\"\n\n\ndef roll_tensor(tensor, shifts=-1, dims=-1, fill_value=0):\n    \"\"\"Roll the tensor input along the given dimension(s).\n    Inserted elements are set to be 0.0.\n    \"\"\"\n    rolled_tensor = torch.roll(tensor, shifts=shifts, dims=dims)\n    rolled_tensor.select(dims, shifts).fill_(fill_value)\n    return rolled_tensor, rolled_tensor.sum()\n\n\n@dataclass\nclass MoEV2_5CausalLMOutputWithPast(ModelOutput):\n    \"\"\"\n    Base class for causal language model (or autoregressive) outputs as well as Mixture of Expert's router hidden\n    states terms, to train a MoE model.\n    Args:\n        loss (`torch.FloatTensor` of shape `(1,)`, *optional*, returned when `labels` is provided):\n            Language modeling loss (for next-token prediction).\n        logits (`torch.FloatTensor` of shape `(batch_size, sequence_length, config.vocab_size)`):\n            Prediction scores of the language modeling head (scores for each vocabulary token before SoftMax).\n        past_key_values (`Cache`, *optional*, returned when `use_cache=True` is passed or when `config.use_cache=True`):\n            It is a [`~cache_utils.Cache`] instance. For more details, see our [kv cache guide](https://huggingface.co/docs/transformers/en/kv_cache).\n            Contains pre-computed hidden-states (key and values in the self-attention blocks) that can be used (see\n            `past_key_values` input) to speed up sequential decoding.\n        hidden_states (`tuple(torch.FloatTensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):\n            Tuple of `torch.FloatTensor` (one for the output of the embeddings, if the model has an embedding layer, +\n            one for the output of each layer) of shape `(batch_size, sequence_length, hidden_size)`.\n            Hidden-states of the model at the output of each layer plus the optional initial embedding outputs.\n        attentions (`tuple(torch.FloatTensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):\n            Tuple of `torch.FloatTensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,\n            sequence_length)`.\n            Attentions weights after the attention softmax, used to compute the weighted average in the self-attention\n            heads.\n        z_loss (`torch.FloatTensor`, *optional*, returned when `labels` is provided):\n            z_loss for the sparse modules.\n        aux_loss (`torch.FloatTensor`, *optional*, returned when `labels` is provided):\n            aux_loss for the sparse modules.\n        router_logits (`tuple(torch.FloatTensor)`, *optional*, returned when `output_router_logits=True` is passed or when `config.add_router_probs=True`):\n            Tuple of `torch.FloatTensor` (one for each layer) of shape `(batch_size, sequence_length, num_experts)`.\n            Router logits of the encoder model, useful to compute the auxiliary loss and the z_loss for the sparse\n            modules.\n    \"\"\"\n\n    loss: Optional[torch.FloatTensor] = None\n    logits: Optional[torch.FloatTensor] = None\n    past_key_values: Optional[Cache] = None\n    hidden_states: Optional[tuple[torch.FloatTensor, ...]] = None\n    attentions: Optional[tuple[torch.FloatTensor, ...]] = None\n    z_loss: Optional[torch.FloatTensor] = None\n    aux_loss: Optional[torch.FloatTensor] = None\n    router_logits: Optional[tuple[torch.FloatTensor]] = None\n    mtp_loss: Optional[torch.FloatTensor] = None\n    mtp_logits: Optional[tuple[torch.FloatTensor, ...]] = None\n\n\nclass MoeV2_5ModelOutputWithPast(MoeModelOutputWithPast):\n\n    def __init__(self, mtp_hidden_states=None, **kwargs):\n        super().__init__(**kwargs)\n        self.mtp_hidden_states = mtp_hidden_states\n\n\ndef _get_unpad_data(attention_mask):\n    seqlens_in_batch = attention_mask.sum(dim=-1, dtype=torch.int32)\n    indices = torch.nonzero(attention_mask.flatten(), as_tuple=False).flatten()\n    max_seqlen_in_batch = seqlens_in_batch.max().item()\n    cu_seqlens = F.pad(torch.cumsum(seqlens_in_batch, dim=0, dtype=torch.torch.int32), (1, 0))\n    return (\n        indices,\n        cu_seqlens,\n        max_seqlen_in_batch,\n    )\n\n\ndef _expand_mask(mask: torch.Tensor, dtype: torch.dtype, tgt_len: Optional[int] = None):\n    warnings.warn(\n        \"Calling `transformers.models.BailingMoeV2_5.modeling_BailingMoeV2_5._prepare_4d_attention_mask` is deprecated and will be removed in v4.37. Use `transformers.modeling_attn_mask_utils._prepare_4d_attention_mask\"\n    )\n    return _prepare_4d_attention_mask(mask=mask, dtype=dtype, tgt_len=tgt_len)\n\n\ndef _make_causal_mask(\n    input_ids_shape: torch.Size, dtype: torch.dtype, device: torch.device, past_key_values_length: int = 0\n):\n    warnings.warn(\n        \"Calling `transformers.models.BailingMoeV2_5.modeling_BailingMoeV2_5._make_causal_mask` is deprecated and will be removed in v4.37. Use `transformers.models.BailingMoeV2_5.modeling_BailingMoeV2_5.AttentionMaskConverter._make_causal_mask\"\n    )\n    return AttentionMaskConverter._make_causal_mask(\n        input_ids_shape=input_ids_shape, dtype=dtype, device=device, past_key_values_length=past_key_values_length\n    )\n\n\nclass BailingMoeV2_5RMSNorm(nn.Module):\n    def __init__(self, hidden_size, eps=1e-6):\n        \"\"\"\n        BailingMoeV2_5RMSNorm is equivalent to T5LayerNorm\n        \"\"\"\n        super().__init__()\n        self.weight = nn.Parameter(torch.ones(hidden_size))\n        self.variance_epsilon = eps\n\n    def forward(self, hidden_states):\n        input_dtype = hidden_states.dtype\n        hidden_states = hidden_states.to(torch.float32)\n        variance = hidden_states.pow(2).mean(-1, keepdim=True)\n        hidden_states = hidden_states * torch.rsqrt(variance + self.variance_epsilon)\n        return self.weight * hidden_states.to(input_dtype)\n\n\nclass BailingMoeV2_5GroupRMSNorm(nn.Module):\n    def __init__(self, hidden_size, group_norm_size, eps=1e-6):\n        \"\"\"\n        BailingMoeV2_5RMSNorm is equivalent to T5LayerNorm\n        \"\"\"\n        super().__init__()\n        self.weight = nn.Parameter(torch.ones(hidden_size))\n        self.group_norm_size = group_norm_size\n        assert hidden_size % group_norm_size == 0, \"hidden_size must be divisible by group_norm_size\"\n        self.variance_epsilon = eps\n\n    def forward(self, hidden_states):\n        input_dtype = hidden_states.dtype\n        input_shape = hidden_states.size()\n        group_input_shape = input_shape[:-1] + (self.group_norm_size, input_shape[-1] // self.group_norm_size)\n        hidden_states = hidden_states.view(group_input_shape)\n        hidden_states = hidden_states.to(torch.float32)\n        variance = hidden_states.pow(2).mean(-1, keepdim=True)\n        hidden_states = hidden_states * torch.rsqrt(variance + self.variance_epsilon)\n        return self.weight * hidden_states.to(input_dtype).view(input_shape)\n\n\nALL_LAYERNORM_LAYERS.append(BailingMoeV2_5RMSNorm)\n\n\nclass BailingMoeV2_5RotaryEmbedding(nn.Module):\n    def __init__(self, config: BailingMoeV2_5Config, device=None):\n        super().__init__()\n        # BC: \"rope_type\" was originally \"type\"\n        if hasattr(config, \"rope_scaling\") and config.rope_scaling is not None:\n            self.rope_type = config.rope_scaling.get(\"rope_type\", config.rope_scaling.get(\"type\"))\n        else:\n            self.rope_type = \"default\"\n        self.max_seq_len_cached = config.max_position_embeddings\n        self.original_max_seq_len = config.max_position_embeddings\n\n        self.config = config\n        self.rope_init_fn = ROPE_INIT_FUNCTIONS[self.rope_type]\n\n        inv_freq, self.attention_scaling = self.rope_init_fn(self.config, device)\n        self.register_buffer(\"inv_freq\", inv_freq, persistent=False)\n        self.original_inv_freq = self.inv_freq\n\n    @torch.no_grad()\n    @dynamic_rope_update  # power user: used with advanced RoPE types (e.g. dynamic rope)\n    def forward(self, x, position_ids):\n        inv_freq_expanded = self.inv_freq[None, :, None].float().expand(position_ids.shape[0], -1, 1).to(x.device)\n        position_ids_expanded = position_ids[:, None, :].float()\n\n        device_type = x.device.type if isinstance(x.device.type, str) and x.device.type != \"mps\" else \"cpu\"\n        with torch.autocast(device_type=device_type, enabled=False):  # Force float32\n            freqs = (inv_freq_expanded.float() @ position_ids_expanded.float()).transpose(1, 2)\n            emb = torch.cat((freqs, freqs), dim=-1)\n            cos = emb.cos() * self.attention_scaling\n            sin = emb.sin() * self.attention_scaling\n\n        return cos.to(dtype=x.dtype), sin.to(dtype=x.dtype)\n\n\n# Copied from transformers.models.llama.modeling_llama.rotate_half\ndef rotate_half(x):\n    \"\"\"Rotates half the hidden dims of the input.\"\"\"\n    x1 = x[..., : x.shape[-1] // 2]\n    x2 = x[..., x.shape[-1] // 2 :]\n    return torch.cat((-x2, x1), dim=-1)\n\n\n# Copied from transformers.models.llama.modeling_llama.apply_rotary_pos_emb\ndef apply_rotary_pos_emb(q, k, cos, sin, unsqueeze_dim=1):\n    \"\"\"Applies Rotary Position Embedding to the query and key tensors.\n    Args:\n        q (`torch.Tensor`): The query tensor.\n        k (`torch.Tensor`): The key tensor.\n        cos (`torch.Tensor`): The cosine part of the rotary embedding.\n        sin (`torch.Tensor`): The sine part of the rotary embedding.\n        unsqueeze_dim (`int`, *optional*, defaults to 1):\n            The 'unsqueeze_dim' argument specifies the dimension along which to unsqueeze cos[position_ids] and\n            sin[position_ids] so that they can be properly broadcasted to the dimensions of q and k. For example, note\n            that cos[position_ids] and sin[position_ids] have the shape [batch_size, seq_len, head_dim]. Then, if q and\n            k have the shape [batch_size, heads, seq_len, head_dim], then setting unsqueeze_dim=1 makes\n            cos[position_ids] and sin[position_ids] broadcastable to the shapes of q and k. Similarly, if q and k have\n            the shape [batch_size, seq_len, heads, head_dim], then set unsqueeze_dim=2.\n    Returns:\n        `tuple(torch.Tensor)` comprising the query and key tensors rotated using the Rotary Position Embedding.\n    \"\"\"\n    cos = cos.unsqueeze(unsqueeze_dim)\n    sin = sin.unsqueeze(unsqueeze_dim)\n\n    # Keep half or full tensor for later concatenation\n    rotary_dim = cos.shape[-1]\n    q_rot, q_pass = q[..., :rotary_dim], q[..., rotary_dim:]\n    k_rot, k_pass = k[..., :rotary_dim], k[..., rotary_dim:]\n\n    # Apply rotary embeddings on the first half or full tensor\n    q_embed = (q_rot * cos) + (rotate_half(q_rot) * sin)\n    k_embed = (k_rot * cos) + (rotate_half(k_rot) * sin)\n\n    # Concatenate back to full shape\n    q_embed = torch.cat([q_embed, q_pass], dim=-1)\n    k_embed = torch.cat([k_embed, k_pass], dim=-1)\n    return q_embed, k_embed\n\n\nclass BailingMoeV2_5MLP(nn.Module):\n    def __init__(self, config: BailingMoeV2_5Config, intermediate_size: int):\n        super().__init__()\n        self.config = config\n        self.hidden_size = config.hidden_size\n        self.intermediate_size = intermediate_size\n\n        self.gate_proj = nn.Linear(self.hidden_size, self.intermediate_size, bias=False)\n        self.up_proj = nn.Linear(self.hidden_size, self.intermediate_size, bias=False)\n        self.down_proj = nn.Linear(self.intermediate_size, self.hidden_size, bias=False)\n        self.act_fn = ACT2FN[config.hidden_act]\n\n    def forward(self, x):\n        return self.down_proj(self.act_fn(self.gate_proj(x)) * self.up_proj(x))\n\n\nclass BailingMoeV2_5Gate(nn.Module):\n    def __init__(self, config):\n        super().__init__()\n        self.config = config\n        self.top_k = config.num_experts_per_tok\n        self.num_experts = config.num_experts\n\n        self.n_group = config.n_group\n        self.topk_group = config.topk_group\n\n        # topk selection algorithm\n        self.gating_dim = config.hidden_size\n        self.weight = nn.Parameter(torch.empty((self.num_experts, self.gating_dim)))\n        self.routed_scaling_factor = config.routed_scaling_factor\n\n        self.register_buffer(\"expert_bias\", torch.zeros((self.num_experts)))\n        self.reset_parameters()\n\n    def reset_parameters(self) -> None:\n        import torch.nn.init as init\n\n        init.kaiming_uniform_(self.weight, a=math.sqrt(5))\n\n    def group_limited_topk(\n        self,\n        scores: torch.Tensor,\n    ):\n        num_tokens, _ = scores.size()\n        # Organize the experts into groups\n        group_scores = scores.view(num_tokens, self.n_group, -1).topk(2, dim=-1)[0].sum(dim=-1)\n        group_idx = torch.topk(group_scores, k=self.topk_group, dim=-1, sorted=False)[1]\n        group_mask = torch.zeros_like(group_scores)\n        group_mask.scatter_(1, group_idx, 1)\n\n        # Mask the experts based on selection groups\n        score_mask = (\n            group_mask.unsqueeze(-1)\n            .expand(num_tokens, self.n_group, self.num_experts // self.n_group)\n            .reshape(num_tokens, -1)\n        )\n\n        masked_scores = scores.masked_fill(~score_mask.bool(), float('-inf'))\n        probs, top_indices = torch.topk(masked_scores, k=self.top_k, dim=-1)\n\n        return probs, top_indices\n\n    def forward(self, hidden_states):\n        # compute gating score\n        hidden_states = hidden_states.view(-1, hidden_states.shape[-1])\n        logits = F.linear(hidden_states.type(torch.float32), self.weight.type(torch.float32))\n\n        scores = torch.sigmoid(logits.float()).type_as(logits)\n\n        scores_for_routing = scores + self.expert_bias\n        _, topk_idx = self.group_limited_topk(scores_for_routing)\n\n        scores = torch.gather(scores, dim=1, index=topk_idx).type_as(logits)\n\n        topk_weight = scores / (scores.sum(dim=-1, keepdim=True) + 1e-20) if self.top_k > 1 else scores\n        topk_weight = topk_weight * self.routed_scaling_factor\n\n        return topk_idx, topk_weight, logits\n\n\nclass BailingMoeV2_5SparseMoeBlock(nn.Module):\n    \"\"\"\n    A mixed expert module containing shared experts.\n    \"\"\"\n\n    def __init__(self, config: BailingMoeV2_5Config):\n        super().__init__()\n        self.config = config\n        self.num_experts_per_tok = config.num_experts_per_tok\n        self._setup_experts()\n        self.gate = BailingMoeV2_5Gate(config)\n        if config.num_shared_experts is not None:\n            self.shared_experts = BailingMoeV2_5MLP(\n                config=config, intermediate_size=config.moe_intermediate_size * config.num_shared_experts\n            )\n\n    def _setup_experts(self):\n        self.experts = nn.ModuleList(\n            [\n                BailingMoeV2_5MLP(config=self.config, intermediate_size=self.config.moe_intermediate_size)\n                for _ in range(self.config.num_experts)\n            ]\n        )\n\n    def forward(self, hidden_states):\n        identity = hidden_states\n        bsz, seq_len, h = hidden_states.shape\n        topk_idx, topk_weight, router_logits = self.gate(hidden_states)\n        hidden_states = hidden_states.view(-1, hidden_states.shape[-1])\n        flat_topk_idx = topk_idx.view(-1)\n        if self.training:\n            hidden_states = hidden_states.repeat_interleave(self.num_experts_per_tok, dim=0)\n            y = torch.empty_like(hidden_states)\n            for i, expert in enumerate(self.experts):\n                y[flat_topk_idx == i] = expert(hidden_states[flat_topk_idx == i])\n            y = (y.view(*topk_weight.shape, -1) * topk_weight.unsqueeze(-1)).sum(dim=1)\n            y = y.to(hidden_states.dtype).view(bsz, seq_len, h)\n        else:\n            y = self.moe_infer(hidden_states, topk_idx, topk_weight).view(bsz, seq_len, h)\n        if self.config.num_shared_experts is not None:\n            y = y + self.shared_experts(identity)\n        return y, (router_logits.view(bsz, seq_len, -1), topk_idx.view(bsz, seq_len, -1))\n\n    @torch.no_grad()\n    def moe_infer(self, x, topk_ids, topk_weight):\n        cnts = topk_ids.new_zeros((topk_ids.shape[0], len(self.experts)))\n        cnts.scatter_(1, topk_ids, 1)\n        tokens_per_expert = cnts.sum(dim=0)\n        idxs = topk_ids.view(-1).argsort()\n        sorted_tokens = x[idxs // topk_ids.shape[1]]\n        tokens_per_expert = tokens_per_expert.cpu().numpy()\n        outputs = []\n        start_idx = 0\n        for i, num_tokens in enumerate(tokens_per_expert):\n            end_idx = start_idx + num_tokens\n            if num_tokens == 0:\n                continue\n            expert = self.experts[i]\n            tokens_for_this_expert = sorted_tokens[start_idx:end_idx]\n            expert_out = expert(tokens_for_this_expert)\n            outputs.append(expert_out.to(x.device))\n            start_idx = end_idx\n\n        outs = torch.cat(outputs, dim=0) if len(outputs) else sorted_tokens.new_empty(0)\n        new_x = torch.empty_like(outs)\n        new_x[idxs] = outs\n        final_out = (\n            new_x.view(*topk_ids.shape, -1)\n            .type(topk_weight.dtype)\n            .mul_(topk_weight.unsqueeze(dim=-1))\n            .sum(dim=1)\n            .type(new_x.dtype)\n        )\n        return final_out\n\n\n# Copied from transformers.models.llama.modeling_llama.repeat_kv\ndef repeat_kv(hidden_states: torch.Tensor, n_rep: int, head_first: bool = True) -> torch.Tensor:\n    \"\"\"\n    This is the equivalent of torch.repeat_interleave(x, dim=1, repeats=n_rep). If head_first is True, the hidden states go from (batch,\n    num_key_value_heads, seqlen, head_dim) to (batch, num_attention_heads, seqlen, head_dim)\n    \"\"\"\n    if n_rep == 1:\n        return hidden_states\n    if head_first:\n        batch, num_key_value_heads, slen, head_dim = hidden_states.shape\n        hidden_states = hidden_states[:, :, None, :, :].expand(batch, num_key_value_heads, n_rep, slen, head_dim)\n        return hidden_states.reshape(batch, num_key_value_heads * n_rep, slen, head_dim)\n    else:\n        batch, slen, num_key_value_heads, head_dim = hidden_states.shape\n        hidden_states = hidden_states[:, :, :, None, :].expand(batch, slen, num_key_value_heads, n_rep, head_dim)\n        return hidden_states.reshape(batch, slen, num_key_value_heads * n_rep, head_dim)\n\n\ndef repeat_kv2(hidden_states: torch.Tensor, n_rep: int) -> torch.Tensor:\n    \"\"\"\n    This is the equivalent of torch.repeat_interleave(x, dim=1, repeats=n_rep). The hidden states go from (batch,\n    num_key_value_heads, seqlen, head_dim) to (batch, num_attention_heads, seqlen, head_dim)\n    \"\"\"\n    batch, num_key_value_heads, slen, head_dim = hidden_states.shape\n    if n_rep == 1:\n        return hidden_states\n    hidden_states = hidden_states[:, :, None, :, :].expand(batch, num_key_value_heads, n_rep, slen, head_dim)\n    return hidden_states.reshape(batch, num_key_value_heads * n_rep, slen, head_dim)\n\n\ndef eager_attention_forward(\n    module: nn.Module,\n    query: torch.Tensor,\n    key: torch.Tensor,\n    value: torch.Tensor,\n    attention_mask: Optional[torch.Tensor],\n    scaling: float,\n    dropout: float = 0.0,\n    **kwargs: Unpack[TransformersKwargs],\n):\n    key_states = repeat_kv2(key, module.num_key_value_groups)\n    value_states = repeat_kv2(value, module.num_key_value_groups)\n\n    attn_weights = torch.matmul(query, key_states.transpose(2, 3)) * scaling\n    if attention_mask is not None:\n        causal_mask = attention_mask[:, :, :, : key_states.shape[-2]]\n        attn_weights = attn_weights + causal_mask\n\n    attn_weights = nn.functional.softmax(attn_weights, dim=-1, dtype=torch.float32).to(query.dtype)\n    attn_weights = nn.functional.dropout(attn_weights, p=dropout, training=module.training)\n    attn_output = torch.matmul(attn_weights, value_states)\n    attn_output = attn_output.transpose(1, 2).contiguous()\n\n    return attn_output, attn_weights\n\n\ndef apply_rotary_pos_emb_interleave(q, k, cos, sin, position_ids=None, unsqueeze_dim=1):\n    r\"\"\"\n    TODO let's just use the original freqcis computation to not have the view\n    transpose + reshape! This is not optimized!\n    Applies Rotary Position Embedding to the query and key tensors.\n\n    Args:\n        q (`torch.Tensor`): The query tensor.\n        k (`torch.Tensor`): The key tensor.\n        cos (`torch.Tensor`): The cosine part of the rotary embedding.\n        sin (`torch.Tensor`): The sine part of the rotary embedding.\n        position_ids (`torch.Tensor`):\n            The position indices of the tokens corresponding to the query and key tensors. For example, this can be\n            used to pass offsetted position ids when working with a KV-cache.\n        unsqueeze_dim (`int`, *optional*, defaults to 1):\n            The 'unsqueeze_dim' argument specifies the dimension along which to unsqueeze cos[position_ids] and\n            sin[position_ids] so that they can be properly broadcasted to the dimensions of q and k. For example, note\n            that cos[position_ids] and sin[position_ids] have the shape [batch_size, seq_len, head_dim]. Then, if q and\n            k have the shape [batch_size, heads, seq_len, head_dim], then setting unsqueeze_dim=1 makes\n            cos[position_ids] and sin[position_ids] broadcastable to the shapes of q and k. Similarly, if q and k have\n            the shape [batch_size, seq_len, heads, head_dim], then set unsqueeze_dim=2.\n    Returns:\n        `tuple(torch.Tensor)` comprising of the query and key tensors rotated using the Rotary Position Embedding.\n    \"\"\"\n    cos = cos.unsqueeze(unsqueeze_dim)\n    sin = sin.unsqueeze(unsqueeze_dim)\n\n    b, h, s, d = q.shape\n    q = q.view(b, h, s, d // 2, 2).transpose(4, 3).reshape(b, h, s, d)\n\n    b, h, s, d = k.shape\n    k = k.view(b, h, s, d // 2, 2).transpose(4, 3).reshape(b, h, s, d)\n\n    q_embed = (q * cos) + (rotate_half(q) * sin)\n    k_embed = (k * cos) + (rotate_half(k) * sin)\n    return q_embed, k_embed\n\n\nclass BailingMoeV2_5MLARotaryEmbedding(nn.Module):\n    inv_freq: torch.Tensor  # fix linting for `register_buffer`\n\n    def __init__(self, config: BailingMoeV2_5Config, device=None):\n        super().__init__()\n        # BC: \"rope_type\" was originally \"type\"\n        if hasattr(config, \"rope_scaling\") and isinstance(config.rope_scaling, dict):\n            self.rope_type = config.rope_scaling.get(\"rope_type\", config.rope_scaling.get(\"type\"))\n        else:\n            self.rope_type = \"default\"\n        self.max_seq_len_cached = config.max_position_embeddings\n        self.original_max_seq_len = config.max_position_embeddings\n\n        self.config = config\n        self.rope_init_fn = ROPE_INIT_FUNCTIONS[self.rope_type]\n\n        inv_freq, self.attention_scaling = self.rope_init_fn(self.config, device)\n        self.register_buffer(\"inv_freq\", inv_freq, persistent=False)\n        self.original_inv_freq = self.inv_freq\n\n    @torch.no_grad()\n    @dynamic_rope_update  # power user: used with advanced RoPE types (e.g. dynamic rope)\n    def forward(self, x, position_ids):\n        inv_freq_expanded = self.inv_freq[None, :, None].float().expand(position_ids.shape[0], -1, 1).to(x.device)\n        position_ids_expanded = position_ids[:, None, :].float()\n\n        device_type = x.device.type if isinstance(x.device.type, str) and x.device.type != \"mps\" else \"cpu\"\n        with torch.autocast(device_type=device_type, enabled=False):  # Force float32\n            freqs = (inv_freq_expanded.float() @ position_ids_expanded.float()).transpose(1, 2)\n            emb = torch.cat((freqs, freqs), dim=-1)\n            cos = emb.cos() * self.attention_scaling\n            sin = emb.sin() * self.attention_scaling\n\n        return cos.to(dtype=x.dtype), sin.to(dtype=x.dtype)\n\n\ndef yarn_get_mscale(scale=1, mscale=1):\n    if scale <= 1:\n        return 1.0\n    return 0.1 * mscale * math.log(scale) + 1.0\n\n\nclass BailingMoeV2_5MultiLatentAttention(nn.Module):\n    \"\"\"Multi-headed attention from 'Attention Is All You Need' paper\"\"\"\n\n    def __init__(self, config: BailingMoeV2_5Config, layer_idx: int):\n        super().__init__()\n        self.config = config\n        self.layer_idx = layer_idx\n        self.num_key_value_groups = config.num_attention_heads // config.num_key_value_heads\n        self.attention_dropout = config.attention_dropout\n        self.num_heads = config.num_attention_heads\n        self.rope_theta = config.rope_theta\n        self.q_lora_rank = config.q_lora_rank\n        self.qk_rope_head_dim = config.qk_rope_head_dim\n        self.kv_lora_rank = config.kv_lora_rank\n        self.v_head_dim = config.v_head_dim\n        self.qk_nope_head_dim = config.qk_nope_head_dim\n        self.qk_head_dim = config.qk_head_dim\n\n        self.is_causal = True\n        if self.q_lora_rank is None:\n            self.q_proj = nn.Linear(config.hidden_size, self.num_heads * self.qk_head_dim, bias=False)\n        else:\n            self.q_a_proj = nn.Linear(config.hidden_size, config.q_lora_rank, bias=config.use_qkv_bias)\n            self.q_a_layernorm = BailingMoeV2_5RMSNorm(config.q_lora_rank)\n            self.q_b_proj = nn.Linear(config.q_lora_rank, self.num_heads * self.qk_head_dim, bias=False)\n\n        self.kv_a_proj_with_mqa = nn.Linear(\n            config.hidden_size,\n            self.kv_lora_rank + self.qk_rope_head_dim,\n            bias=config.use_qkv_bias,\n        )\n        self.kv_a_layernorm = BailingMoeV2_5RMSNorm(self.kv_lora_rank)\n        self.kv_b_proj = nn.Linear(\n            self.kv_lora_rank,\n            self.num_heads * (self.qk_nope_head_dim + self.v_head_dim),\n            bias=False,\n        )\n\n        self.dense = nn.Linear(\n            self.num_heads * self.v_head_dim,\n            config.hidden_size,\n            bias=config.use_qkv_bias,\n        )\n\n        self.scaling = self.qk_head_dim ** (-0.5)\n        if self.config.rope_scaling is not None:\n            mscale_all_dim = self.config.rope_scaling.get(\"mscale_all_dim\", 0)\n            scaling_factor = self.config.rope_scaling[\"factor\"]\n            if mscale_all_dim:\n                mscale = yarn_get_mscale(scaling_factor, mscale_all_dim)\n                self.scaling = self.scaling * mscale * mscale\n\n    @deprecate_kwarg(\"past_key_value\", new_name=\"past_key_values\", version=\"4.58\")\n    def forward(\n        self,\n        hidden_states: torch.Tensor,\n        position_embeddings: tuple[torch.Tensor, torch.Tensor],\n        attention_mask: Optional[torch.Tensor],\n        past_key_values: Optional[Cache] = None,\n        cache_position: Optional[torch.LongTensor] = None,\n        **kwargs: Unpack[FlashAttentionKwargs],\n    ) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[torch.Tensor]]]:\n\n        batch_size, seq_length = hidden_states.shape[:-1]\n        query_shape = (batch_size, seq_length, -1, self.qk_head_dim)\n        key_shape = (batch_size, seq_length, -1, self.qk_nope_head_dim + self.v_head_dim)\n\n        if self.q_lora_rank is None:\n            q_states = self.q_proj(hidden_states)\n        else:\n            q_states = self.q_b_proj(self.q_a_layernorm(self.q_a_proj(hidden_states)))\n        q_states = q_states.view(query_shape).transpose(1, 2)\n        q_pass, q_rot = torch.split(q_states, [self.qk_nope_head_dim, self.qk_rope_head_dim], dim=-1)\n\n        compressed_kv = self.kv_a_proj_with_mqa(hidden_states)\n        k_pass, k_rot = torch.split(compressed_kv, [self.kv_lora_rank, self.qk_rope_head_dim], dim=-1)\n\n        k_pass = self.kv_b_proj(self.kv_a_layernorm(k_pass)).view(key_shape).transpose(1, 2)\n        k_pass, value_states = torch.split(k_pass, [self.qk_nope_head_dim, self.v_head_dim], dim=-1)\n\n        k_rot = k_rot.view(batch_size, 1, seq_length, self.qk_rope_head_dim)\n\n        cos, sin = position_embeddings  # tptest\n        if self.config.rope_interleave:  # support using interleaved weights for efficiency\n            q_rot, k_rot = apply_rotary_pos_emb_interleave(q_rot, k_rot, cos, sin)\n        else:\n            x = 1 / 0\n            q_rot, k_rot = apply_rotary_pos_emb(q_rot, k_rot, cos, sin)\n        k_rot = k_rot.expand(*k_pass.shape[:-1], -1)\n\n        query_states = torch.cat((q_pass, q_rot), dim=-1)\n        key_states = torch.cat((k_pass, k_rot), dim=-1)\n\n        if past_key_values is not None:\n            # sin and cos are specific to RoPE models; cache_position needed for the static cache\n            cache_kwargs = {\"sin\": sin, \"cos\": cos, \"cache_position\": cache_position}\n            key_states, value_states = past_key_values.update(key_states, value_states, self.layer_idx, cache_kwargs)\n\n        if self.config._attn_implementation == \"flash_attention_2\" and self.qk_head_dim != self.v_head_dim:\n            value_states = F.pad(value_states, [0, self.qk_head_dim - self.v_head_dim])\n\n        attention_interface: Callable = eager_attention_forward\n\n        attn_output, attn_weights = attention_interface(\n            self,\n            query_states,\n            key_states,\n            value_states,\n            attention_mask,\n            dropout=0.0 if not self.training else self.attention_dropout,\n            scaling=self.scaling,\n            **kwargs,\n        )\n\n        if self.config._attn_implementation == \"flash_attention_2\" and self.qk_head_dim != self.v_head_dim:\n            attn_output = attn_output[:, :, :, : self.v_head_dim]\n\n        attn_output = attn_output.reshape(batch_size, seq_length, -1).contiguous()\n        attn_output = self.dense(attn_output)\n        return attn_output, attn_weights, past_key_values\n\n\nclass BailingMoeV2_5LinearAttention(nn.Module):\n    \"\"\"\n    BailingMoeAttention implements a linear attention mechanism based on Lightning Attention-2\n    (https://arxiv.org/abs/2401.04658) with efficient computation using flash-linear-attention operators.\n\n    The implementation leverages optimized kernels from the flash-linear-attention library\n    (https://github.com/fla-org/flash-linear-attention) for maximum performance.\n    \"\"\"\n\n    def __init__(self, config: BailingMoeV2_5Config, layer_idx: Optional[int] = None):\n        super().__init__()\n        self.config = config\n        self.layer_idx = layer_idx\n        if layer_idx is None:\n            logger.warning_once(\n                f\"Instantiating {self.__class__.__name__} without passing `layer_idx` is not recommended and will \"\n                \"to errors during the forward call, if caching is used. Please make sure to provide a `layer_idx` \"\n                \"when creating this class.\"\n            )\n        self.hidden_size = config.hidden_size\n        self.num_heads = config.num_attention_heads\n        self.head_dim = config.head_dim or self.hidden_size // self.num_heads\n        self.num_key_value_heads = config.num_attention_heads\n        self.num_key_value_groups = self.num_heads // self.num_key_value_heads\n        partial_rotary_factor = config.partial_rotary_factor if hasattr(config, \"partial_rotary_factor\") else 1.0\n        self.rope_dim = int(self.head_dim * partial_rotary_factor)\n\n        self.use_qk_norm = getattr(config, \"use_qk_norm\", False)\n        self.rms_norm_eps = getattr(config, \"rms_norm_eps\", 1e-5)\n        self.mode = 'chunk'\n\n        self.query_key_value = nn.Linear(\n            self.hidden_size,\n            (self.num_heads + 2 * self.num_key_value_heads) * self.head_dim,\n            bias=config.use_qkv_bias,\n        )\n\n        if self.config.use_qk_norm:\n            self.query_layernorm = BailingMoeV2_5RMSNorm(self.head_dim, eps=config.rms_norm_eps)\n            self.key_layernorm = BailingMoeV2_5RMSNorm(self.head_dim, eps=config.rms_norm_eps)\n\n        self.rotary_emb = BailingMoeV2_5RotaryEmbedding(config=config)\n\n        self.dense = nn.Linear(self.num_heads * self.head_dim, self.hidden_size, bias=config.use_bias)\n\n        self.g_proj = nn.Linear(self.hidden_size, self.num_heads * self.head_dim, bias=False)\n        self.g_norm = BailingMoeV2_5GroupRMSNorm(\n            self.num_heads * self.head_dim, group_norm_size=config.group_norm_size, eps=self.rms_norm_eps\n        )\n        slope = -BailingMoeV2_5LinearAttention.build_slope_tensor(self.num_heads) * (\n            1 - (self.layer_idx - 1) / (self.config.num_hidden_layers - 1) + 1e-5\n        )\n        self.register_buffer('slope', slope, persistent=False)\n\n        self.lightning_attn_ops = {'chunk': chunk_simple_gla, 'fused_recurrent': fused_recurrent_simple_gla}\n\n    @staticmethod\n    def build_slope_tensor(n_attention_heads: int):\n        \"\"\"\n        Build a tensor of slopes for Lightning Attention-2 as described in the paper:\n        \"Lightning Attention-2: A Free Lunch for Handling Unlimited Sequence Lengths in Large Language Models\"\n        (https://arxiv.org/abs/2401.04658)\n\n        This function computes the slope values that control the decay rate of attention scores\n        based on the number of attention heads. The slopes are designed to have specific\n        mathematical properties that work optimally when the number of heads is a power of 2.\n\n        For non-power-of-2 head counts, a workaround is implemented to maintain similar properties.\n\n        Args:\n            n_attention_heads (int): Number of attention heads in the model\n\n        Returns:\n            torch.Tensor: A tensor of shape [n_attention_heads] containing the computed slopes\n\n        Note:\n            Code copied from: https://github.com/OpenNLPLab/lightning-attention/blob/d15c38529bbd5c2c82b44ddda3cac885825aa873/lightning_attn/utils/utils.py#L6\n        \"\"\"\n\n        def get_slopes(n):\n            def get_slopes_power_of_2(n):\n                start = 2 ** (-(2 ** -(math.log2(n) - 3)))\n                ratio = start\n                return [start * ratio**i for i in range(n)]\n\n            if math.log2(n).is_integer():\n                return get_slopes_power_of_2(\n                    n\n                )  # In the paper, we only train models that have 2^a heads for some a. This function has\n            else:  # some good properties that only occur when the input is a power of 2. To maintain that even\n                closest_power_of_2 = 2 ** math.floor(\n                    math.log2(n)\n                )  # when the number of heads is not a power of 2, we use this workaround.\n                return (\n                    get_slopes_power_of_2(closest_power_of_2)\n                    + get_slopes(2 * closest_power_of_2)[0::2][: n - closest_power_of_2]\n                )\n\n        slopes = torch.tensor(get_slopes(n_attention_heads), dtype=torch.float)\n        return slopes\n\n    def forward(\n        self,\n        hidden_states: torch.Tensor,\n        attention_mask: Optional[torch.Tensor] = None,\n        position_ids: Optional[torch.LongTensor] = None,\n        past_key_value: Optional[Cache] = None,\n        output_attentions: bool = False,\n        use_cache: bool = False,\n        position_embeddings: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,\n        **kwargs,\n    ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Tuple[torch.Tensor]]]:\n        if attention_mask is not None:\n            assert len(attention_mask.shape) == 2, (\n                \"Expected attention_mask as a 0-1 matrix with shape [batch_size, seq_len] \"\n                \"for padding purposes (0 indicating padding). \"\n                \"Arbitrary attention masks of shape [batch_size, seq_len, seq_len] are not allowed.\"\n            )\n\n        # launching the triton kernel for just one token will actually be slower\n        mode = 'fused_recurrent' if hidden_states.shape[1] <= 64 else self.mode\n\n        # Currently output_attentions can only be False, returning attention weights is not supported\n        assert (\n            not output_attentions\n        ), \"output_attentions can only be False, returning attention weights is not supported\"\n\n        bsz, q_len, _ = hidden_states.size()\n        device = hidden_states.device\n\n        qkv = self.query_key_value(hidden_states)\n        qkv = qkv.view(bsz, q_len, self.num_heads + 2 * self.num_key_value_heads, self.head_dim)\n        query_states, key_states, value_states = qkv.split(\n            [self.num_heads, self.num_key_value_heads, self.num_key_value_heads], dim=-2\n        )\n        if self.config.use_qk_norm:\n            query_states = self.query_layernorm(query_states)\n            key_states = self.key_layernorm(key_states)\n\n        cos, sin = position_embeddings\n        query_states, key_states = apply_rotary_pos_emb(query_states, key_states, cos, sin, unsqueeze_dim=2)\n\n        if self.num_key_value_groups > 1:\n            # [bsz, q_len, n_kv_heads, head_dim] -> [bsz, q_len, n_heads, head_dim]\n            key_states = repeat_kv(key_states, self.num_key_value_groups, head_first=False)\n            value_states = repeat_kv(value_states, self.num_key_value_groups, head_first=False)\n\n        recurrent_state = None\n        if past_key_value is not None and isinstance(past_key_value, Cache):\n            # ensure the cache list is long enough\n            while len(past_key_value.layers) <= self.layer_idx:\n                past_key_value.layers.append(DynamicLayer())\n\n            if past_key_value.layers[self.layer_idx].keys is not None:\n                recurrent_state = past_key_value.layers[self.layer_idx].keys\n                # ensure recurrent_state is on the same device as hidden_states\n                if recurrent_state.device != hidden_states.device:\n                    recurrent_state = recurrent_state.to(device).contiguous()\n\n        if recurrent_state is None:\n            # dealing with left-padding\n            if attention_mask is not None and use_cache:\n                value_states = value_states.mul_(attention_mask[:, -q_len:, None, None])\n\n        o, recurrent_state = self.lightning_attn_ops[mode](\n            q=query_states,\n            k=key_states,\n            v=value_states,\n            g=self.slope[None, None, :].expand(bsz, q_len, self.num_heads),\n            initial_state=recurrent_state,\n            output_final_state=use_cache,\n        )\n\n        o = o.reshape(bsz, q_len, -1)\n        o = self.g_norm(o)\n        g_proj = self.g_proj(hidden_states)\n        o = o * torch.sigmoid_(g_proj)\n        o = self.dense(o)\n\n        if use_cache and past_key_value is not None and isinstance(past_key_value, Cache):\n            target_device = None\n            for cache in past_key_value.layers:\n                if cache.keys is not None:\n                    target_device = cache.keys.device\n                    break\n            if target_device is None:\n                target_device = recurrent_state.device\n\n            # move to target device\n            if recurrent_state.device != target_device:\n                recurrent_state = recurrent_state.to(target_device)\n\n            past_key_value.layers[self.layer_idx].keys = recurrent_state\n\n        return o, None, past_key_value\n\n\nclass BailingMoeV2_5MTPLayer(nn.Module):\n    def __init__(self, config: BailingMoeV2_5Config, layer_idx: int):\n        super().__init__()\n        self.layer_idx = layer_idx\n        self.input_layernorm = BailingMoeV2_5RMSNorm(config.hidden_size, eps=config.rms_norm_eps)\n        self.enorm = BailingMoeV2_5RMSNorm(config.hidden_size, eps=config.rms_norm_eps)\n\n        self.eh_proj = nn.Linear(config.hidden_size * 2, config.hidden_size, bias=False)\n        self.post_attention_layernorm = BailingMoeV2_5RMSNorm(config.hidden_size, eps=config.rms_norm_eps)\n        self.attention = BailingMoeV2_5MultiLatentAttention(config=config, layer_idx=layer_idx)\n        self.mlp = BailingMoeV2_5SparseMoeBlock(config)\n\n        self.hnorm = BailingMoeV2_5RMSNorm(config.hidden_size, eps=config.rms_norm_eps)\n        self.final_layernorm = BailingMoeV2_5RMSNorm(config.hidden_size, eps=config.rms_norm_eps)\n\n    def forward(\n        self,\n        input_embeds,\n        hidden_states: torch.Tensor,\n        attention_mask: Optional[torch.Tensor] = None,\n        position_ids: Optional[torch.LongTensor] = None,\n        past_key_value: Optional[Tuple[torch.Tensor]] = None,\n        output_attentions: Optional[bool] = False,\n        output_router_logits: Optional[bool] = False,\n        use_cache: Optional[bool] = False,\n        position_embeddings: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,  # necessary, but kept here for BC\n        **kwargs,\n    ) -> Tuple[torch.FloatTensor, Optional[Tuple[torch.FloatTensor, torch.FloatTensor]]]:\n        input_embeds = self.enorm(input_embeds)\n        hidden_states = self.hnorm(hidden_states)\n        hidden_states = self.eh_proj(torch.cat([input_embeds, hidden_states], dim=-1))\n        residual = hidden_states\n\n        hidden_states = self.input_layernorm(hidden_states)\n\n        # Self Attention\n        hidden_states, self_attn_weights, present_key_value = self.attention(\n            hidden_states=hidden_states,\n            attention_mask=attention_mask,\n            position_ids=position_ids,\n            past_key_value=past_key_value,\n            output_attentions=output_attentions,\n            position_embeddings=position_embeddings,\n            use_cache=use_cache,\n        )\n        hidden_states = residual + hidden_states\n\n        # Fully Connected\n        residual = hidden_states\n        hidden_states = self.post_attention_layernorm(hidden_states)\n        hidden_states = self.mlp(hidden_states)\n        if isinstance(hidden_states, tuple):\n            hidden_states, router_logits = hidden_states\n        else:\n            router_logits = None\n        hidden_states = residual + hidden_states.to(residual.device)\n        hidden_states = self.final_layernorm(hidden_states)\n\n        outputs = (hidden_states,)\n\n        if output_attentions:\n            outputs += (self_attn_weights,)\n\n        if use_cache:\n            outputs += (present_key_value,)\n\n        if output_router_logits:\n            outputs += (router_logits,)\n\n        return outputs\n\n\nclass BailingMoeV2_5DecoderLayer(nn.Module):\n    def __init__(self, config: BailingMoeV2_5Config, layer_idx: int):\n        super().__init__()\n        self.hidden_size = config.hidden_size\n        self.layer_idx = layer_idx\n        self.attention_layer_type = (\n            \"attention\"\n            if (layer_idx + 1) % config.layer_group_size == 0\n            or layer_idx >= config.num_hidden_layers // config.layer_group_size * config.layer_group_size\n            else \"linear_attention\"\n        )\n\n        if self.attention_layer_type == \"attention\":\n            self.attention = BailingMoeV2_5MultiLatentAttention(config=config, layer_idx=layer_idx)\n        else:\n            self.attention = BailingMoeV2_5LinearAttention(config=config, layer_idx=layer_idx)\n\n        self.mlp = (\n            BailingMoeV2_5SparseMoeBlock(config)\n            if (config.num_experts is not None and layer_idx >= config.first_k_dense_replace)\n            else BailingMoeV2_5MLP(config=config, intermediate_size=config.intermediate_size)\n        )\n        self.input_layernorm = BailingMoeV2_5RMSNorm(config.hidden_size, eps=config.rms_norm_eps)\n        self.post_attention_layernorm = BailingMoeV2_5RMSNorm(config.hidden_size, eps=config.rms_norm_eps)\n\n    def forward(\n        self,\n        hidden_states: torch.Tensor,\n        attention_mask: Optional[torch.Tensor] = None,\n        position_ids: Optional[torch.LongTensor] = None,\n        past_key_value: Optional[Tuple[torch.Tensor]] = None,\n        cache_position: Optional[torch.LongTensor] = None,\n        output_attentions: Optional[bool] = False,\n        output_router_logits: Optional[bool] = False,\n        use_cache: Optional[bool] = False,\n        position_embeddings: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,  # necessary, but kept here for BC\n        position_embeddings_mla: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,  # necessary, but kept here for BC\n        **kwargs,\n    ) -> Tuple[torch.FloatTensor, Optional[Tuple[torch.FloatTensor, torch.FloatTensor]]]:\n        \"\"\"\n        Args:\n            hidden_states (`torch.FloatTensor`): input to the layer of shape `(batch, seq_len, embed_dim)`\n            attention_mask (`torch.FloatTensor`, *optional*):\n                attention mask of size `(batch_size, sequence_length)` if flash attention is used or `(batch_size, 1,\n                query_sequence_length, key_sequence_length)` if default attention is used.\n            position_ids (`torch.LongTensor` of shape `(batch_size, sequence_length)`, *optional*):\n                Indices of positions of each input sequence tokens in the position embeddings. Selected in the range `[0,\n                config.n_positions - 1]`.\n            past_key_value (`Tuple(torch.FloatTensor)`, *optional*):\n                cached past key and value projection states\n            output_attentions (`bool`, *optional*):\n                Whether to return the attentions tensors of all attention layers. See `attentions` under\n                returned tensors for more detail.\n            output_router_logits (`bool`, *optional*):\n                Whether or not to return the logits of all the routers. They are useful for computing the router loss,\n                and should not be returned during inference.\n            use_cache (`bool`, *optional*):\n                If set to `True`, `past_key_values` key value states are returned and can be used to speed up decoding\n                (see `past_key_values`).\n        \"\"\"\n        residual = hidden_states\n\n        hidden_states = self.input_layernorm(hidden_states)\n\n        # Self Attention\n        if self.attention_layer_type == \"attention\":\n            hidden_states, self_attn_weights, present_key_value = self.attention(\n                hidden_states=hidden_states,\n                attention_mask=attention_mask,\n                position_ids=position_ids,\n                past_key_values=past_key_value,\n                use_cache=use_cache,\n                cache_position=cache_position,  #\n                position_embeddings=position_embeddings_mla,  #\n                **kwargs,\n            )\n        else:\n            batch_size, seq_len = hidden_states.shape[0], hidden_states.shape[1]\n            device = hidden_states.device\n\n            if attention_mask is None:\n                # if attention_mask is None, create a full mask\n                attention_mask = torch.ones((batch_size, seq_len), dtype=torch.int32, device=device)\n            elif attention_mask.dim() == 4 and attention_mask.shape[1] == 1:\n                attention_mask = attention_mask[:, 0, -1, :].to(torch.int32)\n                attention_mask = (attention_mask > -1e4).to(torch.int32)\n            elif attention_mask.dim() == 2:\n                attention_mask = attention_mask.to(torch.int32)\n            else:\n                raise ValueError(f\"Unsupported mask dimension: {attention_mask.shape}\")\n\n            hidden_states, self_attn_weights, present_key_value = self.attention(\n                hidden_states=hidden_states,\n                attention_mask=attention_mask,\n                past_key_value=past_key_value,\n                position_ids=position_ids,\n                use_cache=use_cache,\n                output_attentions=output_attentions,\n                position_embeddings=position_embeddings,\n            )\n\n        hidden_states = residual + hidden_states\n\n        # Fully Connected\n        residual = hidden_states\n        hidden_states = self.post_attention_layernorm(hidden_states)\n        hidden_states = self.mlp(hidden_states)\n        if isinstance(hidden_states, tuple):\n            hidden_states, router_logits = hidden_states\n        else:\n            router_logits = None\n        hidden_states = residual + hidden_states.to(residual.device)\n\n        outputs = (hidden_states,)\n\n        if output_attentions:\n            outputs += (self_attn_weights,)\n\n        if use_cache:\n            outputs += (present_key_value,)\n\n        if output_router_logits:\n            outputs += (router_logits,)\n\n        return outputs\n\n\nBAILINGMOEV2_5_START_DOCSTRING = r\"\"\"\n    This model inherits from [`PreTrainedModel`]. Check the superclass documentation for the generic methods the\n    library implements for all its model (such as downloading or saving, resizing the input embeddings, pruning heads\n    etc.)\n    This model is also a PyTorch [torch.nn.Module](https://pytorch.org/docs/stable/nn.html#torch.nn.Module) subclass.\n    Use it as a regular PyTorch Module and refer to the PyTorch documentation for all matter related to general usage\n    and behavior.\n    Parameters:\n        config ([`BailingMoeV2_5Config`]):\n            Model configuration class with all the parameters of the model. Initializing with a config file does not\n            load the weights associated with the model, only the configuration. Check out the\n            [`~PreTrainedModel.from_pretrained`] method to load the model weights.\n\"\"\"\n\n\n@add_start_docstrings(\n    \"The bare BailingMoeV2_5 Model outputting raw hidden-states without any specific head on top.\",\n    BAILINGMOEV2_5_START_DOCSTRING,\n)\nclass BailingMoeV2_5PreTrainedModel(PreTrainedModel):\n    config_class = BailingMoeV2_5Config\n    base_model_prefix = \"model\"\n    supports_gradient_checkpointing = True\n    _no_split_modules = [\"BailingMoeV2_5DecoderLayer\"]\n    _skip_keys_device_placement = \"past_key_values\"\n    _supports_flash_attn_2 = True\n    _supports_sdpa = True\n    _supports_cache_class = True\n\n    def _init_weights(self, module):\n        std = self.config.initializer_range\n        if isinstance(module, nn.Linear):\n            module.weight.data.normal_(mean=0.0, std=std)\n            if module.bias is not None:\n                module.bias.data.zero_()\n        elif isinstance(module, nn.Embedding):\n            module.weight.data.normal_(mean=0.0, std=std)\n            if module.padding_idx is not None:\n                module.weight.data[module.padding_idx].zero_()\n\n\nBAILINGMOEV2_5_INPUTS_DOCSTRING = r\"\"\"\n    Args:\n        input_ids (`torch.LongTensor` of shape `(batch_size, sequence_length)`):\n            Indices of input sequence tokens in the vocabulary. Padding will be ignored by default should you provide\n            it.\n            Indices can be obtained using [`AutoTokenizer`]. See [`PreTrainedTokenizer.encode`] and\n            [`PreTrainedTokenizer.__call__`] for details.\n            [What are input IDs?](../glossary#input-ids)\n        attention_mask (`torch.Tensor` of shape `(batch_size, sequence_length)`, *optional*):\n            Mask to avoid performing attention on padding token indices. Mask values selected in `[0, 1]`:\n            - 1 for tokens that are **not masked**,\n            - 0 for tokens that are **masked**.\n            [What are attention masks?](../glossary#attention-mask)\n            Indices can be obtained using [`AutoTokenizer`]. See [`PreTrainedTokenizer.encode`] and\n            [`PreTrainedTokenizer.__call__`] for details.\n            If `past_key_values` is used, optionally only the last `input_ids` have to be input (see\n            `past_key_values`).\n            If you want to change padding behavior, you should read [`modeling_opt._prepare_decoder_attention_mask`]\n            and modify to your needs. See diagram 1 in [the paper](https://arxiv.org/abs/1910.13461) for more\n            information on the default strategy.\n            - 1 indicates the head is **not masked**,\n            - 0 indicates the head is **masked**.\n        position_ids (`torch.LongTensor` of shape `(batch_size, sequence_length)`, *optional*):\n            Indices of positions of each input sequence tokens in the position embeddings. Selected in the range `[0,\n            config.n_positions - 1]`.\n            [What are position IDs?](../glossary#position-ids)\n        past_key_values (`Cache` or `tuple(tuple(torch.FloatTensor))`, *optional*):\n            Pre-computed hidden-states (key and values in the self-attention blocks and in the cross-attention\n            blocks) that can be used to speed up sequential decoding. This typically consists in the `past_key_values`\n            returned by the model at a previous stage of decoding, when `use_cache=True` or `config.use_cache=True`.\n            Two formats are allowed:\n            - a [`~cache_utils.Cache`] instance;\n            - Tuple of `tuple(torch.FloatTensor)` of length `config.n_layers`, with each tuple having 2 tensors of\n            shape `(batch_size, num_heads, sequence_length, embed_size_per_head)`). This is also known as the legacy\n            cache format.\n            The model will output the same cache format that is fed as input. If no `past_key_values` are passed, the\n            legacy cache format will be returned.\n            If `past_key_values` are used, the user can optionally input only the last `input_ids` (those that don't\n            have their past key value states given to this model) of shape `(batch_size, 1)` instead of all `input_ids`\n            of shape `(batch_size, sequence_length)`.\n        inputs_embeds (`torch.FloatTensor` of shape `(batch_size, sequence_length, hidden_size)`, *optional*):\n            Optionally, instead of passing `input_ids` you can choose to directly pass an embedded representation. This\n            is useful if you want more control over how to convert `input_ids` indices into associated vectors than the\n            model's internal embedding lookup matrix.\n        use_cache (`bool`, *optional*):\n            If set to `True`, `past_key_values` key value states are returned and can be used to speed up decoding (see\n            `past_key_values`).\n        output_attentions (`bool`, *optional*):\n            Whether or not to return the attentions tensors of all attention layers. See `attentions` under returned\n            tensors for more detail.\n        output_hidden_states (`bool`, *optional*):\n            Whether or not to return the hidden states of all layers. See `hidden_states` under returned tensors for\n            more detail.\n        return_dict (`bool`, *optional*):\n            Whether or not to return a [`~utils.ModelOutput`] instead of a plain tuple.\n\"\"\"\n\n\n@add_start_docstrings(\n    \"The bare BailingMoeV2_5 Model outputting raw hidden-states without any specific head on top.\",\n    BAILINGMOEV2_5_START_DOCSTRING,\n)\nclass BailingMoeV2_5Model(BailingMoeV2_5PreTrainedModel):\n    \"\"\"\n    Transformer decoder consisting of *config.num_hidden_layers* layers. Each layer is a [`BailingMoeV2_5DecoderLayer`]\n    Args:\n        config: BailingMoeV2_5Config\n    \"\"\"\n\n    def __init__(self, config: BailingMoeV2_5Config):\n        super().__init__(config)\n        self.padding_idx = config.pad_token_id\n        self.vocab_size = config.vocab_size\n        self.num_nextn_predict_layers = config.num_nextn_predict_layers\n\n        self.word_embeddings = nn.Embedding(config.vocab_size, config.hidden_size, self.padding_idx)\n        self.layers = []\n        for layer_idx in range(config.num_hidden_layers + config.num_nextn_predict_layers):\n            layer_cls = BailingMoeV2_5DecoderLayer if layer_idx < config.num_hidden_layers else BailingMoeV2_5MTPLayer\n            self.layers.append(layer_cls(config, layer_idx))\n\n        self.layers = nn.ModuleList(self.layers)\n\n        self._use_sdpa = config._attn_implementation == \"sdpa\"\n        self._use_flash_attention_2 = config._attn_implementation == \"flash_attention_2\"\n        self.norm = BailingMoeV2_5RMSNorm(config.hidden_size, eps=config.rms_norm_eps)\n        self.rotary_emb = BailingMoeV2_5RotaryEmbedding(config=config)\n        self.rotary_emb_mla = BailingMoeV2_5MLARotaryEmbedding(config=config)\n        self.gradient_checkpointing = False\n        # Initialize weights and apply final processing\n        self.post_init()\n\n    def get_input_embeddings(self):\n        return self.word_embeddings\n\n    def set_input_embeddings(self, value):\n        self.word_embeddings = value\n\n    @add_start_docstrings_to_model_forward(BAILINGMOEV2_5_INPUTS_DOCSTRING)\n    def forward(\n        self,\n        input_ids: torch.LongTensor = None,\n        attention_mask: Optional[torch.Tensor] = None,\n        position_ids: Optional[torch.LongTensor] = None,\n        past_key_values: Optional[List[torch.FloatTensor]] = None,\n        inputs_embeds: Optional[torch.FloatTensor] = None,\n        cache_position: Optional[torch.LongTensor] = None,\n        use_cache: Optional[bool] = None,\n        output_attentions: Optional[bool] = None,\n        output_hidden_states: Optional[bool] = None,\n        output_router_logits: Optional[bool] = None,\n        return_dict: Optional[bool] = None,\n        **kwargs,\n    ) -> Union[Tuple, MoeV2_5ModelOutputWithPast]:\n        output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions\n        output_hidden_states = (\n            output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states\n        )\n        output_router_logits = (\n            output_router_logits if output_router_logits is not None else self.config.output_router_logits\n        )\n        use_cache = use_cache if use_cache is not None else self.config.use_cache\n\n        return_dict = return_dict if return_dict is not None else self.config.use_return_dict\n\n        # retrieve input_ids and inputs_embeds\n        if input_ids is not None and inputs_embeds is not None:\n            raise ValueError(\"You cannot specify both input_ids and inputs_embeds at the same time\")\n        elif input_ids is not None:\n            batch_size, seq_length = input_ids.shape[:2]\n        elif inputs_embeds is not None:\n            batch_size, seq_length = inputs_embeds.shape[:2]\n        else:\n            raise ValueError(\"You have to specify either input_ids or inputs_embeds\")\n\n        if self.gradient_checkpointing and self.training:\n            if use_cache:\n                logger.warning_once(\n                    \"`use_cache=True` is incompatible with gradient checkpointing. Setting `use_cache=False`transformers.\"\n                )\n                use_cache = False\n\n        if use_cache and past_key_values is None:\n            past_key_values = DynamicCache()\n\n        if inputs_embeds is None:\n            inputs_embeds = self.word_embeddings(input_ids)\n\n        if cache_position is None:\n            past_seen_tokens = past_key_values.get_seq_length() if past_key_values is not None else 0\n            cache_position: torch.Tensor = torch.arange(\n                past_seen_tokens, past_seen_tokens + inputs_embeds.shape[1], device=inputs_embeds.device\n            )\n\n        if position_ids is None:\n            position_ids = cache_position.unsqueeze(0)\n\n        softmax_attention_layer_id = self.config.layer_group_size - 1\n        past_seen_tokens = (\n            past_key_values.get_seq_length(layer_idx=softmax_attention_layer_id) if past_key_values is not None else 0\n        )\n\n        if position_ids is None:\n            position_ids = torch.arange(\n                past_seen_tokens, past_seen_tokens + inputs_embeds.shape[1], device=inputs_embeds.device\n            )\n            position_ids = position_ids.unsqueeze(0)\n\n        if self._use_flash_attention_2:\n            # 2d mask is passed through the layers\n            attention_mask = attention_mask if (attention_mask is not None and 0 in attention_mask) else None\n        elif self._use_sdpa and not output_attentions:\n            # output_attentions=True can not be supported when using SDPA, and we fall back on\n            # the manual implementation that requires a 4D causal mask in all cases.\n            attention_mask = _prepare_4d_causal_attention_mask_for_sdpa(\n                attention_mask,\n                (batch_size, seq_length),\n                inputs_embeds,\n                past_seen_tokens,\n            )\n        else:\n            # 4d mask is passed through the layers\n            attention_mask = _prepare_4d_causal_attention_mask(\n                attention_mask, (batch_size, seq_length), inputs_embeds, past_seen_tokens\n            )\n\n        # embed positions\n        hidden_states = inputs_embeds\n\n        # create position embeddings to be shared across the decoder layers\n        position_embeddings = self.rotary_emb(hidden_states, position_ids)\n        position_embeddings_mla = self.rotary_emb_mla(hidden_states, position_ids)\n\n        # decoder layers\n        all_hidden_states = () if output_hidden_states else None\n        all_self_attns = () if output_attentions else None\n        all_router_logits = () if output_router_logits else None\n        next_decoder_cache = None\n        layers = self.layers[: -self.num_nextn_predict_layers] if self.num_nextn_predict_layers > 0 else self.layers\n        mtp_layers = self.layers[-self.num_nextn_predict_layers :] if self.num_nextn_predict_layers > 0 else None\n\n        # tptest miss causal_mask = create_causal_mask(\n\n        for decoder_layer in layers:\n            if output_hidden_states:\n                all_hidden_states += (hidden_states,)\n\n            if self.gradient_checkpointing and self.training:\n                layer_outputs = self._gradient_checkpointing_func(\n                    decoder_layer.__call__,\n                    hidden_states,\n                    attention_mask,\n                    position_ids,\n                    past_key_values,\n                    cache_position,\n                    output_attentions,\n                    output_router_logits,\n                    use_cache,\n                    position_embeddings,\n                    position_embeddings_mla,\n                )\n            else:\n                layer_outputs = decoder_layer(\n                    hidden_states,\n                    attention_mask=attention_mask,\n                    position_ids=position_ids,\n                    past_key_value=past_key_values,\n                    cache_position=cache_position,\n                    output_attentions=output_attentions,\n                    output_router_logits=output_router_logits,\n                    use_cache=use_cache,\n                    position_embeddings=position_embeddings,\n                    position_embeddings_mla=position_embeddings_mla,\n                )\n            hidden_states = layer_outputs[0]\n\n            if use_cache:\n                next_decoder_cache = layer_outputs[2 if output_attentions else 1]\n\n            if output_attentions:\n                all_self_attns += (layer_outputs[1],)\n\n            if output_router_logits and layer_outputs[-1] is not None:\n                all_router_logits += (layer_outputs[-1],)\n\n        hidden_states = self.norm(hidden_states)\n        main_hidden_states = hidden_states\n\n        # add hidden states from the last decoder layer\n        if output_hidden_states:\n            all_hidden_states += (main_hidden_states,)\n\n        mtp_hidden_states = None\n\n        if mtp_layers:\n            for decoder_layer in mtp_layers:\n                input_ids, _ = roll_tensor(input_ids, shifts=-1, dims=-1)\n                inputs_embeds = self.word_embeddings(input_ids)\n\n                if self.gradient_checkpointing and self.training:\n                    layer_outputs = self._gradient_checkpointing_func(\n                        decoder_layer.__call__,\n                        inputs_embeds,\n                        hidden_states,\n                        attention_mask,\n                        position_ids,\n                        past_key_values,\n                        output_attentions,\n                        output_router_logits,\n                        use_cache,\n                        position_embeddings,\n                    )\n                else:\n                    layer_outputs = decoder_layer(\n                        inputs_embeds,\n                        hidden_states,\n                        attention_mask=attention_mask,\n                        position_ids=position_ids,\n                        past_key_value=past_key_values,\n                        output_attentions=output_attentions,\n                        output_router_logits=output_router_logits,\n                        use_cache=use_cache,\n                        position_embeddings=position_embeddings,\n                    )\n                if mtp_hidden_states is None:\n                    mtp_hidden_states = []\n                hidden_states = layer_outputs[0]\n                mtp_hidden_states.append(hidden_states)\n\n                if output_hidden_states:\n                    all_hidden_states += (hidden_states,)\n\n                if use_cache:\n                    next_decoder_cache = layer_outputs[2 if output_attentions else 1]\n\n                if output_attentions:\n                    all_self_attns += (layer_outputs[1],)\n\n                if output_router_logits and layer_outputs[-1] is not None:\n                    all_router_logits += (layer_outputs[-1],)\n\n        next_cache = None\n        if use_cache:\n            next_cache = next_decoder_cache\n        if not return_dict:\n            return tuple(\n                v\n                for v in [main_hidden_states, next_cache, all_hidden_states, all_self_attns, all_router_logits]\n                if v is not None\n            )\n        return MoeV2_5ModelOutputWithPast(\n            last_hidden_state=main_hidden_states,\n            past_key_values=next_cache,\n            hidden_states=all_hidden_states,\n            mtp_hidden_states=mtp_hidden_states,\n            attentions=all_self_attns,\n            router_logits=all_router_logits,\n        )\n\n\nclass BailingMoeV2_5ForCausalLM(BailingMoeV2_5PreTrainedModel, GenerationMixin):\n    _tied_weights_keys = [\"lm_head.weight\"]\n\n    def __init__(self, config: BailingMoeV2_5Config):\n        super().__init__(config)\n        self.model = BailingMoeV2_5Model(config)\n        self.vocab_size = config.vocab_size\n        self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)\n        self.num_nextn_predict_layers = config.num_nextn_predict_layers\n        self.mtp_loss_scaling_factor = config.mtp_loss_scaling_factor\n\n        # Initialize weights and apply final processing\n        self.post_init()\n\n    def get_input_embeddings(self):\n        return self.model.word_embeddings\n\n    def set_input_embeddings(self, value):\n        self.model.word_embeddings = value\n\n    def get_output_embeddings(self):\n        return self.lm_head\n\n    def set_output_embeddings(self, new_embeddings):\n        self.lm_head = new_embeddings\n\n    def set_decoder(self, decoder):\n        self.model = decoder\n\n    def get_decoder(self):\n        return self.model\n\n    @add_start_docstrings_to_model_forward(BAILINGMOEV2_5_INPUTS_DOCSTRING)\n    @replace_return_docstrings(output_type=MoEV2_5CausalLMOutputWithPast, config_class=_CONFIG_FOR_DOC)\n    def forward(\n        self,\n        input_ids: torch.LongTensor = None,\n        attention_mask: Optional[torch.Tensor] = None,\n        position_ids: Optional[torch.LongTensor] = None,\n        past_key_values: Optional[List[torch.FloatTensor]] = None,\n        inputs_embeds: Optional[torch.FloatTensor] = None,\n        labels: Optional[torch.LongTensor] = None,\n        use_cache: Optional[bool] = None,\n        output_attentions: Optional[bool] = None,\n        output_hidden_states: Optional[bool] = None,\n        output_router_logits: Optional[bool] = None,\n        return_dict: Optional[bool] = None,\n        **kwargs,\n    ) -> Union[Tuple, MoEV2_5CausalLMOutputWithPast]:\n        r\"\"\"\n        Args:\n            labels (`torch.LongTensor` of shape `(batch_size, sequence_length)`, *optional*):\n                Labels for computing the masked language modeling loss. Indices should either be in `[0, ...,\n                config.vocab_size]` or -100 (see `input_ids` docstring). Tokens with indices set to `-100` are ignored\n                (masked), the loss is only computed for the tokens with labels in `[0, ..., config.vocab_size]`.\n        Returns:\n        Example:\n        ```python\n        >>> from transformers import AutoTokenizer\n        >>> model = BailingMoeV2_5ForCausalLM.from_pretrained(PATH_TO_CONVERTED_WEIGHTS)\n        >>> tokenizer = AutoTokenizer.from_pretrained(PATH_TO_CONVERTED_TOKENIZER)\n        >>> prompt = \"Hey, are you conscious? Can you talk to me?\"\n        >>> inputs = tokenizer(prompt, return_tensors=\"pt\")\n        >>> # Generate\n        >>> generate_ids = model.generate(inputs.input_ids, max_length=30)\n        >>> tokenizer.batch_decode(generate_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0]\n        \"Hey, are you conscious? Can you talk to me?\\nI'm not conscious, but I can talk to you.\"\n        ```\"\"\"\n        output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions\n        output_hidden_states = (\n            output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states\n        )\n        output_router_logits = (\n            output_router_logits if output_router_logits is not None else self.config.output_router_logits\n        )\n        return_dict = return_dict if return_dict is not None else self.config.use_return_dict\n        # decoder outputs consists of (dec_features, layer_state, dec_hidden, dec_attn)\n        outputs = self.model(\n            input_ids=input_ids,\n            attention_mask=attention_mask,\n            position_ids=position_ids,\n            past_key_values=past_key_values,\n            inputs_embeds=inputs_embeds,\n            use_cache=use_cache,\n            output_attentions=output_attentions,\n            output_hidden_states=output_hidden_states,\n            output_router_logits=output_router_logits,\n            return_dict=return_dict,\n            **kwargs,\n        )\n\n        loss = None\n        all_mtp_loss = None\n        aux_loss = None\n        hidden_states = outputs[0]\n        logits = self.lm_head(hidden_states)\n        logits = logits.float()\n\n        if labels is not None:\n            loss = self.loss_function(logits, labels, self.config.vocab_size, **kwargs)\n\n        all_mtp_logits = None\n        if self.num_nextn_predict_layers > 0:\n            mtp_hidden_states = outputs.mtp_hidden_states\n            shift_labels_mtp = None\n            for i in range(self.num_nextn_predict_layers):\n                mtp_hidden_states = mtp_hidden_states[i]\n                mtp_logits = self.lm_head(mtp_hidden_states).float()\n                if all_mtp_logits is None:\n                    all_mtp_logits = []\n                all_mtp_logits.append(mtp_logits)\n                if labels is not None:\n                    if shift_labels_mtp is None:\n                        shift_labels_mtp = labels.clone()\n                    shift_labels_mtp, _ = roll_tensor(shift_labels_mtp, shifts=-1, dims=-1, fill_value=-100)\n                    mtp_logits_ = mtp_logits.view(-1, self.config.vocab_size)\n                    mtp_loss = self.loss_function(\n                        mtp_logits_, shift_labels_mtp.to(mtp_logits_.device).view(-1), self.config.vocab_size, **kwargs\n                    )\n                    if loss is not None:\n                        loss += self.mtp_loss_scaling_factor * mtp_loss\n                    else:\n                        loss = self.mtp_loss_scaling_factor * mtp_loss\n\n                    if all_mtp_loss is None:\n                        all_mtp_loss = []\n                    all_mtp_loss.append(mtp_loss)\n\n        if not return_dict:\n            output = (logits,) + outputs[1:]\n            if output_router_logits:\n                output = (aux_loss,) + output\n            return (loss,) + output if loss is not None else output\n\n        return MoEV2_5CausalLMOutputWithPast(\n            loss=loss,\n            mtp_loss=all_mtp_loss,\n            aux_loss=aux_loss,\n            logits=logits,\n            mtp_logits=all_mtp_logits,\n            past_key_values=outputs.past_key_values,\n            hidden_states=outputs.hidden_states,\n            attentions=outputs.attentions,\n            router_logits=outputs.router_logits,\n        )\n"
+      }
+    ]
+  },
+  "release_date": "2026-04-29"
+}

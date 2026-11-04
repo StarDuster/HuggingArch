@@ -1,0 +1,4 @@
+# Identity file for mistralai/Mistral-7B-v0.1
+base: mistral
+match:
+  model_id: [mistralai/Mistral-7B-v0.1]

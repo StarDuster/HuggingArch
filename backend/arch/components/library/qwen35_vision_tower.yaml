@@ -1,0 +1,41 @@
+# Qwen3.5 vision tower + patch merger (Qwen3.5-MoE, Qwen3.8 dense and
+# Qwen3.8-Flash-Next all run it: same vision_config, no deepstack).
+#
+# transformers Qwen3_5VisionModel.forward (modeling_qwen3_5.py:1185-1202):
+#   x = patch_embed(patches)                      # Conv3d 2x16x16 -> d_vis_model, biased
+#   x = x + interpolated pos_embed                # learned position grid, bilinear
+#   for blk in blocks: x = blk(x)                 # n_vis_layers ViT blocks
+#   x = merger(x)                                 # norm -> 2x2 merge -> fc1 -> GELU -> fc2
+#
+# Merger placement follows serving. vLLM's Qwen3_VisionPatchMerger
+# (models/qwen3_vl.py:503-552; qwen3_5.py and qwen4_exp both build
+# Qwen3_VisionTransformer) makes linear_fc1 a ColumnParallelLinear and
+# linear_fc2 a RowParallelLinear over the merged width; sglang's
+# (models/qwen3_vl.py:296-340) does the same. They replicate it only when the
+# encoder runs data-parallel (`mm_encoder_tp_mode: data`).
+#
+# Leaves hang off the call's name (`model.visual.patch_embed.proj`, ...).
+#
+# Required dims: n_vis_channels, s_patch, s_patch_temporal, d_vis_model,
+#                n_vis_pos_vocab, n_vis_layers (+ qwen35_vision_block's),
+#                n_spatial_merge, d_vis_merge, d_proj_out
+role: aux_block
+description: "Qwen3.5 / Qwen3.8 vision tower: patch embed + interpolated learned position grid + n_vis_layers ViT blocks + 2x2 patch merger (norm, fc1, GELU, fc2) to the text width."
+graph:
+  patch_embed.proj: { op: linear, in: x, dims: { in: "n_vis_channels * s_patch_temporal * s_patch * s_patch", out: d_vis_model, bias: "1" }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  # The learned position table itself: the add below samples it. vLLM reads
+  # the table, not a lookup (qwen3_vl.py Qwen3_VisionTransformer
+  # .fast_pos_embed_interpolate indexes `self.pos_embed.weight` at the four
+  # interpolation corners).
+  pos_embed.weight: { op: parameter_tensor, shape: [n_vis_pos_vocab, d_vis_model], weight_axes: [{ replicated: true }, { replicated: true }] }
+  # `hidden_states = hidden_states + pos_embeds` (modeling_qwen3_5.py:1186-1187):
+  # y[p, :] = x[p, :] + Σ_c w[p, c] · pos_embed[idx[p, c], :]
+  # (bilinear interpolation over the pos table, c = 4 corners)
+  pos_add:          { op: position_table_add, dim: d_vis_model, in: [patch_embed.proj, pos_embed.weight] }
+  blocks:           { op: qwen35_vision_block, in: pos_add, chain: n_vis_layers, checkpoint: { index: local }, role: aux_block }
+  merger.norm:      { op: layernorm, in: blocks, dim: d_vis_model, weight_axes: [{ replicated: true }] }
+  merger.merge:     { op: spatial_merge, in: merger.norm, dims: { n_spatial_merge: n_spatial_merge } }
+  merger.linear_fc1: { op: linear, in: merger.merge, dims: { in: "n_spatial_merge * n_spatial_merge * d_vis_model", out: d_vis_merge, bias: "1" }, weight_axes: [{ world: dense_ffn, parts: d_vis_merge, fit: exact }, { replicated: true }] }
+  merger.gelu:      { op: gelu, in: merger.linear_fc1, dim: d_vis_merge }
+  merger.linear_fc2: { op: linear, in: merger.gelu, dims: { in: d_vis_merge, out: d_proj_out, bias: "1" }, weight_axes: [{ replicated: true }, { world: dense_ffn, parts: d_vis_merge, fit: exact }] }
+outputs: [merger.linear_fc2]

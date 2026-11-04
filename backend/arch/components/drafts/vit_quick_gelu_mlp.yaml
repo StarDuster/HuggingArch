@@ -1,0 +1,23 @@
+# ViT MLP with a QuickGELU activation — Step-5's `EncoderMLP`
+# (inference/vision_encoder.py:166-181) at `hidden_act: quick_gelu`
+# (config.vision_config.hidden_act):
+#
+#   y = c_proj(act_fn(c_fc(x))),  act_fn = ACT2FN["quick_gelu"] = x·σ(1.702·x)
+#
+# Same two biased linears as `perception_encoder_mlp`, which applies the exact
+# GELU instead. QuickGELU has no primitive of its own, so it is written as what
+# it is — a constant scale, a sigmoid and a multiply — rather than approximated
+# by `gelu` / `gelu_tanh`, which would be a different elementwise transform on
+# every one of the tower's 47 blocks.
+#
+# Required dims: d_vis_model, d_vis_ffn
+
+role: ffn_dense
+description: "ViT biased 2-linear MLP with QuickGELU (x·sigmoid(1.702x)): c_fc + quick_gelu + c_proj."
+graph:
+  c_fc:        { op: linear, in: x, dims: { in: d_vis_model, out: d_vis_ffn, bias: "1" }, weight_axes: [{ world: dense_ffn, parts: d_vis_ffn, fit: exact }, { replicated: true }] }
+  qg_scale:    { op: scale_const, in: c_fc, dims: { in: d_vis_ffn }, formula: "y = 1.702 · c_fc(x)   (transformers ACT2FN['quick_gelu'])" }
+  qg_sigmoid:  { op: sigmoid, in: qg_scale, dim: d_vis_ffn }
+  quick_gelu:  { op: mul, in: [c_fc, qg_sigmoid], dim: d_vis_ffn, formula: "y = c_fc(x) · sigmoid(1.702 · c_fc(x))" }
+  c_proj:      { op: linear, in: quick_gelu, dims: { in: d_vis_ffn, out: d_vis_model, bias: "1" }, weight_axes: [{ replicated: true }, { world: dense_ffn, parts: d_vis_ffn, fit: exact }] }
+outputs: [c_proj]

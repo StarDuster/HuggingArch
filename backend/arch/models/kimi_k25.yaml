@@ -1,0 +1,161 @@
+# Kimi-K2.5 multimodal family
+# Text backbone: K2-style MLA attention on every layer, layer 0 dense SwiGLU,
+# layers 1..60 routed MoE with 384 INT4-packed experts plus 1 BF16 shared
+# expert. Vision path: MoonViT patch embed + 27 ViT blocks + PatchMerger MLP.
+match:
+  model_type: [kimi_k25]
+derived_from: deepseek_v3
+
+# Routed experts are stored in compressed-tensors INT4 form (`weight_packed`
+# I32 with 8 4-bit values per element + `weight_scale` + `weight_shape`).
+# Param counting uses LOGICAL params: backend/hf/metadata.py unpacks the
+# packed storage back to the logical element count and routes
+# `weight_scale` / `weight_shape` into the `quantization_metadata` bucket,
+# so the expert projections are plain `linear` nodes.
+
+components:
+  attention: mla_attention
+  ffn_dense: swiglu_ffn
+  ffn_moe: moe_ffn_gate_routing_bias
+  norm: rmsnorm
+  block: pre_norm
+
+dims:
+  # Text backbone
+  d_model:    config.text_config.hidden_size
+  n_heads:    config.text_config.num_attention_heads
+  n_kv_heads:   config.text_config.num_key_value_heads
+  d_qk_nope:    config.text_config.qk_nope_head_dim
+  d_qk_rope:    config.text_config.qk_rope_head_dim
+  d_v_head:   config.text_config.v_head_dim ?? d_qk_nope
+  d_kv_lora:    config.text_config.kv_lora_rank
+  d_q_lora:   config.text_config.q_lora_rank
+  d_ffn:    config.text_config.intermediate_size
+  d_ffn_expert:   config.text_config.moe_intermediate_size
+  n_vocab:    config.text_config.vocab_size
+  n_layers:    config.text_config.num_hidden_layers
+  n_experts:    config.text_config.n_routed_experts
+  n_experts_active:    config.text_config.num_experts_per_tok
+  n_expert_groups:    config.text_config.n_group       # MoEGate group-limited top-k (modeling_deepseek.py:460-470)
+  n_groups_active:    config.text_config.topk_group
+  n_shared_experts:   config.text_config.n_shared_experts ?? "0"
+  n_dense_layers:   config.text_config.first_k_dense_replace
+
+  # Vision tower
+  d_vis_model:   config.vision_config.vt_hidden_size
+  n_vis_heads:   config.vision_config.vt_num_attention_heads
+  d_vis_head:  "d_vis_model // n_vis_heads"
+  d_vis_ffn:   config.vision_config.vt_intermediate_size
+  n_vis_layers:   config.vision_config.vt_num_hidden_layers
+  n_vis_channels:   "3"
+  s_patch:   config.vision_config.patch_size
+  PeH:  config.vision_config.init_pos_emb_height
+  PeW:  config.vision_config.init_pos_emb_width
+
+  # PatchMerger projector
+  d_proj_hidden:   config.vision_config.mm_hidden_size
+  n_spatial_merge:   "2"
+  d_proj_in:   "d_proj_hidden * n_spatial_merge * n_spatial_merge"
+  s_max: config.text_config.max_position_embeddings
+
+view:
+  rope_theta: config.text_config.rope_theta
+  rope_scaling: config.text_config.rope_scaling
+  hidden_act: config.text_config.hidden_act
+  norm.eps: config.text_config.rms_norm_eps
+
+# Text decoder layers use pre_norm + assignments (see model: below).
+# Vision tower references components/library/kimi_k25_vision_block.yaml.
+
+model_inputs:
+  input_ids: { kind: tokens }
+  # Images per request, then each image's size as the processor hands it to
+  # the tower (after its resize to a multiple of 28).
+  pixel_values: { kind: image, axes: [n_img, img_h, img_w] }
+
+model:
+  - { name: language_model.model.embed_tokens, inputs: [input_ids], op: embedding, boundary_role: input_embedding, dims: { n_vocab: n_vocab, d_model: d_model }, weight_axes: [{ world: attention, parts: n_vocab, fit: pad }, { replicated: true }] }
+  # Vision tower is listed before the text decoder because its `mm_projector.proj.2`
+  # output is mixed into the embed_tokens stream (image-token positions are
+  # overwritten) before the transformer stack consumes it. The schema's `inputs:`
+  # validator requires source layers to appear earlier in `model:`, so the
+  # logical dataflow order — `embed_tokens` + `vision` → `embed_merge` → `layers` — dictates
+  # the spec order. Groups route to the frontend's auxiliary-modules block
+  # regardless of list position.
+  # Singleton wrapper: the entire vision tower + PatchMerger renders as
+  # one nested first-level VISION block in the Architecture Diagram. No
+  # `repeat:` on either the group or the sub: the tower has no index of
+  # its own, and its tensors hang off the model's root
+  # (`vision_tower.*`, `mm_projector.*`).
+  - name: vision
+    group: true
+    aux_kind: vision
+    layers:
+      # The processor resizes each image to a multiple of
+      # merge_kernel_size * patch_size = 2 * 14 = 28 and cuts it into 14x14
+      # patches of 3 channels, one row each; the tower attends within one
+      # image.
+      - name: vision.patchify
+        op: patchify
+        inputs: [pixel_values]
+        dims: { patch: s_patch, temporal: "1", channels: n_vis_channels, align: "n_spatial_merge * s_patch" }
+        segment: item
+        source_anchor: "transformers 5.17 kimi_k25/image_processing_kimi_k25.py:78-80 factor = merge_kernel_size * patch_size, sides padded to it; :124-150 [grid_h*grid_w, 3, 14, 14] patches; modeling_kimi_k25.py:537-539 cu_seqlens one segment per item (merge_temporal=True)"
+      - { name: vision, inputs: [vision.patchify], template: kimi_k25_vision_tower }
+  # Image rows overwrite the image-token rows of the embedding stream
+  # before the decoder runs: sglang `kimi_k25.py:841` general_mm_embed_routine
+  # -> `managers/mm_utils.py:491` `dest.masked_scatter_(mask, src)` (sglang
+  # 0e178c3d22); vLLM `models/utils.py:657` `inputs_embeds[is_multimodal] =
+  # mm_embeds_flat` (vLLM a18c9b56f). The decoder reads only the merge.
+  - name: language_model.model.embed_merge
+    op: scatter_rows_replace
+    inputs: [language_model.model.embed_tokens, vision]
+    prompt_slots: { domain: pixel_values, defines: true, source_anchor: "vLLM models/utils.py:636-672 _merge_multimodal_embeddings inputs_embeds[is_multimodal] = mm_embeds_flat; sglang managers/mm_utils.py:491 masked_scatter_" }
+  - name: language_model.model.layers
+    repeat: n_layers
+    streams:
+      hidden: { carries: true }
+    inputs: [language_model.model.embed_merge]
+    per_layer:
+      assign:
+        - { type: dense, range: ["0", "n_dense_layers - 1"] }
+        - { type: moe,   rest: true }
+      map:
+        dense: { attention: mla_attention, ffn: swiglu_ffn }
+        moe:   { attention: mla_attention, ffn: moe_ffn_gate_routing_bias }
+  - { name: language_model.model.norm, op: rmsnorm, dim: d_model, weight_axes: [{ replicated: true }] , inputs: [language_model.model.layers]}
+  - { name: language_model.lm_head, op: linear, boundary_role: output_head, dims: { in: d_model, out: n_vocab }, weight_axes: [{ world: attention, parts: n_vocab, fit: pad }, { replicated: true }], tied_weight: { to: language_model.model.embed_tokens, when: config.tie_word_embeddings } , inputs: [language_model.model.norm]}
+
+# Routed-expert weights are INT4-quantized via compressed-tensors
+# (`pack-quantized` format, group_size=32, symmetric, integer). Routed
+# experts (`mlp.experts.*`) carry role `ffn_moe`; the shared experts
+# (`mlp.shared_experts.*`, role `ffn_moe_shared`) and the router stay BF16.
+# The overrides peel off the other parts the checkpoint keeps unquantized.
+#
+# The override regexes here mirror the checkpoint's
+# `quantization_config.ignore` list (which lives under `text_config`
+# in this VLM repo): self-attention, dense MLP,
+# lm_head, vision tower, and the multimodal projector. Authored
+# explicitly in this yaml — runtime does not read
+# `config.quantization_config.ignore`.
+quant_context:
+  per_role:
+    ffn_moe:   { method: compressed-tensors, num_bits: 4, group_size: 32, type: int, symmetric: true, strategy: group, format: pack-quantized }
+    ffn_dense: { method: compressed-tensors, num_bits: 4, group_size: 32, type: int, symmetric: true, strategy: group, format: pack-quantized }
+    ffn_moe_shared: { method: none }
+    router:    { method: none }
+    default:   { method: none }
+  overrides:
+    - tensors_re: '.*self_attn.*'
+      dtype: BF16
+    - tensors_re: '.*mlp\.(gate|up|gate_up|down)_proj.*'
+      dtype: BF16
+    - tensors_re: '.*lm_head.*'
+      dtype: BF16
+    - tensors_re: 'vision_tower.*'
+      dtype: BF16
+    - tensors_re: 'mm_projector.*'
+      dtype: BF16
+    - tensors_re: 'mlp\.gate\.e_score_correction_bias$'
+      dtype: F32
+  default_dtype: BF16

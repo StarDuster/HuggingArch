@@ -1,0 +1,220 @@
+# Step-3.7-Flash family (StepFun multimodal MoE VLM, 198B / ~11B active).
+#
+# Top-level config wraps a 45-layer text backbone (Step3p5-style) + 3
+# MTP heads + a 47-layer Perception-Encoder-style ViT vision tower +
+# a vit_large_projector that lifts vision features to the text hidden
+# size. Differences vs the Step-3.5 spec (step3p5.yaml):
+#   - Sliding layers use FULL RoPE (partial_rotary_factor=1.0) on a
+#     wider n_heads=96 set, while full layers stay on n_heads=64 with partial
+#     RoPE (factor 0.5, d_rope=64). Step-3.5's k_pe-into-o_proj concat
+#     is NOT present in Step-3.7, so o_proj input is n_heads*d_head, not
+#     n_heads*(d_head+d_rope).
+#   - MoE layers store routed experts under `moe.*` (3D-packed gate /
+#     up / down + a top-level `moe.router_bias`) and the
+#     shared expert under `share_expert.*` (sibling, NOT nested
+#     inside the MoE wrapper).
+#   - MTP head inlines its inner transformer at the MTP layer root
+#     (input_layernorm / self_attn / moe / share_expert all live at
+#     `model.layers.{45..47}.*`); only `transformer.shared_head.*`
+#     sits under a sub-namespace.
+#   - Vision tower is PE-style ViT with LayerScale (ls_1.gamma /
+#     ls_2.gamma) and fused QKV stored as naked nn.Parameter
+#     (attn.in_proj_weight / attn.in_proj_bias, no `.weight` suffix).
+match:
+  model_type: [step3p7]
+
+components:
+  attention: swa_qknorm_gated_full_rope_attention
+  ffn_dense: swiglu_ffn
+  norm: rmsnorm
+  block: pre_norm
+
+dims:
+  # Text backbone
+  d_model:    config.text_config.hidden_size
+  # Backbone default n_heads=96 (sliding-attn layers, `attention_other_setting`).
+  # Full-attn layers (layer 0 + layers 4,8,...,44 — 12 total) bind
+  # n_heads: n_heads_full (64, the top-level `num_attention_heads`) via the
+  # per-assignment `dims:` map below. Checkpoint stores q_proj/o_proj at
+  # the per-layer n_heads (full: n_heads=64 → [d_model, 8192]; SWA: n_heads=96 → [d_model, 12288]).
+  n_heads:      config.text_config.attention_other_setting.num_attention_heads   # 96
+  n_heads_full: config.text_config.num_attention_heads                           # 64
+  n_kv_heads:   config.text_config.num_attention_groups               # 8 (KV groups, same both)
+  d_head:    config.text_config.head_dim                           # 128
+  d_rope:   "d_head // 2"                                              # 64 — partial RoPE for full-attn layers
+  d_nope:   "d_head - d_rope"                                              # 64
+  s_window:    config.text_config.sliding_window ?? "512"
+  d_ffn:    config.text_config.intermediate_size                  # 11264 (dense FFN)
+  d_ffn_expert:   config.text_config.moe_intermediate_size              # 1280
+  d_ffn_shared:   config.text_config.share_expert_dim ?? "1280"  # 1280 (shared expert); Step3p7TextConfig's default when the field is absent (transformers 5.17.0 step3p7/configuration_step3p7.py:173)
+  n_vocab:    config.text_config.vocab_size                         # 128896
+  n_layers:    config.text_config.num_hidden_layers                  # 45
+  n_experts:    config.text_config.moe_num_experts                    # 288
+  n_experts_active:    config.text_config.moe_top_k                          # 8
+  n_shared_experts:   "1"
+  n_mtp_layers: config.text_config.num_nextn_predict_layers ?? "0"
+
+  # Vision tower (Perception Encoder)
+  d_vis_model:   config.vision_config.width                            # 1536
+  n_vis_heads:   config.vision_config.heads                            # 16
+  d_vis_head:  "d_vis_model // n_vis_heads"                                            # 96
+  d_vis_ffn:   "8960"                                                # mlp_ratio = 8960/1536 → fixed intermediate
+  n_vis_layers:   config.vision_config.layers                           # 47
+  s_patch:   config.vision_config.patch_size                       # 14
+  n_vis_channels:   "3"                                                   # image channels
+  n_vis_pos_slots: "2704"                                             # (image_size / patch_size) ** 2 = (728/14) ** 2 = 52*52
+  s_vis_image: config.vision_config.image_size                       # 728: the global view's side
+  s_vis_crop: "504"                                                  # the crops' side: vLLM transformers_utils/processors/step3_vl.py:248-252 Step3VLImageProcessor(patch_size=504), not in the config
+  s_vis_ds_kernel:  "3"                                                   # downsampler conv kernel
+  s_vis_ds_stride:  config.understand_projector_stride ?? "2"           # downsampler conv stride (2: 52->26->13)
+  d_vis_ds_out1: "3072"                                                # downsampler1 output channels (2*d_vis_model)
+  d_vis_ds_out2: "6144"                                                # downsampler2 output channels (4*d_vis_model)
+  s_max: config.text_config.max_position_embeddings
+
+view:
+  rope_theta: config.text_config.rope_theta
+  rope_scaling: config.text_config.rope_scaling
+
+blocks:
+  # MTP layer: the Step 3.5 MTP layer (vLLM runs Step-3.7's with
+  # step3p5_mtp.py), whose inner block is a windowed DENSE pre-norm layer —
+  # the MTP layers (45..47) sit outside `moe_layers_enum` (3..44), so their FFN
+  # is Step3p7MLP at d_ffn, as on the backbone's `swa_dense` layers. The
+  # checkpoint stores that block's leaves at the MTP layer root
+  # (`model.layers.X.{input_layernorm,self_attn.*,post_attention_layernorm,mlp.*}`)
+  # beside enorm / hnorm / eh_proj and `transformer.shared_head.{norm,output}`,
+  # so `transformer` holds no module here.
+  step3p7_mtp_block:
+    inputs: [x, inputs_embeds]
+    graph:
+      layer: { op: step3p5_mtp_block, in: [x, inputs_embeds], module: null,
+               params: { inner: { template: pre_norm, params: { attn: swa_qknorm_gated_full_rope_attention, ffn: swiglu_ffn } } },
+               inner_modules: { transformer: null } }
+    outputs: [layer]
+
+model_inputs:
+  input_ids: { kind: tokens }
+  # Images per request; the processor hands the tower each image's global
+  # view resized to image_size x image_size (728).
+  pixel_values: { kind: image, axes: [n_img, img_h, img_w], fixed: { img_h: s_vis_image, img_w: s_vis_image } }
+  # Each image's 504x504 crops, which the processor cuts from a large or
+  # elongated image (vLLM transformers_utils/processors/step3_vl.py:75-78
+  # determine_window_size, 191-245 ImagePatcher), 81 rows each, placed
+  # before the image's 169 global rows. The crop count is the request's to
+  # state (the repo ships no processor configuration to derive it from).
+  patch_pixel_values:
+    kind: image
+    axes: [n_crops, crop_h, crop_w]
+    fixed: { crop_h: s_vis_crop, crop_w: s_vis_crop }
+    per_item_of: pixel_values
+
+# The transformers base model's tensors sit under `model.`; the LM head
+# beside it declares its own path.
+checkpoint: { root: model }
+
+model:
+  - { name: embed_tokens, inputs: [input_ids], op: embedding, boundary_role: input_embedding, dims: { n_vocab: n_vocab, d_model: d_model }, weight_axes: [{ world: attention, parts: n_vocab, fit: pad }, { replicated: true }] }
+  # Vision tower — Perception-Encoder ViT. Singleton wrapper: the
+  # entire tower is one component invocation, so it renders as a
+  # single first-level VISION block in the Architecture Diagram with
+  # nested topology (patch conv + posembed + ln_pre + n_vis_layers resblocks +
+  # downsamplers + projector).
+  # No `repeat:` on either the group or the sub: the tower has no index of
+  # its own, and its tensors hang off the group's root
+  # (`vision_model.*`, `vit_large_projector.*`).
+  - name: vision
+    group: true
+    aux_kind: vision
+    # The perception encoder's tensors sit at the file root (`vision_model.*`).
+    checkpoint: { root: "" }
+    layers:
+      # The global view, 728x728, cut into 14x14 patches of 3 channels:
+      # a 52x52 grid, one row each in raster order, one attention segment
+      # per image (the tower runs a fixed-size view per batch row).
+      - name: vision.patchify
+        op: patchify
+        inputs: [pixel_values]
+        dims: { patch: s_patch, temporal: "1", channels: n_vis_channels, align: s_patch }
+        segment: item
+        source_anchor: "transformers 5.17 step3p7/image_processing_step3p7.py:56-71 global view 728, vision_patch_size 14; vLLM transformers_utils/processors/step3_vl.py:251-254 image_size 728; models/step_vl.py:398-403, 467-478 two stride-2 downsamplers 52 -> 26 -> 13 = 169 rows"
+      - { name: vision, inputs: [vision.patchify], template: step3p7_perception_encoder_tower }
+      # The crops, through the same tower with the same weights in a second,
+      # batched call (vLLM v0.30.0 models/step3_vl.py:678-692: the vision
+      # model on pixel_values, then on patch_pixel_values): 504 / 14 = a
+      # 36x36 grid, 36 -> 18 -> 9 = 81 rows each (models/step_vl.py:445-446,
+      # 468-479; the 52x52 position table read at the crop's grid,
+      # :421-442).
+      - name: vision.patchify_crops
+        op: patchify
+        inputs: [patch_pixel_values]
+        dims: { patch: s_patch, temporal: "1", channels: n_vis_channels, align: s_patch }
+        segment: item
+        source_anchor: "vLLM v0.30.0 transformers_utils/processors/step3_vl.py:45-58 patch_transform, each crop resized to 504x504; :318-322 patch_pixel_values [sum n_crops, 3, 504, 504]; models/step_vl.py:445-446 grid = h // patch_size"
+      - { name: vision_crops, call: vision, inputs: [vision.patchify_crops] }
+      # Each image's crops laid end to end, raster order, then its global
+      # rows (models/step3_vl.py:692-709: crop features [cur:cur+n_i]
+      # flattened, then image_features[i], torch.cat).
+      - name: vision.crops_per_image
+        op: group_items
+        inputs: [vision_crops]
+        dims: { items: n_crops, groups: "B * n_img" }
+        source_anchor: "vLLM v0.30.0 models/step3_vl.py:692-709 each image's n_i crop features flattened to n_i * 81 rows"
+      - { name: vision.rows, op: concat, inputs: [vision.crops_per_image, vision], axis: 1 }
+  # The image rows replace their placeholder rows of the token embeddings
+  # before the decoder runs.
+  - name: embed_merge
+    op: scatter_rows_replace
+    inputs: [embed_tokens, vision.rows]
+    prompt_slots: { domain: pixel_values, defines: true, source_anchor: "transformers 5.17 step3p7/modeling_step3p7.py:1070 inputs_embeds.masked_scatter; vLLM models/step3_vl.py:707-722 -> models/utils.py:636-673 _merge_multimodal_embeddings" }
+  - name: layers
+    inputs: [embed_merge]
+    repeat: n_layers
+    streams:
+      hidden: { carries: true }
+    per_layer:
+      assign:
+        # Layer 0 — full attention + dense SwiGLU FFN.
+        - { type: full_dense, layers: ["0"] }
+        # Layers 1, 2 — sliding attention + dense FFN.
+        - { type: swa_dense,  layers: ["1", "2"] }
+        # Full attention + MoE — every 4th layer (4, 8, 12, ..., 44).
+        - { type: full_moe,   layers: ["4", "8", "12", "16", "20", "24", "28", "32", "36", "40", "44"] }
+        # Remaining 31 MoE layers — sliding attention + MoE.
+        - { type: swa_moe,    rest: true }
+      map:
+        # Full-attn layers project Q/O on n_heads=64 heads (backbone default is
+        # SWA n_heads=96); the n_heads_full dim override sizes the q_proj /
+        # o_proj weights to [d_model, 64*128] instead of [d_model, 96*128].
+        full_dense: { attention: gqa_qknorm_partial_rope_gated_no_kpe_attention, ffn: swiglu_ffn, dims: { n_heads: n_heads_full } }
+        swa_dense:  { attention: swa_qknorm_gated_full_rope_attention, ffn: swiglu_ffn }
+        full_moe:   { template: step3p7_moe_block, params: { attn: gqa_qknorm_partial_rope_gated_no_kpe_attention }, dims: { n_heads: n_heads_full } }
+        swa_moe:    { template: step3p7_moe_block, params: { attn: swa_qknorm_gated_full_rope_attention } }
+  - { name: norm, op: rmsnorm, dim: d_model, weight_axes: [{ replicated: true }] , inputs: [layers]}
+  - { name: lm_head, op: linear, checkpoint: { path: lm_head }, boundary_role: output_head, dims: { in: d_model, out: n_vocab }, weight_axes: [{ world: attention, parts: n_vocab, fit: pad }, { replicated: true }] , inputs: [norm]}
+
+  # MTP head — 3 layers at model.layers.{45,46,47}.*. Inner block is
+  # always sliding-attn + MoE per layer_types[45:48] = sliding × 3.
+  - name: mtp
+    group: true
+    aux_kind: mtp
+    checkpoint: { prefix: model.layers, index: { after: backbone } }
+    inputs: [norm]
+    repeat: n_mtp_layers
+    streams:
+      hidden: { carries: true }
+    layers:
+      - name: mtp
+        template: step3p7_mtp_block
+        inputs: [norm, embed_tokens]
+
+
+# moe.router_bias is stored F32 on disk; everything else is BF16 (no
+# quantization in this checkpoint). Override pins F32 for the router
+# bias so per-tensor dtype matching stays clean.
+quant_context:
+  per_role:
+    default: { method: none }
+  overrides:
+    - tensors_re: 'moe\.router_bias$'
+      dtype: F32
+  default_dtype: BF16

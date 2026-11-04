@@ -1,0 +1,72 @@
+# DeepSeek-V2 (236B, Q-compressed MLA)
+# Full DeepSeek-V2 has q_lora_rank=1536 — Q path is q_a_proj (d_model→d_q_lora) →
+# q_a_layernorm → q_b_proj (d_q_lora→n_heads*(d_qk_nope+d_qk_rope)). DeepSeek-V2-Lite has q_lora_rank=null
+# and uses deepseek_v2.yaml (mla_no_qcomp_attention).
+#
+# Both specs carry model_type: deepseek_v2; an identity file names the
+# variant its checkpoint follows via `base:`.
+match:
+  model_type: [deepseek_v2]
+
+components:
+  attention: mla_attention
+  ffn_dense: swiglu_ffn
+  ffn_moe: moe_ffn
+  norm: rmsnorm
+  block: pre_norm
+
+dims:
+  d_model:  config.hidden_size
+  n_heads:  config.num_attention_heads
+  n_kv_heads: config.num_key_value_heads
+  d_qk_nope:  config.qk_nope_head_dim
+  d_qk_rope:  config.qk_rope_head_dim
+  d_v_head: config.v_head_dim ?? d_qk_nope
+  d_kv_lora:  config.kv_lora_rank
+  d_q_lora: config.q_lora_rank
+  d_ffn:  config.intermediate_size
+  d_ffn_expert: config.moe_intermediate_size
+  n_vocab:  config.vocab_size
+  n_layers:  config.num_hidden_layers
+  n_experts:  config.n_routed_experts
+  n_experts_active:  config.num_experts_per_tok
+  n_topk_renorm: config.norm_topk_prob ?? "0"   # config class default: False
+  # topk_method group_limited_greedy restricts top-k to the best topk_group of
+  # n_group expert groups (V2: 3 of 8); V2-Lite ships 1 of 1, i.e. no restriction.
+  # Read from config, no fallback: DeepseekV2Config defaults both to None, and every shipped config sets both.
+  n_expert_groups: config.n_group
+  n_groups_active: config.topk_group
+  n_routed_scale: "1"   # DeepseekV2TopkRouter always multiplies by config.routed_scaling_factor (default 1.0)
+  n_shared_experts: config.n_shared_experts ?? "0"
+  n_dense_layers: config.first_k_dense_replace
+  s_max: config.max_position_embeddings
+
+view:
+  rope_theta: config.rope_theta
+  rope_scaling: config.rope_scaling
+  hidden_act: config.hidden_act
+  norm.eps: config.rms_norm_eps
+
+model_inputs:
+  input_ids: { kind: tokens }
+
+# The transformers base model's tensors sit under `model.`; the LM head
+# beside it declares its own path.
+checkpoint: { root: model }
+
+model:
+  - { name: embed_tokens, inputs: [input_ids], op: embedding, boundary_role: input_embedding, dims: { n_vocab: n_vocab, d_model: d_model }, weight_axes: [{ world: attention, parts: n_vocab, fit: pad }, { replicated: true }] }
+  - name: layers
+    inputs: [embed_tokens]
+    repeat: n_layers
+    streams:
+      hidden: { carries: true }
+    per_layer:
+      assign:
+        - { type: dense, range: ["0", "n_dense_layers - 1"] }
+        - { type: moe,   range: [n_dense_layers, "n_layers - 1"] }
+      map:
+        dense: { attention: mla_attention, ffn: swiglu_ffn }
+        moe:   { attention: mla_attention, ffn: moe_ffn }
+  - { name: norm, op: rmsnorm, dim: d_model, weight_axes: [{ replicated: true }] , inputs: [layers]}
+  - { name: lm_head, op: linear, checkpoint: { path: lm_head }, boundary_role: output_head, dims: { in: d_model, out: n_vocab }, weight_axes: [{ world: attention, parts: n_vocab, fit: pad }, { replicated: true }] , inputs: [norm]}

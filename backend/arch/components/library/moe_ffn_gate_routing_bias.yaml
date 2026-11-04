@@ -1,0 +1,29 @@
+# MoE FFN with aux-loss-free (noaux_tc) sigmoid routing + per-expert
+# correction bias, nested expert namespace. Used by: DeepSeek-V3,
+# Kimi-K2.5, GLM-MoE-DSA.
+#
+# HF tensor naming this matches:
+#   <moe>.gate.weight                  → router_noaux_tc.gate (linear)
+#   <moe>.gate.e_score_correction_bias → router_noaux_tc.gate.e_score_correction_bias
+#   <moe>.experts.X.{gate,up,down}_proj.weight  → expert.* (×n_experts)
+#   <moe>.shared_experts.{gate,up,down}_proj.weight (n_shared_experts copies)
+#
+# The full router pipeline (sigmoid → +bias → group routing → topk →
+# gather → norm → scale) lives in `router_noaux_tc`; this component
+# only wires the routed-expert bank + always-on shared expert + final
+# add. See the router component for routing-stage details.
+#
+# Required dims: d_model, d_ffn_expert, n_experts, n_experts_active
+# Optional dims: n_shared_experts (shared experts), n_route_targets (the gate's width, derived),
+#                n_expert_groups (n_group), n_groups_active (topk_group) — required, the router reads them
+
+role: ffn_moe
+description: "MoE + noaux_tc routing (sigmoid + e_score_correction_bias under gate). DSv3, Kimi-K2.5, GLM-MoE-DSA."
+graph:
+  gate:          { op: router_noaux_tc, in: x }
+  permute:       { op: permute, in: [x, gate] }
+  experts:        { op: gated_experts, role: ffn_moe, in: permute, dims: { d_model: d_model, d_ffn: d_ffn_expert }, expert_weight: unrolled }
+  combine:       { op: combine, in: [experts, gate] }
+  shared_experts: { op: swiglu_ffn, role: ffn_moe_shared, in: x, dims: { d_model: d_model, d_ffn: d_ffn_expert }, repeat: n_shared_experts }
+  moe_out:       { op: add, in: [combine, shared_experts], dim: d_model }
+outputs: [moe_out]

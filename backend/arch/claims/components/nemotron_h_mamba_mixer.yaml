@@ -1,0 +1,10 @@
+schema: huggingarch.claims/v1
+subject: nemotron_h_mamba_mixer
+axioms:
+  checks:
+  - kind: kv_growth
+    storage: constant_state
+    src: 'NemotronHMamba2Mixer — selective SSM state [n_ssm_heads, d_ssm_head, d_ssm_state]
+      + depthwise-conv state, fixed per request (no per-token K/V append). Declared
+      as two cache.entries states (recurrent_state on scan, conv_state on conv1d)
+      with constant (s_kv-independent) storage; no per-token growing cache.'

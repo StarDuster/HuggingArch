@@ -1,0 +1,49 @@
+# Q+K+V parallel linears fusion — vLLM's `QKVParallelLinear`.
+#
+# Naive subgraph: three sibling linears reading the same external
+# input (the post-norm hidden state):
+#
+#   q_proj: linear(x)
+#   k_proj: linear(x)
+#   v_proj: linear(x)
+#
+# vLLM concatenates the three weight tensors along the output dim
+# and runs ONE `torch.nn.functional.linear` call — saving two
+# kernel-launch round-trips and one HBM activation read pair.
+#
+# Disjoint from `merged_column_parallel_linear` by count:
+#   * merged_column_parallel_linear — N=2 (gate+up SwiGLU/GeGLU pre-act,
+#                                             or any 2-sibling merged GEMM)
+#   * qkv_parallel_linear              — N=3 (attention QKV)
+# The yaml-level `min_count` / `max_count` enforces this — when a
+# model has 3 sibling linears from `x`, only this plan matches; when
+# it has 2, only the other matches.
+#
+# vLLM kernel ref:
+#   vllm/model_executor/layers/linear.py::QKVParallelLinear
+#     (output_sizes = [num_heads*head_dim, num_kv_heads*head_dim,
+#                      num_kv_heads*head_dim]; same UnquantizedLinearMethod
+#      dispatch → torch.nn.functional.linear under the hood, linear.py:998,
+#      model_executor/layers/utils.py:620-632, vLLM v0.32.0)
+#
+# sglang kernel ref:
+#   sglang/srt/layers/linear.py::QKVParallelLinear (linear.py:1072 at
+#   v0.5.22) — sglang's own class, adapted from vLLM's (file header :3),
+#   dispatching the same single F.linear.
+#
+# Cost preservation: tautological — single F.linear with concatenated
+# weight computes the same per-sibling matmuls. Cost.combine sums the
+# matched linears' flops/params; the saved HBM round-trip is a
+# byte-accounting concern (the matched fused leaf reports the same
+# bytes as the sum, minus the avoided intermediate read).
+
+fused_op: qkv_parallel_linear
+
+naive_pattern:
+  parallel:
+    op: linear
+    shared_inputs: [external.x]
+    min_count: 3
+    max_count: 3
+  io_mapping:
+    x: external.x

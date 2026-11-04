@@ -1,0 +1,71 @@
+# Vanilla MoE router: softmax over expert scores, then greedy top-K.
+# Used by DeepSeek-V2 / V2-Lite (`scoring_func: softmax`; V2 is
+# `topk_method: group_limited_greedy`, V2-Lite `greedy`), Qwen3-MoE and
+# LongCat-Flash via `moe_ffn`, and Qwen3.5-MoE / Qwen3-Next. DSv3 / Kimi-K2.5 /
+# Moonlight use the noaux_tc variant — see
+# components/library/router_noaux_tc.yaml.
+#
+# Forward source (Mixtral / DSv2 / Qwen-MoE byte-equivalent):
+#
+#   logits  = gate(x)                                   # linear
+#   scores  = logits.softmax(dim=-1)                    # over n_route_targets
+#   if group_limited_greedy:                            # DeepSeek-V2
+#       group_scores = scores.view(n_group, -1).max(-1)  # per-group max
+#       group_idx = group_scores.topk(topk_group)        # top groups
+#       scores = scores masked to the experts of group_idx
+#   topk    = scores.topk(n_experts_active, dim=-1)                    # greedy top-K
+#   weights = scores.gather(-1, topk.indices)           # [n_experts_active] per token
+#   if norm_topk_prob: weights /= weights.sum(-1)       # config switch
+#   weights *= routed_scaling_factor                    # DeepSeek-V2 only
+#   return (topk.indices, weights)
+#
+# The group restriction is DeepseekV2TopkRouter.forward's
+# `group_limited_greedy` branch; vLLM deepseek_v2.py always calls
+# `grouped_topk` with num_expert_group=config.n_group and
+# topk_group=config.topk_group, which is the identity when every group is
+# kept. The three steps are `when: "n_expert_groups - n_groups_active"` (the
+# groups masked out per token), so they exist exactly when they mask something: off, the
+# mask hands the scores on and the two steps that only feed it are not built.
+# They are the steps noaux_tc writes (`router_noaux_tc.yaml`), with the group
+# scored by its maximum instead of its top-2 sum. This
+# follows vLLM's criterion (the group counts); HF branches on
+# `topk_method == "group_limited_greedy"`. Every shipped V2 config agrees on
+# both; a `greedy` config with n_group > topk_group would follow vLLM here.
+#
+# DeepseekV2TopkRouter multiplies the weights by `routed_scaling_factor`
+# (V2: 16.0, V2-Lite: 1.0; vLLM deepseek_v2.py passes it to FusedMoE):
+# The multiply is unconditional in the source, so `topk_scale` is
+# `when: n_routed_scale` with the V2 specs binding the literal 1 — the step
+# exists whatever the factor's value (0 and fractional included); the other
+# users of this router bind the literal 0 and have no scale step.
+#
+# The renormalization is `Qwen3MoeTopKRouter.forward` (modeling_qwen3_moe.py:
+# 268-269); vLLM passes the same field as `renormalize=config.norm_topk_prob`
+# to FusedMoE for Qwen3-MoE (qwen3_moe.py:206) and DeepSeek-V2
+# (deepseek_v2.py:365). Both config classes default it to False.
+#
+# Routing nodes are zero-param. FLOPs are tiny vs the expert MLP path
+# (router work is O(B·s_ctx·n_route_targets); expert MLP is O(B·s_ctx·n_experts_active·d_model·d_ffn_expert)) — they're
+# graph nodes so the diagram + engine accounting reflect the real
+# forward, not for performance modelling.
+#
+# Required dims: d_model, n_route_targets, n_experts_active, n_topk_renorm
+# (bind `config.norm_topk_prob ?? "0"`), n_expert_groups / n_groups_active
+# (bind `config.n_group` / `config.topk_group`; "1" / "1" for a router with no
+# group limit), n_routed_scale ("1" when the router multiplies by
+# routed_scaling_factor, "0" when it has no such step).
+# Optional dims: n_router_bias_params (router bias presence — 0 / 1, default 0).
+
+role: router
+description: "Vanilla MoE router: linear → softmax → optional group limit → greedy top-K → gather → optional renormalization → optional routed scale. Mixtral / DSv2 / Qwen-MoE."
+graph:
+  linear:          { op: linear, in: x, dims: { in: d_model, out: n_route_targets, bias: n_router_bias_params }, module: null, weight_axes: [{ replicated: true }, { replicated: true }] }
+  softmax_scores:  { op: softmax_act, in: linear, dim: n_route_targets }
+  group_max:       { op: group_max, in: softmax_scores, dims: { in: n_route_targets, out: n_expert_groups }, when: "n_expert_groups - n_groups_active" }
+  group_topk:      { op: topk, in: group_max, dims: { in: n_expert_groups, k: n_groups_active }, when: "n_expert_groups - n_groups_active" }
+  group_mask:      { op: group_mask_apply, in: [softmax_scores, group_topk], dims: { in: n_route_targets, n_groups_active: n_groups_active }, when: "n_expert_groups - n_groups_active" }
+  topk_indices:    { op: topk, in: group_mask, dims: { in: n_route_targets, k: n_experts_active } }
+  topk_gather:     { op: gather, in: [softmax_scores, topk_indices], dims: { in: n_route_targets, k: n_experts_active } }
+  topk_norm:       { op: normalize_sum_one, in: topk_gather, dims: { in: n_experts_active }, when: n_topk_renorm }
+  topk_scale:      { op: scale_const, in: topk_norm, dims: { in: n_experts_active }, when: n_routed_scale }
+outputs: [topk_scale]

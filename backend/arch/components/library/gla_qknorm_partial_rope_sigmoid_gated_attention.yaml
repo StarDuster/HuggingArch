@@ -1,0 +1,141 @@
+# Gated Linear Attention (FLA simple_gla / Lightning-2 recurrence)
+# + fused QKV + per-head QK-RMSNorm + partial RoPE + sigmoid-gated output
+# + GroupRMSNorm on the merged head output + final `dense` linear.
+# First observed in: Bailing-MoE V2.5 (Ling-2.6-1T) on its non-full
+# (linear-attention) layer slot — 70 of 80 main-backbone layers.
+#
+# Reference: configuration_bailing_moe_v2_5.BailingMoeV2_5LinearAttention
+# .forward — the FLA `chunk_simple_gla` / `fused_recurrent_simple_gla`
+# kernel (https://github.com/fla-org/flash-linear-attention) is the
+# canonical recurrence: per-head per-token forget gate `g`, no β update
+# gate (cf. `gated_delta_rule` which has both).
+#
+# Topology:
+#   x → query_key_value      → split(Q | K | V)
+#   x → g_proj               → sigmoid → output gate
+#   Q,K   → query_layernorm / key_layernorm  (per-head head_dim RMSNorm)
+#   Q,K   → partial RoPE on first d_rope dims (d_nope = d_head - d_rope untouched)
+#   Q,K,V → gla_simple_recurrence
+#   o → merge_heads → g_norm (GroupRMSNorm: RMS per n_norm_groups group,
+#                              one γ of length n_heads*d_head)
+#   o = o · sigmoid(g_proj)
+#   out = dense(o)
+#
+# Required dims: d_model, n_heads, d_head, d_rope, n_norm_groups.
+# Optional dims: n_kv_heads (defaults to n_heads — Bailing forces num_kv_heads = num_heads
+#                   for linear attention).
+#
+# All linear layers respect Bailing's `use_qkv_bias=False`/`use_bias=False`
+# defaults — bias is zero unless overridden.
+
+role: attention
+description: "Gated linear attention (FLA simple_gla) + fused QKV + QK-norm + partial RoPE + sigmoid-gated output. Bailing-MoE V2.5 / Ling-2.6."
+cache:
+  family: GLA-Linear
+  entries:
+    # fp32: the forward stores what the FLA kernel returns as the final state
+    # (modeling_bailing_moe_v2_5.py:866-894, `o, recurrent_state =
+    # self.lightning_attn_ops[mode](..., output_final_state=use_cache)` ->
+    # `past_key_value.layers[i].keys = recurrent_state`, no cast), and FLA
+    # allocates it `dtype=torch.float32` whatever q's dtype (fla
+    # ops/common/fused_recurrent.py `fused_recurrent_fwd`; decode runs the
+    # fused-recurrent kernel, :822).
+    - { state: recurrent_state, kind: recurrent_state, carrier: gla_recurrence, shape: [n_kv_heads, d_head, d_head], dtype: fp32 }
+# Fixed-size recurrent state (FLA simple_gla): S ∈ [heads, d_k, d_v] per layer.
+# Billed once per request with constant (s_kv-independent) storage — real HBM in
+# the KV budget / max-batch, flat on the per-token growth chart. Ling: n_kv_heads=64,
+# d_head=d_v_head=128 → 64·128·128 = 1,048,576 elem/layer.
+
+custom_ops:
+  gla_simple_recurrence:
+    # `H` is the op's own head-count parameter, bound per call site. It is not
+    # written `n_heads` because that name is one the shard policy divides, and a
+    # policy name takes the axis's identity away from the binding: the width
+    # would come from the symbol rather than from whatever this call passes.
+    # `d_head` stays itself — no parallelism divides it, so the model symbol and
+    # the op's parameter cannot disagree.
+    flops: "2 * B * s_ctx * d_head * d_head * H"
+    params: "0"
+    # Heads first, as `head_split` lays them out and the call passes them.
+    signature:
+      q: [B, H, s_ctx, d_head]
+      k: [B, H, s_ctx, d_head]
+      v: [B, H, s_ctx, d_head]
+    shape_kind: preserve
+    input_roles: [q, k, v]
+    # A recurrence: the state at token t has absorbed every token before it,
+    # so the sequence cannot be split without carrying the state across. The
+    # key width folds into that state matrix and is contracted on readout.
+    # `H` is absent — heads run independently, which is what tensor
+    # parallelism cuts here.
+    couples_on: [s_ctx, d_head]
+    axis_use:
+      s_ctx:  { category: recurrent, param: d_head }   # the state absorbs every earlier token
+      d_head: { category: recurrent, param: state }    # folds into the state matrix, contracted on readout
+    carries_recurrent_state: true
+    formula: "S_t = g_t · S_{t-1} + kᵀv;   o_t = q · S_t"
+    description: "Gated linear-attention recurrence (FLA simple_gla / Lightning-2). Recurrent over s_ctx, no quadratic term."
+graph:
+  # --- Fused QKV projection (no bias) ---
+  query_key_value:
+    op: linear
+    in: x
+    dims: { in: d_model, out: "(n_heads + 2 * n_kv_heads) * d_head" }
+    weight_axes:
+      - segments:
+          - { segment: q, extent: "n_heads * d_head", world: attention, parts: n_heads, fit: replica_cells }
+          - { segment: k, extent: "n_kv_heads * d_head", world: attention, parts: n_kv_heads, fit: replica_cells }
+          - { segment: v, extent: "n_kv_heads * d_head", world: attention, parts: n_kv_heads, fit: replica_cells }
+      - { replicated: true }
+
+  # --- Split into Q, K, V along the channel dim ---
+  q_slice:            { op: slice, in: query_key_value, dims: { in: "(n_heads + 2 * n_kv_heads) * d_head", out: "n_heads * d_head" } }
+  k_slice:            { op: slice, in: query_key_value, dims: { in: "(n_heads + 2 * n_kv_heads) * d_head", out: "n_kv_heads * d_head" } }
+  v_slice:            { op: slice, in: query_key_value, dims: { in: "(n_heads + 2 * n_kv_heads) * d_head", out: "n_kv_heads * d_head" } }
+
+  q_split_heads:      { op: head_split, in: q_slice, dims: { n_heads: n_heads,  d_head: d_head } }
+  k_split_heads:      { op: head_split, in: k_slice, dims: { n_heads: n_kv_heads, d_head: d_head } }
+  v_split_heads:      { op: head_split, in: v_slice, dims: { n_heads: n_kv_heads, d_head: d_head } }
+  # --- Per-head QK-RMSNorm (weight shape [d_head] each) ---
+  query_layernorm:    { op: rmsnorm, in: q_split_heads, dim: d_head, weight_axes: [{ replicated: true }] }
+  key_layernorm:      { op: rmsnorm, in: k_split_heads, dim: d_head, weight_axes: [{ replicated: true }] }
+
+  # --- Partial RoPE: rotate first d_rope of d_head, leave (d_head - d_rope) untouched ---
+  q_pe_slice:         { op: slice, in: query_layernorm, dims: { in: d_head, out: d_rope } }
+  q_nope_slice:       { op: slice, in: query_layernorm, dims: { in: d_head, out: "d_head - d_rope" } }
+  k_pe_slice:         { op: slice, in: key_layernorm,   dims: { in: d_head, out: d_rope } }
+  k_nope_slice:       { op: slice, in: key_layernorm,   dims: { in: d_head, out: "d_head - d_rope" } }
+  q_pe_rope:          { op: rope_emb, in: q_pe_slice, dims: { dim: d_rope } }
+  k_pe_rope:          { op: rope_emb, in: k_pe_slice, dims: { dim: d_rope } }
+  query_concat:       { op: concat, in: [q_pe_rope, q_nope_slice], dims: { in_a: d_rope, in_b: "d_head - d_rope", out: d_head } }
+  key_concat:         { op: concat, in: [k_pe_rope, k_nope_slice], dims: { in_a: d_rope, in_b: "d_head - d_rope", out: d_head } }
+
+  # --- Linear-attention recurrence (zero params; slope buffer not persisted) ---
+  gla_recurrence:     { op: gla_simple_recurrence,
+                        in: [query_concat, key_concat, v_split_heads],
+                        dims: { H: n_heads, d_head: d_head } }
+
+  # --- Merge heads → GroupRMSNorm ---
+  # BailingMoeV2_5GroupRMSNorm (modeling_bailing_moe_v2_5.py:185-204): view the
+  # merged heads as [n_norm_groups, n_heads·d_head / n_norm_groups], RMS per
+  # group, then one γ of length n_heads·d_head. Per group, so a rank holding
+  # whole groups needs no collective — as both frameworks run it: vLLM
+  # BailingGroupRMSNormGate over hidden_inner/tp with group_size
+  # hidden_inner/group_norm_size, asserting group_norm_size % tp == 0
+  # (layers/mamba/linear/bailing_linear_attn.py:446-464); sglang the same
+  # (models/bailing_moe_linear.py:496-510). Same shape as
+  # `mamba2_gated_rmsnorm`.
+  o_merge_heads:      { op: head_merge, in: gla_recurrence, dims: { n_heads: n_heads, d_head: d_head } }
+  g_norm.groups:      { op: view_split, in: o_merge_heads, axis: -1, dims: { in: "n_heads * d_head", n_heads: n_norm_groups, d_head: "n_heads * d_head / n_norm_groups" } }
+  g_norm.rms:         { op: rmsnorm_unscaled, in: g_norm.groups, dim: "n_heads * d_head / n_norm_groups" }
+  g_norm.merged:      { op: view_merge, in: g_norm.rms }
+  g_norm.weight:      { op: parameter_vector, dim: "n_heads * d_head", weight_axes: [{ world: attention, parts: n_heads, fit: replica_cells }] }
+  g_norm:             { op: mul, in: [g_norm.merged, g_norm.weight], dim: "n_heads * d_head" }
+
+  # --- Sigmoid-gated output projection ---
+  g_proj:             { op: linear, in: x, dims: { in: d_model, out: "n_heads * d_head" }, weight_axes: [{ world: attention, parts: n_heads, fit: replica_cells }, { replicated: true }] }
+  g_sigmoid:          { op: sigmoid, in: g_proj, dim: "n_heads * d_head" }
+  gated_out:          { op: mul, in: [g_norm, g_sigmoid], dim: "n_heads * d_head" }
+  dense:              { op: linear, in: gated_out, dims: { in: "n_heads * d_head", out: d_model }, weight_axes: [{ replicated: true }, { world: attention, parts: n_heads, fit: replica_cells }] }
+
+outputs: [dense]

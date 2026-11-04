@@ -1,0 +1,4 @@
+# Identity file for moonshotai/Kimi-K3
+base: kimi_k3
+match:
+  model_id: [moonshotai/Kimi-K3]

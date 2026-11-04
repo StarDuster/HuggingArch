@@ -1,0 +1,38 @@
+# Ungrouped softmax top-K router with a selection bias added AFTER the
+# softmax — `moe_topk_softmax` plus the bias — one launch in vLLM.
+#
+# Naive subgraph (router_noaux_tc_classifier — LongCat-Flash):
+#
+#   p   = softmax(gating)
+#   idx = topk(p + bias)      # ranks on the biased score
+#   w   = gather(p, idx)      # weighs with the unbiased one
+#   w   = w / sum(w)          # absent where the model does not renormalise
+#
+#   vLLM (audited at v0.32.0): `ZeroExpertRouter` (fused_moe/router/
+#     router_factory.py:135, zero_expert_router.py:67-75) →
+#     `fused_topk_bias(scoring_func="softmax")` (fused_topk_bias_router.py:217)
+#     → `ops.topk_softmax(..., e_score_correction_bias)` (:43), one CUDA launch
+#     (moeTopK adds the bias in-register after the softmax and gathers the
+#     unbiased probability). The routed scale is a separate
+#     `topk_weights *= routed_scaling_factor` (zero_expert_router.py:77-78),
+#     so the `scale_const` after this chain stays its own launch.
+#   sglang (audited at v0.5.22): not bound. Its softmax router takes no bias
+#     (`moe_fused_gate(gating, None, ...)`, srt/layers/moe/topk.py:1125-1129), and
+#     LongCat forces the eager path (`self.topk.forward = self.topk.forward_native`,
+#     srt/models/longcat_flash.py:287 → `fused_topk_torch_native`, topk.py:922).
+#
+# Same boundary in prefill and decode.
+
+fused_op: moe_topk_softmax_bias
+
+naive_pattern:
+  nodes:
+    score:  { op: softmax_act,       inputs: [external.gating] }
+    biased: { op: add,               inputs: [score.out, external.bias] }
+    topk:   { op: topk,              inputs: [biased.out] }
+    gather: { op: gather,            inputs: [score.out, topk.out] }
+    norm:   { op: normalize_sum_one, inputs: [gather.out], optional: true }
+  io_mapping:
+    gating: external.gating
+    bias:   external.bias
+    output: norm.out

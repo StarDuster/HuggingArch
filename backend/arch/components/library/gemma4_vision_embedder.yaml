@@ -1,0 +1,40 @@
+# Gemma-4 vision embedder (encoder-free patch projector + factorized 2-D posemb).
+#
+# Wraps the vision-embedder pipeline as a single singleton aux_block so leaves
+# land at bare HF paths (vision_embedder.*, embed_vision.*) with no per-layer
+# index injected — the same one-shot treatment Step-3.7's perception tower and
+# Kimi-K3's MoonViT wrapper get. Written as a component (not a flat model-root
+# list) so every edge carries a real `inputs_obj`: the factorized position
+# table is READ by `add_pe` here, where a bare-list entry would leave it
+# orphaned and the layout two-input check would fire.
+#
+# Forward (Gemma3nVisionEmbedder, encoder-free):
+#   x = patch_ln1(patch_features)                  # LayerNorm on flattened patch
+#   x = patch_dense(x)                             # linear -> d_vis_model (+bias)
+#   x = patch_ln2(x)
+#   x = x + pos_embedding                          # factorized 2-D: pe[:,0,:][row] + pe[:,1,:][col]
+#   x = pos_norm(x)
+#   x = embedding_projection(x)                    # -> text d_model
+#
+# `pos_embedding` is `[n_vis_pos_per_axis, 2, d_vis_model]`: a factorized row/col
+# table, two 1-D gathers summed. `position_table_add` prices the one add
+# (B·s_ctx·d_vis_model) and tolerates the 3-axis table by design (its second
+# shape template is empty); the per-value pe_row+pe_col lookup is a 0-FLOP
+# index, not accounted, exactly as a grid gather is not.
+#
+# Required dims: d_patch_in, d_vis_model, n_vis_pos_per_axis, d_model.
+role: aux_block
+description: "Gemma-4 vision embedder: patch LN/dense/LN + factorized 2-D position table (add_pe) + norm + projection to text d_model. Singleton — bare HF paths (vision_embedder.*, embed_vision.*)."
+graph:
+  vision_embedder.patch_ln1:         { op: layernorm, in: x, dim: d_patch_in, weight_axes: [{ replicated: true }] }
+  vision_embedder.patch_dense:       { op: linear, in: vision_embedder.patch_ln1, dims: { in: d_patch_in, out: d_vis_proj, bias: "1" }, weight_axes: [{ world: dense_ffn, parts: d_vis_proj, fit: exact }, { replicated: true }] }
+  vision_embedder.patch_ln2:         { op: layernorm, in: vision_embedder.patch_dense, dim: d_vis_model, weight_axes: [{ replicated: true }] }
+  vision_embedder.pos_embedding:     { op: parameter_tensor, shape: [n_vis_pos_per_axis, "2", d_vis_model], weight_axes: [{ replicated: true }, { replicated: true }, { replicated: true }] }
+  vision_embedder.add_pe:
+    op: position_table_add
+    in: [vision_embedder.patch_ln2, vision_embedder.pos_embedding]
+    dim: d_vis_model
+    formula: "y[b, (r,c), :] = x[b, (r,c), :] + pe[r,0,:] + pe[c,1,:]   (factorized row/col gathers, summed)"
+  vision_embedder.pos_norm:          { op: layernorm, in: vision_embedder.add_pe, dim: d_vis_model, weight_axes: [{ replicated: true }] }
+  embed_vision.embedding_projection: { op: linear, in: vision_embedder.pos_norm, dims: { in: d_vis_model, out: d_model }, weight_axes: [{ replicated: true }, { replicated: true }] }
+outputs: [embed_vision.embedding_projection]

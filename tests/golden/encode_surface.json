@@ -1,0 +1,2614 @@
+{
+  "Qwen__Qwen3-VL-235B-A22B-Instruct": {
+    "1": {
+      "one": {
+        "max_tokens_per_item": 98,
+        "media": {
+          "pixel_values": {
+            "img_h": 224,
+            "img_w": 224,
+            "n_img": 1
+          },
+          "pixel_values_videos": {
+            "n_vid": 1,
+            "vid_frames": 4,
+            "vid_h": 224,
+            "vid_w": 224
+          }
+        },
+        "media_tokens": {
+          "pixel_values": 49,
+          "pixel_values_videos": 98
+        },
+        "output_cache_bytes_per_token": 32768,
+        "stacks": {
+          "video": {
+            "act_peak_bytes_per_rank": 8017920,
+            "act_read_bytes": 33643008,
+            "act_write_bytes": 31334912,
+            "flops": 365475931520,
+            "handoff_rows": {
+              "deepstack_feat_video": [
+                98,
+                98,
+                98
+              ],
+              "video.merger.linear_fc2": [
+                98
+              ]
+            },
+            "params": 0,
+            "weight_bytes_per_rank": 0
+          },
+          "visual": {
+            "act_peak_bytes_per_rank": 6663168,
+            "act_read_bytes": 16821504,
+            "act_write_bytes": 15667456,
+            "flops": 182737965760,
+            "handoff_rows": {
+              "deepstack_feat": [
+                49,
+                49,
+                49
+              ],
+              "visual.merger.linear_fc2": [
+                49
+              ]
+            },
+            "params": 576388336,
+            "weight_bytes_per_rank": 1152776672
+          }
+        }
+      },
+      "two": {
+        "max_tokens_per_item": 105,
+        "media": {
+          "pixel_values": {
+            "img_h": 448,
+            "img_w": 224,
+            "n_img": 2
+          },
+          "pixel_values_videos": {
+            "n_vid": 2,
+            "vid_frames": 5,
+            "vid_h": 224,
+            "vid_w": 160
+          }
+        },
+        "media_tokens": {
+          "pixel_values": 196,
+          "pixel_values_videos": 210
+        },
+        "output_cache_bytes_per_token": 32768,
+        "stacks": {
+          "video": {
+            "act_peak_bytes_per_rank": 16396800,
+            "act_read_bytes": 69081600,
+            "act_write_bytes": 64135680,
+            "flops": 777208575360,
+            "handoff_rows": {
+              "deepstack_feat_video": [
+                210,
+                210,
+                210
+              ],
+              "video.merger.linear_fc2": [
+                210
+              ]
+            },
+            "params": 0,
+            "weight_bytes_per_rank": 0
+          },
+          "visual": {
+            "act_peak_bytes_per_rank": 23281664,
+            "act_read_bytes": 77120512,
+            "act_write_bytes": 72504320,
+            "flops": 750402037504,
+            "handoff_rows": {
+              "deepstack_feat": [
+                196,
+                196,
+                196
+              ],
+              "visual.merger.linear_fc2": [
+                196
+              ]
+            },
+            "params": 576388336,
+            "weight_bytes_per_rank": 1152776672
+          }
+        }
+      }
+    },
+    "8": {
+      "one": {
+        "max_tokens_per_item": 98,
+        "media": {
+          "pixel_values": {
+            "img_h": 224,
+            "img_w": 224,
+            "n_img": 1
+          },
+          "pixel_values_videos": {
+            "n_vid": 1,
+            "vid_frames": 4,
+            "vid_h": 224,
+            "vid_w": 224
+          }
+        },
+        "media_tokens": {
+          "pixel_values": 49,
+          "pixel_values_videos": 98
+        },
+        "output_cache_bytes_per_token": 32768,
+        "stacks": {
+          "video": {
+            "act_peak_bytes_per_rank": 8017920,
+            "act_read_bytes": 33643008,
+            "act_write_bytes": 31334912,
+            "flops": 365475931520,
+            "handoff_rows": {
+              "deepstack_feat_video": [
+                98,
+                98,
+                98
+              ],
+              "video.merger.linear_fc2": [
+                98
+              ]
+            },
+            "params": 0,
+            "weight_bytes_per_rank": 0
+          },
+          "visual": {
+            "act_peak_bytes_per_rank": 6663168,
+            "act_read_bytes": 16821504,
+            "act_write_bytes": 15667456,
+            "flops": 182737965760,
+            "handoff_rows": {
+              "deepstack_feat": [
+                49,
+                49,
+                49
+              ],
+              "visual.merger.linear_fc2": [
+                49
+              ]
+            },
+            "params": 576388336,
+            "weight_bytes_per_rank": 152248220
+          }
+        }
+      },
+      "two": {
+        "max_tokens_per_item": 105,
+        "media": {
+          "pixel_values": {
+            "img_h": 448,
+            "img_w": 224,
+            "n_img": 2
+          },
+          "pixel_values_videos": {
+            "n_vid": 2,
+            "vid_frames": 5,
+            "vid_h": 224,
+            "vid_w": 160
+          }
+        },
+        "media_tokens": {
+          "pixel_values": 196,
+          "pixel_values_videos": 210
+        },
+        "output_cache_bytes_per_token": 32768,
+        "stacks": {
+          "video": {
+            "act_peak_bytes_per_rank": 11114496,
+            "act_read_bytes": 69081600,
+            "act_write_bytes": 64135680,
+            "flops": 777208575360,
+            "handoff_rows": {
+              "deepstack_feat_video": [
+                210,
+                210,
+                210
+              ],
+              "video.merger.linear_fc2": [
+                210
+              ]
+            },
+            "params": 0,
+            "weight_bytes_per_rank": 0
+          },
+          "visual": {
+            "act_peak_bytes_per_rank": 10727424,
+            "act_read_bytes": 77120512,
+            "act_write_bytes": 72504320,
+            "flops": 750402037504,
+            "handoff_rows": {
+              "deepstack_feat": [
+                196,
+                196,
+                196
+              ],
+              "visual.merger.linear_fc2": [
+                196
+              ]
+            },
+            "params": 576388336,
+            "weight_bytes_per_rank": 152248220
+          }
+        }
+      }
+    }
+  },
+  "Qwen__Qwen3.5-35B-A3B": {
+    "1": {
+      "one": {
+        "max_tokens_per_item": 98,
+        "media": {
+          "pixel_values": {
+            "img_h": 224,
+            "img_w": 224,
+            "n_img": 1
+          },
+          "pixel_values_videos": {
+            "n_vid": 1,
+            "vid_frames": 4,
+            "vid_h": 224,
+            "vid_w": 224
+          }
+        },
+        "media_tokens": {
+          "pixel_values": 49,
+          "pixel_values_videos": 98
+        },
+        "output_cache_bytes_per_token": 4096,
+        "stacks": {
+          "video": {
+            "act_peak_bytes_per_rank": 7651840,
+            "act_read_bytes": 30030336,
+            "act_write_bytes": 27421184,
+            "flops": 340026413440,
+            "handoff_rows": {
+              "model.video": [
+                98
+              ]
+            },
+            "params": 0,
+            "weight_bytes_per_rank": 0
+          },
+          "vision": {
+            "act_peak_bytes_per_rank": 6211584,
+            "act_read_bytes": 15015168,
+            "act_write_bytes": 13710592,
+            "flops": 170013206720,
+            "handoff_rows": {
+              "model.visual": [
+                49
+              ]
+            },
+            "params": 446571248,
+            "weight_bytes_per_rank": 893142496
+          }
+        }
+      },
+      "two": {
+        "max_tokens_per_item": 105,
+        "media": {
+          "pixel_values": {
+            "img_h": 448,
+            "img_w": 224,
+            "n_img": 2
+          },
+          "pixel_values_videos": {
+            "n_vid": 2,
+            "vid_frames": 5,
+            "vid_h": 224,
+            "vid_w": 160
+          }
+        },
+        "media_tokens": {
+          "pixel_values": 196,
+          "pixel_values_videos": 210
+        },
+        "output_cache_bytes_per_token": 4096,
+        "stacks": {
+          "video": {
+            "act_peak_bytes_per_rank": 16396800,
+            "act_read_bytes": 61340160,
+            "act_write_bytes": 55749120,
+            "flops": 722673893760,
+            "handoff_rows": {
+              "model.video": [
+                210
+              ]
+            },
+            "params": 0,
+            "weight_bytes_per_rank": 0
+          },
+          "vision": {
+            "act_peak_bytes_per_rank": 23281664,
+            "act_read_bytes": 69895168,
+            "act_write_bytes": 64676864,
+            "flops": 699503001344,
+            "handoff_rows": {
+              "model.visual": [
+                196
+              ]
+            },
+            "params": 446571248,
+            "weight_bytes_per_rank": 893142496
+          }
+        }
+      }
+    },
+    "8": {
+      "one": {
+        "max_tokens_per_item": 98,
+        "media": {
+          "pixel_values": {
+            "img_h": 224,
+            "img_w": 224,
+            "n_img": 1
+          },
+          "pixel_values_videos": {
+            "n_vid": 1,
+            "vid_frames": 4,
+            "vid_h": 224,
+            "vid_w": 224
+          }
+        },
+        "media_tokens": {
+          "pixel_values": 49,
+          "pixel_values_videos": 98
+        },
+        "output_cache_bytes_per_token": 4096,
+        "stacks": {
+          "video": {
+            "act_peak_bytes_per_rank": 7114752,
+            "act_read_bytes": 30030336,
+            "act_write_bytes": 27421184,
+            "flops": 340026413440,
+            "handoff_rows": {
+              "model.video": [
+                98
+              ]
+            },
+            "params": 0,
+            "weight_bytes_per_rank": 0
+          },
+          "vision": {
+            "act_peak_bytes_per_rank": 6211584,
+            "act_read_bytes": 15015168,
+            "act_write_bytes": 13710592,
+            "flops": 170013206720,
+            "handoff_rows": {
+              "model.visual": [
+                49
+              ]
+            },
+            "params": 446571248,
+            "weight_bytes_per_rank": 119720476
+          }
+        }
+      },
+      "two": {
+        "max_tokens_per_item": 105,
+        "media": {
+          "pixel_values": {
+            "img_h": 448,
+            "img_w": 224,
+            "n_img": 2
+          },
+          "pixel_values_videos": {
+            "n_vid": 2,
+            "vid_frames": 5,
+            "vid_h": 224,
+            "vid_w": 160
+          }
+        },
+        "media_tokens": {
+          "pixel_values": 196,
+          "pixel_values_videos": 210
+        },
+        "output_cache_bytes_per_token": 4096,
+        "stacks": {
+          "video": {
+            "act_peak_bytes_per_rank": 9179136,
+            "act_read_bytes": 61340160,
+            "act_write_bytes": 55749120,
+            "flops": 722673893760,
+            "handoff_rows": {
+              "model.video": [
+                210
+              ]
+            },
+            "params": 0,
+            "weight_bytes_per_rank": 0
+          },
+          "vision": {
+            "act_peak_bytes_per_rank": 8921088,
+            "act_read_bytes": 69895168,
+            "act_write_bytes": 64676864,
+            "flops": 699503001344,
+            "handoff_rows": {
+              "model.visual": [
+                196
+              ]
+            },
+            "params": 446571248,
+            "weight_bytes_per_rank": 119720476
+          }
+        }
+      }
+    }
+  },
+  "Qwen__Qwen3.8-27B": {
+    "1": {
+      "one": {
+        "max_tokens_per_item": 98,
+        "media": {
+          "pixel_values": {
+            "img_h": 224,
+            "img_w": 224,
+            "n_img": 1
+          },
+          "pixel_values_videos": {
+            "n_vid": 1,
+            "vid_frames": 4,
+            "vid_h": 224,
+            "vid_w": 224
+          }
+        },
+        "media_tokens": {
+          "pixel_values": 49,
+          "pixel_values_videos": 98
+        },
+        "output_cache_bytes_per_token": 10240,
+        "stacks": {
+          "video": {
+            "act_peak_bytes_per_rank": 7651840,
+            "act_read_bytes": 30030336,
+            "act_write_bytes": 28023296,
+            "flops": 342801246592,
+            "handoff_rows": {
+              "model.video": [
+                98
+              ]
+            },
+            "params": 0,
+            "weight_bytes_per_rank": 0
+          },
+          "vision": {
+            "act_peak_bytes_per_rank": 6211584,
+            "act_read_bytes": 15015168,
+            "act_write_bytes": 14011648,
+            "flops": 171400623296,
+            "handoff_rows": {
+              "model.visual": [
+                49
+              ]
+            },
+            "params": 460730096,
+            "weight_bytes_per_rank": 921460192
+          }
+        }
+      },
+      "two": {
+        "max_tokens_per_item": 105,
+        "media": {
+          "pixel_values": {
+            "img_h": 448,
+            "img_w": 224,
+            "n_img": 2
+          },
+          "pixel_values_videos": {
+            "n_vid": 2,
+            "vid_frames": 5,
+            "vid_h": 224,
+            "vid_w": 160
+          }
+        },
+        "media_tokens": {
+          "pixel_values": 196,
+          "pixel_values_videos": 210
+        },
+        "output_cache_bytes_per_token": 10240,
+        "stacks": {
+          "video": {
+            "act_peak_bytes_per_rank": 16396800,
+            "act_read_bytes": 61340160,
+            "act_write_bytes": 57039360,
+            "flops": 728619964800,
+            "handoff_rows": {
+              "model.video": [
+                210
+              ]
+            },
+            "params": 0,
+            "weight_bytes_per_rank": 0
+          },
+          "vision": {
+            "act_peak_bytes_per_rank": 23281664,
+            "act_read_bytes": 69895168,
+            "act_write_bytes": 65881088,
+            "flops": 705052667648,
+            "handoff_rows": {
+              "model.visual": [
+                196
+              ]
+            },
+            "params": 460730096,
+            "weight_bytes_per_rank": 921460192
+          }
+        }
+      }
+    },
+    "8": {
+      "one": {
+        "max_tokens_per_item": 98,
+        "media": {
+          "pixel_values": {
+            "img_h": 224,
+            "img_w": 224,
+            "n_img": 1
+          },
+          "pixel_values_videos": {
+            "n_vid": 1,
+            "vid_frames": 4,
+            "vid_h": 224,
+            "vid_w": 224
+          }
+        },
+        "media_tokens": {
+          "pixel_values": 49,
+          "pixel_values_videos": 98
+        },
+        "output_cache_bytes_per_token": 10240,
+        "stacks": {
+          "video": {
+            "act_peak_bytes_per_rank": 7114752,
+            "act_read_bytes": 30030336,
+            "act_write_bytes": 28023296,
+            "flops": 342801246592,
+            "handoff_rows": {
+              "model.video": [
+                98
+              ]
+            },
+            "params": 0,
+            "weight_bytes_per_rank": 0
+          },
+          "vision": {
+            "act_peak_bytes_per_rank": 6211584,
+            "act_read_bytes": 15015168,
+            "act_write_bytes": 14011648,
+            "flops": 171400623296,
+            "handoff_rows": {
+              "model.visual": [
+                49
+              ]
+            },
+            "params": 460730096,
+            "weight_bytes_per_rank": 123265564
+          }
+        }
+      },
+      "two": {
+        "max_tokens_per_item": 105,
+        "media": {
+          "pixel_values": {
+            "img_h": 448,
+            "img_w": 224,
+            "n_img": 2
+          },
+          "pixel_values_videos": {
+            "n_vid": 2,
+            "vid_frames": 5,
+            "vid_h": 224,
+            "vid_w": 160
+          }
+        },
+        "media_tokens": {
+          "pixel_values": 196,
+          "pixel_values_videos": 210
+        },
+        "output_cache_bytes_per_token": 10240,
+        "stacks": {
+          "video": {
+            "act_peak_bytes_per_rank": 9179136,
+            "act_read_bytes": 61340160,
+            "act_write_bytes": 57039360,
+            "flops": 728619964800,
+            "handoff_rows": {
+              "model.video": [
+                210
+              ]
+            },
+            "params": 0,
+            "weight_bytes_per_rank": 0
+          },
+          "vision": {
+            "act_peak_bytes_per_rank": 8921088,
+            "act_read_bytes": 69895168,
+            "act_write_bytes": 65881088,
+            "flops": 705052667648,
+            "handoff_rows": {
+              "model.visual": [
+                196
+              ]
+            },
+            "params": 460730096,
+            "weight_bytes_per_rank": 123265564
+          }
+        }
+      }
+    }
+  },
+  "Qwen__Qwen3.8-Flash-Next": {
+    "1": {
+      "one": {
+        "max_tokens_per_item": 98,
+        "media": {
+          "pixel_values": {
+            "img_h": 224,
+            "img_w": 224,
+            "n_img": 1
+          },
+          "pixel_values_videos": {
+            "n_vid": 1,
+            "vid_frames": 4,
+            "vid_h": 224,
+            "vid_w": 224
+          }
+        },
+        "media_tokens": {
+          "pixel_values": 49,
+          "pixel_values_videos": 98
+        },
+        "output_cache_bytes_per_token": 5120,
+        "stacks": {
+          "video": {
+            "act_peak_bytes_per_rank": 7651840,
+            "act_read_bytes": 30030336,
+            "act_write_bytes": 27521536,
+            "flops": 340488885632,
+            "handoff_rows": {
+              "model.video": [
+                98
+              ]
+            },
+            "params": 0,
+            "weight_bytes_per_rank": 0
+          },
+          "vision": {
+            "act_peak_bytes_per_rank": 6211584,
+            "act_read_bytes": 15015168,
+            "act_write_bytes": 13760768,
+            "flops": 170244442816,
+            "handoff_rows": {
+              "model.visual": [
+                49
+              ]
+            },
+            "params": 448931056,
+            "weight_bytes_per_rank": 897862112
+          }
+        }
+      },
+      "two": {
+        "max_tokens_per_item": 105,
+        "media": {
+          "pixel_values": {
+            "img_h": 448,
+            "img_w": 224,
+            "n_img": 2
+          },
+          "pixel_values_videos": {
+            "n_vid": 2,
+            "vid_frames": 5,
+            "vid_h": 224,
+            "vid_w": 160
+          }
+        },
+        "media_tokens": {
+          "pixel_values": 196,
+          "pixel_values_videos": 210
+        },
+        "output_cache_bytes_per_token": 5120,
+        "stacks": {
+          "video": {
+            "act_peak_bytes_per_rank": 16396800,
+            "act_read_bytes": 61340160,
+            "act_write_bytes": 55964160,
+            "flops": 723664905600,
+            "handoff_rows": {
+              "model.video": [
+                210
+              ]
+            },
+            "params": 0,
+            "weight_bytes_per_rank": 0
+          },
+          "vision": {
+            "act_peak_bytes_per_rank": 23281664,
+            "act_read_bytes": 69895168,
+            "act_write_bytes": 64877568,
+            "flops": 700427945728,
+            "handoff_rows": {
+              "model.visual": [
+                196
+              ]
+            },
+            "params": 448931056,
+            "weight_bytes_per_rank": 897862112
+          }
+        }
+      }
+    },
+    "8": {
+      "one": {
+        "max_tokens_per_item": 98,
+        "media": {
+          "pixel_values": {
+            "img_h": 224,
+            "img_w": 224,
+            "n_img": 1
+          },
+          "pixel_values_videos": {
+            "n_vid": 1,
+            "vid_frames": 4,
+            "vid_h": 224,
+            "vid_w": 224
+          }
+        },
+        "media_tokens": {
+          "pixel_values": 49,
+          "pixel_values_videos": 98
+        },
+        "output_cache_bytes_per_token": 5120,
+        "stacks": {
+          "video": {
+            "act_peak_bytes_per_rank": 7114752,
+            "act_read_bytes": 30030336,
+            "act_write_bytes": 27521536,
+            "flops": 340488885632,
+            "handoff_rows": {
+              "model.video": [
+                98
+              ]
+            },
+            "params": 0,
+            "weight_bytes_per_rank": 0
+          },
+          "vision": {
+            "act_peak_bytes_per_rank": 6211584,
+            "act_read_bytes": 15015168,
+            "act_write_bytes": 13760768,
+            "flops": 170244442816,
+            "handoff_rows": {
+              "model.visual": [
+                49
+              ]
+            },
+            "params": 448931056,
+            "weight_bytes_per_rank": 120311324
+          }
+        }
+      },
+      "two": {
+        "max_tokens_per_item": 105,
+        "media": {
+          "pixel_values": {
+            "img_h": 448,
+            "img_w": 224,
+            "n_img": 2
+          },
+          "pixel_values_videos": {
+            "n_vid": 2,
+            "vid_frames": 5,
+            "vid_h": 224,
+            "vid_w": 160
+          }
+        },
+        "media_tokens": {
+          "pixel_values": 196,
+          "pixel_values_videos": 210
+        },
+        "output_cache_bytes_per_token": 5120,
+        "stacks": {
+          "video": {
+            "act_peak_bytes_per_rank": 9179136,
+            "act_read_bytes": 61340160,
+            "act_write_bytes": 55964160,
+            "flops": 723664905600,
+            "handoff_rows": {
+              "model.video": [
+                210
+              ]
+            },
+            "params": 0,
+            "weight_bytes_per_rank": 0
+          },
+          "vision": {
+            "act_peak_bytes_per_rank": 8921088,
+            "act_read_bytes": 69895168,
+            "act_write_bytes": 64877568,
+            "flops": 700427945728,
+            "handoff_rows": {
+              "model.visual": [
+                196
+              ]
+            },
+            "params": 448931056,
+            "weight_bytes_per_rank": 120311324
+          }
+        }
+      }
+    }
+  },
+  "XiaomiMiMo__MiMo-V2.5": {
+    "1": {
+      "one": {
+        "max_tokens_per_item": 98,
+        "media": {
+          "audio_codes": {
+            "n_aud": 1,
+            "s_audio": 125
+          },
+          "pixel_values": {
+            "img_h": 224,
+            "img_w": 224,
+            "n_img": 1
+          },
+          "video_pixel_values": {
+            "n_vid": 1,
+            "vid_frames": 4,
+            "vid_h": 224,
+            "vid_w": 224
+          }
+        },
+        "media_tokens": {
+          "audio_codes": 32,
+          "pixel_values": 49,
+          "video_pixel_values": 98
+        },
+        "output_cache_bytes_per_token": 8192,
+        "stacks": {
+          "audio": {
+            "act_peak_bytes_per_rank": 3407872,
+            "act_read_bytes": 11829760,
+            "act_write_bytes": 10518528,
+            "flops": 34407170048,
+            "handoff_rows": {
+              "audio": [
+                32
+              ]
+            },
+            "params": 261127168,
+            "weight_bytes_per_rank": 522254336
+          },
+          "video": {
+            "act_peak_bytes_per_rank": 11841536,
+            "act_read_bytes": 80532480,
+            "act_write_bytes": 74109952,
+            "flops": 554713865728,
+            "handoff_rows": {
+              "video.merger.mlp.2": [
+                98
+              ]
+            },
+            "params": 0,
+            "weight_bytes_per_rank": 0
+          },
+          "visual": {
+            "act_peak_bytes_per_rank": 5920768,
+            "act_read_bytes": 40266240,
+            "act_write_bytes": 37054976,
+            "flops": 277356932864,
+            "handoff_rows": {
+              "visual.merger.mlp.2": [
+                49
+              ]
+            },
+            "params": 728594432,
+            "weight_bytes_per_rank": 1457188864
+          }
+        }
+      },
+      "two": {
+        "max_tokens_per_item": 188,
+        "media": {
+          "audio_codes": {
+            "n_aud": 2,
+            "s_audio": 750
+          },
+          "pixel_values": {
+            "img_h": 448,
+            "img_w": 224,
+            "n_img": 2
+          },
+          "video_pixel_values": {
+            "n_vid": 2,
+            "vid_frames": 5,
+            "vid_h": 224,
+            "vid_w": 160
+          }
+        },
+        "media_tokens": {
+          "audio_codes": 376,
+          "pixel_values": 196,
+          "video_pixel_values": 210
+        },
+        "output_cache_bytes_per_token": 8192,
+        "stacks": {
+          "audio": {
+            "act_peak_bytes_per_rank": 40042496,
+            "act_read_bytes": 138999680,
+            "act_write_bytes": 123592704,
+            "flops": 404284248064,
+            "handoff_rows": {
+              "audio": [
+                376
+              ]
+            },
+            "params": 261127168,
+            "weight_bytes_per_rank": 522254336
+          },
+          "video": {
+            "act_peak_bytes_per_rank": 25374720,
+            "act_read_bytes": 166548480,
+            "act_write_bytes": 152785920,
+            "flops": 1185671662080,
+            "handoff_rows": {
+              "video.merger.mlp.2": [
+                210
+              ]
+            },
+            "params": 0,
+            "weight_bytes_per_rank": 0
+          },
+          "visual": {
+            "act_peak_bytes_per_rank": 42147840,
+            "act_read_bytes": 180733952,
+            "act_write_bytes": 167888896,
+            "flops": 1116228965888,
+            "handoff_rows": {
+              "visual.merger.mlp.2": [
+                196
+              ]
+            },
+            "params": 728594432,
+            "weight_bytes_per_rank": 1457188864
+          }
+        }
+      }
+    },
+    "8": {
+      "one": {
+        "max_tokens_per_item": 98,
+        "media": {
+          "audio_codes": {
+            "n_aud": 1,
+            "s_audio": 125
+          },
+          "pixel_values": {
+            "img_h": 224,
+            "img_w": 224,
+            "n_img": 1
+          },
+          "video_pixel_values": {
+            "n_vid": 1,
+            "vid_frames": 4,
+            "vid_h": 224,
+            "vid_w": 224
+          }
+        },
+        "media_tokens": {
+          "audio_codes": 32,
+          "pixel_values": 49,
+          "video_pixel_values": 98
+        },
+        "output_cache_bytes_per_token": 8192,
+        "stacks": {
+          "audio": {
+            "act_peak_bytes_per_rank": 3407872,
+            "act_read_bytes": 11829760,
+            "act_write_bytes": 10518528,
+            "flops": 34407170048,
+            "handoff_rows": {
+              "audio": [
+                32
+              ]
+            },
+            "params": 261127168,
+            "weight_bytes_per_rank": 522254336
+          },
+          "video": {
+            "act_peak_bytes_per_rank": 3211264,
+            "act_read_bytes": 80532480,
+            "act_write_bytes": 74109952,
+            "flops": 554713865728,
+            "handoff_rows": {
+              "video.merger.mlp.2": [
+                98
+              ]
+            },
+            "params": 0,
+            "weight_bytes_per_rank": 0
+          },
+          "visual": {
+            "act_peak_bytes_per_rank": 1605632,
+            "act_read_bytes": 40266240,
+            "act_write_bytes": 37054976,
+            "flops": 277356932864,
+            "handoff_rows": {
+              "visual.merger.mlp.2": [
+                49
+              ]
+            },
+            "params": 728594432,
+            "weight_bytes_per_rank": 185842368
+          }
+        }
+      },
+      "two": {
+        "max_tokens_per_item": 188,
+        "media": {
+          "audio_codes": {
+            "n_aud": 2,
+            "s_audio": 750
+          },
+          "pixel_values": {
+            "img_h": 448,
+            "img_w": 224,
+            "n_img": 2
+          },
+          "video_pixel_values": {
+            "n_vid": 2,
+            "vid_frames": 5,
+            "vid_h": 224,
+            "vid_w": 160
+          }
+        },
+        "media_tokens": {
+          "audio_codes": 376,
+          "pixel_values": 196,
+          "video_pixel_values": 210
+        },
+        "output_cache_bytes_per_token": 8192,
+        "stacks": {
+          "audio": {
+            "act_peak_bytes_per_rank": 40042496,
+            "act_read_bytes": 138999680,
+            "act_write_bytes": 123592704,
+            "flops": 404284248064,
+            "handoff_rows": {
+              "audio": [
+                376
+              ]
+            },
+            "params": 261127168,
+            "weight_bytes_per_rank": 522254336
+          },
+          "video": {
+            "act_peak_bytes_per_rank": 6881280,
+            "act_read_bytes": 166548480,
+            "act_write_bytes": 152785920,
+            "flops": 1185671662080,
+            "handoff_rows": {
+              "video.merger.mlp.2": [
+                210
+              ]
+            },
+            "params": 0,
+            "weight_bytes_per_rank": 0
+          },
+          "visual": {
+            "act_peak_bytes_per_rank": 7024640,
+            "act_read_bytes": 180733952,
+            "act_write_bytes": 167888896,
+            "flops": 1116228965888,
+            "handoff_rows": {
+              "visual.merger.mlp.2": [
+                196
+              ]
+            },
+            "params": 728594432,
+            "weight_bytes_per_rank": 185842368
+          }
+        }
+      }
+    }
+  },
+  "XiaomiMiMo__MiMo-V2.6-Pro-RL": {
+    "1": {
+      "one": {
+        "max_tokens_per_item": 98,
+        "media": {
+          "audio_codes": {
+            "n_aud": 1,
+            "s_audio": 125
+          },
+          "pixel_values": {
+            "img_h": 224,
+            "img_w": 224,
+            "n_img": 1
+          },
+          "video_pixel_values": {
+            "n_vid": 1,
+            "vid_frames": 4,
+            "vid_h": 224,
+            "vid_w": 224
+          }
+        },
+        "media_tokens": {
+          "audio_codes": 32,
+          "pixel_values": 49,
+          "video_pixel_values": 98
+        },
+        "output_cache_bytes_per_token": 12288,
+        "stacks": {
+          "audio": {
+            "act_peak_bytes_per_rank": 3407872,
+            "act_read_bytes": 11829760,
+            "act_write_bytes": 10649600,
+            "flops": 36554653696,
+            "handoff_rows": {
+              "audio": [
+                32
+              ]
+            },
+            "params": 294681600,
+            "weight_bytes_per_rank": 589363200
+          },
+          "video": {
+            "act_peak_bytes_per_rank": 11841536,
+            "act_read_bytes": 80532480,
+            "act_write_bytes": 74511360,
+            "flops": 556769074688,
+            "handoff_rows": {
+              "video.merger.mlp.2": [
+                98
+              ]
+            },
+            "params": 0,
+            "weight_bytes_per_rank": 0
+          },
+          "visual": {
+            "act_peak_bytes_per_rank": 5920768,
+            "act_read_bytes": 40266240,
+            "act_write_bytes": 37255680,
+            "flops": 278384537344,
+            "handoff_rows": {
+              "visual.merger.mlp.2": [
+                49
+              ]
+            },
+            "params": 739080192,
+            "weight_bytes_per_rank": 1478160384
+          }
+        }
+      },
+      "two": {
+        "max_tokens_per_item": 188,
+        "media": {
+          "audio_codes": {
+            "n_aud": 2,
+            "s_audio": 750
+          },
+          "pixel_values": {
+            "img_h": 448,
+            "img_w": 224,
+            "n_img": 2
+          },
+          "video_pixel_values": {
+            "n_vid": 2,
+            "vid_frames": 5,
+            "vid_h": 224,
+            "vid_w": 160
+          }
+        },
+        "media_tokens": {
+          "audio_codes": 376,
+          "pixel_values": 196,
+          "video_pixel_values": 210
+        },
+        "output_cache_bytes_per_token": 12288,
+        "stacks": {
+          "audio": {
+            "act_peak_bytes_per_rank": 40042496,
+            "act_read_bytes": 138999680,
+            "act_write_bytes": 125132800,
+            "flops": 429517180928,
+            "handoff_rows": {
+              "audio": [
+                376
+              ]
+            },
+            "params": 294681600,
+            "weight_bytes_per_rank": 589363200
+          },
+          "video": {
+            "act_peak_bytes_per_rank": 25374720,
+            "act_read_bytes": 166548480,
+            "act_write_bytes": 153646080,
+            "flops": 1190075681280,
+            "handoff_rows": {
+              "video.merger.mlp.2": [
+                210
+              ]
+            },
+            "params": 0,
+            "weight_bytes_per_rank": 0
+          },
+          "visual": {
+            "act_peak_bytes_per_rank": 42147840,
+            "act_read_bytes": 180733952,
+            "act_write_bytes": 168691712,
+            "flops": 1120339383808,
+            "handoff_rows": {
+              "visual.merger.mlp.2": [
+                196
+              ]
+            },
+            "params": 739080192,
+            "weight_bytes_per_rank": 1478160384
+          }
+        }
+      }
+    },
+    "8": {
+      "one": {
+        "max_tokens_per_item": 98,
+        "media": {
+          "audio_codes": {
+            "n_aud": 1,
+            "s_audio": 125
+          },
+          "pixel_values": {
+            "img_h": 224,
+            "img_w": 224,
+            "n_img": 1
+          },
+          "video_pixel_values": {
+            "n_vid": 1,
+            "vid_frames": 4,
+            "vid_h": 224,
+            "vid_w": 224
+          }
+        },
+        "media_tokens": {
+          "audio_codes": 32,
+          "pixel_values": 49,
+          "video_pixel_values": 98
+        },
+        "output_cache_bytes_per_token": 12288,
+        "stacks": {
+          "audio": {
+            "act_peak_bytes_per_rank": 3407872,
+            "act_read_bytes": 11829760,
+            "act_write_bytes": 10649600,
+            "flops": 36554653696,
+            "handoff_rows": {
+              "audio": [
+                32
+              ]
+            },
+            "params": 294681600,
+            "weight_bytes_per_rank": 589363200
+          },
+          "video": {
+            "act_peak_bytes_per_rank": 3211264,
+            "act_read_bytes": 80532480,
+            "act_write_bytes": 74511360,
+            "flops": 556769074688,
+            "handoff_rows": {
+              "video.merger.mlp.2": [
+                98
+              ]
+            },
+            "params": 0,
+            "weight_bytes_per_rank": 0
+          },
+          "visual": {
+            "act_peak_bytes_per_rank": 1605632,
+            "act_read_bytes": 40266240,
+            "act_write_bytes": 37255680,
+            "flops": 278384537344,
+            "handoff_rows": {
+              "visual.merger.mlp.2": [
+                49
+              ]
+            },
+            "params": 739080192,
+            "weight_bytes_per_rank": 188463808
+          }
+        }
+      },
+      "two": {
+        "max_tokens_per_item": 188,
+        "media": {
+          "audio_codes": {
+            "n_aud": 2,
+            "s_audio": 750
+          },
+          "pixel_values": {
+            "img_h": 448,
+            "img_w": 224,
+            "n_img": 2
+          },
+          "video_pixel_values": {
+            "n_vid": 2,
+            "vid_frames": 5,
+            "vid_h": 224,
+            "vid_w": 160
+          }
+        },
+        "media_tokens": {
+          "audio_codes": 376,
+          "pixel_values": 196,
+          "video_pixel_values": 210
+        },
+        "output_cache_bytes_per_token": 12288,
+        "stacks": {
+          "audio": {
+            "act_peak_bytes_per_rank": 40042496,
+            "act_read_bytes": 138999680,
+            "act_write_bytes": 125132800,
+            "flops": 429517180928,
+            "handoff_rows": {
+              "audio": [
+                376
+              ]
+            },
+            "params": 294681600,
+            "weight_bytes_per_rank": 589363200
+          },
+          "video": {
+            "act_peak_bytes_per_rank": 6881280,
+            "act_read_bytes": 166548480,
+            "act_write_bytes": 153646080,
+            "flops": 1190075681280,
+            "handoff_rows": {
+              "video.merger.mlp.2": [
+                210
+              ]
+            },
+            "params": 0,
+            "weight_bytes_per_rank": 0
+          },
+          "visual": {
+            "act_peak_bytes_per_rank": 7024640,
+            "act_read_bytes": 180733952,
+            "act_write_bytes": 168691712,
+            "flops": 1120339383808,
+            "handoff_rows": {
+              "visual.merger.mlp.2": [
+                196
+              ]
+            },
+            "params": 739080192,
+            "weight_bytes_per_rank": 188463808
+          }
+        }
+      }
+    }
+  },
+  "deepseek-ai__DeepSeek-V4.1-Flash": {
+    "1": {
+      "one": {
+        "max_tokens_per_item": 10,
+        "media": {
+          "pixel_values": {
+            "img_h": 98,
+            "img_w": 98,
+            "n_img": 1
+          }
+        },
+        "media_tokens": {
+          "pixel_values": 10
+        },
+        "output_cache_bytes_per_token": 10240,
+        "stacks": {
+          "vision": {
+            "act_peak_bytes_per_rank": 1204224,
+            "act_read_bytes": 3178840,
+            "act_write_bytes": 3000384,
+            "flops": 41444130304,
+            "handoff_rows": {
+              "vision": [
+                10
+              ]
+            },
+            "params": 485268480,
+            "weight_bytes_per_rank": 970536960
+          }
+        }
+      },
+      "two": {
+        "max_tokens_per_item": 17,
+        "media": {
+          "pixel_values": {
+            "img_h": 196,
+            "img_w": 98,
+            "n_img": 2
+          }
+        },
+        "media_tokens": {
+          "pixel_values": 34
+        },
+        "output_cache_bytes_per_token": 10240,
+        "stacks": {
+          "vision": {
+            "act_peak_bytes_per_rank": 4816896,
+            "act_read_bytes": 13217376,
+            "act_write_bytes": 12534272,
+            "flops": 167059922944,
+            "handoff_rows": {
+              "vision": [
+                34
+              ]
+            },
+            "params": 485268480,
+            "weight_bytes_per_rank": 970536960
+          }
+        }
+      }
+    },
+    "8": {
+      "one": {
+        "max_tokens_per_item": 10,
+        "media": {
+          "pixel_values": {
+            "img_h": 98,
+            "img_w": 98,
+            "n_img": 1
+          }
+        },
+        "media_tokens": {
+          "pixel_values": 10
+        },
+        "output_cache_bytes_per_token": 10240,
+        "stacks": {
+          "vision": {
+            "act_peak_bytes_per_rank": 301056,
+            "act_read_bytes": 3178840,
+            "act_write_bytes": 3000384,
+            "flops": 41444130304,
+            "handoff_rows": {
+              "vision": [
+                10
+              ]
+            },
+            "params": 485268480,
+            "weight_bytes_per_rank": 251041792
+          }
+        }
+      },
+      "two": {
+        "max_tokens_per_item": 17,
+        "media": {
+          "pixel_values": {
+            "img_h": 196,
+            "img_w": 98,
+            "n_img": 2
+          }
+        },
+        "media_tokens": {
+          "pixel_values": 34
+        },
+        "output_cache_bytes_per_token": 10240,
+        "stacks": {
+          "vision": {
+            "act_peak_bytes_per_rank": 1204224,
+            "act_read_bytes": 13217376,
+            "act_write_bytes": 12534272,
+            "flops": 167059922944,
+            "handoff_rows": {
+              "vision": [
+                34
+              ]
+            },
+            "params": 485268480,
+            "weight_bytes_per_rank": 251041792
+          }
+        }
+      }
+    }
+  },
+  "google__gemma-4-12B-it": {
+    "1": {
+      "one": {
+        "max_tokens_per_item": 196,
+        "media": {
+          "audio_features": {
+            "n_aud": 1,
+            "s_audio": 125
+          },
+          "pixel_values": {
+            "img_h": 336,
+            "img_w": 336,
+            "n_img": 1
+          },
+          "pixel_values_videos": {
+            "n_vid": 1,
+            "vid_frames": 4,
+            "vid_h": 336,
+            "vid_w": 336
+          }
+        },
+        "media_tokens": {
+          "audio_features": 125,
+          "pixel_values": 49,
+          "pixel_values_videos": 196
+        },
+        "output_cache_bytes_per_token": 7680,
+        "stacks": {
+          "audio": {
+            "act_peak_bytes_per_rank": 1120000,
+            "act_read_bytes": 160000,
+            "act_write_bytes": 960000,
+            "flops": 614400000,
+            "handoff_rows": {
+              "embed_audio.embedding_projection": [
+                125
+              ]
+            },
+            "params": 2457600,
+            "weight_bytes_per_rank": 4915200
+          },
+          "video": {
+            "act_peak_bytes_per_rank": 21504000,
+            "act_read_bytes": 16343040,
+            "act_write_bytes": 14622720,
+            "flops": 23131422720,
+            "handoff_rows": {
+              "video.unpad": [
+                196
+              ]
+            },
+            "params": 0,
+            "weight_bytes_per_rank": 0
+          },
+          "vision": {
+            "act_peak_bytes_per_rank": 21504000,
+            "act_read_bytes": 16343040,
+            "act_write_bytes": 14622720,
+            "flops": 23131422720,
+            "handoff_rows": {
+              "vision.unpad": [
+                49
+              ]
+            },
+            "params": 49922304,
+            "weight_bytes_per_rank": 99844608
+          }
+        }
+      },
+      "two": {
+        "max_tokens_per_item": 750,
+        "media": {
+          "audio_features": {
+            "n_aud": 2,
+            "s_audio": 750
+          },
+          "pixel_values": {
+            "img_h": 672,
+            "img_w": 336,
+            "n_img": 2
+          },
+          "pixel_values_videos": {
+            "n_vid": 2,
+            "vid_frames": 5,
+            "vid_h": 336,
+            "vid_w": 240
+          }
+        },
+        "media_tokens": {
+          "audio_features": 1500,
+          "pixel_values": 196,
+          "pixel_values_videos": 350
+        },
+        "output_cache_bytes_per_token": 7680,
+        "stacks": {
+          "audio": {
+            "act_peak_bytes_per_rank": 13440000,
+            "act_read_bytes": 1920000,
+            "act_write_bytes": 11520000,
+            "flops": 7372800000,
+            "handoff_rows": {
+              "embed_audio.embedding_projection": [
+                1500
+              ]
+            },
+            "params": 2457600,
+            "weight_bytes_per_rank": 4915200
+          },
+          "video": {
+            "act_peak_bytes_per_rank": 27955200,
+            "act_read_bytes": 40857600,
+            "act_write_bytes": 36556800,
+            "flops": 57828556800,
+            "handoff_rows": {
+              "video.unpad": [
+                350
+              ]
+            },
+            "params": 0,
+            "weight_bytes_per_rank": 0
+          },
+          "vision": {
+            "act_peak_bytes_per_rank": 25804800,
+            "act_read_bytes": 32686080,
+            "act_write_bytes": 29245440,
+            "flops": 46262845440,
+            "handoff_rows": {
+              "vision.unpad": [
+                196
+              ]
+            },
+            "params": 49922304,
+            "weight_bytes_per_rank": 99844608
+          }
+        }
+      }
+    },
+    "8": {
+      "one": {
+        "max_tokens_per_item": 196,
+        "media": {
+          "audio_features": {
+            "n_aud": 1,
+            "s_audio": 125
+          },
+          "pixel_values": {
+            "img_h": 336,
+            "img_w": 336,
+            "n_img": 1
+          },
+          "pixel_values_videos": {
+            "n_vid": 1,
+            "vid_frames": 4,
+            "vid_h": 336,
+            "vid_w": 336
+          }
+        },
+        "media_tokens": {
+          "audio_features": 125,
+          "pixel_values": 49,
+          "pixel_values_videos": 196
+        },
+        "output_cache_bytes_per_token": 7680,
+        "stacks": {
+          "audio": {
+            "act_peak_bytes_per_rank": 1120000,
+            "act_read_bytes": 160000,
+            "act_write_bytes": 960000,
+            "flops": 614400000,
+            "handoff_rows": {
+              "embed_audio.embedding_projection": [
+                125
+              ]
+            },
+            "params": 2457600,
+            "weight_bytes_per_rank": 4915200
+          },
+          "video": {
+            "act_peak_bytes_per_rank": 21504000,
+            "act_read_bytes": 16343040,
+            "act_write_bytes": 14622720,
+            "flops": 23131422720,
+            "handoff_rows": {
+              "video.unpad": [
+                196
+              ]
+            },
+            "params": 0,
+            "weight_bytes_per_rank": 0
+          },
+          "vision": {
+            "act_peak_bytes_per_rank": 21504000,
+            "act_read_bytes": 16343040,
+            "act_write_bytes": 14622720,
+            "flops": 23131422720,
+            "handoff_rows": {
+              "vision.unpad": [
+                49
+              ]
+            },
+            "params": 49922304,
+            "weight_bytes_per_rank": 53389248
+          }
+        }
+      },
+      "two": {
+        "max_tokens_per_item": 750,
+        "media": {
+          "audio_features": {
+            "n_aud": 2,
+            "s_audio": 750
+          },
+          "pixel_values": {
+            "img_h": 672,
+            "img_w": 336,
+            "n_img": 2
+          },
+          "pixel_values_videos": {
+            "n_vid": 2,
+            "vid_frames": 5,
+            "vid_h": 336,
+            "vid_w": 240
+          }
+        },
+        "media_tokens": {
+          "audio_features": 1500,
+          "pixel_values": 196,
+          "pixel_values_videos": 350
+        },
+        "output_cache_bytes_per_token": 7680,
+        "stacks": {
+          "audio": {
+            "act_peak_bytes_per_rank": 13440000,
+            "act_read_bytes": 1920000,
+            "act_write_bytes": 11520000,
+            "flops": 7372800000,
+            "handoff_rows": {
+              "embed_audio.embedding_projection": [
+                1500
+              ]
+            },
+            "params": 2457600,
+            "weight_bytes_per_rank": 4915200
+          },
+          "video": {
+            "act_peak_bytes_per_rank": 27955200,
+            "act_read_bytes": 40857600,
+            "act_write_bytes": 36556800,
+            "flops": 57828556800,
+            "handoff_rows": {
+              "video.unpad": [
+                350
+              ]
+            },
+            "params": 0,
+            "weight_bytes_per_rank": 0
+          },
+          "vision": {
+            "act_peak_bytes_per_rank": 25804800,
+            "act_read_bytes": 32686080,
+            "act_write_bytes": 29245440,
+            "flops": 46262845440,
+            "handoff_rows": {
+              "vision.unpad": [
+                196
+              ]
+            },
+            "params": 49922304,
+            "weight_bytes_per_rank": 53389248
+          }
+        }
+      }
+    }
+  },
+  "moonshotai__Kimi-K2.5": {
+    "1": {
+      "one": {
+        "max_tokens_per_item": 49,
+        "media": {
+          "pixel_values": {
+            "img_h": 196,
+            "img_w": 196,
+            "n_img": 1
+          }
+        },
+        "media_tokens": {
+          "pixel_values": 49
+        },
+        "output_cache_bytes_per_token": 14336,
+        "stacks": {
+          "vision": {
+            "act_peak_bytes_per_rank": 10340352,
+            "act_read_bytes": 14643552,
+            "act_write_bytes": 14212352,
+            "flops": 171896111296,
+            "handoff_rows": {
+              "vision": [
+                49
+              ]
+            },
+            "params": 471143920,
+            "weight_bytes_per_rank": 942287840
+          }
+        }
+      },
+      "two": {
+        "max_tokens_per_item": 98,
+        "media": {
+          "pixel_values": {
+            "img_h": 392,
+            "img_w": 196,
+            "n_img": 2
+          }
+        },
+        "media_tokens": {
+          "pixel_values": 196
+        },
+        "output_cache_bytes_per_token": 14336,
+        "stacks": {
+          "vision": {
+            "act_peak_bytes_per_rank": 23281664,
+            "act_read_bytes": 68408704,
+            "act_write_bytes": 66683904,
+            "flops": 707034619648,
+            "handoff_rows": {
+              "vision": [
+                196
+              ]
+            },
+            "params": 471143920,
+            "weight_bytes_per_rank": 942287840
+          }
+        }
+      }
+    },
+    "8": {
+      "one": {
+        "max_tokens_per_item": 49,
+        "media": {
+          "pixel_values": {
+            "img_h": 196,
+            "img_w": 196,
+            "n_img": 1
+          }
+        },
+        "media_tokens": {
+          "pixel_values": 49
+        },
+        "output_cache_bytes_per_token": 14336,
+        "stacks": {
+          "vision": {
+            "act_peak_bytes_per_rank": 10340352,
+            "act_read_bytes": 14643552,
+            "act_write_bytes": 14212352,
+            "flops": 171896111296,
+            "handoff_rows": {
+              "vision": [
+                49
+              ]
+            },
+            "params": 471143920,
+            "weight_bytes_per_rank": 222547868
+          }
+        }
+      },
+      "two": {
+        "max_tokens_per_item": 98,
+        "media": {
+          "pixel_values": {
+            "img_h": 392,
+            "img_w": 196,
+            "n_img": 2
+          }
+        },
+        "media_tokens": {
+          "pixel_values": 196
+        },
+        "output_cache_bytes_per_token": 14336,
+        "stacks": {
+          "vision": {
+            "act_peak_bytes_per_rank": 13049856,
+            "act_read_bytes": 68408704,
+            "act_write_bytes": 66683904,
+            "flops": 707034619648,
+            "handoff_rows": {
+              "vision": [
+                196
+              ]
+            },
+            "params": 471143920,
+            "weight_bytes_per_rank": 222547868
+          }
+        }
+      }
+    }
+  },
+  "moonshotai__Kimi-K3": {
+    "1": {
+      "one": {
+        "max_tokens_per_item": 49,
+        "media": {
+          "pixel_values": {
+            "img_h": 196,
+            "img_w": 196,
+            "n_img": 1
+          }
+        },
+        "media_tokens": {
+          "pixel_values": 49
+        },
+        "output_cache_bytes_per_token": 14336,
+        "stacks": {
+          "vision": {
+            "act_peak_bytes_per_rank": 9191424,
+            "act_read_bytes": 14819168,
+            "act_write_bytes": 14488320,
+            "flops": 166823875904,
+            "handoff_rows": {
+              "vision": [
+                49
+              ]
+            },
+            "params": 447358976,
+            "weight_bytes_per_rank": 894717952
+          }
+        }
+      },
+      "two": {
+        "max_tokens_per_item": 98,
+        "media": {
+          "pixel_values": {
+            "img_h": 392,
+            "img_w": 196,
+            "n_img": 2
+          }
+        },
+        "media_tokens": {
+          "pixel_values": 196
+        },
+        "output_cache_bytes_per_token": 14336,
+        "stacks": {
+          "vision": {
+            "act_peak_bytes_per_rank": 18765824,
+            "act_read_bytes": 66652544,
+            "act_write_bytes": 65329152,
+            "flops": 693035452928,
+            "handoff_rows": {
+              "vision": [
+                196
+              ]
+            },
+            "params": 447358976,
+            "weight_bytes_per_rank": 894717952
+          }
+        }
+      }
+    },
+    "8": {
+      "one": {
+        "max_tokens_per_item": 49,
+        "media": {
+          "pixel_values": {
+            "img_h": 196,
+            "img_w": 196,
+            "n_img": 1
+          }
+        },
+        "media_tokens": {
+          "pixel_values": 49
+        },
+        "output_cache_bytes_per_token": 14336,
+        "stacks": {
+          "vision": {
+            "act_peak_bytes_per_rank": 9191424,
+            "act_read_bytes": 14819168,
+            "act_write_bytes": 14488320,
+            "flops": 166823875904,
+            "handoff_rows": {
+              "vision": [
+                49
+              ]
+            },
+            "params": 447358976,
+            "weight_bytes_per_rank": 894717952
+          }
+        }
+      },
+      "two": {
+        "max_tokens_per_item": 98,
+        "media": {
+          "pixel_values": {
+            "img_h": 392,
+            "img_w": 196,
+            "n_img": 2
+          }
+        },
+        "media_tokens": {
+          "pixel_values": 196
+        },
+        "output_cache_bytes_per_token": 14336,
+        "stacks": {
+          "vision": {
+            "act_peak_bytes_per_rank": 18765824,
+            "act_read_bytes": 66652544,
+            "act_write_bytes": 65329152,
+            "flops": 693035452928,
+            "handoff_rows": {
+              "vision": [
+                196
+              ]
+            },
+            "params": 447358976,
+            "weight_bytes_per_rank": 894717952
+          }
+        }
+      }
+    }
+  },
+  "stepfun-ai__Step-3.7-Flash": {
+    "1": {
+      "one": {
+        "max_tokens_per_item": 169,
+        "media": {
+          "patch_pixel_values": {
+            "n_crops": 0
+          },
+          "pixel_values": {
+            "n_img": 1
+          }
+        },
+        "media_tokens": {
+          "pixel_values": 169
+        },
+        "output_cache_bytes_per_token": 8192,
+        "stacks": {
+          "vision": {
+            "act_peak_bytes_per_rank": 484556800,
+            "act_read_bytes": 715478400,
+            "act_write_bytes": 697069568,
+            "flops": 11674806667264,
+            "handoff_rows": {
+              "vision.rows": [
+                169
+              ]
+            },
+            "params": 1981014784,
+            "weight_bytes_per_rank": 3962029568
+          }
+        }
+      },
+      "two": {
+        "max_tokens_per_item": 331,
+        "media": {
+          "patch_pixel_values": {
+            "n_crops": 2
+          },
+          "pixel_values": {
+            "n_img": 2
+          }
+        },
+        "media_tokens": {
+          "pixel_values": 662
+        },
+        "output_cache_bytes_per_token": 8192,
+        "stacks": {
+          "vision": {
+            "act_peak_bytes_per_rank": 969113600,
+            "act_read_bytes": 2340925696,
+            "act_write_bytes": 2268815360,
+            "flops": 43596899987456,
+            "handoff_rows": {
+              "vision.rows": [
+                662
+              ]
+            },
+            "params": 1981014784,
+            "weight_bytes_per_rank": 3962029568
+          }
+        }
+      }
+    },
+    "8": {
+      "one": {
+        "max_tokens_per_item": 169,
+        "media": {
+          "patch_pixel_values": {
+            "n_crops": 0
+          },
+          "pixel_values": {
+            "n_img": 1
+          }
+        },
+        "media_tokens": {
+          "pixel_values": 169
+        },
+        "output_cache_bytes_per_token": 8192,
+        "stacks": {
+          "vision": {
+            "act_peak_bytes_per_rank": 67837952,
+            "act_read_bytes": 715478400,
+            "act_write_bytes": 697069568,
+            "flops": 11674806667264,
+            "handoff_rows": {
+              "vision.rows": [
+                169
+              ]
+            },
+            "params": 1981014784,
+            "weight_bytes_per_rank": 920764096
+          }
+        }
+      },
+      "two": {
+        "max_tokens_per_item": 331,
+        "media": {
+          "patch_pixel_values": {
+            "n_crops": 2
+          },
+          "pixel_values": {
+            "n_img": 2
+          }
+        },
+        "media_tokens": {
+          "pixel_values": 662
+        },
+        "output_cache_bytes_per_token": 8192,
+        "stacks": {
+          "vision": {
+            "act_peak_bytes_per_rank": 135675904,
+            "act_read_bytes": 2340925696,
+            "act_write_bytes": 2268815360,
+            "flops": 43596899987456,
+            "handoff_rows": {
+              "vision.rows": [
+                662
+              ]
+            },
+            "params": 1981014784,
+            "weight_bytes_per_rank": 920764096
+          }
+        }
+      }
+    }
+  },
+  "stepfun-ai__Step-5-Preview": {
+    "1": {
+      "one": {
+        "max_tokens_per_item": 169,
+        "media": {
+          "patch_pixel_values": {
+            "n_crops": 0
+          },
+          "pixel_values": {
+            "n_img": 1
+          }
+        },
+        "media_tokens": {
+          "pixel_values": 169
+        },
+        "output_cache_bytes_per_token": 8192,
+        "stacks": {
+          "vision": {
+            "act_peak_bytes_per_rank": 484556800,
+            "act_read_bytes": 877458816,
+            "act_write_bytes": 810594304,
+            "flops": 11673700493312,
+            "handoff_rows": {
+              "vision.rows": [
+                169
+              ]
+            },
+            "params": 1981014784,
+            "weight_bytes_per_rank": 3962029568
+          }
+        }
+      },
+      "two": {
+        "max_tokens_per_item": 331,
+        "media": {
+          "patch_pixel_values": {
+            "n_crops": 2
+          },
+          "pixel_values": {
+            "n_img": 2
+          }
+        },
+        "media_tokens": {
+          "pixel_values": 662
+        },
+        "output_cache_bytes_per_token": 8192,
+        "stacks": {
+          "vision": {
+            "act_peak_bytes_per_rank": 969113600,
+            "act_read_bytes": 2975428864,
+            "act_write_bytes": 2713509888,
+            "flops": 43592566927360,
+            "handoff_rows": {
+              "vision.rows": [
+                662
+              ]
+            },
+            "params": 1981014784,
+            "weight_bytes_per_rank": 3962029568
+          }
+        }
+      }
+    },
+    "8": {
+      "one": {
+        "max_tokens_per_item": 169,
+        "media": {
+          "patch_pixel_values": {
+            "n_crops": 0
+          },
+          "pixel_values": {
+            "n_img": 1
+          }
+        },
+        "media_tokens": {
+          "pixel_values": 169
+        },
+        "output_cache_bytes_per_token": 8192,
+        "stacks": {
+          "vision": {
+            "act_peak_bytes_per_rank": 67837952,
+            "act_read_bytes": 877458816,
+            "act_write_bytes": 810594304,
+            "flops": 11673700493312,
+            "handoff_rows": {
+              "vision.rows": [
+                169
+              ]
+            },
+            "params": 1981014784,
+            "weight_bytes_per_rank": 920764096
+          }
+        }
+      },
+      "two": {
+        "max_tokens_per_item": 331,
+        "media": {
+          "patch_pixel_values": {
+            "n_crops": 2
+          },
+          "pixel_values": {
+            "n_img": 2
+          }
+        },
+        "media_tokens": {
+          "pixel_values": 662
+        },
+        "output_cache_bytes_per_token": 8192,
+        "stacks": {
+          "vision": {
+            "act_peak_bytes_per_rank": 135675904,
+            "act_read_bytes": 2975428864,
+            "act_write_bytes": 2713509888,
+            "flops": 43592566927360,
+            "handoff_rows": {
+              "vision.rows": [
+                662
+              ]
+            },
+            "params": 1981014784,
+            "weight_bytes_per_rank": 920764096
+          }
+        }
+      }
+    }
+  },
+  "tencent__HunyuanOCR": {
+    "1": {
+      "one": {
+        "max_tokens_per_item": 58,
+        "media": {
+          "pixel_values": {
+            "img_h": 224,
+            "img_w": 224,
+            "n_img": 1
+          }
+        },
+        "media_tokens": {
+          "pixel_values": 58
+        },
+        "output_cache_bytes_per_token": 2048,
+        "stacks": {
+          "vit": {
+            "act_peak_bytes_per_rank": 38654208,
+            "act_read_bytes": 15476992,
+            "act_write_bytes": 13475072,
+            "flops": 169232735680,
+            "handoff_rows": {
+              "vit": [
+                58
+              ]
+            },
+            "params": 457198064,
+            "weight_bytes_per_rank": 914396128
+          }
+        }
+      },
+      "two": {
+        "max_tokens_per_item": 114,
+        "media": {
+          "pixel_values": {
+            "img_h": 448,
+            "img_w": 224,
+            "n_img": 2
+          }
+        },
+        "media_tokens": {
+          "pixel_values": 228
+        },
+        "output_cache_bytes_per_token": 2048,
+        "stacks": {
+          "vit": {
+            "act_peak_bytes_per_rank": 41363712,
+            "act_read_bytes": 71694336,
+            "act_write_bytes": 63718400,
+            "flops": 696381108992,
+            "handoff_rows": {
+              "vit": [
+                228
+              ]
+            },
+            "params": 457198064,
+            "weight_bytes_per_rank": 914396128
+          }
+        }
+      }
+    },
+    "8": {
+      "one": {
+        "max_tokens_per_item": 58,
+        "media": {
+          "pixel_values": {
+            "img_h": 224,
+            "img_w": 224,
+            "n_img": 1
+          }
+        },
+        "media_tokens": {
+          "pixel_values": 58
+        },
+        "output_cache_bytes_per_token": 2048,
+        "stacks": {
+          "vit": {
+            "act_peak_bytes_per_rank": 38654208,
+            "act_read_bytes": 15476992,
+            "act_write_bytes": 13475072,
+            "flops": 169232735680,
+            "handoff_rows": {
+              "vit": [
+                58
+              ]
+            },
+            "params": 457198064,
+            "weight_bytes_per_rank": 194656156
+          }
+        }
+      },
+      "two": {
+        "max_tokens_per_item": 114,
+        "media": {
+          "pixel_values": {
+            "img_h": 448,
+            "img_w": 224,
+            "n_img": 2
+          }
+        },
+        "media_tokens": {
+          "pixel_values": 228
+        },
+        "output_cache_bytes_per_token": 2048,
+        "stacks": {
+          "vit": {
+            "act_peak_bytes_per_rank": 41363712,
+            "act_read_bytes": 71694336,
+            "act_write_bytes": 63718400,
+            "flops": 696381108992,
+            "handoff_rows": {
+              "vit": [
+                228
+              ]
+            },
+            "params": 457198064,
+            "weight_bytes_per_rank": 194656156
+          }
+        }
+      }
+    }
+  },
+  "zai-org__GLM-5.3-Flash": {
+    "1": {
+      "one": {
+        "max_tokens_per_item": 98,
+        "media": {
+          "pixel_values": {
+            "img_h": 196,
+            "img_w": 196,
+            "n_img": 1
+          },
+          "pixel_values_videos": {
+            "n_vid": 1,
+            "vid_frames": 4,
+            "vid_h": 196,
+            "vid_w": 196
+          }
+        },
+        "media_tokens": {
+          "pixel_values": 49,
+          "pixel_values_videos": 98
+        },
+        "output_cache_bytes_per_token": 8192,
+        "stacks": {
+          "video": {
+            "act_peak_bytes_per_rank": 10436608,
+            "act_read_bytes": 56416640,
+            "act_write_bytes": 53086208,
+            "flops": 356125564928,
+            "handoff_rows": {
+              "model.video.merger.down_proj": [
+                98
+              ]
+            },
+            "params": 0,
+            "weight_bytes_per_rank": 0
+          },
+          "vision": {
+            "act_peak_bytes_per_rank": 5218304,
+            "act_read_bytes": 28208320,
+            "act_write_bytes": 26543104,
+            "flops": 178062782464,
+            "handoff_rows": {
+              "model.visual.merger.down_proj": [
+                49
+              ]
+            },
+            "params": 563627008,
+            "weight_bytes_per_rank": 1127254016
+          }
+        }
+      },
+      "two": {
+        "max_tokens_per_item": 105,
+        "media": {
+          "pixel_values": {
+            "img_h": 392,
+            "img_w": 196,
+            "n_img": 2
+          },
+          "pixel_values_videos": {
+            "n_vid": 2,
+            "vid_frames": 5,
+            "vid_h": 196,
+            "vid_w": 140
+          }
+        },
+        "media_tokens": {
+          "pixel_values": 196,
+          "pixel_values_videos": 210
+        },
+        "output_cache_bytes_per_token": 8192,
+        "stacks": {
+          "video": {
+            "act_peak_bytes_per_rank": 22364160,
+            "act_read_bytes": 117882240,
+            "act_write_bytes": 110745600,
+            "flops": 758411673600,
+            "handoff_rows": {
+              "model.video.merger.down_proj": [
+                210
+              ]
+            },
+            "params": 0,
+            "weight_bytes_per_rank": 0
+          },
+          "vision": {
+            "act_peak_bytes_per_rank": 22880256,
+            "act_read_bytes": 122667776,
+            "act_write_bytes": 116006912,
+            "flops": 727651950592,
+            "handoff_rows": {
+              "model.visual.merger.down_proj": [
+                196
+              ]
+            },
+            "params": 563627008,
+            "weight_bytes_per_rank": 1127254016
+          }
+        }
+      }
+    },
+    "8": {
+      "one": {
+        "max_tokens_per_item": 98,
+        "media": {
+          "pixel_values": {
+            "img_h": 196,
+            "img_w": 196,
+            "n_img": 1
+          },
+          "pixel_values_videos": {
+            "n_vid": 1,
+            "vid_frames": 4,
+            "vid_h": 196,
+            "vid_w": 196
+          }
+        },
+        "media_tokens": {
+          "pixel_values": 49,
+          "pixel_values_videos": 98
+        },
+        "output_cache_bytes_per_token": 8192,
+        "stacks": {
+          "video": {
+            "act_peak_bytes_per_rank": 2527616,
+            "act_read_bytes": 56416640,
+            "act_write_bytes": 53086208,
+            "flops": 356125564928,
+            "handoff_rows": {
+              "model.video.merger.down_proj": [
+                98
+              ]
+            },
+            "params": 0,
+            "weight_bytes_per_rank": 0
+          },
+          "vision": {
+            "act_peak_bytes_per_rank": 1263808,
+            "act_read_bytes": 28208320,
+            "act_write_bytes": 26543104,
+            "flops": 178062782464,
+            "handoff_rows": {
+              "model.visual.merger.down_proj": [
+                49
+              ]
+            },
+            "params": 563627008,
+            "weight_bytes_per_rank": 172576768
+          }
+        }
+      },
+      "two": {
+        "max_tokens_per_item": 105,
+        "media": {
+          "pixel_values": {
+            "img_h": 392,
+            "img_w": 196,
+            "n_img": 2
+          },
+          "pixel_values_videos": {
+            "n_vid": 2,
+            "vid_frames": 5,
+            "vid_h": 196,
+            "vid_w": 140
+          }
+        },
+        "media_tokens": {
+          "pixel_values": 196,
+          "pixel_values_videos": 210
+        },
+        "output_cache_bytes_per_token": 8192,
+        "stacks": {
+          "video": {
+            "act_peak_bytes_per_rank": 5416320,
+            "act_read_bytes": 117882240,
+            "act_write_bytes": 110745600,
+            "flops": 758411673600,
+            "handoff_rows": {
+              "model.video.merger.down_proj": [
+                210
+              ]
+            },
+            "params": 0,
+            "weight_bytes_per_rank": 0
+          },
+          "vision": {
+            "act_peak_bytes_per_rank": 5055232,
+            "act_read_bytes": 122667776,
+            "act_write_bytes": 116006912,
+            "flops": 727651950592,
+            "handoff_rows": {
+              "model.visual.merger.down_proj": [
+                196
+              ]
+            },
+            "params": 563627008,
+            "weight_bytes_per_rank": 172576768
+          }
+        }
+      }
+    }
+  }
+}

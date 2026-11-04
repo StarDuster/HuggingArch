@@ -1,0 +1,21 @@
+# Grouped-GEMM MoE — collapses n_expert_copies per-expert linear-pair
+# invocations into
+# one batched grouped-GEMM call.
+#
+# Real MoE-expert subgraphs are repeated N-way fan-out + fan-in patterns
+# (n_experts experts each running a small SwiGLU), which exceed v1's single-DAG
+# matcher. The naive_pattern here is a placeholder single-linear shape
+# so the registry validates; the matcher will not currently produce
+# real-model rewrites for this scheme. Repeated-pattern matching is
+# tracked as a follow-on; the scheme is shipped so the framework binding
+# entry for `grouped_gemm_moe` remains valid.
+
+fused_op: grouped_gemm_moe
+
+naive_pattern:
+  nodes:
+    expert_linear: { op: linear, inputs: [external.x] }
+  io_mapping:
+    x:           external.x
+    weights_out: expert_linear.out
+    output:      expert_linear.out

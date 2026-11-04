@@ -1,0 +1,9 @@
+schema: huggingarch.claims/v1
+subject: mla_attention_dense
+axioms:
+  checks:
+  - kind: kv_growth
+    storage: per_token
+    expect: d_kv_lora + d_qk_rope
+    src: MLA latent (no Q-compression variant) — MQA latent d_kv_lora + decoupled
+      RoPE key d_qk_rope per position, shared across heads; grows per token.

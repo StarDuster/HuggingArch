@@ -1,0 +1,104 @@
+# The CSA2 / DSA indexer's query preparation.
+#
+# Naive subgraph (DeepSeek-V4 `dsv4_indexer`): the indexer's query heads
+# have their rope slice rotated, then every head is Hadamard-rotated, and
+# the head weights are scaled by two positive constants (reference
+# inference/model.py:413-414 `apply_rotary_emb(q[..., -rd:], freqs_cis)`,
+# `q = rotate_activation(q)`, and :418 `weights = self.weights_proj(x) *
+# (self.softmax_scale * self.n_heads ** -0.5)`):
+#
+#   q_roped = rope_emb(q)          # the op rotates its last `d_qk_rope`
+#   q_rot   = hadamard_transform(q_roped)
+#   weights = scale_const(weights_proj)
+#
+# The Hadamard is part of the pattern because sglang's launch computes it
+# (below). vLLM's launch does not: it rotates and quantises q without the
+# transform, and its key without it too, which leaves every score unchanged
+# (H is orthogonal and would multiply both sides). The reference's graph has
+# the node, so vLLM's binding absorbs it into this same launch: one launch,
+# q in and the quantised q out, as vLLM runs it (framework_bindings/vllm.yaml
+# states the deviation). V4.1's query has no Hadamard (its `Indexer.forward`
+# ropes and quantises only); its writing is the `_split` plan.
+#
+# A spec that spells the partial rotation as slice → rope → concat
+# (`csa2_index_score`) matches `fused_indexer_q_rope_quant_split` instead;
+# a pattern node matches one spec node, so the two writings need two plans
+# on the one kernel, as `fused_qk_rmsnorm_rope_gate` does.
+#
+# vLLM (audited at v0.32.0) runs all of it as one launch,
+# `fused_indexer_q_rope_quant` (vllm/models/deepseek_v4/common/ops/fused_indexer_q.py:549;
+# CuteDSL `_INDEXER_Q_{FP8,MXFP4}_KERNEL` where available, else the Triton
+# kernel), called once per indexer layer for prefill and decode alike from
+# models/deepseek_v4/attention.py:1112 and models/deepseek_v41/attention.py:1454
+# (re-exported, deepseek_v41/common/ops/__init__.py:14): one block per
+# (token, head) loads q, rotates its rope channels, quantises the head (FP8,
+# or MXFP4 with per-32 block scales) and writes the scaled head weights in
+# the same launch. The quantisation is the `quantise_activation` cast the
+# graft stands on the query: the index-key cache's readers multiply its rows
+# with a query quantised to their element type (`cache_families.yaml`
+# `index_key.paired_operand`), so the record follows how the index key is
+# stored — MXFP4 as V4 ships it (`index_key: mxfp4`), FP8 with one F32 scale
+# a head under a precision rule that stores it FP8 (vLLM's and sglang's
+# defaults). The boundary is q and weights in, the launch's own q buffer
+# and weights out.
+#
+# The scaling rides along because the kernel takes `softmax_scale` and
+# `head_scale` as arguments and writes `weights_out`: left outside, the
+# estimate would bill a separate [B, S, H] round-trip that no launch makes.
+#
+# sglang (audited at v0.5.22), DeepSeek-V4 (`C4Indexer`): the same boundary —
+# `compute_q` (srt/layers/attention/dsv4/indexer.py:1177) hands the raw
+# `weights_proj` output (`compute_weights(x, skip_scale=True)`, :1201) and
+# `weight_scale = softmax_scale * n_heads**-0.5` (:1173) to
+# `fused_q_indexer_rope_hadamard_quant` (kernels/ops/attention/dsv4/elementwise.py:201;
+# the FP4 form :274 only under `--enable-deepseek-v4-fp4-indexer`) on CUDA,
+# which ropes, Hadamard-rotates, quantises and scales the head weights in one
+# JIT launch (kernels/jit/csrc/deepseek_v4/main_norm_rope.cuh:586; the
+# 128-point transform :662-693; FP8 scale `max(1e-4, amax) / 448` :703, folded
+# into the head weight :712). Both prepare paths call it, so prefill and
+# decode alike (`_forward_prepare_multi_stream` :540, `_forward_prepare_normal`
+# :558, from `forward_c4_indexer` :742).
+#
+# sglang, DeepSeek-V4.1 (`csa2_index_score`, the `_split` plan): the fused
+# `index_q_rope_pack_weights` (kernels/ops/attention/dsv4/fp4_indexer_rope.py:91,
+# via `_index_q_and_weights`, srt/layers/attention/dsv4/v41_indexer/scoring.py:113)
+# feeds both DeepGEMM paths: decode (`get_deep_gemm_decode_data` :135, call
+# :141), selected on SM100+ (v41_indexer/__init__.py:76-86,
+# `use_deep_gemm_decode=is_sm100_or_newer()`), and eager prefill
+# (`get_deep_gemm_prefill_data` :161, call :187; `_use_deep_gemm_prefill`
+# :61-73). A prefill replayed in the breakable prefill CUDA graph (the CUDA
+# default, srt/model_executor/cuda_graph_config.py:119-123) computes
+# `indexer.queries` (RoPE + fp4 fake-quant, dsv41_sparse.py:257) and
+# `indexer.head_weights` (:282) as separate launches
+# (srt/layers/attention/deepseek_v4_backend.py:285-286), as do prefill and
+# decode below SM100 (scoring.py:294-295, :402-403). So sglang binds the
+# `_split` plan for decode on SM100+ (`phase: [decode]`,
+# `min_compute_capability: "10.0"`).
+
+fused_op: fused_indexer_q_rope_quant
+
+naive_pattern:
+  nodes:
+    q_rope:         { op: rope_emb,           inputs: [external.q] }
+    q_rotate:       { op: hadamard_transform, inputs: [q_rope.out] }
+    weights_scaled: { op: scale_const,        inputs: [external.weights] }
+    quant: { op: quantise_activation, inputs: [q_rotate.out], optional: true }
+  io_mapping:
+    q:           external.q
+    weights:     external.weights
+    output:      quant.out
+    weights_out: weights_scaled.out
+
+# The query leaves this launch quantised — vLLM fused_indexer_q_rope_quant
+# (fused_indexer_q.py:549): one block per (token, head) rotates the rope
+# channels and writes the head quantised (FP8, or MXFP4 with per-32 block
+# scales), while sglang's fused_q_indexer_rope_hadamard_quant
+# (kernels/ops/attention/dsv4/elementwise.py:201) writes the
+# Hadamard-rotated head quantised. Where a `quantise_activation` cast stands
+# on the query the optional `quant` member takes it in. The head is written
+# to a buffer of its own, so the whole of it crosses the launch on both
+# sides: absent the declaration the partial rotation would be priced in place
+# (`fusion._passed_through`), the rope lanes alone. Declared here as on the
+# `_split` sibling because it is one kernel: one pricing for both writings of
+# the rotation.
+allocates_output: "vllm.models.deepseek_v4.common.ops.fused_indexer_q.fused_indexer_q_rope_quant (fused_indexer_q.py:549): one block per (token, head) rotates the rope channels and writes the head quantised (FP8, or MXFP4 with per-32 block scales); sglang's fused_q_indexer_rope_hadamard_quant (kernels/ops/attention/dsv4/elementwise.py:201) and its FP4 form (:274) write the Hadamard-rotated head quantised likewise"

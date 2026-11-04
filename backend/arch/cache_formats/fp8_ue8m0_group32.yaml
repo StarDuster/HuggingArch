@@ -1,0 +1,4 @@
+description: "FP8 (E4M3) with one dynamic UE8M0 scale per 32 channels of every stored row."
+source: "DeepSeek-V4.1 reference KV write (source/model.py:707, :1042, :1062: `act_quant(kv, fp8_block_size, scale_fmt, scale_dtype, True)`, `fp8_block_size = 32`, RoPE tail included)"
+dtype: F8_E4M3
+scale: { granularity: per-group, group: 32, dtype: F8_E8M0 }

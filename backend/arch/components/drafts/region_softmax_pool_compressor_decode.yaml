@@ -1,0 +1,54 @@
+# Region compressor of a CSA block-compress indexer — decode form.
+#
+# One token per step: its index key and gate logit join the pending region's
+# ring, and when the region completes (once every compress_ratio steps) the
+# ring's rows are softmax-pooled into one summary and written to the summary
+# cache (Step-5 `update_summaries_decode`, inference/kernel.py:2046-2077:
+# `cache.pending_key[request, slot] = index_k[request]`, then
+# `if slot != region_size - 1: continue`, then `csa_compress_regions` on the
+# ring and `cache.summary[... + region] = summary_fp8[0]`).
+#
+# The frame is the GLM / DSv4 compressor decode form: `view_split axis: 1`
+# turns [B, S, D] into [B, S/m, m, D] with no tail, and the slot axis is the
+# regions a step completes — `s_ctx / compress_ratio`, the Rational average one
+# token makes — so the pool costs m rows once every m tokens.
+#
+# Required dims: as `region_softmax_pool_compressor`. Same tensors (none),
+# same cache entries.
+
+description: "Region compressor, decode form — one token per step into the pending ring; the region softmax-pooled and cached once every compress_ratio steps."
+inputs: [keys, gates]
+cache:
+  entries:
+    - { node: pooled_out, kind: index_key, dtype: fp8 }
+    # Read when a region completes — the same regions a step completes as the
+    # slot axis below — not every token (kernel.py:2064-2065 `continue`).
+    - { state: key_state,  kind: compressor_state, carrier: pool_weighted, shape: [compress_ratio, d_indexer_head], reads: "s_ctx / compress_ratio", dtype: bf16 }
+    - { state: gate_state, kind: compressor_state, carrier: pool_probs,    shape: [compress_ratio, d_indexer_head], reads: "s_ctx / compress_ratio", dtype: bf16 }
+graph:
+  keys_win: { op: view_split, in: keys,  axis: 1, dims: { s_slots: "s_ctx / compress_ratio", window: compress_ratio } }
+  gate_win: { op: view_split, in: gates, axis: 1, dims: { s_slots: "s_ctx / compress_ratio", window: compress_ratio } }
+  pool_probs:
+    op: softmax_act
+    in: gate_win
+    dim: compress_ratio
+    axis: 2
+    formula: "w[b, r, p, d] = exp(z[b, r, p, d]) / Σ_{p'<m} exp(z[b, r, p', d])   (m = compress_ratio = ring rows, p = pos mod m; once every m steps, kernel.py:2070-2076)"
+  pool_weighted:
+    op: mul
+    in: [keys_win, pool_probs]
+    dim: d_indexer_head
+    formula: "y[b, r, p, d] = pending_key[b, p, d] · w[b, r, p, d]"
+  pool_keys:
+    op: sum_reduce
+    in: pool_weighted
+    axis: 2
+    dims: { in: compress_ratio }
+    formula: "summary[b, r, d] = Σ_{p<m} weighted[b, r, p, d]   (one summary per completed region)"
+  pooled_out:
+    op: token_pool_compressor
+    in: pool_keys
+    dim: d_indexer_head
+    dims: { compress_ratio: compress_ratio }
+    formula: "cache.summary[region] = summary   (storage ⌈s_kv/m⌉, read ⌊s_kv/m⌋ complete regions; kernel.py:2077)"
+outputs: [pooled_out]

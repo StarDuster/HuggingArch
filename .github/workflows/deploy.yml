@@ -1,0 +1,147 @@
+# Deploy to Fly.io on every successful main-branch push.
+#
+# TEMPORARILY DISABLED: auto-deploy on push to main is off until the
+# product is ready. Restore `push: branches: [main]` under `on:` (and
+# drop `workflow_dispatch` if you do not want a manual run) to turn it
+# back on.
+#
+# The deploy is gated by the `smoke` job (its `needs`): the full suite must
+# have passed on this commit in the `tests` workflow (the push runs it; the
+# gate waits for it, and refuses a red, cancelled or missing run), and a
+# few-minute smoke subset must pass here. The full suite is not run twice.
+#
+# Prerequisites — set ONCE in repo Settings → Secrets and variables:
+#   • FLY_API_TOKEN   — `flyctl auth token` from your local machine
+
+name: deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      skip_warm:
+        description: >-
+          Skip the build-time gallery warm (HA_SKIP_WARM=1). Only when this
+          commit's engine has been warmed into the shared Supabase cache
+          (`python -m backend.warm_caches` with SUPABASE_* set); the image then
+          ships no gallery cache and reads that one.
+        type: boolean
+        default: false
+      skip_tests:
+        description: >-
+          Deploy without waiting for the full-suite gate. Emergency releases
+          only: the smoke subset below still runs, and the push-side full
+          suite remains required for a green main commit.
+        type: boolean
+        default: false
+
+# Don't ship two releases in parallel from rapid back-to-back pushes.
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    # Bounded by the wait for this commit's `tests` run (90 minutes) plus
+    # the smoke subset.
+    timeout-minutes: 100
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      # The full suite ran on push (test.yml); this commit ships only if
+      # that run passed. Waits while it runs.
+      - name: The tests workflow passed on this commit
+        if: ${{ inputs.skip_tests != true && github.event_name != 'push' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          while :; do
+            run=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow test.yml \
+                    --commit "$GITHUB_SHA" --limit 1 --json status,conclusion,url \
+                    --jq '.[0] // empty')
+            if [ -z "$run" ]; then
+              echo "::error::no tests run for $GITHUB_SHA (push it to main first)"; exit 1
+            fi
+            status=$(jq -r .status <<<"$run"); conclusion=$(jq -r .conclusion <<<"$run")
+            url=$(jq -r .url <<<"$run")
+            if [ "$status" = completed ]; then
+              if [ "$conclusion" = success ]; then echo "tests passed: $url"; exit 0; fi
+              echo "::error::tests $conclusion on $GITHUB_SHA: $url"; exit 1
+            fi
+            echo "tests $status: $url — waiting"; sleep 60
+          done
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - run: uv python install 3.13
+      - run: uv sync --frozen
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci --prefix web
+      - run: uv run ruff check backend/
+      # What a release must do on its own: the web app builds, the shared
+      # `web/src` modules still behave as their contract tests say, the
+      # service layer stays out of the core, the app answers its root,
+      # health and cache headers, and the estimate, model-list and agent
+      # endpoints answer. A few minutes; the full suite is the tests run
+      # above.
+      #
+      # The unit-test line is here and not only in `test.yml` because this
+      # list is the release's own gate: `test_web_unit_tests.py` fails rather
+      # than skips when the Node toolchain is missing under `CI`, so a
+      # release cannot go out with the shared modules unchecked.
+      - run: |
+          uv run pytest \
+            tests/frontend/test_web_build.py \
+            tests/frontend/test_web_unit_tests.py \
+            tests/meta/test_service_layout.py \
+            tests/backend/api/test_react_root.py \
+            tests/backend/api/test_health_drain.py \
+            tests/backend/api/test_cache_headers.py \
+            tests/backend/api/test_inference_api.py \
+            tests/backend/api/test_supported_models_api.py \
+            tests/backend/api/test_agent_backends.py \
+            -n auto --dist loadfile --timeout=600 -q --tb=short
+
+  deploy:
+    needs: smoke
+    runs-on: ubuntu-latest
+    # The remote build installs torch + CUDA wheels, builds the web app and
+    # warms the gallery for every model (`backend.warm_caches`) before the
+    # rolling deploy; 15 minutes stopped being enough as the corpus grew.
+    timeout-minutes: 45
+    # Only the main repo deploys. Compare against the literal repository
+    # name: `github.repository == github.event.repository.full_name` holds
+    # on every push event, forks included.
+    # Only this public repository owns the current Fly deploy token. The old
+    # archive repository must never deploy again.
+    if: github.repository == 'shenh10/HuggingArch'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+
+      # Build remotely on Fly's builders so the runner doesn't need
+      # docker. Without --remote-only, GitHub Actions tries local
+      # docker build which is slower + needs setup-buildx.
+      # HA_GIT_SHA: the image has no `.git`; the service names its code
+      # revision from this build arg (Dockerfile, runtime stage).
+      - name: flyctl deploy
+        env:
+          SKIP_BUILD_WARM: ${{ inputs.skip_warm || github.event_name == 'push' }}
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          skip_warm=0
+          [ "$SKIP_BUILD_WARM" = true ] && skip_warm=1
+          flyctl deploy --remote-only --strategy rolling \
+            --build-arg HA_GIT_SHA=${{ github.sha }} \
+            --build-arg HA_SKIP_WARM=$skip_warm

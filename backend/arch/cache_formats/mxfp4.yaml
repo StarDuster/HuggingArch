@@ -1,0 +1,4 @@
+description: "MXFP4 (E2M1) with one E8M0 scale per 32 elements."
+source: "DeepSeek-V4 / V4.1 reference indexer key cache (inference/model.py: `fp4_act_quant(k, fp4_block_size=32, True)`; kernel.py `fp4_act_quant` defaults to an E8M0 scale)"
+dtype: FP4_E2M1
+scale: { granularity: per-group, group: 32, dtype: F8_E8M0 }

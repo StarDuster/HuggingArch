@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: "▶ Try the live demo"
+    url: https://huggingarch.fly.dev
+    about: Analyze any model id in the browser before filing.
+  - name: "📖 Docs"
+    url: https://github.com/shenh10/HuggingArch/tree/main/docs
+    about: Architecture, design notes, and how to add custom models.
+  - name: "🔒 Security"
+    url: https://github.com/shenh10/HuggingArch/blob/main/SECURITY.md
+    about: Please report vulnerabilities privately, not as a public issue.

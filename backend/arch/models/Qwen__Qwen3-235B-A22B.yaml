@@ -1,0 +1,4 @@
+# Identity file for Qwen/Qwen3-235B-A22B
+base: qwen3_moe
+match:
+  model_id: [Qwen/Qwen3-235B-A22B]

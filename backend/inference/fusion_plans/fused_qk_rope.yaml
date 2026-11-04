@@ -1,0 +1,54 @@
+# QK RoPE fusion — single rotary-embedding kernel that rotates both
+# the query and key positional components in one launch.
+#
+# Naive subgraph: two sibling rope nodes fed by different external
+# producers, with NO edge between them. Two flavors are covered by
+# one plan via `op_choices`:
+#
+#   - `rope_emb` (3-D, head dim folded into the last axis) — the
+#     DSv3 / DSv3.1 / DSv3.2 / Kimi-K2 MLA partial-rope pattern,
+#     where Q/K are pre-split into rope + nope halves and only the
+#     rope halves are rotated.
+#   - `rope` (4-D, per-head over `(B, n_heads, s_ctx, d_head)`) — the
+#     LLaMA / Qwen / Mistral / Gemma / GPT-OSS / Qwen3 / ViT family,
+#     where Q and K are each rotated as a whole.
+#
+# Both flavors flatten to the same runtime pattern: two independent
+# per-tensor rotations with no edge between them.
+#
+# At runtime both vLLM and sglang dispatch the pair into ONE kernel
+# call. In vLLM the entry point is
+# `RotaryEmbedding.forward(positions, q_pe, k_pe)` which calls
+# `torch.ops._C.rotary_embedding` once, mutating both tensors
+# in-place (see vllm/model_executor/models/deepseek_v2.py:615
+# `q_pe, k_pe = self.rotary_emb(positions, q_pe, k_pe)`).
+#
+# Cost preservation: Cost.combine sums each matched value.
+# sibling's per-op flops/access_bytes. Each rope is shape-preserving
+# and tiny relative to attention; the saving is one HBM round-trip
+# (no separate K materialization) plus one kernel launch overhead.
+#
+# Matcher note: the pattern is structurally symmetric (two rope nodes,
+# same op choices, no edge between them, different external producers), so
+# op and edges alone cannot say which rope is Q. `feeds` does: q_rope binds
+# only to the rope whose output becomes the attention's query operand
+# (`OpSpec.input_roles`), k_rope to the key's. The loader rejects a
+# symmetric pattern whose ports lack it.
+
+fused_op: fused_qk_rope
+
+naive_pattern:
+  nodes:
+    q_rope:
+      op_choices: [rope, rope_emb]
+      inputs: [external.q_pe]
+      feeds: q
+    k_rope:
+      op_choices: [rope, rope_emb]
+      inputs: [external.k_pe]
+      feeds: k
+  io_mapping:
+    q_pe:   external.q_pe
+    k_pe:   external.k_pe
+    q_out:  q_rope.out
+    k_out:  k_rope.out

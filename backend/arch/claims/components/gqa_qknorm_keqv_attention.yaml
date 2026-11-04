@@ -1,0 +1,12 @@
+schema: huggingarch.claims/v1
+subject: gqa_qknorm_keqv_attention
+axioms:
+  checks:
+  - kind: kv_growth
+    storage: per_token
+    expect: 2 * n_kv_heads * d_head
+    src: 'attention_k_eq_v drops the v_proj WEIGHTS, not a cache entry: in
+      Gemma4Attention.forward the value states alias k_proj''s output and then
+      diverge — K carries k_norm and RoPE, V carries the scale-free v_norm — so
+      two distinct n_kv_heads * d_head tensors reach past_key_values.update and
+      both are retained per position.'

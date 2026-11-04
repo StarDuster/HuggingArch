@@ -1,0 +1,78 @@
+# GPTQ — aligned with `transformers.GPTQConfig`.
+# HF official field set: bits (∈{2,3,4,8}), group_size, desc_act,
+# sym, true_sequential, format ("gptq" v1 / "gptq_v2"), backend,
+# block_name_to_quantize, modules_in_block_to_quantize, meta, ...
+# (auto_gptq / gptqmodel ecosystem). Tensor names: `qweight`
+# (packed int32), `scales` (F16), `qzeros` (I32), `g_idx`.
+description: "GPTQ — packed int32 qweight + scales + qzeros + g_idx (transformers.GPTQConfig)."
+
+num_bits:
+  field_any: [bits, w_bit]
+badge: "GPTQ W{num_bits}"
+
+format_variants:
+  default:
+    packing_factor_per_num_bits: { 4: 8, 8: 4, 2: 16 }
+    storage_dtype: I32
+    weight_storage_suffix: ".qweight"
+
+# GPTQ supports symmetric/asymmetric INT.
+numeric_format: [int_sym, int_asym]
+numeric_format_resolver:
+  - { when: "sym == true",  format: int_sym }
+  - { when: "sym == false", format: int_asym }
+  - { when: "true",         format: int_sym }    # GPTQ default
+
+scale_strategy: [group]
+
+metadata_siblings:
+  - suffix: ".scales"
+    kind: scale
+    shape_per_strategy:
+      group: ["(in + group_size - 1) // group_size", "out"]
+    dtype: F16
+  - suffix: ".qzeros"
+    kind: zero_point
+    shape_per_strategy:
+      group: ["(in + group_size - 1) // group_size", "out * num_bits // 32"]   # zeros packed 32/num_bits per I32
+    dtype: I32
+  - suffix: ".g_idx"
+    kind: index
+    when: "desc_act == true"                     # act-order shuffles columns
+    shape: ["in"]
+    dtype: I32
+
+required_fields: [num_bits, group_size]
+valid_status: [compressed, frozen]
+
+# Defaults from `transformers.GPTQConfig`.
+default_fields:
+  desc_act: false
+  sym: true
+
+
+# A deployment's INT4 weight: 128-element groups. The format quantises the
+# weight only (W4A16): the kernel dequantises in place and runs at the
+# activation's dtype — there is no INT4 MMA column on the GPU sheet.
+deployment_fields:
+  num_bits: 4
+  group_size: 128
+activation_options:
+  w4a16: none
+
+# GPTQ never quantises the activation: the kernel dequantises the INT4 weight
+# and runs at the activation's own dtype (W4A16), as the deployment option
+# above also says.
+activation:
+  reference:
+    - { when: "true", format: none }
+# Where "no activation quantisation" is read: vLLM serves these checkpoints
+# through the mixed-precision Marlin kernel — `AutoGPTQLinearMethod.apply` hands
+# the activation to `self.kernel.apply_weights(layer, x, bias)`
+# (model_executor/layers/quantization/auto_gptq.py:458-464), which calls
+# `apply_gptq_marlin_linear(input=x, ...)`
+# (kernels/linear/mixed_precision/marlin.py:223-240), and that function
+# quantises the activation only where an `input_dtype` of int8 / float8 is
+# configured (`marlin_quant_input`, layers/quantization/utils/marlin_utils.py
+# :698-744). An INT4 weight-only checkpoint configures none: the weight is
+# dequantised in-kernel and the matmul runs at the activation's own dtype.

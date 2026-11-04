@@ -1,0 +1,4 @@
+description: "FP8 (E4M3) activations, one dynamic F32 scale per token."
+source: "compressed-tensors `input_activations: {num_bits: 8, type: float, strategy: token, dynamic: true}`"
+dtype: F8_E4M3
+scale: { granularity: per-token, dtype: F32 }

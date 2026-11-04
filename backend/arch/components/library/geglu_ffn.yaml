@@ -1,0 +1,16 @@
+# GEGLU FFN (Gated GELU)
+# Exact (erf) GELU. The Gemma family uses the tanh approximation and binds
+# `gemma_geglu_ffn` (adapters/) instead.
+# Same gated structure as SwiGLU but with GELU activation.
+#
+# Required dims: d_model, d_ffn
+
+role: ffn_dense
+description: "GeGLU FFN (gate_proj + up_proj + exact gelu + down_proj)."
+graph:
+  gate_proj: { op: linear, in: x, dims: { in: d_model, out: d_ffn }, weight_axes: [{ world: dense_ffn, parts: d_ffn, fit: exact }, { replicated: true }] }
+  up_proj:   { op: linear, in: x, dims: { in: d_model, out: d_ffn }, weight_axes: [{ world: dense_ffn, parts: d_ffn, fit: exact }, { replicated: true }] }
+  gelu:      { op: gelu, in: gate_proj, dim: d_ffn }
+  gate_mul:  { op: mul, in: [gelu, up_proj], dim: d_ffn }
+  down_proj: { op: linear, in: gate_mul, dims: { in: d_ffn, out: d_model }, weight_axes: [{ replicated: true }, { world: dense_ffn, parts: d_ffn, fit: exact }] }
+outputs: [down_proj]

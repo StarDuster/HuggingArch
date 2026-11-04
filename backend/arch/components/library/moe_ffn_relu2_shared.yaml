@@ -1,0 +1,41 @@
+# NemotronH (non-latent) "MoE" FFN.
+#
+# Same as nemotron_h_latent_moe but WITHOUT the fc1/fc2 latent projections:
+# this checkpoint has no `moe_latent_size` (config field absent), so the source
+# NemotronHMoE sets fc1_latent_proj / fc2_latent_proj = nn.Identity() and the
+# routed experts operate directly in the model's hidden dim d_model (not a
+# low-rank latent). Checkpoint tensor shapes:
+#   experts.X.up_proj.weight   [d_ffn_expert, d_model]  = [1856, 2688]
+#   experts.X.down_proj.weight [d_model, d_ffn_expert]  = [2688, 1856]
+#
+# Forward (NemotronHMoE.forward with fc1/fc2 = Identity):
+#   residuals        = x
+#   router_logits    = self.gate(x)                       # F.linear, no bias
+#   topk_idx, topk_w = route_tokens_to_experts(router_logits)   # noaux_tc
+#   x = x.view(-1, d_model)
+#   x = self.experts(x, topk_idx, topk_w)  # bank of n_experts relu2-MLPs (hidden space)
+#   x = x.view(orig_shape)
+#   return x + self.shared_experts(residuals)             # wide non-gated relu2
+#
+# Required dims: d_model, d_ffn_expert, d_ffn_shared, n_experts, n_experts_active.
+role: ffn_moe
+description: "MoE: noaux_tc router + non-gated relu2 expert bank (hidden space) + wide non-gated relu2 shared expert. NemotronH non-latent variant."
+graph:
+  # Routing pipeline. The router's `linear` has module: null so it produces
+  # `mixer.gate.weight` directly (not `mixer.gate.gate.weight`).
+  gate: { op: router_noaux_tc, in: x }
+
+  # Routed-expert bank. Each expert is a non-gated relu2 MLP in hidden space
+  # (d_model -> d_ffn_expert -> d_model). `permute` writes the
+  # [n_expert_copies, M, d_model] buffer, M rows per expert; `combine` weights
+  # and sums back.
+  permute:  { op: permute, in: [x, gate] }
+  experts:  { op: relu2_experts, role: ffn_moe, in: permute, dims: { d_model: d_model, d_ffn: d_ffn_expert }, expert_weight: unrolled }
+  combine:  { op: combine, in: [experts, gate], dims: { d_model: d_model } }
+
+  # Wide shared expert, parallel branch from original x (hidden space).
+  shared_experts: { op: nemotron_h_relu2_mlp, in: x, dims: { d_model: d_model, d_ffn: d_ffn_shared } }
+
+  # Sum routed and shared outputs.
+  moe_out: { op: add, in: [combine, shared_experts], dim: d_model }
+outputs: [moe_out]

@@ -1,0 +1,30 @@
+# DeepGEMM MegaMoE — the WHOLE MoE expert block fused into ONE kernel.
+#
+# Unlike the fine-grained MoE pipeline (permute → grouped GEMM → silu_and_mul →
+# grouped GEMM → combine, each a separate kernel), DeepSeek-V4's MegaMoE on
+# Blackwell (SM100) runs the entire expert path — both grouped GEMMs, the
+# SwiGLU activation, and the token combine — inside ONE persistent DeepGEMM
+# kernel `deep_gemm.fp8_fp4_mega_moe(y, l1_w, l2_w, symm_buffer, ...)`, fed by a
+# single triton input-staging kernel (fp4 quant + pack into a symmetric-memory
+# buffer). fp4 weights, DeepSeek-V4 only (`moe_backend="deep_gemm_mega_moe"`).
+#
+# This is the COARSE `fused_moe` fusion boundary — the MoE-block counterpart of
+# `flash_attention`. The v1 matcher does not yet collapse the n_experts-way expert
+# fan-out into it (same limitation as `grouped_gemm_moe`), so this is a
+# placeholder pattern shipped so the `fused_moe` op + its MegaMoE backend appear
+# in the catalog. The runnable benchmark adapter needs a Blackwell box (the fp4
+# staging + symm-buffer setup can't be reproduced/validated on Hopper).
+#
+# kernel ref:
+#   deep_gemm.fp8_fp4_mega_moe  (whole-block persistent kernel, SM100)
+#   vllm/model_executor/models/deepseek_v4.py::DeepseekV4MegaMoEExperts
+#     (_stage_deepseek_v4_mega_moe_inputs staging + transform_weights_for_mega_moe)
+
+fused_op: fused_moe
+
+naive_pattern:
+  nodes:
+    expert_block: { op: linear, inputs: [external.x] }
+  io_mapping:
+    x:      external.x
+    output: expert_block.out

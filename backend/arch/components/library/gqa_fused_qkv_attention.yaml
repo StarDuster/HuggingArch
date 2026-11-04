@@ -1,0 +1,45 @@
+# GQA with fused QKV projection
+# Used by: ChatGLM family (`self_attention.query_key_value.weight`).
+#
+# Single linear (d_model → n_heads*d_head + 2*n_kv_heads*d_head) emits Q + K + V concatenated along
+# the output dim, then sliced and split into heads. Optional bias on
+# the fused linear (ChatGLM ships QKV bias) and on the output linear
+# (typically off). RoPE then standard attention. Output linear has
+# its own bias flag.
+#
+# Required dims: d_model, n_heads, n_kv_heads, d_head
+# Optional dims: Qb (QKV linear bias flag, default 0)
+#                Ob (output linear bias flag, default 0)
+
+role: attention
+description: "GQA with a single fused QKV linear (d_model → (n_heads+2Nk)·d_head). Bias optional. ChatGLM, some ViTs."
+cache:
+  family: GQA
+  entries:
+    - { node: k_rope, kind: kv }
+    - { node: v_split_heads, kind: kv }
+graph:
+  qkv:
+    op: linear
+    in: x
+    dims: { in: d_model, out: "n_heads * d_head + 2 * n_kv_heads * d_head", bias: Qb }
+    weight_axes:
+      - segments:
+          - { segment: q, extent: "n_heads * d_head", world: attention, parts: n_heads, fit: replica_cells }
+          - { segment: k, extent: "n_kv_heads * d_head", world: attention, parts: n_kv_heads, fit: replica_cells }
+          - { segment: v, extent: "n_kv_heads * d_head", world: attention, parts: n_kv_heads, fit: replica_cells }
+      - { replicated: true }
+  q_slice:       { op: slice, in: qkv, dims: { in: "n_heads * d_head + 2 * n_kv_heads * d_head", out: "n_heads * d_head" } }
+  k_slice:       { op: slice, in: qkv, dims: { in: "n_heads * d_head + 2 * n_kv_heads * d_head", out: "n_kv_heads * d_head" } }
+  v_slice:       { op: slice, in: qkv, dims: { in: "n_heads * d_head + 2 * n_kv_heads * d_head", out: "n_kv_heads * d_head" } }
+  q_split_heads:      { op: head_split, in: q_slice, dims: { n_heads: n_heads, d_head: d_head } }
+  k_split_heads:      { op: head_split, in: k_slice, dims: { n_heads: n_kv_heads, d_head: d_head } }
+  v_split_heads:      { op: head_split, in: v_slice, dims: { n_heads: n_kv_heads, d_head: d_head } }
+  q_rope:        { op: rope, in: q_split_heads, dim: d_head }
+  k_rope:        { op: rope, in: k_split_heads, dim: d_head }
+  qk_score:      { op: attention_score, in: [q_rope, k_rope], dims: { n_heads: n_heads, d_head: d_head } }
+  softmax:       { op: softmax, in: qk_score, dims: { n_heads: n_heads } }
+  attn_apply:    { op: attention_apply, in: [softmax, v_split_heads], dims: { n_heads: n_heads, d_head: d_head } }
+  o_merge_heads:      { op: head_merge, in: attn_apply, dims: { n_heads: n_heads, d_head: d_head } }
+  o_proj:        { op: linear, in: o_merge_heads, dims: { in: "n_heads * d_head", out: d_model, bias: Ob }, weight_axes: [{ replicated: true }, { world: attention, parts: n_heads, fit: replica_cells }] }
+outputs: [o_proj]

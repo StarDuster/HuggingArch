@@ -1,0 +1,157 @@
+# MiniMax-M3 (minimax_m3_vl) — multimodal MoE, ~427B total.
+#
+# Text backbone (language_model.model, 60 layers), heterogeneous per
+# moe_layer_freq / sparse_attention_freq = [0,0,0,1,1,...]:
+#   - layers 0-2  : full GQA (64 q / 4 kv heads) + per-head QK-norm + partial
+#                   RoPE (rotary_dim 64 of head_dim 128) + dense SwiGLU
+#                   (dense_intermediate_size 12288).
+#   - layers 3-59 : same GQA core + MiniMax Sparse Attention (MSA) lightning
+#                   indexer (index_q/k_proj/norm, top-K block selection) +
+#                   MoE FFN (128 experts w1/w3/w2, sigmoid noaux_tc routing
+#                   with block-level e_score_correction_bias, 1 shared
+#                   expert). Expert / shared intermediate = 3072.
+# Vision path: CLIP ViT (32 layers, biased q/k/v/out_proj + 3D RoPE, fc1/fc2
+#   GELU MLP) → multi_modal_projector → patch_merge_mlp (4:1 spatial merge).
+#
+# All weights BF16/F32 native (no quantization_config).
+# No MTP weights present in this checkpoint (num_nextn_predict_layers is a
+# training-time field; released checkpoint has no nextn tensors).
+match:
+  model_type: [minimax_m3_vl]
+
+components:
+  attention: gqa_qknorm_partial_rope_attention
+  ffn_dense: swiglu_ffn
+  ffn_moe: moe_ffn_w1w3w2_routing_bias_shared
+  norm: rmsnorm
+  block: pre_norm
+
+dims:
+  # --- text backbone ---
+  d_model:    config.text_config.hidden_size                 # 6144
+  n_heads:    config.text_config.num_attention_heads         # 64
+  n_kv_heads:   config.text_config.num_key_value_heads         # 4
+  d_head:    config.text_config.head_dim                    # 128
+  d_rope:   config.text_config.rotary_dim                  # 64 (partial RoPE)
+  d_nope:   "d_head - d_rope"                                        # 64
+  d_ffn:    config.text_config.dense_intermediate_size     # 12288 (dense FFN)
+  d_ffn_expert:   config.text_config.intermediate_size           # 3072 (MoE expert)
+  d_ffn_shared:   config.text_config.shared_intermediate_size    # 3072 (shared expert)
+  n_vocab:    config.text_config.vocab_size                  # 200064
+  n_layers:    config.text_config.num_hidden_layers           # 60
+  n_experts:    config.text_config.num_local_experts           # 128
+  n_experts_active:    config.text_config.num_experts_per_tok         # 4
+  # --- MSA sparse indexer ---
+  n_indexer_heads:   config.text_config.sparse_attention_config.sparse_num_index_heads  # 4
+  d_indexer_head:   config.text_config.sparse_attention_config.sparse_index_dim        # 128
+  n_topk_blocks:  config.text_config.sparse_attention_config.sparse_topk_blocks      # 16 (blocks selected)
+  s_sparse_block:  config.text_config.sparse_attention_config.sparse_block_size       # 128 (positions per block)
+  n_topk_keys:   "n_topk_blocks * s_sparse_block"                                                        # top-K KV positions = 2048
+  # --- vision tower ---
+  d_vis_model:   config.vision_config.hidden_size               # 1280
+  n_vis_heads:   config.vision_config.num_attention_heads       # 16
+  d_vis_head:  "d_vis_model // n_vis_heads"                                      # 80
+  d_vis_ffn:   config.vision_config.intermediate_size         # 5120
+  n_vis_layers:   config.vision_config.num_hidden_layers         # 32
+  n_vis_channels:   config.vision_config.num_channels              # 3
+  s_patch:   config.vision_config.patch_size                # 14
+  s_patch_temporal:   config.vision_config.img_token_compression_config.temporal_patch_size   # 2
+  # 2 → a 2x2 = 4:1 token merge in patch_merge_mlp (sglang
+  # minimax_vl_common.py:747-758 reads the same field, default 2).
+  n_spatial_merge:   config.vision_config.img_token_compression_config.spatial_merge_size    # 2
+  d_vis_proj:   config.projector_hidden_size ?? d_model            # projector / patch-merge MLP hidden (vLLM: projector_hidden_size or text hidden)
+
+view:
+  rope_theta: config.rope_theta
+  rope_scaling: config.rope_scaling
+  hidden_act: config.hidden_act
+  norm.eps: config.rms_norm_eps
+
+# MoE layer block: the checkpoint names the FFN submodule `block_sparse_moe`
+# (not `mlp`), so the standard auto-generated pre_norm block — which always
+# names its FFN node `mlp` — cannot be used. Declared inline with the correct
+# node name so HF tensor matching resolves. Dense layers (0-2) keep the auto
+# pre_norm block (their FFN IS named `mlp`).
+blocks:
+  minimax_m3_moe_block:
+    graph:
+      input_layernorm:          { op: rmsnorm, in: x, dim: d_model, weight_axes: [{ replicated: true }] }
+      self_attn:                { op: gqa_qknorm_partial_rope_dsa_attention, in: input_layernorm }
+      attn_residual:            { op: add, in: [x, self_attn], dim: d_model }
+      post_attention_layernorm: { op: rmsnorm, in: attn_residual, dim: d_model, weight_axes: [{ replicated: true }] }
+      block_sparse_moe:         { op: moe_ffn_w1w3w2_routing_bias_shared, in: post_attention_layernorm }
+      ffn_residual:             { op: add, in: [attn_residual, block_sparse_moe], dim: d_model }
+    outputs: [ffn_residual]
+
+model_inputs:
+  input_ids: { kind: tokens }
+  # Images per request, then each image's processed size (a multiple of
+  # patch_size * spatial_merge_size).
+  pixel_values: { kind: image, axes: [n_img, img_h, img_w] }
+
+model:
+  - { name: language_model.model.embed_tokens, inputs: [input_ids], op: embedding, boundary_role: input_embedding, dims: { n_vocab: n_vocab, d_model: d_model }, weight_axes: [{ world: attention, parts: n_vocab, fit: pad }, { replicated: true }] }
+  # Vision tower listed before the text decoder: its projected output is mixed
+  # into the embed stream (image-token positions) before the transformer
+  # consumes it, and the `inputs:` validator requires source layers earlier.
+  # Singleton wrapper → one first-level VISION card, bare HF tensor paths.
+  - name: vision
+    group: true
+    aux_kind: vision
+    layers:
+      # Each image is cut into patch x patch x temporal_patch_size patches of
+      # 3 channels, one row each; the merger folds spatial_merge_size^2 rows,
+      # so a side is a multiple of patch_size * spatial_merge_size. One
+      # attention segment per item (grid_t * grid_h * grid_w).
+      - name: vision.patchify
+        op: patchify
+        inputs: [pixel_values]
+        dims: { patch: s_patch, temporal: s_patch_temporal, channels: n_vis_channels, align: "s_patch * n_spatial_merge" }
+        segment: item
+        source_anchor: "sglang models/minimax_vl_common.py:214-241 Conv3d patch embed (temporal_patch_size, patch_size, patch_size); :481-515 grid_h // spatial_merge_size windows; :563-574 cu_seq_len one segment of grid_t*grid_h*grid_w per item"
+      - { name: vision, inputs: [vision.patchify], template: minimax_m3_vision_tower }
+  # Image rows overwrite the image-token rows of the embedding stream
+  # before the decoder runs: sglang `minimax_m3_vl.py:244`
+  # general_mm_embed_routine -> `managers/mm_utils.py:491`
+  # `dest.masked_scatter_(mask, src)` (sglang 0e178c3d22). The decoder reads
+  # only the merge.
+  - name: language_model.model.embed_merge
+    op: scatter_rows_replace
+    inputs: [language_model.model.embed_tokens, vision]
+    prompt_slots: { domain: pixel_values, defines: true, source_anchor: "sglang models/minimax_m3_vl.py:244 general_mm_embed_routine -> managers/mm_utils.py:491 dest.masked_scatter_(mask, src)" }
+  - name: language_model.model.layers
+    repeat: n_layers
+    streams:
+      hidden: { carries: true }
+    inputs: [language_model.model.embed_merge]
+    per_layer:
+      assign:
+        # moe_layer_freq / sparse_attention_freq / sparse_disable_index_value
+        # are all = [0,0,0,1,1,...]: the leading 3 layers are dense-FFN +
+        # full-attention, the rest MoE-FFN + MSA-sparse. The schedule is a
+        # fixed 3-layer prefix (there is no scalar first_k_dense config field),
+        # so it's expressed as a size-independent contiguous range.
+        - { type: dense_full, range: ["0", "2"] }
+        - { type: moe_sparse, rest: true }
+      map:
+        dense_full: { attention: gqa_qknorm_partial_rope_attention, ffn: swiglu_ffn }
+        moe_sparse: { template: minimax_m3_moe_block }
+  - { name: language_model.model.norm, op: rmsnorm, dim: d_model, weight_axes: [{ replicated: true }] , inputs: [language_model.model.layers]}
+  - { name: language_model.lm_head, op: linear, boundary_role: output_head, dims: { in: d_model, out: n_vocab }, weight_axes: [{ world: attention, parts: n_vocab, fit: pad }, { replicated: true }] , inputs: [language_model.model.norm]}
+
+# No weight quantization (checkpoint is native BF16, no quantization_config).
+# quant_context is declared only to pin the three tensors stored as F32 on
+# disk — the patch-embedding conv, the MoE router gate, and the router
+# correction bias — so deployment-byte accounting counts 4 bytes for them
+# instead of the BF16 default. All roles are method:none (unquantized).
+quant_context:
+  per_role:
+    default: { method: none }
+  overrides:
+    - tensors_re: 'vision_tower\.vision_model\.embeddings\.patch_embedding\.weight$'
+      dtype: F32
+    - tensors_re: 'block_sparse_moe\.gate\.weight$'
+      dtype: F32
+    - tensors_re: 'block_sparse_moe\.e_score_correction_bias$'
+      dtype: F32
+  default_dtype: BF16

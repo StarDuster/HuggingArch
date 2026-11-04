@@ -1,0 +1,54 @@
+# Ungrouped sigmoid top-K router with a selection bias — one launch from the
+# router logits to the top-k ids and weights.
+#
+# Naive subgraph (moe_ffn_router_expert_bias_shared — Hy3; MiniMax-M2.7's
+# inline router; Step-5's moe_ffn_packed_debias_no_shared), over the logits
+# (`external.gating`) and the `e_score_correction_bias` parameter
+# (`external.bias`):
+#
+#   s       = sigmoid(gating)
+#   idx     = topk(s + bias)              # bias ranks, it does not weigh
+#   w       = gather(s, idx)
+#   w       = w / sum(w)                  # renormalise
+#   w       = w * routed_scaling_factor   # absent where the model has none
+#
+# This is `moe_fused_gate` without the expert-group stage: the grouped plan
+# requires `group_top2_sum` / `group_topk` / `group_mask_apply`, which only
+# `router_noaux_tc` writes (Hy4 keeps its degenerate n_group = 1 nodes and
+# matches that larger plan first).
+#
+#   vLLM (audited at v0.32.0): `FusedTopKBiasRouter` (fused_moe/router/
+#     router_factory.py:229; a grouped request with one group and the
+#     bias present falls through to it, :176-215 — Hy3's `num_expert_group=1`,
+#     hy_v3.py:193-197) → `fused_topk_bias` (fused_topk_bias_router.py:146) →
+#     `ops.topk_sigmoid(..., renormalize, e_score_correction_bias,
+#     routed_scaling_factor)` (:229 → :56). One CUDA launch (csrc/
+#     moe/topk_softmax_kernels.cu, `moeTopK`: bias added in-register, the
+#     unbiased score gathered, renormalised and scaled in the same kernel).
+#   sglang (audited at v0.5.22): `select_experts` (srt/layers/moe/topk.py:2545)
+#     → ungrouped sigmoid: `biased_topk_jit_kernel_impl` (:2714, :1471) → the Triton
+#     router `moe_fused_gate` (kernels/ops/moe/moe_fused_gate.py:337; scoring
+#     :188-191, topk :261-278, renorm :294-299, scale :300); Hy3's one-group
+#     request (hunyuan_v3.py:119-129) → `biased_grouped_topk_gpu` (topk.py:1777)
+#     → the same router or flashinfer's `fused_topk_deepseek` for one group
+#     (:1838-2091), one launch each. sglang applies the routed scale in the
+#     router when `apply_routed_scaling_factor_on_output` (Hy3: True), and
+#     otherwise folds it into the MoE output add (e.g. glm4_moe.py:672-679), so
+#     no separate launch over the [S, k] weights runs either way.
+#
+# Same boundary in prefill and decode. The router GEMM stays its own row.
+
+fused_op: moe_topk_sigmoid
+
+naive_pattern:
+  nodes:
+    score:  { op: sigmoid,           inputs: [external.gating] }
+    biased: { op: add,               inputs: [score.out, external.bias] }
+    topk:   { op: topk,              inputs: [biased.out] }
+    gather: { op: gather,            inputs: [score.out, topk.out] }
+    norm:   { op: normalize_sum_one, inputs: [gather.out] }
+    scale:  { op: scale_const,       inputs: [norm.out], optional: true }
+  io_mapping:
+    gating: external.gating
+    bias:   external.bias
+    output: scale.out

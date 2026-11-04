@@ -1,0 +1,57 @@
+# SwiGLU activation fusion — `silu(gate) * up` collapsed into one
+# elementwise op, matching vLLM's `silu_and_mul` custom kernel.
+#
+# Naive subgraph:
+#   silu: y = silu(gate_proj.out)
+#   mul:  z = y * up_proj.out
+#
+# Why split the previous `gated_act_ffn` into this + parallel_linears
+# + a separate down_proj: vLLM (audited at v0.32.0) does NOT have one kernel
+# for the entire dense FFN. It runs:
+#   1. `MergedColumnParallelLinear` (one GEMM producing concatenated
+#      [gate; up])   — captured by `merged_column_parallel_linear`
+#   2. `silu_and_mul(gate, up) -> activated`   — captured by THIS plan
+#   3. `down_proj` (separate ColumnParallelLinear)   — stays a leaf
+#
+# Modeling the whole chain as one mega-fusion (the old `gated_act_ffn`)
+# under-counts HBM traffic by hiding the `silu_and_mul -> down_proj`
+# intermediate, which vLLM materializes in HBM. This plan recovers
+# vLLM-realistic byte accounting while keeping the FLOPs-sum
+# tautological.
+#
+# vLLM kernel ref:
+#   csrc/activation_kernels.cu          (silu_and_mul kernel)
+#   vllm/model_executor/layers/activation.py::SiluAndMul
+#   vllm/compilation/passes/fusion/act_quant_fusion.py
+#     (registers the FX-graph match pattern)
+#
+# Cost preservation: tautological — `silu_and_mul` computes element-
+# wise `silu(gate) * up` with the same arithmetic intensity as the
+# naive chain. Cost.combine sums the matched cost-layer values.
+
+fused_op: silu_and_mul
+
+naive_pattern:
+  nodes:
+    silu: { op: silu, inputs: [external.gate] }
+    mul:  { op: mul,  inputs: [silu.out, external.up] }
+    quant: { op: quantise_activation, inputs: [mul.out], optional: true }
+  io_mapping:
+    gate:   external.gate
+    up:     external.up
+    output: quant.out
+
+# Output contract — the act-and-mul family's rule (conditions principle,
+# 2026-10-19): an elementwise activation epilogue writes at the precision
+# its consuming GEMM reads. Framework examples: vLLM's activation-quant
+# fusion folds the per-token-group quantise into silu_and_mul
+# (compilation/passes/fusion/act_quant_fusion.py `SiluMulBlockQuantPattern`
+# :179, pass :277), and sglang's DeepSeek MLP writes the FP8 operand and its
+# per-128 scales from the activation launch (`silu_and_mul_contig_post_quant`,
+# srt/models/deepseek_v2.py:390-417). Which activations a given release's
+# pass happens to cover is framework detail not modelled. The graph gates
+# it: the launch takes the `quantise_activation` cast after it as an optional
+# member, which exists only where the consuming GEMM reads a quantised
+# operand, and binds it only when that cast is the output's one reader
+# (`fusion.Fusion._closed` — a consumer that wants the row wide keeps the
+# cast apart). A BF16 deployment has no cast and is unaffected.

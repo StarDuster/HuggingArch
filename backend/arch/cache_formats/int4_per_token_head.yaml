@@ -1,0 +1,4 @@
+description: "INT4 with one dynamic F32 scale per token per head."
+source: "vLLM `int4_per_token_head` (vllm/config/cache.py:32; two INT4 per byte + inline F32 scale per K/V head, vllm/v1/attention/backends/triton_attn.py:277-289)"
+dtype: INT4
+scale: { granularity: per-token-head, dtype: F32 }

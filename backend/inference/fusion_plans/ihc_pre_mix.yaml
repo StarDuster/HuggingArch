@@ -1,0 +1,115 @@
+# Independent Hyper-Connections pre, launch 1 of 2: flatten the n residual
+# copies, take the unweighted-RMS sum of squares, and accumulate BOTH gate
+# mix vectors against the fp32 `hc_fn` rows — all without writing the
+# normalised [T, n·d_model] row anybody out of registers.
+#
+#   sumsq      = Σ_k flat[k]²                       (the norm's statistic)
+#   mix_pre    = hc_fn[:n]  @ flat                  (unnormalised)
+#   mix_post   = hc_fn[n:]  @ flat                  (unnormalised)
+#
+# Naive subgraph (hc_independent_pre_norm_block, Hy4; the attention side's
+# attn_hc_flat / attn_hc_norm / attn_hc_mixes and the FFN side's mirror):
+# the `view_merge`, the `rmsnorm_unscaled` and the mix GEMM. The kernel
+# reorders the norm and the GEMM by linearity — it scales the dot products
+# instead of the row, which is the same identity the component's comment
+# derives — so the normalised row is never a tensor, and the two round trips
+# of [T, n·d_model] the naive form makes for it are what this launch removes.
+#
+# Both frameworks run the iHC pre as TWO Triton launches, not one, so it is
+# two plans: this one and `ihc_pre_gate_reduce`.
+#   vLLM (audited at v0.32.0): `_ihc_pre_stage1`
+#     (models/hy_v4/nvidia/triton_ihc.py:30, launched :241) inside
+#     `triton_ihc_pre` (:199), from `HYV4HCPreLayer.forward`
+#     (models/hy_v4/nvidia/hc.py:115) under `triton_ihc_supported`
+#     (triton_ihc.py:19-27).
+#   sglang (audited at v0.5.22): `_hy4_ihc_pre_stage1`
+#     (kernels/ops/layernorm/hy4_ihc.py:61, launched :259) inside
+#     `fused_hy4_ihc_pre` (:204), from `HYV4HCPreLayer.forward`
+#     (srt/models/hunyuan_v4.py:117), which `HYV4HCLayer.pre` (:197) calls.
+# Prefill and decode take the same call in both: neither wrapper branches on
+# the phase or the token count.
+#
+# What the pair is worth, and why decode is not a rounding error. The two
+# plans together take Hy4's step from 7576 launches to 4610: 21 leaves become
+# 2 at each of the 156 sublayer boundaries (3 for this plan, 18 for the
+# other), plus 3 become 1 at the exit head, so -2966 per step in BOTH
+# phases. Prefill is the byte story — at BF16 on an H100, -4.3% of the
+# step's traffic and -3.9% of its time at TP1, -9.8% and -9.7% at the
+# golden's plain-TP8 cell. Decode is a LAUNCH story first: the
+# removed launches are the ones pinned at the 1 us floor, 2.34 ms of floor
+# time per step, which at batch 1 is -7.1% of the TP1 step and -26.1% of the
+# TP8 one (the step is short there, so the floor is most of it). The byte
+# saving is the part that grows with the batch, because these rows are
+# activation-only: -0.03% of TP1 bytes at batch 1 but -0.9% at batch 512,
+# and -0.2% to -4.4% at TP8, which lands as -1.3% and -6.0% of step time.
+# Quoting decode as "-0.03%" is quoting the batch-1 byte ratio alone and
+# understates it in both directions at once.
+#
+# What the two launches exchange, and what this plan prices instead: the
+# kernel splits the n·d_model reduction over `ceil(n·d_model / 1024)` blocks
+# (BLOCK_K = 1024) and hands launch 2 one fp32 record per block —
+# [T, nsplit, 1 + 2·2^⌈log2 n⌉] (vLLM triton_ihc.py:235-239, sglang
+# hy4_ihc.py:257) — where the graph has the [T, 2n] mix vector. At Hy4's
+# 4 × 6144 that is 24 blocks of 9 fp32, 864 B/token written and read back
+# against the mix vector's 32 B, so the pair under-bills ~1.7 KB/token of
+# the ~196 KB/token it removes: 0.85% of the saving.
+#
+# The reason that is left unmodelled is the MAGNITUDE and nothing else. A
+# kernel's tiling constant is perfectly declarable here when it moves bytes
+# visibly, and one already is: `FusionOpSpec.output_scale_tile`, which
+# `fused_q_kv_rmsnorm_quant.yaml` sets to FlashInfer's F8_128x4 padding
+# because at a 64-token cell it doubles the scale bytes the generic
+# per-group law would price. So "a tiling constant is not a graph fact" is
+# NOT the argument — the repo declares one exactly when it matters. The
+# argument is that 0.85% of the round trip being removed is below what a
+# SOL surface resolves (`CLAUDE.md` §1.4's second question), which is also
+# why `docs/inference_cost_model.md` ("How precisely to model a dispatch
+# condition") puts split-K by step shape in the row billed on the default
+# serving path with the assumption stated in the comment. Were the ratio
+# the other way round this plan would want a field for it, as that one has.
+#
+# The optional `hpc` package (Tencent hpc-ops) replaces both launches with
+# one, and sglang then also folds the next pre into the post
+# (`fuse_ihc_post_pre`, hy4_ihc.py:367-382; vLLM has no port, hc.py:14-15).
+# It is in neither framework's requirements and vLLM additionally gates it
+# behind VLLM_ENABLE_HPC_OPS (model_executor/layers/hpc/hpc_ihc.py:48-99),
+# so these plans describe the default install — which is why, unlike the mHC
+# family, there is no post+pre plan here.
+#
+# Where this pattern also fits, and the overcount that leaves: Hy4's exit
+# head (`hc_head_independent`) opens with the same three leaves, and both
+# frameworks run that head as plain torch — vLLM has only the hpc path
+# (hc.py:279-296), sglang's needs hpc too (srt/models/hunyuan_v4.py:281-287).
+# So this plan fires at ONE site per step that the frameworks do not fuse,
+# against the 156 (2 · n_layers) they do, and at that one site it drops a
+# [T, n·d_model] round trip that is really spent.
+#
+# The fact that does tell the two sites apart is SCOPE: the boundaries are
+# occurrences inside the decoder stack and the head is at model level, which
+# is exactly `Program.block_of` — already a fact of the walk, already read by
+# `BoundaryView` to keep a `crosses:` launch out of the model-level head.
+# What is missing is a per-stack `when:` key that asks it of an ordinary
+# match, and that is the general fix; `fused_hc_head.yaml` records the same
+# gap for sglang's MTP draft head ("which a per-stack condition would
+# remove"), so building it would retire both at once rather than one model's
+# case. It is not built here.
+#
+# What must NOT be done instead is declare `crosses: component` on this
+# entry to get the narrowing as a side effect. `crosses` states that a
+# launch really spans a component boundary; all three of this launch's
+# members are the block's own, so the claim would be false, and the only
+# thing it would buy is `BoundaryView`'s exclusion of nodes with no block
+# occurrence. A false fact traded for a scope effect is worse than a stated
+# overcount of 1 in 157.
+
+fused_op: ihc_pre_mix
+
+naive_pattern:
+  nodes:
+    flat:   { op: view_merge,             inputs: [external.x] }
+    norm:   { op: rmsnorm_unscaled,       inputs: [flat.out] }
+    mixes:  { op: linear_external_weight, inputs: [norm.out, external.mix_weight] }
+  io_mapping:
+    x:          external.x
+    mix_weight: external.mix_weight
+    output:     mixes.out

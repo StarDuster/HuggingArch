@@ -1,0 +1,107 @@
+# DeepSeek-V4 MTP head block — fully modeled (matches V4-Pro `MTPBlock.forward`).
+#
+# MTPBlock extends Block, so it has Block's full HC machinery (HC pre +
+# attn + HC post + HC pre + ffn + HC post) PLUS its own entry combiner
+# (enorm/hnorm/e_proj/h_proj) and its own HC head + final norm.
+#
+# Real forward (from inference/model.py:756-766):
+#   e = self.embed(input_ids)                     # [b,s,d]
+#   e = self.enorm(e)
+#   x = self.hnorm(x)                              # x: [b,s,hc,d]
+#   x = self.e_proj(e).unsqueeze(2) + self.h_proj(x)  # → [b,s,hc,d]
+#   x = super().forward(x, ...)                    # Block.forward — HC machinery
+#   logits = self.head(x, hc_head_fn, hc_head_scale, hc_head_base, self.norm)
+#     # ParallelHead.forward: hc_head + norm on all s, logits at x[:, -1]
+#
+# The two entry feeds are separate inputs, because they arrive at
+# different ranks: `e` is the shared embedding table's output for the
+# next-token ids, [B,s_ctx,d_model], and `x` is the backbone's hidden
+# stream still carrying its n_hidden_copies parallel copies,
+# [B,s_ctx,n_hidden_copies,d_model]. The `unsqueeze(2)` in source is the
+# `e_hc` broadcast here: the e-side projection runs once and is added to
+# every copy, so `h_proj` costs n_hidden_copies times what `e_proj` does.
+#
+# Tensor naming inside `mtp.<idx>.` (or wherever MTP is stacked):
+#   enorm.weight, hnorm.weight                — entry RMSNorms
+#   e_proj.weight, h_proj.weight              — entry projections
+#   attn_norm.weight                          — inner block's attn pre-norm
+#   attn.<...>                                — dsv4_swa_only_attention
+#   ffn_norm.weight                           — inner block's ffn pre-norm
+#   ffn.<...>                                 — dsv4_moe_sigmoid
+#   hc_attn_fn        → [d_hc_mix, n_hidden_copies·d_model]   F32     — nn.Parameter (parameter_tensor; hc_pre's `mixes` is its GEMM)
+#   hc_attn_base      → [d_hc_mix]         F32
+#   hc_attn_scale     → [3]          F32
+#   hc_ffn_fn         → [d_hc_mix, n_hidden_copies·d_model]   F32     — nn.Parameter (parameter_tensor; hc_pre's `mixes` is its GEMM)
+#   hc_ffn_base       → [d_hc_mix]         F32
+#   hc_ffn_scale      → [3]          F32
+#   norm.weight       → [d_model]                  — final norm before HC head
+#   hc_head_fn        → [n_hidden_copies, n_hidden_copies·d_model]   F32     — MTP-private HC head weight
+#   hc_head_base      → [n_hidden_copies]         F32
+#   hc_head_scale     → [1]          F32
+#
+# (lm_head is SHARED with the main backbone — no `head.weight` here.)
+#
+# Required dims: d_model, n_hidden_copies, d_hc_mix, plus everything consumed by the inner attn/ffn.
+role: aux_block
+description: "DeepSeek-V4 MTP block: entry combiner + dsv4_block-style HC pre/post + SWA attn + sigmoid MoE + HC head reduce + final norm. Shares main embed + lm_head."
+inputs: [x, e, input_ids]   # x: [B,s_ctx,n_hidden_copies,d_model] backbone stream, e: [B,s_ctx,d_model] shared-embedding output, input_ids: the token ids its ffn reads (model.py MTPBlock.forward -> Block.forward)
+
+graph:
+  # ========================================================
+  # Entry combiner: e_proj(enorm(e)).unsqueeze(2) + h_proj(hnorm(x))
+  # ========================================================
+  enorm:            { op: rmsnorm, in: e, dim: d_model, weight_axes: [{ replicated: true }] }
+  e_proj:           { op: linear, in: enorm, dims: { in: d_model, out: d_model }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  e_hc:             { op: broadcast, in: e_proj, axis: -2, dims: { width: n_hidden_copies } }
+  hnorm:            { op: rmsnorm, in: x, dim: d_model, weight_axes: [{ replicated: true }] }
+  h_proj:           { op: linear, in: hnorm, dims: { in: d_model, out: d_model }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  eh_add:           { op: add, in: [e_hc, h_proj], dim: d_model }
+
+  # ========================================================
+  # Hyper-Connection parameters (MTP-private nn.Parameters at this
+  # block's scope — flat checkpoint paths via parameter_tensor +
+  # parameter_vector, mirroring V4-Pro source).
+  # ========================================================
+  hc_attn_fn:    { op: parameter_tensor, role: hyper_connection, shape: [d_hc_mix, "n_hidden_copies * d_model"], weight_axes: [{ replicated: true }, { replicated: true }] }
+  hc_attn_base:  { op: parameter_vector, role: hyper_connection, dim: d_hc_mix, weight_axes: [{ replicated: true }] }
+  hc_attn_scale: { op: parameter_vector, role: hyper_connection, dim: "3", weight_axes: [{ replicated: true }] }
+  hc_ffn_fn:     { op: parameter_tensor, role: hyper_connection, shape: [d_hc_mix, "n_hidden_copies * d_model"], weight_axes: [{ replicated: true }, { replicated: true }] }
+  hc_ffn_base:   { op: parameter_vector, role: hyper_connection, dim: d_hc_mix, weight_axes: [{ replicated: true }] }
+  hc_ffn_scale:  { op: parameter_vector, role: hyper_connection, dim: "3", weight_axes: [{ replicated: true }] }
+
+  # ========================================================
+  # ATTN — HC pre, attention, HC post (mirrors dsv4_block.forward)
+  # ========================================================
+  hc_attn_pre:   { op: hc_pre, in: [eh_add, hc_attn_fn, hc_attn_scale, hc_attn_base] }
+  attn_norm:     { op: rmsnorm, in: hc_attn_pre, dim: d_model, weight_axes: [{ replicated: true }] }
+  attn:          { op: dsv4_swa_only_attention, in: attn_norm }
+  hc_attn_post:  { op: hc_post, in: [attn, eh_add, hc_attn_pre.post, hc_attn_pre.comb] }
+
+  # ========================================================
+  # FFN — HC pre, MoE, HC post
+  # ========================================================
+  hc_ffn_pre:    { op: hc_pre, in: [hc_attn_post, hc_ffn_fn, hc_ffn_scale, hc_ffn_base] }
+  ffn_norm:      { op: rmsnorm, in: hc_ffn_pre, dim: d_model, weight_axes: [{ replicated: true }] }
+  ffn:           { op: dsv4_moe_sigmoid, in: [ffn_norm, input_ids] }
+  ffn_residual:  { op: hc_post, in: [ffn, hc_attn_post, hc_ffn_pre.post, hc_ffn_pre.comb] }
+
+  # ========================================================
+  # HC head reduce (MTP-private) → final norm → shared lm_head
+  # ========================================================
+  # MTP-private head weights at MTP-block scope (flat checkpoint
+  # paths). Mirrors V4-Pro source's `MTPBlock.hc_head_*` attributes.
+  hc_head_fn:    { op: parameter_tensor, role: hyper_connection, shape: [n_hidden_copies, "n_hidden_copies * d_model"], weight_axes: [{ replicated: true }, { replicated: true }] }
+  hc_head_scale: { op: parameter_vector, role: hyper_connection, dim: "1", weight_axes: [{ replicated: true }] }
+  hc_head_base:  { op: parameter_vector, role: hyper_connection, dim: n_hidden_copies, weight_axes: [{ replicated: true }] }
+
+  # The reference forward mixes the copies and norms every position, then
+  # takes the logits at the last one: `ParallelHead.forward`
+  # (inference/model.py:718-721) runs `hc_head` and `norm(x)` on [b,s,hc,d],
+  # and `get_logits` (:716) reads `x[:, -1]`. The backbone head runs the same
+  # order. So the narrowing to the sampled positions sits after the final
+  # norm, ahead of the logits projection.
+  hh_reduced:    { op: hc_head, in: [ffn_residual, hc_head_fn, hc_head_scale, hc_head_base] }
+  norm:          { op: rmsnorm, in: hh_reduced, dim: d_model, weight_axes: [{ replicated: true }] }
+  hh_sampled:    { op: sample, in: norm }
+
+outputs: [hh_sampled]

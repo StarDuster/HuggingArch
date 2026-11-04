@@ -1,0 +1,96 @@
+# HunYuanOCR / HunYuanVL — multimodal OCR model.
+#   Text backbone: dense GQA (n_heads=16, n_kv_heads=8, head_dim=128) with
+#     per-head QK RMSNorm (query_layernorm/key_layernorm) + full xdrope, SwiGLU
+#     FFN, pre-norm RMSNorm. 24 layers. Bias-free attention.
+#   Vision tower (vit.*): SigLIP-style ViT — Conv patch embed + learned position
+#     grid + 27 pre-norm LayerNorm blocks (biased MHA, no RoPE, GELU MLP) +
+#     PatchMerger projector (perceive) producing text-space image embeddings.
+#
+# Checkpoint layout is flattened: text backbone under `model.` (embed_tokens,
+# layers, norm), lm_head at root, vision tower at `vit.` (not model.vision_tower).
+# Output head: the forward ties lm_head to embed_tokens when
+# tie_word_embeddings is true (modeling_hunyuan_vl.py:1110 `_tied_weights_keys`),
+# and the config sets it true. The checkpoint nevertheless stores
+# lm_head.weight separately ([120818, 1024]); vLLM skips that copy at load when
+# tied (vllm/model_executor/models/hunyuan_vision.py:1039
+# `skip_prefixes=["lm_head."] if tie_word_embeddings`). The tie declares that
+# stored copy with `checkpoint_copy`, so the checkpoint count keeps it and the
+# deployed weights hold the embedding table once.
+match:
+  model_type: [hunyuan_vl]
+  model_id: ["tencent/HunyuanOCR"]
+
+components:
+  attention: hunyuan_text_qknorm_attention
+  ffn_dense: swiglu_ffn
+  norm: rmsnorm
+  block: pre_norm
+
+dims:
+  s_max: config.text_config.max_position_embeddings   # published context length
+  d_model:     config.text_config.hidden_size
+  n_heads:     config.text_config.num_attention_heads
+  n_kv_heads:  config.text_config.num_key_value_heads
+  d_head:      config.text_config.head_dim
+  d_ffn:       config.text_config.intermediate_size
+  n_vocab:     config.text_config.vocab_size
+  n_layers:    config.text_config.num_hidden_layers
+  # vision tower
+  d_vis_model:     config.vision_config.hidden_size
+  n_vis_heads:     config.vision_config.num_attention_heads
+  d_vis_head:      "d_vis_model // n_vis_heads"
+  d_vis_ffn:       config.vision_config.intermediate_size
+  n_vis_layers:    config.vision_config.num_hidden_layers
+  n_vis_channels:  config.vision_config.num_channels
+  s_patch:         config.vision_config.patch_size
+  n_spatial_merge: config.vision_config.spatial_merge_size
+  # num_positions = (max_image_size // patch_size) ** 2 + 1 (CLS slot + patch grid);
+  # modeling_hunyuan_vl.py:195-196. With max_image_size=2048, patch_size=16:
+  # 128**2 + 1 = 16385. The dim registry has no symbol for max_image_size
+  # (binding one is refused as unregistered; `config.*` cannot appear inside an
+  # expression), so the extent is read from the table's stored header instead
+  # of a literal. Registry gap for maintainers: a `whole` symbol for the
+  # ViT's max image side in pixels would let this be written from config.
+  n_vis_pos_slots: checkpoint.vit.embeddings.position_embedding.weight[0]
+
+model_inputs:
+  input_ids: { kind: tokens }
+  # Images per request, then each image's size as the processor hands it to
+  # the tower (after its smart_resize to a multiple of 32).
+  pixel_values: { kind: image, axes: [n_img, img_h, img_w] }
+
+# The transformers base model's tensors sit under `model.`; the LM head
+# beside it declares its own path.
+checkpoint: { root: model }
+
+model:
+  - { name: embed_tokens, inputs: [input_ids], op: embedding, boundary_role: input_embedding, dims: { n_vocab: n_vocab, d_model: d_model }, weight_axes: [{ world: attention, parts: n_vocab, fit: pad }, { replicated: true }] }
+  # Vision tower reads pixels (no inputs); its output is the merged image embeds.
+  - name: vit
+    group: true
+    aux_kind: vision
+    # The vision tower's tensors sit at the file root (`vit.*`).
+    checkpoint: { root: "" }
+    layers:
+      # The processor resizes each image to a multiple of patch_size *
+      # merge_size = 16 * 2 = 32 and cuts 16x16 patches of 3 channels
+      # (temporal_patch_size 1), one row each in raster order; one attention
+      # segment per temporal patch, which for an image is the whole image.
+      - name: vit.patchify
+        op: patchify
+        inputs: [pixel_values]
+        dims: { patch: s_patch, temporal: "1", channels: n_vis_channels, align: "s_patch * n_spatial_merge" }
+        segment: temporal_patch
+        source_anchor: "transformers 5.17 hunyuan_vl/image_processing_hunyuan_vl.py:97-102 patch_size 16, temporal_patch_size 1, merge_size 2; :225 factor = patch_size * merge_size; :164-197 patchify (raster, :185); modeling_hunyuan_vl.py:712 cu_seqlens one segment per temporal patch"
+      - { name: vit, inputs: [vit.patchify], template: hunyuan_vl_vision_tower }
+  # modeling_hunyuan_vl.py:1078
+  # `inputs_embeds = inputs_embeds.masked_scatter(image_mask, image_embeds)`
+  - name: embed_merge
+    op: scatter_rows_replace
+    inputs: [embed_tokens, vit]
+    prompt_slots: { domain: pixel_values, defines: true, source_anchor: "transformers 5.17 hunyuan_vl/modeling_hunyuan_vl.py:1078 inputs_embeds.masked_scatter(image_mask, image_embeds)" }
+  - {name: layers, repeat: n_layers, template: block, inputs: [embed_merge], streams: {hidden: {carries: true}}}
+  - {name: norm, op: rmsnorm, dim: d_model, weight_axes: [{replicated: true}], inputs: [layers]}
+  # Tied to embed_tokens in the forward (modeling_hunyuan_vl.py:1110); the
+  # checkpoint's own lm_head.weight is the copy vLLM skips (see header).
+  - { name: lm_head, op: linear, checkpoint: { path: lm_head }, boundary_role: output_head, in: norm, dims: { in: d_model, out: n_vocab }, weight_axes: [{ world: attention, parts: n_vocab, fit: pad }, { replicated: true }], tied_weight: { to: embed_tokens, when: config.tie_word_embeddings, checkpoint_copy: { src: "vllm/model_executor/models/hunyuan_vision.py:1039 skip_prefixes=['lm_head.'] if tie_word_embeddings" } } }

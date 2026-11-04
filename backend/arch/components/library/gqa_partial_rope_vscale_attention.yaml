@@ -1,0 +1,45 @@
+# GQA + partial RoPE + asymmetric V head dim, separate q / k / v projections,
+# plus a constant VALUE SCALE applied to V before it is cached
+# (`attention_value_scale`): vLLM mimo_v2.py MiMoV2Attention.forward
+# `if self.v_scale is not None: v = v * self.v_scale` (:344-346) before the
+# attention call that writes the cache; the full and the sliding branch both
+# receive it (:368, 377, 397) and so does MTP (mimo_v2_mtp.py:94). sglang
+# mimo_v2.py:637, 717-718, 747-748 and mimo_v2_nextn.py:86 the same.
+# Used by: MiMo-V2-Flash full-attention layers.
+#
+# Same graph as library `gqa_partial_rope_attention` with one extra node,
+# `v_scale`, between `v_split_heads` and the cache entry. The fused-QKV form
+# is `gqa_partial_rope_fused_qkv_vscale_attention`.
+#
+# Required dims: d_model, n_heads, n_kv_heads, d_head, d_v_head, d_rope, d_nope (d_rope + d_nope == d_head).
+# Optional dims: Qb (QKV bias, 0=no bias, 1=has bias, default 0)
+role: attention
+description: "GQA + partial RoPE + asymmetric V head dim + constant V scale, separate q/k/v projections. MiMo-V2-Flash full-attention layers."
+cache:
+  family: GQA
+  entries:
+    - { node: key_concat, kind: kv }
+    - { node: v_scale, kind: kv }
+graph:
+  q_proj:          { op: linear, in: x, dims: { in: d_model, out: "n_heads * d_head", bias: Qb }, weight_axes: [{ world: attention, parts: n_heads, fit: replica_cells }, { replicated: true }] }
+  k_proj:          { op: linear, in: x, dims: { in: d_model, out: "n_kv_heads * d_head", bias: Qb }, weight_axes: [{ world: attention, parts: n_kv_heads, fit: replica_cells }, { replicated: true }] }
+  v_proj:          { op: linear, in: x, dims: { in: d_model, out: "n_kv_heads * d_v_head", bias: Qb }, weight_axes: [{ world: attention, parts: n_kv_heads, fit: replica_cells }, { replicated: true }] }
+  q_split_heads:      { op: head_split, in: q_proj, dims: { n_heads: n_heads, d_head: d_head } }
+  k_split_heads:      { op: head_split, in: k_proj, dims: { n_heads: n_kv_heads, d_head: d_head } }
+  v_split_heads:      { op: head_split, in: v_proj, dims: { n_heads: n_kv_heads, d_head: d_v_head } }
+  v_scale:             { op: scale_const, in: v_split_heads, dims: { in: d_v_head } }
+  q_pe_slice:      { op: slice, in: q_split_heads, dims: { in: d_head, out: d_rope } }
+  q_nope_slice:    { op: slice, in: q_split_heads, dims: { in: d_head, out: d_nope } }
+  k_pe_slice:      { op: slice, in: k_split_heads, dims: { in: d_head, out: d_rope } }
+  k_nope_slice:    { op: slice, in: k_split_heads, dims: { in: d_head, out: d_nope } }
+  q_pe_rope:       { op: rope_emb, in: q_pe_slice, dims: { dim: d_rope } }
+  k_pe_rope:       { op: rope_emb, in: k_pe_slice, dims: { dim: d_rope } }
+  query_concat:    { op: concat, in: [q_pe_rope, q_nope_slice], dims: { in_a: d_rope, in_b: d_nope, out: d_head } }
+  key_concat:      { op: concat, in: [k_pe_rope, k_nope_slice], dims: { in_a: d_rope, in_b: d_nope, out: d_head } }
+  qk_score:        { op: attention_score, in: [query_concat, key_concat], dims: { n_heads: n_heads, d_head: d_head } }
+  softmax:         { op: softmax, in: qk_score, dims: { n_heads: n_heads } }
+  attn_apply:      { op: attention_apply, in: [softmax, v_scale], dims: { n_heads: n_heads, d_head: d_v_head } }
+  o_merge_heads:      { op: head_merge, in: attn_apply, dims: { n_heads: n_heads, d_head: d_v_head } }
+  # MiMo-V2 checkpoints store o_proj BF16 beside the FP8 q/k/v projections.
+  o_proj:          { op: linear, role: attention_output, in: o_merge_heads, dims: { in: "n_heads * d_v_head", out: d_model }, weight_axes: [{ replicated: true }, { world: attention, parts: n_heads, fit: replica_cells }] }
+outputs: [o_proj]

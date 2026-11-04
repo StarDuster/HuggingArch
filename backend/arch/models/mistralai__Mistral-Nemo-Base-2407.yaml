@@ -1,0 +1,4 @@
+# Identity file for mistralai/Mistral-Nemo-Base-2407
+base: mistral_dense
+match:
+  model_id: [mistralai/Mistral-Nemo-Base-2407]

@@ -1,0 +1,217 @@
+{
+  "schema_version": 4,
+  "model_id": "google/gemma-2-27b",
+  "config": {
+    "architectures": [
+      "Gemma2ForCausalLM"
+    ],
+    "attention_bias": false,
+    "attention_dropout": 0.0,
+    "attn_logit_softcapping": 50.0,
+    "bos_token_id": 2,
+    "cache_implementation": "hybrid",
+    "eos_token_id": 1,
+    "final_logit_softcapping": 30.0,
+    "head_dim": 128,
+    "hidden_act": "gelu_pytorch_tanh",
+    "hidden_activation": "gelu_pytorch_tanh",
+    "hidden_size": 4608,
+    "initializer_range": 0.02,
+    "intermediate_size": 36864,
+    "max_position_embeddings": 8192,
+    "model_type": "gemma2",
+    "num_attention_heads": 32,
+    "num_hidden_layers": 46,
+    "num_key_value_heads": 16,
+    "pad_token_id": 0,
+    "query_pre_attn_scalar": 144,
+    "rms_norm_eps": 1e-06,
+    "rope_theta": 10000.0,
+    "sliding_window": 4096,
+    "sliding_window_size": 4096,
+    "torch_dtype": "float32",
+    "transformers_version": "4.42.0.dev0",
+    "use_cache": true,
+    "vocab_size": 256000,
+    "_attn_implementation": "eager"
+  },
+  "metadata": {
+    "header": {
+      "revision": "938270f5272feb02779b55c2bb2fffdd0f53ff0c",
+      "total_size": 108908513280,
+      "read_from": "axolotl-ai-co/gemma-2-27b",
+      "tensors": [
+        {
+          "name": "model.embed_tokens.weight",
+          "dtype": "F32",
+          "shape": [
+            256000,
+            4608
+          ]
+        },
+        {
+          "name": "model.layers.{}.input_layernorm.weight",
+          "dtype": "F32",
+          "shape": [
+            4608
+          ],
+          "index": [
+            [
+              "0-45"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.mlp.down_proj.weight",
+          "dtype": "F32",
+          "shape": [
+            4608,
+            36864
+          ],
+          "index": [
+            [
+              "0-45"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.mlp.gate_proj.weight",
+          "dtype": "F32",
+          "shape": [
+            36864,
+            4608
+          ],
+          "index": [
+            [
+              "0-45"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.mlp.up_proj.weight",
+          "dtype": "F32",
+          "shape": [
+            36864,
+            4608
+          ],
+          "index": [
+            [
+              "0-45"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.post_attention_layernorm.weight",
+          "dtype": "F32",
+          "shape": [
+            4608
+          ],
+          "index": [
+            [
+              "0-45"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.post_feedforward_layernorm.weight",
+          "dtype": "F32",
+          "shape": [
+            4608
+          ],
+          "index": [
+            [
+              "0-45"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.pre_feedforward_layernorm.weight",
+          "dtype": "F32",
+          "shape": [
+            4608
+          ],
+          "index": [
+            [
+              "0-45"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.self_attn.k_proj.weight",
+          "dtype": "F32",
+          "shape": [
+            2048,
+            4608
+          ],
+          "index": [
+            [
+              "0-45"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.self_attn.o_proj.weight",
+          "dtype": "F32",
+          "shape": [
+            4608,
+            4096
+          ],
+          "index": [
+            [
+              "0-45"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.self_attn.q_proj.weight",
+          "dtype": "F32",
+          "shape": [
+            4096,
+            4608
+          ],
+          "index": [
+            [
+              "0-45"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.self_attn.v_proj.weight",
+          "dtype": "F32",
+          "shape": [
+            2048,
+            4608
+          ],
+          "index": [
+            [
+              "0-45"
+            ]
+          ]
+        },
+        {
+          "name": "model.norm.weight",
+          "dtype": "F32",
+          "shape": [
+            4608
+          ]
+        }
+      ]
+    },
+    "quant_scheme": "none",
+    "num_bits": 0
+  },
+  "forward_source": {
+    "source": "local_transformers",
+    "paths": [
+      "site-packages/transformers/models/gemma2/modeling_gemma2.py"
+    ],
+    "files": [
+      {
+        "path": "site-packages/transformers/models/gemma2/modeling_gemma2.py",
+        "text": "#                🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨\n#           This file was automatically generated from src/transformers/models/gemma2/modular_gemma2.py.\n#               Do NOT edit this file manually as any edits will be overwritten by the generation of\n#             the file from the modular. If any change should be done, please apply the change to the\n#                          modular_gemma2.py file directly. One of our CI enforces this.\n#                🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨\n# Copyright 2024 Google Inc. HuggingFace Inc. team. All rights reserved.\n#\n#\n# Licensed under the Apache License, Version 2.0 (the \"License\");\n# you may not use this file except in compliance with the License.\n# You may obtain a copy of the License at\n#\n#     http://www.apache.org/licenses/LICENSE-2.0\n#\n# Unless required by applicable law or agreed to in writing, software\n# distributed under the License is distributed on an \"AS IS\" BASIS,\n# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n# See the License for the specific language governing permissions and\n# limitations under the License.\nfrom collections.abc import Callable\nfrom typing import Optional\n\nimport torch\nimport torch.nn as nn\n\nfrom ... import initialization as init\nfrom ...activations import ACT2FN\nfrom ...cache_utils import Cache, DynamicCache\nfrom ...generation import GenerationMixin\nfrom ...integrations import use_kernel_func_from_hub, use_kernelized_func\nfrom ...masking_utils import create_causal_mask, create_sliding_window_causal_mask\nfrom ...modeling_flash_attention_utils import FlashAttentionKwargs\nfrom ...modeling_layers import (\n    GenericForSequenceClassification,\n    GenericForTokenClassification,\n    GradientCheckpointingLayer,\n)\nfrom ...modeling_outputs import BaseModelOutputWithPast, CausalLMOutputWithPast\nfrom ...modeling_rope_utils import ROPE_INIT_FUNCTIONS, dynamic_rope_update\nfrom ...modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel\nfrom ...processing_utils import Unpack\nfrom ...utils import TransformersKwargs, auto_docstring, can_return_tuple\nfrom ...utils.generic import maybe_autocast, merge_with_config_defaults\nfrom ...utils.output_capturing import capture_outputs\nfrom .configuration_gemma2 import Gemma2Config\n\n\nclass Gemma2RMSNorm(nn.Module):\n    def __init__(self, dim: int, eps: float = 1e-6):\n        super().__init__()\n        self.eps = eps\n        self.weight = nn.Parameter(torch.zeros(dim))\n\n    def _norm(self, x):\n        return x * torch.rsqrt(x.pow(2).mean(-1, keepdim=True) + self.eps)\n\n    def forward(self, x):\n        output = self._norm(x.float())\n        # Llama does x.to(float16) * w whilst Gemma2 is (x * w).to(float16)\n        # See https://github.com/huggingface/transformers/pull/29402\n        output = output * (1.0 + self.weight.float())\n        return output.type_as(x)\n\n    def extra_repr(self):\n        return f\"{tuple(self.weight.shape)}, eps={self.eps}\"\n\n\nclass Gemma2MLP(nn.Module):\n    def __init__(self, config):\n        super().__init__()\n        self.config = config\n        self.hidden_size = config.hidden_size\n        self.intermediate_size = config.intermediate_size\n        self.gate_proj = nn.Linear(self.hidden_size, self.intermediate_size, bias=False)\n        self.up_proj = nn.Linear(self.hidden_size, self.intermediate_size, bias=False)\n        self.down_proj = nn.Linear(self.intermediate_size, self.hidden_size, bias=False)\n        self.act_fn = ACT2FN[config.hidden_activation]\n\n    def forward(self, x):\n        down_proj = self.down_proj(self.act_fn(self.gate_proj(x)) * self.up_proj(x))\n        return down_proj\n\n\nclass Gemma2RotaryEmbedding(nn.Module):\n    inv_freq: torch.Tensor  # fix linting for `register_buffer`\n\n    def __init__(self, config: Gemma2Config, device=None):\n        super().__init__()\n        self.max_seq_len_cached = config.max_position_embeddings\n        self.original_max_seq_len = config.max_position_embeddings\n\n        self.config = config\n\n        self.rope_type = self.config.rope_parameters[\"rope_type\"]\n        rope_init_fn: Callable = self.compute_default_rope_parameters\n        if self.rope_type != \"default\":\n            rope_init_fn = ROPE_INIT_FUNCTIONS[self.rope_type]\n        inv_freq, self.attention_scaling = rope_init_fn(self.config, device)\n\n        self.register_buffer(\"inv_freq\", inv_freq, persistent=False)\n        self.register_buffer(\"original_inv_freq\", inv_freq.clone(), persistent=False)\n\n    @staticmethod\n    def compute_default_rope_parameters(\n        config: Gemma2Config | None = None,\n        device: Optional[\"torch.device\"] = None,\n        seq_len: int | None = None,\n    ) -> tuple[\"torch.Tensor\", float]:\n        \"\"\"\n        Computes the inverse frequencies according to the original RoPE implementation\n        Args:\n            config ([`~transformers.PreTrainedConfig`]):\n                The model configuration.\n            device (`torch.device`):\n                The device to use for initialization of the inverse frequencies.\n            seq_len (`int`, *optional*):\n                The current sequence length. Unused for this type of RoPE.\n        Returns:\n            Tuple of (`torch.Tensor`, `float`), containing the inverse frequencies for the RoPE embeddings and the\n            post-processing scaling factor applied to the computed cos/sin (unused in this type of RoPE).\n        \"\"\"\n        base = config.rope_parameters[\"rope_theta\"]\n        dim = getattr(config, \"head_dim\", None) or config.hidden_size // config.num_attention_heads\n\n        attention_factor = 1.0  # Unused in this type of RoPE\n\n        # Compute the inverse frequencies\n        inv_freq = 1.0 / (\n            base ** (torch.arange(0, dim, 2, dtype=torch.int64).to(device=device, dtype=torch.float) / dim)\n        )\n        return inv_freq, attention_factor\n\n    @torch.no_grad()\n    @dynamic_rope_update  # power user: used with advanced RoPE types (e.g. dynamic rope)\n    def forward(self, x, position_ids):\n        inv_freq_expanded = self.inv_freq[None, :, None].float().expand(position_ids.shape[0], -1, 1).to(x.device)\n        position_ids_expanded = position_ids[:, None, :].float()\n\n        device_type = x.device.type if isinstance(x.device.type, str) and x.device.type != \"mps\" else \"cpu\"\n        with maybe_autocast(device_type=device_type, enabled=False):  # Force float32\n            freqs = (inv_freq_expanded.float() @ position_ids_expanded.float()).transpose(1, 2)\n            emb = torch.cat((freqs, freqs), dim=-1)\n            cos = emb.cos() * self.attention_scaling\n            sin = emb.sin() * self.attention_scaling\n\n        return cos.to(dtype=x.dtype), sin.to(dtype=x.dtype)\n\n\ndef rotate_half(x):\n    \"\"\"Rotates half the hidden dims of the input.\"\"\"\n    x1 = x[..., : x.shape[-1] // 2]\n    x2 = x[..., x.shape[-1] // 2 :]\n    return torch.cat((-x2, x1), dim=-1)\n\n\n@use_kernel_func_from_hub(\"rotary_pos_emb\")\ndef apply_rotary_pos_emb(q, k, cos, sin, unsqueeze_dim=1):\n    \"\"\"Applies Rotary Position Embedding to the query and key tensors.\n\n    Args:\n        q (`torch.Tensor`): The query tensor.\n        k (`torch.Tensor`): The key tensor.\n        cos (`torch.Tensor`): The cosine part of the rotary embedding.\n        sin (`torch.Tensor`): The sine part of the rotary embedding.\n        unsqueeze_dim (`int`, *optional*, defaults to 1):\n            The 'unsqueeze_dim' argument specifies the dimension along which to unsqueeze cos[position_ids] and\n            sin[position_ids] so that they can be properly broadcasted to the dimensions of q and k. For example, note\n            that cos[position_ids] and sin[position_ids] have the shape [batch_size, seq_len, head_dim]. Then, if q and\n            k have the shape [batch_size, heads, seq_len, head_dim], then setting unsqueeze_dim=1 makes\n            cos[position_ids] and sin[position_ids] broadcastable to the shapes of q and k. Similarly, if q and k have\n            the shape [batch_size, seq_len, heads, head_dim], then set unsqueeze_dim=2.\n    Returns:\n        `tuple(torch.Tensor)` comprising of the query and key tensors rotated using the Rotary Position Embedding.\n    \"\"\"\n    cos = cos.unsqueeze(unsqueeze_dim)\n    sin = sin.unsqueeze(unsqueeze_dim)\n    q_embed = (q * cos) + (rotate_half(q) * sin)\n    k_embed = (k * cos) + (rotate_half(k) * sin)\n    return q_embed, k_embed\n\n\ndef repeat_kv(hidden_states: torch.Tensor, n_rep: int) -> torch.Tensor:\n    \"\"\"\n    This is the equivalent of torch.repeat_interleave(x, dim=1, repeats=n_rep). The hidden states go from (batch,\n    num_key_value_heads, seqlen, head_dim) to (batch, num_attention_heads, seqlen, head_dim)\n    \"\"\"\n    batch, num_key_value_heads, slen, head_dim = hidden_states.shape\n    if n_rep == 1:\n        return hidden_states\n    hidden_states = hidden_states[:, :, None, :, :].expand(batch, num_key_value_heads, n_rep, slen, head_dim)\n    return hidden_states.reshape(batch, num_key_value_heads * n_rep, slen, head_dim)\n\n\ndef eager_attention_forward(\n    module: nn.Module,\n    query: torch.Tensor,\n    key: torch.Tensor,\n    value: torch.Tensor,\n    attention_mask: torch.Tensor | None,\n    dropout: float | int = 0.0,\n    scaling: float | None = None,\n    softcap: float | None = None,\n    **kwargs,\n) -> tuple[torch.Tensor, torch.Tensor]:\n    if scaling is None:\n        scaling = module.head_dim**-0.5\n\n    key_states = repeat_kv(key, module.num_key_value_groups)\n    value_states = repeat_kv(value, module.num_key_value_groups)\n\n    attn_weights = torch.matmul(query, key_states.transpose(2, 3)) * scaling\n\n    if softcap is not None:\n        attn_weights = attn_weights / softcap\n        attn_weights = torch.tanh(attn_weights)\n        attn_weights = attn_weights * softcap\n    if attention_mask is not None:\n        attn_weights = attn_weights + attention_mask\n\n    # upcast attention to fp32\n    attn_weights = nn.functional.softmax(attn_weights, dim=-1, dtype=torch.float32).to(query.dtype)\n    attn_weights = nn.functional.dropout(attn_weights, p=dropout, training=module.training)\n    attn_output = torch.matmul(attn_weights, value_states)\n    attn_output = attn_output.transpose(1, 2).contiguous()\n    return attn_output, attn_weights\n\n\n@use_kernelized_func(apply_rotary_pos_emb)\nclass Gemma2Attention(nn.Module):\n    \"\"\"Multi-headed attention from 'Attention Is All You Need' paper\"\"\"\n\n    def __init__(self, config: Gemma2Config, layer_idx: int):\n        super().__init__()\n        self.layer_type = config.layer_types[layer_idx] if hasattr(config, \"layer_types\") else None\n        self.config = config\n        self.layer_idx = layer_idx\n        self.head_dim = getattr(config, \"head_dim\", config.hidden_size // config.num_attention_heads)\n        self.num_key_value_groups = config.num_attention_heads // config.num_key_value_heads\n        self.scaling = config.query_pre_attn_scalar**-0.5\n        self.attention_dropout = self.config.attention_dropout\n        self.is_causal = not getattr(config, \"use_bidirectional_attention\", False)\n\n        self.q_proj = nn.Linear(\n            config.hidden_size, config.num_attention_heads * self.head_dim, bias=config.attention_bias\n        )\n        self.k_proj = nn.Linear(\n            config.hidden_size, config.num_key_value_heads * self.head_dim, bias=config.attention_bias\n        )\n        self.v_proj = nn.Linear(\n            config.hidden_size, config.num_key_value_heads * self.head_dim, bias=config.attention_bias\n        )\n        self.o_proj = nn.Linear(\n            config.num_attention_heads * self.head_dim, config.hidden_size, bias=config.attention_bias\n        )\n        self.attn_logit_softcapping = self.config.attn_logit_softcapping\n        self.sliding_window = config.sliding_window if self.layer_type == \"sliding_attention\" else None\n\n    def forward(\n        self,\n        hidden_states: torch.Tensor,\n        position_embeddings: tuple[torch.Tensor, torch.Tensor] | None = None,\n        attention_mask: torch.Tensor | None = None,\n        past_key_values: Cache | None = None,\n        **kwargs: Unpack[FlashAttentionKwargs],\n    ) -> tuple[torch.Tensor, torch.Tensor | None, tuple[torch.Tensor] | None]:\n        input_shape = hidden_states.shape[:-1]\n        hidden_shape = (*input_shape, -1, self.head_dim)\n\n        query_states = self.q_proj(hidden_states).view(hidden_shape).transpose(1, 2)\n        key_states = self.k_proj(hidden_states).view(hidden_shape).transpose(1, 2)\n        value_states = self.v_proj(hidden_states).view(hidden_shape).transpose(1, 2)\n\n        cos, sin = position_embeddings\n        query_states, key_states = apply_rotary_pos_emb(query_states, key_states, cos, sin)\n\n        if past_key_values is not None:\n            key_states, value_states = past_key_values.update(key_states, value_states, self.layer_idx)\n\n        attention_interface: Callable = ALL_ATTENTION_FUNCTIONS.get_interface(\n            self.config._attn_implementation, eager_attention_forward\n        )\n\n        attn_output, attn_weights = attention_interface(\n            self,\n            query_states,\n            key_states,\n            value_states,\n            attention_mask,\n            dropout=self.attention_dropout if self.training else 0.0,\n            scaling=self.scaling,\n            sliding_window=self.sliding_window,\n            softcap=self.attn_logit_softcapping,\n            **kwargs,\n        )\n\n        attn_output = attn_output.reshape(*input_shape, -1).contiguous()\n        attn_output = self.o_proj(attn_output)\n        return attn_output, attn_weights\n\n\nclass Gemma2DecoderLayer(GradientCheckpointingLayer):\n    def __init__(self, config: Gemma2Config, layer_idx: int):\n        super().__init__()\n        self.hidden_size = config.hidden_size\n        self.config = config\n        self.self_attn = Gemma2Attention(config=config, layer_idx=layer_idx)\n        self.mlp = Gemma2MLP(config)\n        self.input_layernorm = Gemma2RMSNorm(config.hidden_size, eps=config.rms_norm_eps)\n        self.post_attention_layernorm = Gemma2RMSNorm(config.hidden_size, eps=config.rms_norm_eps)\n\n        self.pre_feedforward_layernorm = Gemma2RMSNorm(config.hidden_size, eps=config.rms_norm_eps)\n        self.post_feedforward_layernorm = Gemma2RMSNorm(config.hidden_size, eps=config.rms_norm_eps)\n\n    def forward(\n        self,\n        hidden_states: torch.Tensor,\n        position_embeddings: tuple[torch.Tensor, torch.Tensor] | None = None,\n        attention_mask: torch.Tensor | None = None,\n        position_ids: torch.LongTensor | None = None,\n        past_key_values: Cache | None = None,\n        **kwargs,\n    ) -> tuple[torch.FloatTensor, tuple[torch.FloatTensor, torch.FloatTensor] | None]:\n        residual = hidden_states\n\n        hidden_states = self.input_layernorm(hidden_states)\n\n        # Self Attention\n        hidden_states, _ = self.self_attn(\n            hidden_states=hidden_states,\n            position_embeddings=position_embeddings,\n            attention_mask=attention_mask,\n            position_ids=position_ids,\n            past_key_values=past_key_values,\n            **kwargs,\n        )\n        hidden_states = self.post_attention_layernorm(hidden_states)\n        hidden_states = residual + hidden_states\n\n        residual = hidden_states\n        hidden_states = self.pre_feedforward_layernorm(hidden_states)\n        hidden_states = self.mlp(hidden_states)\n        hidden_states = self.post_feedforward_layernorm(hidden_states)\n        hidden_states = residual + hidden_states\n\n        return hidden_states\n\n\nclass Gemma2TextScaledWordEmbedding(nn.Embedding):\n    \"\"\"\n    This module overrides nn.Embeddings' forward by multiplying with embeddings scale.\n    \"\"\"\n\n    def __init__(self, num_embeddings: int, embedding_dim: int, padding_idx: int, embed_scale: float = 1.0):\n        super().__init__(num_embeddings, embedding_dim, padding_idx)\n        self.scalar_embed_scale = embed_scale\n        self.register_buffer(\"embed_scale\", torch.tensor(embed_scale), persistent=False)\n\n    def forward(self, input_ids: torch.Tensor):\n        return super().forward(input_ids) * self.embed_scale.to(self.weight.dtype)\n\n\n@auto_docstring\nclass Gemma2PreTrainedModel(PreTrainedModel):\n    config: Gemma2Config\n    base_model_prefix = \"model\"\n    supports_gradient_checkpointing = True\n    _no_split_modules = [\"Gemma2DecoderLayer\"]\n    _skip_keys_device_placement = [\"past_key_values\"]\n    _supports_flash_attn = True\n    _supports_sdpa = True\n    _supports_flex_attn = True\n\n    _can_compile_fullgraph = True\n    _supports_attention_backend = True\n    _can_record_outputs = {\n        \"hidden_states\": Gemma2DecoderLayer,\n        \"attentions\": Gemma2Attention,\n    }\n\n    @torch.no_grad()\n    def _init_weights(self, module):\n        super()._init_weights(module)\n        # We initialize with 0s to be 1 centered as the RMSNorm here does (1 + weight)\n        if \"RMSNorm\" in module.__class__.__name__:\n            init.zeros_(module.weight)\n        elif isinstance(module, Gemma2TextScaledWordEmbedding):\n            init.constant_(module.embed_scale, module.scalar_embed_scale)\n\n\n@auto_docstring\nclass Gemma2Model(Gemma2PreTrainedModel):\n    def __init__(self, config: Gemma2Config):\n        super().__init__(config)\n        self.padding_idx = config.pad_token_id\n        self.vocab_size = config.vocab_size\n        # Gemma23 downcasts the below to bfloat16, causing sqrt(3072)=55.4256 to become 55.5. See https://github.com/huggingface/transformers/pull/29402\n        self.embed_tokens = Gemma2TextScaledWordEmbedding(\n            config.vocab_size, config.hidden_size, self.padding_idx, embed_scale=self.config.hidden_size**0.5\n        )\n        self.layers = nn.ModuleList(\n            [Gemma2DecoderLayer(config, layer_idx) for layer_idx in range(config.num_hidden_layers)]\n        )\n        self.norm = Gemma2RMSNorm(config.hidden_size, eps=config.rms_norm_eps)\n        self.rotary_emb = Gemma2RotaryEmbedding(config)\n        self.gradient_checkpointing = False\n\n        # Initialize weights and apply final processing\n        self.post_init()\n\n    @merge_with_config_defaults\n    @capture_outputs\n    @auto_docstring\n    def forward(\n        self,\n        input_ids: torch.LongTensor | None = None,\n        attention_mask: torch.Tensor | None = None,\n        position_ids: torch.LongTensor | None = None,\n        past_key_values: Cache | None = None,\n        inputs_embeds: torch.FloatTensor | None = None,\n        use_cache: bool | None = None,\n        **kwargs: Unpack[TransformersKwargs],\n    ) -> BaseModelOutputWithPast:\n        if (input_ids is None) ^ (inputs_embeds is not None):\n            raise ValueError(\"You must specify exactly one of input_ids or inputs_embeds\")\n\n        if inputs_embeds is None:\n            inputs_embeds: torch.Tensor = self.embed_tokens(input_ids)\n\n        if use_cache and past_key_values is None:\n            past_key_values = DynamicCache(config=self.config)\n\n        if position_ids is None:\n            past_seen_tokens = past_key_values.get_seq_length() if past_key_values is not None else 0\n            position_ids = torch.arange(inputs_embeds.shape[1], device=inputs_embeds.device) + past_seen_tokens\n            position_ids = position_ids.unsqueeze(0)\n\n        # It may already have been prepared by e.g. `generate`\n        if not isinstance(causal_mask_mapping := attention_mask, dict):\n            # Prepare mask arguments\n            mask_kwargs = {\n                \"config\": self.config,\n                \"inputs_embeds\": inputs_embeds,\n                \"attention_mask\": attention_mask,\n                \"past_key_values\": past_key_values,\n                \"position_ids\": position_ids,\n            }\n            # Create the masks\n            causal_mask_mapping = {\n                \"full_attention\": create_causal_mask(**mask_kwargs),\n                \"sliding_attention\": create_sliding_window_causal_mask(**mask_kwargs),\n            }\n\n        # embed positions\n        hidden_states = inputs_embeds\n        position_embeddings = self.rotary_emb(hidden_states, position_ids)\n\n        for i, decoder_layer in enumerate(self.layers[: self.config.num_hidden_layers]):\n            hidden_states = decoder_layer(\n                hidden_states,\n                attention_mask=causal_mask_mapping[self.config.layer_types[i]],\n                position_embeddings=position_embeddings,\n                position_ids=position_ids,\n                past_key_values=past_key_values,\n                **kwargs,\n            )\n\n        hidden_states = self.norm(hidden_states)\n\n        return BaseModelOutputWithPast(\n            last_hidden_state=hidden_states,\n            past_key_values=past_key_values,\n        )\n\n\n@auto_docstring\nclass Gemma2ForCausalLM(Gemma2PreTrainedModel, GenerationMixin):\n    _tied_weights_keys = {\"lm_head.weight\": \"model.embed_tokens.weight\"}\n    _tp_plan = {\"lm_head\": \"colwise_gather_output\"}\n    _pp_plan = {\"lm_head\": ([\"hidden_states\"], [\"logits\"])}\n\n    def __init__(self, config):\n        super().__init__(config)\n        self.model = Gemma2Model(config)\n        self.vocab_size = config.vocab_size\n        self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)\n\n        # Initialize weights and apply final processing\n        self.post_init()\n\n    @can_return_tuple\n    @auto_docstring\n    def forward(\n        self,\n        input_ids: torch.LongTensor | None = None,\n        attention_mask: torch.Tensor | None = None,\n        position_ids: torch.LongTensor | None = None,\n        past_key_values: Cache | None = None,\n        inputs_embeds: torch.FloatTensor | None = None,\n        labels: torch.LongTensor | None = None,\n        use_cache: bool | None = None,\n        logits_to_keep: int | torch.Tensor = 0,\n        **kwargs: Unpack[TransformersKwargs],\n    ) -> CausalLMOutputWithPast:\n        r\"\"\"\n        Example:\n\n        ```python\n        >>> from transformers import AutoTokenizer, Gemma2ForCausalLM\n\n        >>> model = Gemma2ForCausalLM.from_pretrained(\"google/gemma-2-9b\")\n        >>> tokenizer = AutoTokenizer.from_pretrained(\"google/gemma-2-9b\")\n\n        >>> prompt = \"What is your favorite condiment?\"\n        >>> inputs = tokenizer(prompt, return_tensors=\"pt\")\n\n        >>> # Generate\n        >>> generate_ids = model.generate(inputs.input_ids, max_length=30)\n        >>> tokenizer.batch_decode(generate_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0]\n        \"What is your favorite condiment?\"\n        ```\"\"\"\n        # decoder outputs consists of (dec_features, layer_state, dec_hidden, dec_attn)\n        outputs: BaseModelOutputWithPast = self.model(\n            input_ids=input_ids,\n            attention_mask=attention_mask,\n            position_ids=position_ids,\n            past_key_values=past_key_values,\n            inputs_embeds=inputs_embeds,\n            use_cache=use_cache,\n            **kwargs,\n        )\n\n        hidden_states = outputs.last_hidden_state\n        # Only compute necessary logits, and do not upcast them to float if we are not computing the loss\n        slice_indices = slice(-logits_to_keep, None) if isinstance(logits_to_keep, int) else logits_to_keep\n        logits = self.lm_head(hidden_states[:, slice_indices, :])\n        if self.config.final_logit_softcapping is not None:\n            logits = logits / self.config.final_logit_softcapping\n            logits = torch.tanh(logits)\n            logits = logits * self.config.final_logit_softcapping\n\n        loss = None\n        if labels is not None:\n            loss = self.loss_function(logits, labels, self.vocab_size, **kwargs)\n\n        return CausalLMOutputWithPast(\n            loss=loss,\n            logits=logits,\n            past_key_values=outputs.past_key_values,\n            hidden_states=outputs.hidden_states,\n            attentions=outputs.attentions,\n        )\n\n\nclass Gemma2ForSequenceClassification(GenericForSequenceClassification, Gemma2PreTrainedModel):\n    pass\n\n\nclass Gemma2ForTokenClassification(GenericForTokenClassification, Gemma2PreTrainedModel):\n    pass\n\n\n__all__ = [\n    \"Gemma2ForCausalLM\",\n    \"Gemma2Model\",\n    \"Gemma2PreTrainedModel\",\n    \"Gemma2ForSequenceClassification\",\n    \"Gemma2ForTokenClassification\",\n]\n"
+      }
+    ]
+  },
+  "model_str": "Gemma2ForCausalLM(\n  (model): Gemma2Model(\n    (embed_tokens): Gemma2TextScaledWordEmbedding(256000, 4608, padding_idx=0)\n    (layers): ModuleList(\n      (0-45): 46 x Gemma2DecoderLayer(\n        (self_attn): Gemma2Attention(\n          (q_proj): Linear(in_features=4608, out_features=4096, bias=False)\n          (k_proj): Linear(in_features=4608, out_features=2048, bias=False)\n          (v_proj): Linear(in_features=4608, out_features=2048, bias=False)\n          (o_proj): Linear(in_features=4096, out_features=4608, bias=False)\n        )\n        (mlp): Gemma2MLP(\n          (gate_proj): Linear(in_features=4608, out_features=36864, bias=False)\n          (up_proj): Linear(in_features=4608, out_features=36864, bias=False)\n          (down_proj): Linear(in_features=36864, out_features=4608, bias=False)\n          (act_fn): GELUTanh()\n        )\n        (input_layernorm): Gemma2RMSNorm((4608,), eps=1e-06)\n        (post_attention_layernorm): Gemma2RMSNorm((4608,), eps=1e-06)\n        (pre_feedforward_layernorm): Gemma2RMSNorm((4608,), eps=1e-06)\n        (post_feedforward_layernorm): Gemma2RMSNorm((4608,), eps=1e-06)\n      )\n    )\n    (norm): Gemma2RMSNorm((4608,), eps=1e-06)\n    (rotary_emb): Gemma2RotaryEmbedding()\n  )\n  (lm_head): Linear(in_features=4608, out_features=256000, bias=False)\n)",
+  "release_date": "2024-06-27"
+}

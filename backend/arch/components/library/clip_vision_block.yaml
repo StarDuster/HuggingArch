@@ -1,0 +1,16 @@
+# CLIP ViT encoder layer: pre-norm (LayerNorm) + biased MHA + biased GELU MLP.
+# Used by: MiniMax-M3 vision tower (vision_tower.vision_model.encoder.layers.X).
+#
+# HF CLIPEncoderLayer forward:
+#   residual = x; x = layer_norm1(x); x = self_attn(x); x = residual + x
+#   residual = x; x = layer_norm2(x); x = mlp(x);       x = residual + x
+role: block
+description: "CLIP ViT encoder layer: pre-norm (LayerNorm) + biased MHA + biased GELU MLP. MiniMax-M3 vision tower."
+graph:
+  layer_norm1:   { op: layernorm, in: x, dim: d_vis_model, weight_axes: [{ replicated: true }] }
+  self_attn:     { op: clip_vision_attention, in: layer_norm1 }
+  attn_residual: { op: add, in: [x, self_attn], dim: d_vis_model }
+  layer_norm2:   { op: layernorm, in: attn_residual, dim: d_vis_model, weight_axes: [{ replicated: true }] }
+  mlp:           { op: clip_vision_mlp, in: layer_norm2 }
+  out:           { op: add, in: [attn_residual, mlp], dim: d_vis_model }
+outputs: [out]

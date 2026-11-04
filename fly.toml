@@ -1,0 +1,75 @@
+# fly.toml app configuration file generated for huggingarch on 2026-05-05T13:17:31+08:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'huggingarch'
+primary_region = 'nrt'
+
+[build]
+  dockerfile = 'Dockerfile'
+
+[env]
+  ANALYZE_RPM = '60'
+  INFERENCE_RPM = '120'
+  # The container's processes on one 6 GiB VM (docs/measured_calibration.md
+  # §8.3): the Kernel Bench service (~220 MiB), the API
+  # (~110 MiB) and its compute pool, the runtime cache warm (~110 MiB) and
+  # its pool, spec agents (~250-400 MiB each). A compute worker is ~145 MiB
+  # idle and keeps the cells of the 16 models it ran last (`capacity._CELLS`),
+  # up to ~0.93 GiB when all 16 are the largest; computing one large model
+  # adds up to ~0.85 GiB while it runs (Kimi-K3). Worst case with 2 API
+  # workers and a 1-worker warm: ~4.5 GiB, which leaves room for 3 agents.
+  # Gallery frontier entries are held in no process's memory (disk and
+  # remote only); each process that reads frontier views — every compute
+  # worker, spawned with its own caches, and the warm — keeps them in a
+  # tier of `gallery_overview.FRONTIER_VIEW_MEMORY_BYTES` (8 MiB of JSON,
+  # ~32 MiB of objects): (2 workers + 1) × 32 MiB ≈ 0.1 GiB here. Drawing a
+  # view off an entry is a job's transient within the per-job allowance.
+  HA_SWEEP_POOL_WORKERS = '2'
+  HA_WARM_WORKERS = '1'
+  # Restore after the landing fold is moved off the request/health path: the
+  # shared deterministic entries below are already reused without this warm.
+  HA_LANDING_WARM = 'off'
+  HA_RUNTIME_WARM = 'off'
+  SPEC_AGENT_MAX_CONCURRENT = '3'
+  HA_GALLERY_CACHE_DIR = '/app/.cache/huggingarch/gallery-cache'
+  # The immutable canonical law pool is machine state, not image state.  It
+  # lives on the persistent volume and is bootstrapped from the versioned
+  # Supabase artifact by backend.sol_pool_artifact at container start.
+  HA_SOL_POOL_DIR = '/app/.cache/huggingarch/sol-pool'
+  # Empty means “read this engine version's index”. Empty overrides stale
+  # machine-level values left by earlier Fly configurations.
+  HA_SOL_POOL_ARTIFACT = ''
+  HA_ARTIFACT_BUCKET = 'sol-pool'
+  HA_GALLERY_CACHE_ARTIFACT = ''
+  HA_SWEEP_CACHE_DIR = '/app/var/sweep-cache'
+  # Kernel Bench: on an empty volume, restore the lake from the backup's
+  # latest snapshot before serving (docs/measured_calibration.md §4.7);
+  # with a lake already on the volume it does nothing.
+  HUGGINGARCH_BENCH_RESTORE = 'on'
+
+[[mounts]]
+  source = 'huggingarch_cache'
+  destination = '/app/.cache'
+  initial_size = '3gb'
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  auto_stop_machines = 'off'
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ['app']
+
+  [[http_service.checks]]
+  interval = '30s'
+  timeout = '5s'
+  grace_period = '10s'
+    method = 'GET'
+    path = '/health'
+
+[[vm]]
+  size = 'shared-cpu-1x'
+  memory = '6gb'
+  cpus = 8

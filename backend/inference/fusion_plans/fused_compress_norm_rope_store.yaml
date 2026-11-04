@@ -1,0 +1,46 @@
+# A compressed row's norm → RoPE → quantised cache store, one launch: the
+# DeepSeek-V4 KV compressor tail and the DeepSeek-V4.1 index key in vLLM.
+#
+# Naive subgraph (dsv4_compressor_overlap / dsv4_compressor_no_overlap): the
+# pooled entry is RMS-normalized, its last d_qk_rope dims are rotated and
+# re-joined, and the result is the compressed cache row:
+#
+#   n        = rmsnorm(kv)
+#   concat   = concat(slice(n), rope_emb(slice(n)))
+#   compress = token_pool_compressor(concat)          # the cached entry
+#
+# vLLM (audited at v0.32.0), no-overlap compressor (compress_ratio 128) on
+# CUDA: the pool is one launch (`SparseAttnCompressC128Block8Kernel`,
+# vllm/models/deepseek_v4/nvidia/ops/sparse_attn_compress_cutedsl.py:1084)
+# and norm + RoPE + quant + cache insert the next
+# (`SparseAttnNormRopeStore{,Full}Kernel`, :1453, :1832), both dispatched
+# from `SparseAttnCompressorCuteDSL` (:2343) for `DeepseekCompressor`
+# (vllm/models/deepseek_v4/compressor.py:475). This plan is the second
+# launch. The overlap compressor (compress_ratio 4) pools in the same launch
+# as it stores — `fused_overlap_compress_norm_rope_store`, the larger
+# pattern, tried first.
+#
+# The same chain is DeepSeek-V4.1's index key (csa2_index_keys `k_norm` ..
+# `k_roped`, stored by the indexer's `k_cache` marker): the projection of the
+# compressor's pooled latent, normed, rotated and written into the paged
+# index-K cache. vLLM runs it as one launch, `indexer_k_norm_rope_store`
+# (vllm/models/deepseek_v41/common/ops/indexer_k_store.py:29), both phases;
+# the binding states the launch and why it crosses the component boundary.
+#
+# The token_pool_compressor marker is the sink so the plan binds only a
+# compressed-row store: the same norm → rope → concat shape is also a partial-RoPE
+# q/k path (GLM-4.5, the V4 latent KV), which is not this kernel.
+
+fused_op: fused_compress_norm_rope_store
+
+naive_pattern:
+  nodes:
+    norm:         { op: rmsnorm,               inputs: [external.kv] }
+    rope_slice:   { op: slice,                 inputs: [norm.out] }
+    norope_slice: { op: slice,                 inputs: [norm.out] }
+    rope:         { op: rope_emb,              inputs: [rope_slice.out] }
+    concat:       { op: concat,                inputs: [norope_slice.out, rope.out] }
+    compress:     { op: token_pool_compressor, inputs: [concat.out] }
+  io_mapping:
+    kv:     external.kv
+    output: compress.out

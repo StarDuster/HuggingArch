@@ -1,0 +1,46 @@
+# The regression lane: every test marked `regression` — the checks that run
+# every model (they walk every snapshot, or a whole cohort of them), the
+# minutes-long files such as tests/kernel_bench/test_kernel_bench.py, and
+# every parametrised test's non-first cases (tests/conftest.py marks them, so
+# the default run takes one case of each).
+#
+# pyproject's addopts deselects them, so the push / PR `tests` workflow and
+# the deploy gate never run them. Start this one by hand (Actions → regression
+# → Run workflow) before a release, after an engine change that can move every
+# model, or on a dependency bump; pick a branch to run it on that branch.
+
+name: regression
+
+on:
+  workflow_dispatch: {}
+
+concurrency:
+  group: regression-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Set up Python
+        run: uv python install 3.13
+
+      - name: Sync deps (locked, dev extras)
+        run: uv sync --frozen
+
+      - name: Run pytest (regression)
+        run: |
+          uv run pytest tests/ -m regression \
+            --ignore=tests/backend/hf/test_hf_models.py \
+            --ignore=tests/backend/spec_worker/test_spec_worker.py \
+            -n auto --dist loadfile --timeout=900 --durations=30 -q --tb=short

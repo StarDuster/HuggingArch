@@ -1,0 +1,9 @@
+schema: huggingarch.claims/v1
+subject: mla_attention_absorbed
+axioms:
+  checks:
+  - kind: kv_growth
+    storage: per_token
+    expect: d_kv_lora + d_qk_rope
+    src: 'Absorbed MLA cache contract: one d_kv_lora latent plus one d_qk_rope decoupled
+      RoPE key are retained per position.'

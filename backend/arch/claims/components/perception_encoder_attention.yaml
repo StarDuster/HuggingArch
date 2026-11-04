@@ -1,0 +1,8 @@
+schema: huggingarch.claims/v1
+subject: perception_encoder_attention
+axioms:
+  checks:
+  - kind: kv_growth
+    storage: per_token
+    src: 'Perception-encoder attention contract: the declared value stream retains
+      one row per input position; its row width is derived from shape.'

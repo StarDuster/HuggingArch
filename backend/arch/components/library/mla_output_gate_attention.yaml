@@ -1,0 +1,72 @@
+# Gated MLA — MLA with a sigmoid output gate (Kimi-K3 full-attention layers).
+#
+# Identical Q-LoRA + KV-LoRA topology to `mla_attention`, plus one extra
+# projection: `g_proj` (d_model -> n_heads·d_v_head) computes a per-channel output gate applied
+# to the merged attention output before o_proj (config.mla_use_output_gate).
+#
+#   o = attn(q, k, v)                      # standard MLA nope/pe split
+#   out = o_proj( o_merge · sigmoid(g_proj(x)) )
+#
+# The gate nonlinearity is a plain logistic sigmoid, not silu: sglang's
+# `kimi_k3.py` wraps o_proj with `x * torch.sigmoid(gate)` (fused kernel
+# `mla_output_gate.kimi_k3_mla_output_gate`), and vLLM does the same.
+#
+# Required dims: d_model, n_heads, d_qk_nope (qk_nope_head_dim), d_qk_rope (qk_rope_head_dim),
+#                d_v_head (v_head_dim), d_kv_lora (kv_lora_rank), d_q_lora (q_lora_rank).
+#
+# NoPE: Kimi-K3's MLA rotates nothing (`config.mla_use_nope = true`). The
+# reference asserts it and builds no rotary (modeling_kimi_linear.py:396,
+# :403); vLLM builds the layer with `use_rope=False` (models/kimi_k3/nvidia/
+# mla.py:141, :161-162; model.py:921-936 passes none) and sglang with
+# `skip_rope=True` (srt/models/kimi_k3.py:2176). The d_qk_rope-wide slices
+# still exist — they are the decoupled key/query lanes the cache stores and
+# the score contracts — but they reach the score unrotated.
+
+role: attention
+description: "MLA (Q-LoRA + KV-LoRA) with a sigmoid per-channel output gate g_proj. Kimi-K3 gated-MLA full-attention layers."
+cache:
+  family: MLA
+  entries:
+    - { node: kv_a_layernorm, kind: latent }
+    - { node: k_pe_slice, kind: rope_key }
+# At decode the KV is read in latent space rather than decompressed —
+# a different subgraph, not the same one at a shorter sequence.
+decode_variant: mla_output_gate_attention_absorbed
+
+graph:
+  q_a_proj:           { op: linear, in: x, dims: { in: d_model, out: d_q_lora }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  q_a_layernorm:      { op: rmsnorm, in: q_a_proj, dim: d_q_lora, weight_axes: [{ replicated: true }] }
+  q_b_proj:           { op: linear, in: q_a_layernorm, dims: { in: d_q_lora, out: "n_heads * (d_qk_nope + d_qk_rope)" }, weight_axes: [{ world: attention, parts: n_heads, fit: replica_cells }, { replicated: true }] }
+  q_split_heads:      { op: head_split, in: q_b_proj, dims: { n_heads: n_heads, d_head: "d_qk_nope + d_qk_rope" } }
+  q_nope_slice:       { op: slice, in: q_split_heads, dims: { in: "d_qk_nope + d_qk_rope", out: d_qk_nope } }
+  q_pe_slice:         { op: slice, in: q_split_heads, dims: { in: "d_qk_nope + d_qk_rope", out: d_qk_rope } }
+  kv_a_proj_with_mqa: { op: linear, in: x, dims: { in: d_model, out: "d_kv_lora + d_qk_rope" }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  kv_latent_slice:    { op: slice, in: kv_a_proj_with_mqa, dims: { in: "d_kv_lora + d_qk_rope", out: d_kv_lora } }
+  k_pe_slice:         { op: slice, in: kv_a_proj_with_mqa, dims: { in: "d_kv_lora + d_qk_rope", out: d_qk_rope } }
+  kv_a_layernorm:     { op: rmsnorm, in: kv_latent_slice, dim: d_kv_lora, weight_axes: [{ replicated: true }] }
+  # The cached latent and rope key are re-read for every position a
+  # prefill attends (`kv_cache_view`): behind a cached prefix the
+  # attention spans s_kv rows while this step wrote s_query of them, and
+  # the prefix rows are read from the cache and decompressed again
+  # (vLLM mla/common.py _compute_prefill_context; sglang forward_mha.py
+  # _fused_prefix_extend_attn_mha). Decode reads the latent directly
+  # (`decode_variant`).
+  # One position per cached row: the MLA cache is per token, not pooled.
+  kv_latent_read:     { op: kv_cache_view, in: kv_a_layernorm, dims: { compress_ratio: "1" } }
+  kv_b_proj:          { op: linear, in: kv_latent_read, dims: { in: d_kv_lora, out: "n_heads * (d_qk_nope + d_v_head)" }, weight_axes: [{ world: attention, parts: n_heads, fit: replica_cells }, { replicated: true }] }
+  kv_split_heads:     { op: head_split, in: kv_b_proj, dims: { n_heads: n_heads, d_head: "d_qk_nope + d_v_head" } }
+  k_nope_slice:       { op: slice, in: kv_split_heads, dims: { in: "d_qk_nope + d_v_head", out: d_qk_nope } }
+  value_slice:        { op: slice, in: kv_split_heads, dims: { in: "d_qk_nope + d_v_head", out: d_v_head } }
+  k_pe_read:          { op: kv_cache_view, in: k_pe_slice, dims: { compress_ratio: "1" } }
+  query_concat:       { op: concat, in: [q_nope_slice, q_pe_slice], dims: { in_a: d_qk_nope, in_b: d_qk_rope, out: "d_qk_nope + d_qk_rope" } }
+  k_pe_split:         { op: head_broadcast, in: k_pe_read, dims: { n_heads: n_heads } }
+  k_split_heads:      { op: concat, in: [k_nope_slice, k_pe_split], dims: { in_a: d_qk_nope, in_b: d_qk_rope, out: "d_qk_nope + d_qk_rope" } }
+  qk_score:           { op: attention_score, in: [query_concat, k_split_heads], dims: { n_heads: n_heads, d_head: "d_qk_nope + d_qk_rope" } }
+  softmax:            { op: softmax, in: qk_score, dims: { n_heads: n_heads } }
+  attn_apply:         { op: attention_apply, in: [softmax, value_slice], dims: { n_heads: n_heads, d_head: d_v_head } }
+  o_merge_heads:      { op: head_merge, in: attn_apply, dims: { n_heads: n_heads, d_head: d_v_head } }
+  g_proj:             { op: linear, in: x, dims: { in: d_model, out: "n_heads * d_v_head" }, weight_axes: [{ world: attention, parts: n_heads, fit: replica_cells }, { replicated: true }] }
+  g_act:              { op: sigmoid, in: g_proj, dim: "n_heads * d_v_head" }
+  o_gated:            { op: mul, in: [o_merge_heads, g_act], dim: "n_heads * d_v_head" }
+  o_proj:             { op: linear, in: o_gated, dims: { in: "n_heads * d_v_head", out: d_model }, weight_axes: [{ replicated: true }, { world: attention, parts: n_heads, fit: replica_cells }] }
+outputs: [o_proj]

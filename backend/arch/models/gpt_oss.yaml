@@ -1,0 +1,97 @@
+# OpenAI GPT-OSS family (gpt-oss-20b, gpt-oss-120b).
+#
+# Heterogeneous attention by config.layer_types: every even-indexed layer
+# (0, 2, ..., n_layers-2) is "sliding_attention" with s_window=128; every odd-indexed
+# layer (1, 3, ..., n_layers-1) is "full_attention". Both attention variants
+# carry bias on Q/K/V/O and a per-head learnable `sinks` scalar that
+# softmax consumes (original GPT-OSS / vLLM pass it as FA `s_aux` on
+# every layer).
+#
+# All layers share one MoE FFN with packed experts (single 3-D tensor
+# per projection), fused gate_up, biases on every linear, plain softmax
+# routing, no shared experts.
+#
+# Embeddings and lm_head are untied. MXFP4-quantized expert weights are
+# stored as `*_blocks` / `*_scales` / `*_bias` triples; the analyzer's
+# quant-suffix matcher resolves these to the logical `.weight`.
+
+match:
+  model_type: [gpt_oss]
+
+components:
+  attention: gqa_bias_sink_attention
+  attention_swa: swa_bias_sink_attention
+  ffn_moe: moe_ffn_fused_packed_bias
+  norm: rmsnorm
+  block: pre_norm
+
+dims:
+  d_model:  config.hidden_size
+  n_heads:  config.num_attention_heads
+  n_kv_heads: config.num_key_value_heads ?? n_heads
+  d_head:  config.head_dim ?? "d_model // n_heads"
+  d_ffn_expert: config.intermediate_size
+  n_vocab:  config.vocab_size
+  n_layers:  config.num_hidden_layers
+  n_experts:  config.num_local_experts
+  n_experts_active:  config.num_experts_per_tok
+  s_window:  config.sliding_window ?? "128"
+  s_max: config.max_position_embeddings
+
+view:
+  rope_theta: config.rope_theta
+  rope_scaling: config.rope_scaling
+  hidden_act: config.hidden_act
+  norm.eps: config.rms_norm_eps
+
+model_inputs:
+  input_ids: { kind: tokens }
+
+# The transformers base model's tensors sit under `model.`; the LM head
+# beside it declares its own path.
+checkpoint: { root: model }
+
+model:
+  - { name: embed_tokens, inputs: [input_ids], op: embedding, boundary_role: input_embedding, dims: { n_vocab: n_vocab, d_model: d_model }, weight_axes: [{ world: attention, parts: n_vocab, fit: pad }, { replicated: true }] }
+  - name: layers
+    inputs: [embed_tokens]
+    repeat: n_layers
+    streams:
+      hidden: { carries: true }
+    per_layer:
+      assign:
+        # `GptOssAttention` reads `config.layer_types[layer_idx]`. When a
+        # config omits the list, `GptOssConfig.__post_init__` builds it as
+        # sliding on even indices, full on odd — the strided rule restates
+        # that. 20b (24 layers) and 120b (36) both publish the list.
+        - { type: swa,  from: "config.layer_types ?? absent", is: sliding_attention }
+        - { type: full, from: "config.layer_types ?? absent", is: full_attention }
+        - { type: swa,  stride: "2", offset: "0" }
+        - { type: full, rest: true }
+      map:
+        swa:  { attention: swa_bias_sink_attention, ffn: moe_ffn_fused_packed_bias }
+        full: { attention: gqa_bias_sink_attention, ffn: moe_ffn_fused_packed_bias }
+  - { name: norm, op: rmsnorm, dim: d_model, weight_axes: [{ replicated: true }] , inputs: [layers]}
+  - { name: lm_head, op: linear, checkpoint: { path: lm_head }, boundary_role: output_head, dims: { in: d_model, out: n_vocab }, weight_axes: [{ world: attention, parts: n_vocab, fit: pad }, { replicated: true }] , inputs: [norm]}
+
+# Routed-expert weights are MXFP4-quantized on disk (FP4 packed
+# 2-per-U8-byte + per-32-element UE8M0 scale). The materialization
+# recipe lives in `backend/arch/quant_schemes/mxfp4.yaml`;
+# per_role binds it to every linear-like node tagged `role: ffn_moe`
+# in the spec walk (the `mxfp4_fused_linear` custom_op in
+# moe_ffn_fused_packed_bias). Embeddings, lm_head, attention, biases,
+# and norm gains stay BF16.
+quant_context:
+  per_role:
+    ffn_moe:
+      method: mxfp4
+      group_size: 32
+    default:
+      method: none
+  overrides:
+    # Router lives inside the `ffn_moe`-roled component but is a
+    # standard BF16 linear in the actual checkpoint, not MXFP4. The
+    # override pins it explicitly so per_role doesn't quantize it.
+    - tensors_re: 'layers\.X\.mlp\.router\.weight$'
+      dtype: BF16
+  default_dtype: BF16

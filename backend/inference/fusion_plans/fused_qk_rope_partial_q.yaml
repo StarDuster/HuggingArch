@@ -1,0 +1,59 @@
+# QK RoPE with the query rotated in place over the LAST `d_rope` dims of each
+# head and the decoupled rope key rotated whole — `fused_qk_rope` as MLA
+# spells it.
+#
+# Naive subgraph (mla_attention, mla_no_qcomp_attention, longcat_block,
+# Ling's MLA block, Kimi-K3's block_mla_moe), from the head-split Q and the
+# rope slice of the latent:
+#
+#   q_norope_slice, q_rope_slice = slice(q), slice(q)   # last d_rope dims rotate
+#   q_out = concat(q_norope_slice, rope(q_rope_slice))
+#   k_out = rope(k_pe)                                  # its own tensor, rotated whole
+#
+# One rotary launch over a view of q's tail and k_pe; q is never re-joined:
+#   vLLM (audited at v0.32.0): `MultiHeadLatentAttentionWrapper.forward`
+#     (model_executor/layers/mla.py:227-230):
+#     `q[..., nope:], k_pe = self.rotary_emb(positions, q[..., nope:], k_pe)`
+#     — `forward_cuda` rotates the strided view in place
+#     (rotary_embedding/base.py:244) and the assignment back is a copy of a
+#     tensor onto itself, which `Tensor.copy_` returns from without a kernel
+#     (an aliasing view with equal offset, sizes and strides). DSv2/V3 and
+#     Kimi-K2 (`DeepseekV2MLAAttention`, models/deepseek_v2.py:1000, wrapper
+#     built at :1215), LongCat (longcat_flash.py:269 → the same class) and
+#     Ling's MLA (bailing_moe_linear.py:208) all take this wrapper.
+#   sglang (audited at v0.5.22): `forward_normal_prepare`
+#     (srt/models/deepseek_common/attention_forward_methods/forward_mha.py:223,
+#     :248-250): `_, q_pe = q.split(...)`, `q_pe, k_pe = self.rotary_emb(...)`
+#     in place (srt/layers/rotary_embedding/base.py:405), then
+#     `q[..., nope:] = q_pe` — the same self-copy. LongCat, Ling and Kimi-K3
+#     reuse `DeepseekV2AttentionMLA` (longcat_flash.py:354,
+#     bailing_moe_linear.py:117, kimi_k3.py:2142). DeepSeek-V4 / V4.1 do not:
+#     their q and latent-KV rotations are separate launches, and the sglang
+#     binding excludes them.
+#
+# The key side is NOT re-joined here: MLA builds its key by concatenating the
+# up-projected `k_nope` with the broadcast `k_pe` — a different tensor, and a
+# real copy (vLLM `_concat_k_nope_k_pe`, sglang `_concat_and_cast_mha_k`) —
+# so `k_rope` reads its own input and the pattern stops at it. In the absorbed
+# (decode / DSA) forms the query's nope half goes through W_UK first, the
+# concat joins two different tensors, `q_norope_slice` has a reader outside the
+# match, and this pattern does not match; `fused_qk_rope` takes the pair.
+#
+# Ordering: 5 nodes, the same as sglang's DeepSeek-V4 `fused_qnorm_rope` /
+# `fused_norm_rope`, whose subgraphs contain this one's query side; the
+# bindings list this entry after them so the tie goes to the larger kernel.
+
+fused_op: fused_qk_rope_partial_q
+
+naive_pattern:
+  nodes:
+    q_norope_slice: { op: slice,    inputs: [external.q] }
+    q_rope_slice:   { op: slice,    inputs: [external.q] }
+    q_rope:         { op_choices: [rope, rope_emb], inputs: [q_rope_slice.out], feeds: q }
+    q_concat:       { op: concat,   inputs: [q_norope_slice.out, q_rope.out] }
+    k_rope:         { op_choices: [rope, rope_emb], inputs: [external.k_pe], feeds: k }
+  io_mapping:
+    q:     external.q
+    k_pe:  external.k_pe
+    q_out: q_concat.out
+    k_out: k_rope.out

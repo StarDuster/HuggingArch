@@ -1,0 +1,12 @@
+# Provider env: marlin — GENERATED from the library registry (`python -m kernel_bench envs`). Edit the provider, not this file.
+# Measure just this env (uv resolves+caches the deps, no venv):
+#   PYTHONPATH=. uv run --no-project --with-requirements kernel_bench/envs/marlin.txt \
+#       -- python -m kernel_bench run --jobs jobs.jsonl -o results/marlin.csv --library marlin --skip-existing
+# Or every provider env in one command:  python -m kernel_bench run-all --jobs jobs.jsonl
+# Providers: marlin_fp4_e2m1_w4a16, marlin_fp8_w8a16, marlin_gptq_int4_w4a16
+torch>=2.5
+pydantic
+pyyaml
+huggingface-hub
+httpx
+vllm==0.32.0

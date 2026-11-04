@@ -1,0 +1,177 @@
+# DeepSeek-V4-Flash.
+#
+# Same block family as deepseek_v4.yaml (V4-Pro); a separate spec because the
+# per-layer schedule differs. V4-Flash backbone (num_hidden_layers=43), driven
+# by config.compress_ratios (0->SWA-only, 4->CSA, 128->HCA) and num_hash_layers
+# (=3; first three layers use HASH MoE routing, the rest sigmoid):
+#   swa_hash    : layers {0,1}                 (compress_ratio=0,   dsv4_swa_only_attention)
+#   csa_hash    : layer  {2}                   (compress_ratio=4,   dsv4_csa_attention)
+#   hca_sigmoid : compress_ratio==128 layers   (compress_ratio=128, dsv4_hca_attention)
+#   csa_sigmoid : remaining sigmoid layers      (compress_ratio=4,   dsv4_csa_attention)
+# deepseek_v4.yaml has no assignment for compress_ratio=0 inside the backbone,
+# which Flash's first two layers need.
+match:
+  model_type: [deepseek_v4]
+  model_id: ["deepseek-ai/DeepSeek-V4-Flash"]
+
+components:
+  attention: dsv4_csa_attention
+  attention_swa: dsv4_swa_only_attention
+  ffn_dense: swiglu_ffn          # unused (DSv4 has no dense layers)
+  ffn_moe: dsv4_moe_sigmoid
+  norm: rmsnorm
+  block: dsv4_block
+
+dims:
+  d_model:    config.hidden_size
+  # `Attention.forward` RMS-normalizes each query head before RoPE; no config
+  # field states it (dsv4_swa_only_attention's `q_head_norm`).
+  n_q_head_norm: "1"
+  n_heads:    config.num_attention_heads
+  n_kv_heads:   config.num_key_value_heads
+  d_head:    config.head_dim
+  d_qk_rope:    config.qk_rope_head_dim
+  d_q_lora:   config.q_lora_rank
+  d_out_lora:  config.o_lora_rank
+  n_out_lora_groups:   config.o_groups
+  d_out_lora_group_in: "n_heads * d_head // n_out_lora_groups"
+  s_window:    config.sliding_window
+  n_indexer_heads:   config.index_n_heads
+  d_indexer_head:   config.index_head_dim
+  n_topk_keys:   config.index_topk
+  d_ffn_expert:   config.moe_intermediate_size
+  n_vocab:    config.vocab_size
+  n_layers:    config.num_hidden_layers
+  n_experts:    config.n_routed_experts
+  n_experts_active:    config.num_experts_per_tok
+  n_shared_experts:   config.n_shared_experts ?? "1"
+  d_ffn_shared:   "d_ffn_expert * n_shared_experts"
+  n_mtp_layers: config.num_nextn_predict_layers ?? "1"
+  # Hyper-Connections dims.
+  n_hidden_copies:   config.hc_mult ?? "4"            # number of parallel residual copies
+  d_hc_mix:   "(2 + n_hidden_copies) * n_hidden_copies"                  # mix_hc — output of hc_pre Linear
+  s_max: config.max_position_embeddings
+  # The clamped SwiGLU bound (Expert.forward `swiglu_limit`), read by every
+  # `clamp` in its frame (swiglu_ffn_clamped).
+  clamp_limit: config.swiglu_limit
+
+view:
+  rope_theta: config.rope_theta
+  rope_scaling: config.rope_scaling
+  hidden_act: config.hidden_act
+  norm.eps: config.rms_norm_eps
+
+model_inputs:
+  input_ids: { kind: tokens }
+
+model:
+  - { name: embed, inputs: [input_ids], op: embedding, boundary_role: input_embedding, dims: { n_vocab: n_vocab, d_model: d_model }, weight_axes: [{ world: attention, parts: n_vocab, fit: pad }, { replicated: true }] }
+
+  # Network entry: lift [B,s_ctx,d_model] embedding output to [B,s_ctx,n_hidden_copies,d_model] so the
+  # decoder stack runs with n_hidden_copies parallel hidden copies. `broadcast` is
+  # zero-FLOPs / zero-params — just a view replicate along a new axis.
+  - { name: hc_expand, op: broadcast, axis: -2, dims: { width: n_hidden_copies }, inputs: [embed]}
+
+  - name: layers
+    inputs: [hc_expand, input_ids]
+    repeat: n_layers
+    streams:
+      hidden: { carries: true }
+    per_layer:
+      # Two orthogonal axes (both index-based; the compress_ratios array's
+      # pattern is 0,0,4 then alternating 128/4 for indices >=3):
+      #   attention type: {0,1}->SWA-only, {2}+even>=4 ->CSA, odd>=3 ->HCA
+      #   FFN routing   : first num_hash_layers (=3) layers hash, rest sigmoid.
+      # First-wins order claims the 3 hash layers by explicit index; the
+      # stride/rest generators then split the remaining sigmoid layers.
+      assign:
+        - { type: swa_hash, layers: ["0", "1"] }
+        - { type: csa_hash, layers: ["2"] }
+        - { type: hca_sigmoid, stride: "2", offset: "3" }
+        - { type: csa_sigmoid, rest: true }
+      map:
+        swa_hash:    { attention: dsv4_swa_only_attention,   ffn: dsv4_moe_hash }
+        csa_hash:    { attention: dsv4_csa_attention,        ffn: dsv4_moe_hash,    dims: { compress_ratio: "4" } }
+        hca_sigmoid: { attention: dsv4_hca_attention,        ffn: dsv4_moe_sigmoid, dims: { compress_ratio: "128" } }
+        csa_sigmoid: { attention: dsv4_csa_attention,        ffn: dsv4_moe_sigmoid, dims: { compress_ratio: "4" } }
+
+  # Network exit: reduce [B,s_ctx,n_hidden_copies,d_model] back to [B,s_ctx,d_model] before lm_head.
+  - { name: hc_head_fn,    op: parameter_tensor, role: hyper_connection, shape: [n_hidden_copies, "n_hidden_copies * d_model"], weight_axes: [{ replicated: true }, { replicated: true }] }
+  - { name: hc_head_base,  op: parameter_vector, role: hyper_connection, dim: n_hidden_copies, weight_axes: [{ replicated: true }] }
+  - { name: hc_head_scale, op: parameter_vector, role: hyper_connection, dim: "1", weight_axes: [{ replicated: true }] }
+  - name: hc_head
+    op: hc_head
+    inputs: [layers, hc_head_fn, hc_head_scale, hc_head_base]   # residual + 3 weights
+
+  - { name: norm, op: rmsnorm, dim: d_model, weight_axes: [{ replicated: true }] , inputs: [hc_head]}
+  - { name: head, op: linear, boundary_role: output_head, dims: { in: d_model, out: n_vocab }, weight_axes: [{ world: attention, parts: n_vocab, fit: pad }, { replicated: true }] , inputs: [norm]}
+
+  # MTP head — single layer. compress_ratios trailing 0 -> SWA-only.
+  # Shares main embed + main lm_head (no private copies).
+  - name: mtp
+    group: true
+    aux_kind: mtp
+    checkpoint: { prefix: mtp, index: local }
+    inputs: [layers, embed, input_ids]
+    repeat: n_mtp_layers
+    streams:
+      hidden: { carries: true }
+    layers:
+      - { name: mtp, template: dsv4_mtp_block, inputs: [layers, embed, input_ids] }
+      # The MTP logits use the main head (inference/model.py: MTPBlock.forward -> self.head, the Transformer's ParallelHead; vLLM deepseek_v4/nvidia/mtp.py compute_logits).
+      - { name: mtp_logits, op: linear, boundary_role: output_head, dims: { in: d_model, out: n_vocab }, weight_axes: [{ world: attention, parts: n_vocab, fit: pad }, { replicated: true }], tied_weight: { to: head } , inputs: [mtp]}
+
+# Quantization context.
+quant_context:
+  # What the reference forward stores each per-token cache slot at. Every
+  # write is quantised in place before it lands in a BF16 buffer
+  # (`act_quant(..., inplace=True)`), so the buffer's dtype is a container
+  # and the stored values are the quantised ones:
+  #   kv / compressed_kv — `act_quant(kv[..., :-rd], 64, scale_fmt,
+  #     scale_dtype, True)` (inference/model.py:372, :506): FP8 over 64
+  #     channels with an E8M0 scale (`scale_dtype: fp8` in ModelArgs), the
+  #     RoPE tail left BF16.
+  #   index_key — `fp4_act_quant(kv, fp4_block_size, True)` (:370): MXFP4.
+  cache_formats:
+    kv:            fp8_ue8m0_group64_bf16_rope_tail
+    compressed_kv: fp8_ue8m0_group64_bf16_rope_tail
+    index_key:     mxfp4
+  per_role:
+    attention:     { method: fp8_ue8m0, block_h: 128, block_w: 128 }
+    attention_swa: { method: fp8_ue8m0, block_h: 128, block_w: 128 }
+    # The MoE layers' shared experts (role ffn_dense) are FP8, not FP4.
+    ffn_dense:     { method: fp8_ue8m0, block_h: 128, block_w: 128 }
+    # MXFP4: E2M1 under one UE8M0 exponent per 32, which is the OCP
+    # Microscaling recipe — owner's ruling, and the recipe agrees. Declared
+    # here, per model, rather than inferred from "the scale is UE8M0 at
+    # group 32": `fp4` stays the generic scheme for a deployment with the
+    # same dot-suffix layout that makes no such claim. The scheme is
+    # `fp4`'s layout exactly (I8 `.weight` 2-per-byte, `.scale`, FP8
+    # activation) with the MX numeric format, so no byte moves — only the
+    # measurement identity, from `fp4_e2m1` to `mxfp4`.
+    ffn_moe:       { method: mxfp4-dot-suffix, group_size: 32 }
+    # The KV compressors' wkv / wgate (also the indexer's own compressor) and
+    # the indexer's weights_proj are BF16; the compressors' ape is F32.
+    attention_compressor:         { method: none }
+    attention_indexer:            { method: none }
+    attention_position_embedding: { method: none, dtype: F32 }
+    # The MoE gate (`ffn.gate.weight`, BF16 on disk) is the router leaf.
+    router:        { method: none }
+    hyper_connection: { method: none, dtype: F32 }
+    # The hash layers' token-to-expert table: I64 expert ids on disk.
+    router_hash_table: { method: none, dtype: I64 }
+    default:       { method: none }
+  default_dtype: BF16
+  overrides:
+    # ---- F32 parameter banks (sink) ----
+    - tensors_re: '\.attn\.attn_sink$'
+      dtype: F32
+    # MoE routing correction-bias (sigmoid-route layers only).
+    - tensors_re: '\.ffn\.gate\.bias$'
+      dtype: F32
+    # MTP entry projections (e_proj, h_proj) — FP8 on disk.
+    - tensors_re: '\.[eh]_proj\.weight$'
+      dtype: F8_E4M3
+      method: fp8_ue8m0
+      block_h: 128
+      block_w: 128

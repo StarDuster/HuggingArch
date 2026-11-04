@@ -1,0 +1,153 @@
+# Tests on every push to main and every PR.
+#
+# A contributed spec is model YAML + snapshot (+ optional draft
+# components). That cannot break FastAPI, the web UI, or kernel_bench, so
+# those PRs run `scripts/ci_spec_gate.py` (validate the changed
+# snapshots) and `tools.corpus_admit verify --changed` (measure the
+# changed models against the corpus pins) instead of the full suite.
+# Anything else — Python, tests, web, library components, dims.yaml, and
+# any diff that adds a snapshot — runs pytest. `tools.corpus_admit verify`
+# runs on every lane.
+#
+# Full-suite excludes:
+#   tests/backend/hf/test_hf_models.py  — hits huggingface.co
+#   tests/backend/spec_worker/test_spec_worker.py — live coding-agent CLI
+
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# A single workflow run per branch; cancel older runs of the same ref
+# when a new commit lands.
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    # The non-regression suite runs ~90 worker-minutes; ubuntu-latest has 4
+    # vCPUs, so 45 minutes no longer holds it.
+    timeout-minutes: 120
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Set up Python
+        run: uv python install 3.13
+
+      - name: Sync deps (locked, dev extras)
+        run: uv sync --frozen
+
+      - name: Classify the diff
+        id: kind
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            base="${{ github.event.pull_request.base.sha }}"
+            head="${{ github.sha }}"
+          else
+            base="${{ github.event.before }}"
+            head="${{ github.sha }}"
+          fi
+          if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ]; then
+            echo "spec_only=false" >> "$GITHUB_OUTPUT"
+            echo "stored_spec_check=no" >> "$GITHUB_OUTPUT"
+            echo "No diff base; running the full suite."
+            exit 0
+          fi
+          git fetch --no-tags --depth=1 origin "$base" 2>/dev/null || true
+          git diff --name-only -M --diff-filter=ACDMR "$base" "$head" > /tmp/changed.txt || true
+          git diff --name-only -M --diff-filter=AR "$base" "$head" > /tmp/added.txt || true
+          echo "Changed files:"
+          cat /tmp/changed.txt
+          kind=$(uv run python scripts/ci_spec_gate.py classify --paths-file /tmp/changed.txt --added-file /tmp/added.txt)
+          echo "kind=$kind"
+          if [ "$kind" = "spec" ]; then
+            echo "spec_only=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "spec_only=false" >> "$GITHUB_OUTPUT"
+          fi
+          stored=$(uv run python scripts/ci_spec_gate.py stored-spec-check --paths-file /tmp/changed.txt)
+          echo "stored_spec_check=$stored"
+          echo "stored_spec_check=$stored" >> "$GITHUB_OUTPUT"
+
+      # The React web build gate (tests/frontend/test_web_build.py) needs node
+      # and the web/ dependencies; without them it skips in CI.
+      - name: Set up Node (React web)
+        if: steps.kind.outputs.spec_only != 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Install React web deps
+        if: steps.kind.outputs.spec_only != 'true'
+        run: npm ci --prefix web
+
+      # Static lint: catches the bug class that motivated adding this
+      # gate. A missing `from collections import Counter` (and a missing
+      # `import json` next to it) in backend/arch/validate/_matching.py
+      # sat in the codebase from the very first commit. Five sibling F821s
+      # in inference/weight_breakdown.py + rendering/_quant_match.py rode
+      # along, hidden because they sat under `from __future__ import
+      # annotations` (PEP 563 keeps annotations as strings → undefined
+      # names never get resolved at runtime). Pytest didn't catch any of
+      # them. Ruff scans them statically in milliseconds.
+      # Run BEFORE pytest so a CI failure surfaces fast.
+      - name: Ruff (pyflakes — undefined names, unused imports)
+        if: steps.kind.outputs.spec_only != 'true'
+        run: uv run ruff check backend/
+
+      - name: Run spec gate
+        if: steps.kind.outputs.spec_only == 'true'
+        run: uv run python scripts/ci_spec_gate.py run --paths-file /tmp/changed.txt
+
+      # Every lane: every snapshot has its key in every required corpus pin,
+      # no pin keeps a key for a snapshot that is gone, and the README counts
+      # are stated once each and match the repository.
+      - name: Corpus pins (keys, orphans, README counts)
+        run: uv run python -m tools.corpus_admit verify
+
+      # The spec-only lane skips pytest, so the models it changes are
+      # measured here, pin by pin, against the files.
+      - name: Corpus pins of the changed models
+        if: steps.kind.outputs.spec_only == 'true'
+        run: uv run python -m tools.corpus_admit verify --changed --paths-file /tmp/changed.txt
+
+      - name: Stored-spec check (schema / retired parsing)
+        if: steps.kind.outputs.stored_spec_check == 'yes'
+        run: PYTHONPATH=. uv run python tools/check_stored_specs.py --local-only
+
+      # pyproject's addopts deselects `regression` (every-model checks and
+      # the minutes-long files); those run in the manual `regression`
+      # workflow. -n auto spreads the rest over the runner's cores a file
+      # at a time (--dist loadfile), so a module-scoped fixture is built on
+      # one worker rather than on each; --timeout fails a stuck test by name
+      # instead of letting the job's own timeout kill everything silently,
+      # and --durations names what to make faster next.
+      - name: Run pytest
+        if: steps.kind.outputs.spec_only != 'true'
+        run: |
+          uv run pytest tests/ \
+            --ignore=tests/backend/hf/test_hf_models.py \
+            --ignore=tests/backend/spec_worker/test_spec_worker.py \
+            -n auto --dist loadfile --timeout=600 --durations=30 -q --tb=short
+
+      # Bonus: surface the boundary regression test as its own step so
+      # a "service layer leaked into core" failure is obvious in the
+      # GitHub PR check list.
+      - name: Boundary check (core / service isolation)
+        if: steps.kind.outputs.spec_only != 'true'
+        run: uv run pytest tests/meta/test_service_layout.py -q

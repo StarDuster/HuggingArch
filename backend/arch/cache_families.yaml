@@ -1,0 +1,145 @@
+# KV-cache families — the one place `cache.family` is classified and explained.
+#
+# A component declares `cache: {family: <tag>}`; this file says what the tag
+# IS. `kind` is what a consumer asking "is this cache bounded to a window?"
+# reads. It replaced a private `_SLIDING_LABELS = {"SWA"}` in the validator and
+# lets the loader reject a family nobody registered — a typo used to be a new
+# family, silently.
+#
+#   full       — every past position is kept (MHA / GQA / MLA are all `full`
+#                in storage growth; their per-token size is the component's)
+#   windowed   — storage is bounded to a window of positions
+#   recurrent  — a fixed-size state carried across steps, not a per-position
+#                cache
+#   vision     — an encoder tower with no decode-time cache
+#
+# `kind` is NOT how "hybrid attention" is decided: that reads the growth
+# formula's leaf sums (`eval.cache_view`), because two families can share a
+# sum and one family can hold two.
+
+families:
+  MHA:
+    kind: full
+    meaning: Multi-head attention; K and V per head per position.
+  GQA:
+    kind: full
+    meaning: Grouped-query attention; K and V per KV head per position.
+  MLA:
+    kind: full
+    meaning: >-
+      Multi-head latent attention; a compressed latent (and rope key) per
+      position. DeepSeek's sparse variant (DSA) declares this family too —
+      it reads the same cache.
+  SWA:
+    kind: windowed
+    meaning: Sliding-window attention; K and V for the last `s_window` positions only.
+  ViT:
+    kind: vision
+    meaning: A vision encoder tower; no decode-time cache.
+  GLA-Linear:
+    kind: recurrent
+    meaning: Gated linear attention; a fixed-size recurrent state per head.
+  GatedDeltaNet:
+    kind: recurrent
+    meaning: Gated delta-rule linear attention; a fixed-size recurrent state per head.
+  Mamba2:
+    kind: recurrent
+    meaning: Mamba-2 state-space mixer; a fixed-size SSM state plus a short conv window.
+
+# Cache slot kinds — what one cache entry holds. A component declares
+# `kind:` on every `cache.entries` item; this section is the closed
+# vocabulary the schema checks it against. The family above classifies a
+# component's cache as a whole; the kind classifies each tensor in it, and a
+# deployment chooses a storage format per kind (one MLA layer keeps a latent,
+# a rope key and an indexer key, which serve three different reads).
+#
+# `storage` is the storage law the kind lives under, and the schema holds an
+# entry to it:
+#   per_token — a `node:` entry, one row per position
+#   state     — a `state:` entry, one fixed tensor per request
+#
+# `storage_format` (default true) says whether a deployment may choose how
+# the slot is stored (a dtype, scales, a rotation). A kind with
+# `storage_format: false` holds values no format applies to — integer ids —
+# so its entries declare their own `dtype:` (the deployment's KV dtype never
+# reaches them) and a precision rule naming the kind is refused
+# (`cache_families.refuse_storage_format`).
+#
+# `kernel` names the attention kernel family (a measurement signature in
+# backend/inference/op_signatures_catalog.py) that reads its keys and values
+# from this kind of slot: a dense attention span over an MLA latent runs the
+# MLA backends, over GQA K/V FlashAttention. A span reading a kind with no
+# `kernel`, or kinds naming two, has no kernel and is refused.
+#
+# `paired_operand` says what a kernel reading this kind of slot does to the
+# operand it multiplies the stored rows with, by the element dtype the rows
+# are stored at: it quantises it to that activation format first, and the
+# product runs on the two quantised operands. A cast is grafted on that
+# operand (`cache.paired_records`, `inference.materialize_cast`), and a
+# launch that quantises the operand itself takes the cast in as a member.
+# Absent, the readers take the operand as it arrives (an attention kernel
+# over an FP8 latent dequantises the rows and keeps a BF16 query).
+#
+# A `node:` entry that names a sub-component with a cache of its own (DSv4's
+# `compressor`, `indexer`) gives the kind of every per-token tensor that
+# sub-cache keeps; the sub-cache's states keep their own kinds.
+
+slot_kinds:
+  kv:
+    storage: per_token
+    kernel: gqa_attention
+    meaning: An attention layer's keys or values, one row per position (GQA / MHA / SWA K and V).
+  latent:
+    storage: per_token
+    kernel: mla_attention
+    meaning: Multi-head latent attention's compressed KV latent, one row per position.
+  rope_key:
+    storage: per_token
+    kernel: mla_attention
+    meaning: The rotary key MLA caches beside its latent, one row per position.
+  index_key:
+    storage: per_token
+    meaning: A sparse-attention indexer's key, one row per position (or per pooled block of positions).
+    # The indexer scores its query against the stored keys in their own
+    # element type, each query head quantised:
+    #   FP8 keys — the query FP8 E4M3 with one F32 scale a head (a row of
+    #     the per-head query): DeepGEMM `fp8_mqa_logits` /
+    #     `fp8_paged_mqa_logits` take an FP8 q (vLLM v0.32.0 utils/
+    #     deep_gemm.py:522-552); sglang v0.5.22 writes it in
+    #     `fused_q_indexer_rope_first_quant` (kernels/ops/attention/dsv4/
+    #     elementwise.py:249) and `fused_q_indexer_rope_hadamard_quant`
+    #     (:201, the scale `max(1e-4, amax) / 448` folded into the head
+    #     weight, kernels/jit/csrc/deepseek_v4/main_norm_rope.cuh:703-712),
+    #     and runs `act_quant` before the score where nothing fuses it
+    #     (srt/layers/attention/dsa/dsa_indexer_kpool.py:1802); vLLM's
+    #     `fused_indexer_q_rope_quant` FP8 kernel and `fwht128_quant_fp8`
+    #     likewise (models/deepseek_v4/common/ops/fused_indexer_q.py:549,
+    #     models/glm5next/nvidia/ops/kpool_compress.py:108).
+    #   FP4 keys — the query MXFP4 with one UE8M0 scale per 32: vLLM's
+    #     `fused_indexer_q_rope_quant(use_fp4=...)` follows the index cache's
+    #     dtype (models/deepseek_v4/attention.py:1119, deepseek_v41/
+    #     attention.py:1461, `use_fp4_kv = dsa_indexer_uses_fp4`); sglang's
+    #     `index_q_rope_pack_weights` (kernels/ops/attention/dsv4/
+    #     fp4_indexer_rope.py:91) packs the FP4 query its DeepGEMM paths read.
+    paired_operand:
+      F8_E4M3: fp8_per_token
+      FP4_E2M1: mxfp4_dynamic
+  compressed_kv:
+    storage: per_token
+    kernel: gqa_attention
+    meaning: A compressor's pooled KV, one row per window of positions.
+  compressor_state:
+    storage: state
+    meaning: A compressor's running buffers for the window it has not finished pooling.
+  recurrent_state:
+    storage: state
+    meaning: A linear-attention or state-space layer's recurrent matrix, rewritten every step.
+  conv_state:
+    storage: state
+    meaning: A causal convolution's window of its last kernel_size inputs.
+  token_window:
+    storage: state
+    storage_format: false
+    meaning: >-
+      The last few token ids a hashed n-gram lookup reads. Integer ids, not
+      activations, so no storage format applies to them.

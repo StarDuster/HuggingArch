@@ -1,0 +1,37 @@
+# Causal depthwise conv1d with its SiLU folded in — the short convolution in
+# front of every SSM / linear-attention mixer.
+#
+# Naive subgraph (gated_delta_net_attention, kimi_k3_kda_attention,
+# nemotron_h_mamba_mixer, qwen_ple):
+#
+#   y = silu(conv1d(x))          # depthwise, causal, kernel s_conv_kernel
+#
+# Both frameworks run it as one launch that reads x and the conv state and
+# writes the activated output, the state update included: the
+# `causal_conv1d_fn` (prefill, varlen) / `causal_conv1d_update` (decode)
+# pair called with `activation="silu"`.
+#   vLLM (audited at v0.32.0): model_executor/layers/mamba/ops/causal_conv1d.py
+#     :481 / :1096, from qwen_gdn_linear_attn.py:1451 / :1756,
+#     kimi_k3/nvidia/kda.py:1171 / :1325, glm5next/common/kda.py:625 / :642,
+#     mamba_mixer2.py:822 / :939. Qwen PLE's dilated conv runs in
+#     `ple_conv` (qwen4_exp/common/ops/ple.py:575), which applies the SiLU in
+#     the same launch too (:440) — and also, outside sequence parallelism, the residual add after it, which
+#     this pattern leaves outside.
+#   sglang (audited at v0.5.22): srt/layers/attention/linear/gdn_backend.py
+#     :930 / :856, kda_backend.py:1011 / :935 (the same kernels). Its Qwen PLE
+#     conv is `F.conv1d` then `F.silu`, two launches
+#     (srt/models/qwen4_exp.py:1136, :1151): the causal-conv kernel takes no
+#     dilation, which is why the sglang binding asks `dims: { dilation: [1] }`.
+#
+# The conv carries the mixer's conv state (`conv_state`, carrier conv1d); the
+# state's read moves onto this launch with it (`traffic._settle_cache_reads`).
+
+fused_op: causal_conv1d
+
+naive_pattern:
+  nodes:
+    conv: { op: conv1d, inputs: [external.x] }
+    silu: { op: silu,   inputs: [conv.out] }
+  io_mapping:
+    x:      external.x
+    output: silu.out

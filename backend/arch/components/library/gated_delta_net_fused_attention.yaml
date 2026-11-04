@@ -1,0 +1,147 @@
+# Gated DeltaNet Linear Attention with FUSED in_proj_qkvz / in_proj_ba.
+# Used by: Qwen3-Next on its `linear_attention` layer slot.
+#
+# Reference: transformers.models.qwen3_next.modeling_qwen3_next
+#   .Qwen3NextGatedDeltaNet.forward — this decomposition follows that
+#   forward step-by-step.
+#
+# Topological difference vs `gated_delta_net_attention` (Qwen3.5-MoE):
+#   - QKV and Z share a single fused linear `in_proj_qkvz`
+#     (out = 2*n_lin_k_heads*d_lin_k_head + 2*n_lin_v_heads*d_lin_v_head), sliced into a `qkv` half and a `z`
+#     half. Param total is identical to the four-linear form
+#     (in_proj_qkv + in_proj_z + in_proj_a + in_proj_b); only the
+#     checkpoint tensor layout differs.
+#   - B and A share a single fused linear `in_proj_ba` (out = 2*n_lin_v_heads),
+#     sliced into `b` and `a` halves.
+#
+# Required dims:
+#   d_model    — model hidden size
+#   n_lin_k_heads  — number of key heads
+#   d_lin_k_head  — per-head key dim
+#   n_lin_v_heads  — number of value heads
+#   d_lin_v_head  — per-head value dim
+#   s_conv_kernel   — conv kernel size (e.g. 4)
+#
+# Params: gate_act (default silu) — the norm-gate activation, as in
+#   `gated_delta_net_attention`.
+#
+# All linear layers are bias-free.
+
+role: attention
+description: "Gated DeltaNet linear attention with fused in_proj_qkvz / in_proj_ba. Qwen3-Next."
+params:
+  gate_act: { kind: component, default: silu, config: [output_gate_type] }
+cache:
+  family: GatedDeltaNet
+  entries:
+    # The delta-rule matrix S ∈ [n_lin_v_heads, d_k, d_v], carried by the scan,
+    # as the HF forward allocates it (modeling_qwen3_next.py:426, :472
+    # `torch.zeros(batch_size, num_heads, k_head_dim, v_head_dim).to(value)`;
+    # update :487 `k_t.unsqueeze(-1) * delta.unsqueeze(-2)`).
+    # fp32 is the reference semantics: transformers modeling_qwen3_next.py
+    # casts q/k/v/β/g to fp32 before the recurrence and builds the state
+    # `.to(value)` (torch_chunk_gated_delta_rule / torch_recurrent_gated_delta_rule),
+    # and the cache layer adopts that tensor's dtype on first write
+    # (cache_utils LinearAttention lazy_initialization). sglang v0.5.21 keeps
+    # it fp32 too (srt/configs/mamba_utils.py:47 `mamba2_state_dtype`, default
+    # fp32 at :71, Qwen3-Next configs carry no `mamba_ssm_dtype`). vLLM differs:
+    # qwen3_next.py `get_mamba_state_dtype_from_config` leaves
+    # `mamba_ssm_cache_dtype` on "auto", so its state follows the model dtype
+    # (bf16). A framework binding carries fused kernels only and cannot yet
+    # say a cache dtype, so every quote — the vLLM-bound default included —
+    # prices this state at the reference fp32; under vLLM the state bytes
+    # are 2x what the server allocates.
+    - { state: recurrent_state, kind: recurrent_state, carrier: delta_rule, shape: [n_lin_v_heads, d_lin_k_head, d_lin_v_head], dtype: fp32 }
+    # The causal conv's window over q|k|v, [C, kernel_size], resolved in the
+    # conv's own frame: the HF cache allocates `torch.zeros((*conv_states.shape[:-1],
+    # conv_kernel_size))` and keeps the last `conv_kernel_size` columns
+    # (transformers cache_utils.py:1033-1034, :1083).
+    - { state: conv_state, kind: conv_state, carrier: conv1d, shape: [C, kernel_size] }
+# Two fixed-size states, each billed once per request with constant storage:
+#   recurrent_state   S ∈ [n_lin_v_heads, d_k, d_v]           = n_lin_v_heads·d_lin_k_head·d_lin_v_head
+#   conv_state        [conv_dim, s_conv_kernel], conv over q|k|v = 2·n_lin_k_heads·d_lin_k_head + n_lin_v_heads·d_lin_v_head
+# Qwen3-Next: 32·128·128 + (2·16·128 + 32·128)·4 = 524288 + 32768 = 557,056.
+graph:
+  # --- Fused input projections (no bias) ---
+  in_proj_qkvz:   { op: linear, in: x,
+                    dims: { in: d_model, out: "2 * n_lin_k_heads * d_lin_k_head + 2 * n_lin_v_heads * d_lin_v_head" },
+                    weight_axes: [{ segments: [{ segment: q, extent: "n_lin_k_heads * d_lin_k_head", world: attention, parts: n_lin_k_heads, fit: replica_cells }, { segment: k, extent: "n_lin_k_heads * d_lin_k_head", world: attention, parts: n_lin_k_heads, fit: replica_cells }, { segment: v, extent: "n_lin_v_heads * d_lin_v_head", world: attention, parts: n_lin_v_heads, fit: replica_cells }, { segment: z, extent: "n_lin_v_heads * d_lin_v_head", world: attention, parts: n_lin_v_heads, fit: replica_cells }] }, { replicated: true }] }
+  in_proj_ba:     { op: linear, in: x, dims: { in: d_model, out: "2 * n_lin_v_heads" }, weight_axes: [{ segments: [{ segment: b, extent: n_lin_v_heads, world: attention, parts: n_lin_v_heads, fit: replica_cells }, { segment: a, extent: n_lin_v_heads, world: attention, parts: n_lin_v_heads, fit: replica_cells }] }, { replicated: true }] }
+
+  # Split fused qkvz output into the qkv part (fed through conv1d) and z.
+  qkv_slice:      { op: slice, in: in_proj_qkvz,
+                    dims: { in: "2 * n_lin_k_heads * d_lin_k_head + 2 * n_lin_v_heads * d_lin_v_head",
+                            out: "2 * n_lin_k_heads * d_lin_k_head + n_lin_v_heads * d_lin_v_head",
+                            start: "0" } }
+  z_slice:        { op: slice, in: in_proj_qkvz,
+                    dims: { in: "2 * n_lin_k_heads * d_lin_k_head + 2 * n_lin_v_heads * d_lin_v_head",
+                            out: "n_lin_v_heads * d_lin_v_head",
+                            start: "2 * n_lin_k_heads * d_lin_k_head + n_lin_v_heads * d_lin_v_head" } }
+
+  # Split fused ba output into b and a (each shape n_lin_v_heads).
+  b_slice:        { op: slice, in: in_proj_ba, dims: { in: "2 * n_lin_v_heads", out: n_lin_v_heads, start: "0" } }
+  a_slice:        { op: slice, in: in_proj_ba, dims: { in: "2 * n_lin_v_heads", out: n_lin_v_heads, start: n_lin_v_heads } }
+
+  # --- Depthwise causal conv1d over the QKV part only ---
+  conv1d:         { op: conv1d, in: qkv_slice,
+                    dims: { C: "2 * n_lin_k_heads * d_lin_k_head + n_lin_v_heads * d_lin_v_head",
+                            C_in: "2 * n_lin_k_heads * d_lin_k_head + n_lin_v_heads * d_lin_v_head",
+                            C_out: "2 * n_lin_k_heads * d_lin_k_head + n_lin_v_heads * d_lin_v_head",
+                            kernel_size: s_conv_kernel,
+                            dilation: "1",
+                            groups: "2 * n_lin_k_heads * d_lin_k_head + n_lin_v_heads * d_lin_v_head",
+                            bias: "0" },
+                    weight_axes: [{ segments: [{ segment: q, extent: "n_lin_k_heads * d_lin_k_head", world: attention, parts: n_lin_k_heads, fit: replica_cells }, { segment: k, extent: "n_lin_k_heads * d_lin_k_head", world: attention, parts: n_lin_k_heads, fit: replica_cells }, { segment: v, extent: "n_lin_v_heads * d_lin_v_head", world: attention, parts: n_lin_v_heads, fit: replica_cells }] }, { replicated: true }, { replicated: true }] }
+  conv_silu:      { op: silu, in: conv1d,
+                    dim: "2 * n_lin_k_heads * d_lin_k_head + n_lin_v_heads * d_lin_v_head" }
+
+  # --- Split into Q, K, V along the last dim ---
+  q_slice:        { op: slice, in: conv_silu,
+                    dims: { in: "2 * n_lin_k_heads * d_lin_k_head + n_lin_v_heads * d_lin_v_head", out: "n_lin_k_heads * d_lin_k_head", start: "0" } }
+  k_slice:        { op: slice, in: conv_silu,
+                    dims: { in: "2 * n_lin_k_heads * d_lin_k_head + n_lin_v_heads * d_lin_v_head", out: "n_lin_k_heads * d_lin_k_head", start: "n_lin_k_heads * d_lin_k_head" } }
+  v_slice:        { op: slice, in: conv_silu,
+                    dims: { in: "2 * n_lin_k_heads * d_lin_k_head + n_lin_v_heads * d_lin_v_head", out: "n_lin_v_heads * d_lin_v_head", start: "2 * n_lin_k_heads * d_lin_k_head" } }
+
+  q_split_heads_view:  { op: view_split, in: q_slice, axis: -1, dims: { in: "n_lin_k_heads * d_lin_k_head", n_heads: n_lin_k_heads, d_head: d_lin_k_head } }
+
+  q_split_heads:  { op: transpose, in: q_split_heads_view, axes: [0, 2, 1, 3] }
+  k_split_heads:      { op: head_split, in: k_slice, dims: { n_heads: n_lin_k_heads, d_head: d_lin_k_head } }
+  v_split_heads:      { op: head_split, in: v_slice, dims: { n_heads: n_lin_v_heads, d_head: d_lin_v_head } }
+  # --- q/k L2 normalization over each key head ---
+  # The forward passes `use_qk_l2norm_in_kernel=True`, and the kernel entry
+  # normalizes q and k before the recurrence (`l2norm(query)`,
+  # `l2norm(key)` in torch_chunk_gated_delta_rule; `l2norm_fwd(q)`,
+  # `l2norm_fwd(k)` in FLA's chunk_gated_delta_rule). It runs at the key head
+  # count, before any broadcast to value heads, as vLLM and sglang run it.
+  # The d_lin_k_head^-0.5 query scale that follows is part of `delta_rule`.
+  q_l2norm:       { op: l2norm, in: q_split_heads, dim: d_lin_k_head }
+  k_l2norm:       { op: l2norm, in: k_split_heads, dim: d_lin_k_head }
+  # --- Per-head gate vectors ---
+  # g = -exp(A_log) · softplus(a + dt_bias)   — per-head decay rate.
+  # β = sigmoid(b)                              — per-head update gate.
+  # Both feed `gated_delta_rule` as additional inputs (see below).
+  A_log:          { op: parameter_vector, dim: n_lin_v_heads, weight_axes: [{ world: attention, parts: n_lin_v_heads, fit: replica_cells }] }
+  dt_bias:        { op: parameter_vector, dim: n_lin_v_heads, weight_axes: [{ world: attention, parts: n_lin_v_heads, fit: replica_cells }] }
+  a_plus_dt:      { op: add, in: [a_slice, dt_bias], dim: n_lin_v_heads }
+  softplus_a:     { op: softplus, in: a_plus_dt, dim: n_lin_v_heads }
+  neg_exp_A:      { op: neg_exp, in: A_log,  dim: n_lin_v_heads }
+  g_gate:         { op: mul, in: [neg_exp_A, softplus_a], dim: n_lin_v_heads }
+  beta:           { op: sigmoid, in: b_slice,  dim: n_lin_v_heads }
+
+  # --- Core linear-attention recurrence (zero params) ---
+  delta_rule:     { op: gated_delta_rule,
+                    in: [q_l2norm, k_l2norm, v_split_heads, g_gate, beta] }
+
+  # --- RMSNormGated(out, gate=z) + output projection ---
+  # Norm first, then × gate_act(z) on each head of z. The gate
+  # activation follows `config.output_gate_type` where a stack reads it
+  # (vLLM / sglang; silu when absent); transformers Qwen3NextRMSNormGated
+  # fixes it to silu. See `gated_delta_net_attention` for the citations.
+  z_split_heads:  { op: head_split, in: z_slice, dims: { n_heads: n_lin_v_heads, d_head: d_lin_v_head } }
+  z_act:          { op: <gate_act>, in: z_split_heads, dim: d_lin_v_head }
+  norm:           { op: rmsnorm, in: delta_rule, dim: d_lin_v_head, weight_axes: [{ replicated: true }] }
+  norm_gated:     { op: mul, in: [norm, z_act], dim: d_lin_v_head }
+  o_merge_heads:  { op: head_merge, in: norm_gated, dims: { n_heads: n_lin_v_heads, d_head: d_lin_v_head } }
+  out_proj:       { op: linear, in: o_merge_heads, dims: { in: "n_lin_v_heads * d_lin_v_head", out: d_model }, weight_axes: [{ replicated: true }, { world: attention, parts: n_lin_v_heads, fit: replica_cells }] }
+outputs: [out_proj]

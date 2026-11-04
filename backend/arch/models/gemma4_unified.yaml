@@ -1,0 +1,198 @@
+# Gemma 4 Unified — encoder-free multimodal (text + vision + audio).
+#
+# `Gemma4UnifiedForConditionalGeneration` (model_type=gemma4_unified).
+# Unlike base Gemma 4 (which has a 27-layer ViT vision tower), the
+# unified variant projects raw image patches and audio waveforms
+# DIRECTLY into the LLM embedding space through lightweight
+# linear+layernorm bridges — no encoder stacks. The card calls this
+# "Unified" precisely because there are no dedicated encoders.
+#
+# Text backbone: 48 layers with a 5-sliding+1-full hybrid schedule.
+# `layer_types` puts `full_attention` at indices 5, 11, 17, 23, 29,
+# 35, 41, 47 (every 6th, total 8 full + 40 sliding) — the final layer
+# (47) is full.
+#
+# Full-attention layers diverge from sliding in four ways:
+#   * global_head_dim = 512 (vs head_dim = 256 for sliding)
+#   * num_global_key_value_heads = 1 (MQA-style, vs n_kv_heads=8 for sliding)
+#   * attention_k_eq_v = true   → V reuses the k_proj OUTPUT, so there is
+#     no v_proj weight — but K and V then diverge (K takes k_norm and
+#     RoPE, V takes the weightless v_norm) and both are cached.
+#   * rope_parameters.full_attention is rope_type "proportional" with
+#     partial_rotary_factor 0.25 (sliding is plain "default")
+#
+# "Proportional" RoPE is NOT the d_rope/d_nope slice that the
+# `*_partial_rope_*` components model. `_compute_proportional_rope_parameters`
+# pads inv_freq with ZEROS past `rope_angles` and, in its own words,
+# "will always return an encoding that is the size of head_dim" — so
+# cos/sin are full 512-wide and `x * cos + rotate_half(x) * sin` runs over
+# every channel, the unrotated ones landing on x * 1 + rotate_half(x) * 0.
+# Full-width `rope` is the faithful graph here, not an approximation.
+#
+# Block topology = gemma4_4norm_scaled_block (4 RMSNorms + learnable
+# [1] `layer_scalar` multiplying the final residual), shared with
+# base Gemma 4.
+match:
+  model_type: [gemma4_unified]
+
+components:
+  attention: swa_qknorm_attention
+  ffn_dense: gemma_geglu_ffn
+  norm: rmsnorm
+  block: pre_norm
+
+dims:
+  # Text backbone
+  d_model:    config.text_config.hidden_size                       # 3840
+  n_heads:    config.text_config.num_attention_heads               # 16
+  n_kv_heads:   config.text_config.num_key_value_heads               # 8 (sliding)
+  n_kv_heads_full:  config.text_config.num_global_key_value_heads        # 1 (full / MQA)
+  d_head:    config.text_config.head_dim                          # 256 (sliding)
+  d_head_full:   config.text_config.global_head_dim                   # 512 (full)
+  s_window:    config.text_config.sliding_window                    # 1024
+  d_ffn:    config.text_config.intermediate_size                 # 15360
+  n_vocab:    config.text_config.vocab_size                        # 262144
+  # Soft-caps when final_logit_softcapping is not None (30.0); the config class defaults it to None.
+  n_logit_softcap: present(config.text_config.final_logit_softcapping) ?? "0"
+  n_layers:    config.text_config.num_hidden_layers                 # 48
+
+  # Vision (encoder-free patch projector under `vision_embedder.*`).
+  # `model_patch_size`=48 → flat input = 3·48·48 = 6912.
+  d_vis_model:                    config.vision_config.mm_embed_dim         # 3840
+  d_vis_proj:                     d_vis_model                               # patch_dense output, column-split
+  s_patch:               config.vision_config.model_patch_size     # 48
+  n_vis_channels:        "3"
+  d_patch_in:            "n_vis_channels * s_patch * s_patch"       # 6912
+  n_vis_pos_per_axis:    config.vision_config.mm_posemb_size        # 1120
+  # Soft tokens an image is padded to (the processor's max_soft_tokens).
+  n_vis_soft_tokens:     config.vision_config.num_soft_tokens       # 280
+  # A video frame's soft tokens: the repo's processor_config.json
+  # video_processor.max_soft_tokens (70; transformers 5.17
+  # gemma4_unified/video_processing_gemma4_unified.py:214), not in config.json.
+  n_vid_soft_tokens:     "70"
+
+  # Audio (encoder-free projection under `embed_audio.*`).
+  d_audio_model:   config.audio_config.audio_embed_dim                        # 640
+  s_max: config.text_config.max_position_embeddings
+
+view:
+  hidden_act: config.text_config.hidden_activation
+  norm.eps: config.text_config.rms_norm_eps
+
+model_inputs:
+  input_ids: { kind: tokens }
+  # Audio clips per request, then each clip's length in frames of
+  # audio_samples_per_token = 640 waveform samples (one frame, one row).
+  audio_features: { kind: audio, axes: [n_aud, s_audio], width: d_audio_model }
+  # Images per request, then each image's processed size (a multiple of 48).
+  pixel_values: { kind: image, axes: [n_img, img_h, img_w] }
+  # Videos per request, then each video's sampled frames and each frame's
+  # processed size (a multiple of 48); every frame is embedded as an image
+  # (modeling_gemma4_unified.py:1161-1183 get_video_features, :1042-1056).
+  pixel_values_videos: { kind: video, axes: [n_vid, vid_frames, vid_h, vid_w] }
+
+# The transformers base model's tensors sit under `model.`; the LM head
+# beside it declares its own path.
+checkpoint: { root: model }
+
+model:
+  # Text backbone lives under `model.language_model.*`; spec names
+  # mirror the checkpoint paths so per-tensor dtype matching and
+  # unmatched-node detection resolve cleanly (analyzer strips
+  # `model.` automatically).
+  - { name: language_model.embed_tokens, inputs: [input_ids], op: embedding, boundary_role: input_embedding, dims: { n_vocab: n_vocab, d_model: d_model }, weight_axes: [{ world: attention, parts: n_vocab, fit: pad }, { replicated: true }] }
+  # Vision embedder — encoder-free patch projection path
+  # (`model.vision_embedder.*`):
+  #   raw_patch[6912] → patch_ln1 → patch_dense[6912→3840] → patch_ln2
+  # plus a learnable [posemb_size, 2, d_vis_model] positional table and a
+  # pos_norm, then `embed_vision.embedding_projection` lifts into the
+  # LLM hidden space.
+  #
+  # Wrapped in `group: true, aux_kind: vision` because these layers
+  # consume raw image patches — NOT the text backbone's `lm_head`
+  # output — so their first stage reads the `pixel_values` model input.
+  # Singleton component (like Step-3.7's tower): a real graph so `add_pe`
+  # READS the factorized position table instead of leaving it orphaned. Bare
+  # HF paths (vision_embedder.*, embed_vision.*) — no `.X.` injection.
+  - name: vision
+    group: true
+    aux_kind: vision
+    layers:
+      # The processor resizes each image to a multiple of
+      # pooling_kernel_size * patch_size = 3 * 16 = 48 and cuts it into
+      # 48x48 patches of 3 channels (16x16 patches merged 3x3), one row
+      # each, then pads every image to max_soft_tokens rows; the embedder
+      # computes all of them and the padding rows are dropped after
+      # `embed_vision`.
+      - name: vision.patchify
+        op: patchify
+        inputs: [pixel_values]
+        dims: { patch: s_patch, temporal: "1", channels: n_vis_channels, align: s_patch }
+        segment: temporal_patch
+        source_anchor: "transformers 5.17 gemma4_unified/image_processing_gemma4_unified.py:53-80 side_mult = pooling_kernel_size * patch_size (:71), sides floored to it (:74-75); :108-118 convert_image_to_patches and :139-205 patches_merge 3x3 into one 6912-wide patch (:341-348); no tower, no attention segments"
+      - name: vision.pad
+        op: pad_rows
+        inputs: [vision.patchify]
+        dims: { rows: n_vis_soft_tokens }
+        source_anchor: "transformers 5.17 gemma4_unified/image_processing_gemma4_unified.py:352 pad_along_first_dim(..., max_soft_tokens), positions padded with -1 (:135); max_soft_tokens 280 (:224-226), config.vision_config.num_soft_tokens (vLLM gemma4_unified.py:146)"
+      - { name: vision, inputs: [vision.pad], template: gemma4_vision_embedder }
+      - name: vision.unpad
+        op: unpad
+        inputs: [vision, vision.patchify]
+        source_anchor: "vLLM models/gemma4_unified.py:357-381 vision_embedder and embed_vision run on the padded rows, then rows with position == -1 are dropped; transformers modeling_gemma4_unified.py:926-935 non_pad_mask"
+
+  # The videos, frame by frame through the same embedder with the same
+  # weights (transformers 5.17 modeling_gemma4_unified.py:1171
+  # embed_vision(pixel_values_videos.flatten(0, 1), ...)): each frame its
+  # own item (a temporal patch of one frame), padded to a frame's soft
+  # tokens (n_vid_soft_tokens, the video processor's) and stripped after.
+  - { name: video, call: vision, inputs: [pixel_values_videos], dims: { n_vis_soft_tokens: n_vid_soft_tokens } }
+
+  # Audio projection — encoder-free direct linear from the audio
+  # embedding dim into the LLM hidden space. Same `aux_kind: audio`
+  # treatment: independent input modality, read from the `audio_features`
+  # model input, nothing from the text path.
+  - name: audio
+    group: true
+    aux_kind: audio
+    layers:
+      - { name: embed_audio.embedding_projection, inputs: [audio_features], op: linear, dims: { in: d_audio_model, out: d_model }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  # The image and audio rows replace their placeholder rows of the token
+  # embeddings before the decoder runs.
+  - name: language_model.embed_merge_vision
+    op: scatter_rows_replace
+    inputs: [language_model.embed_tokens, vision.unpad, video.unpad]
+    prompt_slots:
+      vision.unpad: { domain: pixel_values, defines: true, source_anchor: "transformers 5.17 gemma4_unified/modeling_gemma4_unified.py:1040 inputs_embeds.masked_scatter(image_mask, image_features); vLLM models/interfaces.py:441-476 embed_input_ids -> models/utils.py:636-673 _merge_multimodal_embeddings inputs_embeds[is_multimodal] = mm_embeds_flat" }
+      video.unpad: { domain: pixel_values_videos, defines: true, source_anchor: "transformers 5.17 gemma4_unified/modeling_gemma4_unified.py:1056 inputs_embeds.masked_scatter(video_mask, video_features)" }
+  - name: language_model.embed_merge_audio
+    op: scatter_rows_replace
+    inputs: [language_model.embed_merge_vision, embed_audio.embedding_projection]
+    prompt_slots: { domain: audio_features, defines: true, source_anchor: "transformers 5.17 gemma4_unified/modeling_gemma4_unified.py:1065-1077 audio rows stripped by mask and masked_scatter into inputs_embeds; vLLM gemma4_unified.py:418-437 enc[mask]" }
+  - name: language_model.layers
+    inputs: [language_model.embed_merge_audio]
+    repeat: n_layers
+    streams:
+      hidden: { carries: true }
+    per_layer:
+      assign:
+        # The text attention reads `text_config.layer_types[layer_idx]`.
+        # Absent the list, the text config's `__post_init__` builds it 5 sliding
+        # : 1 full (`(i + 1) % 6`) — the strided rule restates that.
+        - { type: full, from: "config.text_config.layer_types ?? absent", is: full_attention }
+        - { type: swa,  from: "config.text_config.layer_types ?? absent", is: sliding_attention }
+        - { type: full, stride: "6", offset: "5" }
+        - { type: swa,  rest: true }
+      map:
+        # FFN: GeGLU with tanh-approximate GELU (text_config.hidden_activation
+        # = gelu_pytorch_tanh; Gemma4 MLP applies ACT2FN of it).
+        full: { template: gemma4_4norm_scaled_block, params: { attn: gqa_qknorm_keqv_attention, ffn: gemma_geglu_ffn }, dims: { n_kv_heads: n_kv_heads_full, d_head: d_head_full } }
+        swa:  { template: gemma4_4norm_scaled_block, params: { attn: swa_qknorm_attention, ffn: gemma_geglu_ffn } }
+  - { name: language_model.norm, op: rmsnorm, dim: d_model, weight_axes: [{ replicated: true }] , inputs: [language_model.layers]}
+  # lm_head weight is tied to embed_tokens (both `tie_word_embeddings`
+  # flags are True); no separate `lm_head.weight` tensor exists.
+  - { name: lm_head, op: linear, checkpoint: { path: lm_head }, boundary_role: output_head, dims: { in: d_model, out: n_vocab }, weight_axes: [{ world: attention, parts: n_vocab, fit: pad }, { replicated: true }], tied_weight: { to: language_model.embed_tokens, when: config.text_config.tie_word_embeddings } , inputs: [language_model.norm]}
+  # Gemma4UnifiedForConditionalGeneration caps the logits: c·tanh(logits/c),
+  # c = text_config.final_logit_softcapping.
+  - { name: final_logit_softcap, op: logit_softcap, inputs: [lm_head] }
+

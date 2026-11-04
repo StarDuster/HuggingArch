@@ -1,0 +1,72 @@
+# Moonlight-16B-A3B (moonshotai)
+# DeepSeek-V3-style backbone (MLA + MoE) but with two structural quirks
+# that pin component choice:
+#   - q_lora_rank: null  → no Q compression in MLA → mla_no_qcomp_attention
+#   - n_shared_experts: 2 stored as ONE wide SwiGLU (intermediate = d_ffn_expert × n_shared_experts)
+#     → moe_ffn_with_scaled_shared, NOT moe_ffn (which would model two
+#     narrow instances). The two formulations have identical params totals
+#     but the checkpoint topology is genuinely 1 tensor, not 2.
+match:
+  model_type: [deepseek_v3]
+
+components:
+  attention: mla_no_qcomp_attention
+  ffn_dense: swiglu_ffn
+  ffn_moe: moe_ffn_with_scaled_shared_gate_routing_bias
+  norm: rmsnorm
+  block: pre_norm
+
+dims:
+  d_model:  config.hidden_size
+  n_heads:  config.num_attention_heads
+  d_qk_nope:  config.qk_nope_head_dim
+  d_qk_rope:  config.qk_rope_head_dim
+  d_v_head: config.v_head_dim
+  d_kv_lora:  config.kv_lora_rank
+  d_ffn:  config.intermediate_size
+  d_ffn_expert: config.moe_intermediate_size
+  n_shared_experts: config.n_shared_experts ?? "0"
+  d_ffn_shared: "d_ffn_expert * n_shared_experts"
+  n_vocab:  config.vocab_size
+  n_layers:  config.num_hidden_layers
+  n_experts:  config.n_routed_experts
+  n_experts_active:  config.num_experts_per_tok
+  n_expert_groups: config.n_group      # DeepseekV3 group-limited top-k (config: 1)
+  n_groups_active: config.topk_group
+  n_dense_layers: config.first_k_dense_replace
+  # The serialized inv_freq is an export artifact (the modeling code
+  # registers it persistent=False; its runtime length is d_qk_rope/2), so
+  # its length is whatever the checkpoint stores: (64,) BF16 per layer.
+  rope_inv_freq_len: checkpoint.model.layers.X.self_attn.rotary_emb.inv_freq[0]
+  s_max: config.max_position_embeddings
+
+view:
+  rope_theta: config.rope_theta
+  rope_scaling: config.rope_scaling
+  hidden_act: config.hidden_act
+  norm.eps: config.rms_norm_eps
+
+model_inputs:
+  input_ids: { kind: tokens }
+
+# The transformers base model's tensors sit under `model.`; the LM head
+# beside it declares its own path.
+checkpoint: { root: model }
+
+model:
+  - { name: embed_tokens, inputs: [input_ids], op: embedding, boundary_role: input_embedding, dims: { n_vocab: n_vocab, d_model: d_model }, weight_axes: [{ world: attention, parts: n_vocab, fit: pad }, { replicated: true }] }
+  - name: layers
+    inputs: [embed_tokens]
+    repeat: n_layers
+    streams:
+      hidden: { carries: true }
+    per_layer:
+      assign:
+        - { type: dense, range: ["0", "n_dense_layers - 1"] }
+        - { type: moe,   range: [n_dense_layers, "n_layers - 1"] }
+      map:
+        dense: { attention: mla_no_qcomp_attention, ffn: swiglu_ffn }
+        moe:   { attention: mla_no_qcomp_attention, ffn: moe_ffn_with_scaled_shared_gate_routing_bias }
+  - { name: norm, op: rmsnorm, dim: d_model, weight_axes: [{ replicated: true }] , inputs: [layers]}
+  - { name: lm_head, op: linear, checkpoint: { path: lm_head }, boundary_role: output_head, dims: { in: d_model, out: n_vocab }, weight_axes: [{ world: attention, parts: n_vocab, fit: pad }, { replicated: true }] , inputs: [norm]}
+  - { name: rotary_inv_freq, op: rotary_inv_freq_buffer, checkpoint: { prefix: model.layers, path: self_attn.rotary_emb }, dim: rope_inv_freq_len, weight_axes: [{ replicated: true }], repeat: n_layers }

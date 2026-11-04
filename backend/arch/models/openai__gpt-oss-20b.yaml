@@ -1,0 +1,4 @@
+# Identity file for openai/gpt-oss-20b
+base: gpt_oss
+match:
+  model_id: [openai/gpt-oss-20b]

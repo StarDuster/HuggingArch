@@ -1,0 +1,9 @@
+schema: huggingarch.claims/v1
+subject: inkling_local_attention
+axioms:
+  checks:
+  - kind: kv_growth
+    storage: windowed
+    bound: s_window
+    src: Inkling local layers are sliding-window (config.text_config.sliding_window_size=512);
+      cached K/V cap at min(s_ctx, s_window), evicted past the window.

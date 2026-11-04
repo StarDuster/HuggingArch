@@ -1,0 +1,38 @@
+# Ungrouped softmax top-K router — the Qwen-MoE / Mixtral form — one launch
+# from the router logits to the top-k ids and weights.
+#
+# Naive subgraph (router_softmax_topk with one expert group — the Qwen3,
+# Qwen3-Next, Qwen3.5/3.6/3.8 MoE routers, Qwen3-VL; DeepSeek-V2-Lite's
+# greedy router):
+#
+#   p   = softmax(gating)
+#   idx = topk(p)
+#   w   = gather(p, idx)
+#   w   = w / sum(w)          # `norm_topk_prob`; absent where the model has none
+#
+#   vLLM (audited at v0.32.0): `FusedTopKRouter` (fused_moe/router/
+#     router_factory.py:258; fused_topk_router.py:75-117) → `ops.topk_softmax`
+#     (:31), one CUDA launch (csrc/moe/topk_softmax_kernels.cu,
+#     `moeTopK`). It takes no routed scaling factor: a model's routed scale
+#     (`scale_const` after this chain, DeepSeek-V2-Lite) is not inside it.
+#   sglang (audited at v0.5.22): `TopK` with the default softmax scoring
+#     (qwen2_moe.py:308, qwen3_moe.py:259) → `select_experts`
+#     (srt/layers/moe/topk.py:2545) → `fused_topk` (:1061) → on CUDA the Triton
+#     router `moe_fused_gate(gating, None, topk, scoring_func="softmax",
+#     renormalize=...)` (:1125-1129; kernel moe_fused_gate.py softmax :203-216).
+#     That call passes no bias — a softmax router with a selection bias is a
+#     different plan (`moe_topk_softmax_bias`, which sglang does not bind).
+#
+# Same boundary in prefill and decode.
+
+fused_op: moe_topk_softmax
+
+naive_pattern:
+  nodes:
+    score:  { op: softmax_act,       inputs: [external.gating] }
+    topk:   { op: topk,              inputs: [score.out] }
+    gather: { op: gather,            inputs: [score.out, topk.out] }
+    norm:   { op: normalize_sum_one, inputs: [gather.out], optional: true }
+  io_mapping:
+    gating: external.gating
+    output: norm.out

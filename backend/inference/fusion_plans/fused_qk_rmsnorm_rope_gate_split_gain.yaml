@@ -1,0 +1,45 @@
+# The `fused_qk_rmsnorm_rope_gate` kernel over a spec that writes the per-head
+# norm's gain as its own multiply: `rmsnorm_unscaled(x) · (1 + w)`.
+#
+# The Qwen3.8-Flash-Next QSA attention (qwen_qsa_attention.yaml) spells its
+# Qwen4ExpTextRMSNorm that way; Qwen3-Next / Qwen3.5 spell the same norm as one
+# `rmsnorm`. The serving kernel is the same one launch either way — vLLM
+# v0.32.0 `Qwen4ExpQSAAttention` subclasses `Qwen3NextAttention`, keeps its
+# `use_fused_qk_norm_rope_gate` gate (models/qwen4_exp/nvidia/qsa.py:450-456)
+# and calls `_project_qkv_gate` (:634) -> `fused_qk_rmsnorm_rope_gate` only off `use_fused_qsa_prepare` (:496-498); on it (the Qwen3.8-Flash-Next config) the norm/RoPE/gate is folded into `qsa_prepare` (ops/qsa_prepare.py:504, one launch :583) with the indexer prepare and K/V insert — a wider boundary, see binding; sglang
+# v0.5.22 `Qwen4ExpAttentionDecoderLayer` inherits
+# `Qwen3_5AttentionDecoderLayer._prepare_qkv_gate`
+# (python/sglang/srt/models/qwen4_exp.py:1732, call :1853) ->
+# `fused_qk_gemma_rmsnorm_rope_gate`. A pattern node matches one spec node,
+# so the two-node norm needs its own pattern; everything else is
+# `fused_qk_rmsnorm_rope_gate.yaml`, whose header describes the kernel.
+#
+# The gains are parameters outside the match (`external.q_weight` /
+# `external.k_weight`); the fused node reads them through its inputs.
+
+fused_op: fused_qk_rmsnorm_rope_gate_split_gain
+
+naive_pattern:
+  nodes:
+    q_slice:        { op: slice,            inputs: [external.q_gate] }
+    gate_slice:     { op: slice,            inputs: [external.q_gate] }
+    q_rmsnorm:      { op: rmsnorm_unscaled, inputs: [q_slice.out] }
+    q_norm:         { op: mul,              inputs: [q_rmsnorm.out, external.q_weight] }
+    k_rmsnorm:      { op: rmsnorm_unscaled, inputs: [external.k] }
+    k_norm:         { op: mul,              inputs: [k_rmsnorm.out, external.k_weight] }
+    q_rope_slice:   { op: slice,            inputs: [q_norm.out] }
+    q_norope_slice: { op: slice,            inputs: [q_norm.out] }
+    k_rope_slice:   { op: slice,            inputs: [k_norm.out] }
+    k_norope_slice: { op: slice,            inputs: [k_norm.out] }
+    q_rope:         { op_choices: [rope_emb, mrope], inputs: [q_rope_slice.out], feeds: q }
+    k_rope:         { op_choices: [rope_emb, mrope], inputs: [k_rope_slice.out], feeds: k }
+    q_concat:       { op: concat,           inputs: [q_rope.out, q_norope_slice.out] }
+    k_concat:       { op: concat,           inputs: [k_rope.out, k_norope_slice.out] }
+  io_mapping:
+    q_gate:   external.q_gate
+    q_weight: external.q_weight
+    k:        external.k
+    k_weight: external.k_weight
+    output:   q_concat.out
+    k_out:    k_concat.out
+    gate_out: gate_slice.out

@@ -1,0 +1,12 @@
+# Provider env: fla — GENERATED from the library registry (`python -m kernel_bench envs`). Edit the provider, not this file.
+# Measure just this env (uv resolves+caches the deps, no venv):
+#   PYTHONPATH=. uv run --no-project --with-requirements kernel_bench/envs/fla.txt \
+#       -- python -m kernel_bench run --jobs jobs.jsonl -o results/fla.csv --library fla --skip-existing
+# Or every provider env in one command:  python -m kernel_bench run-all --jobs jobs.jsonl
+# Providers: fla_chunk_gated_delta_rule, fla_chunk_kda, fla_chunk_simple_gla, fla_fused_recurrent_gated_delta_rule, fla_fused_recurrent_kda, fla_fused_recurrent_simple_gla
+torch>=2.5
+pydantic
+pyyaml
+huggingface-hub
+httpx
+flash-linear-attention @ git+https://github.com/fla-org/flash-linear-attention.git@v0.5.2

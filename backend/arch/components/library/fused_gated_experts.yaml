@@ -1,0 +1,31 @@
+# A routed expert bank of SwiGLU FFNs whose checkpoint stores gate and up as
+# ONE packed tensor per bank, `gate_up_proj: [n_expert_copies, 2·d_ffn,
+# d_model]`, with `down_proj: [n_expert_copies, d_model, d_ffn]`.
+#
+# The bank runs over the `[n_expert_copies, M, d_model]` dispatch buffer as
+# `gated_experts` does (see there). The difference is the checkpoint: this
+# one ships the projection fused, so the spec reads it fused and recovers
+# gate and up with two zero-FLOP slices — what the checkpoint holds, not a
+# fusion the spec chose:
+#
+#   transformers `Qwen3_5MoeExperts` (models/qwen3_5_moe/modeling_qwen3_5_moe.py:845)
+#     gate_up_proj: [E, 2·I, H], down_proj: [E, H, I]
+#   gate, up = (gate_up_proj[e] · x_e).chunk(2);  y_e = down_proj[e] · (silu(gate) * up)
+#
+# Both tensors are `nn.Parameter`s with no `.weight` suffix (`linear_param`).
+# The caller declares `expert_weight: leading_axis`.
+#
+# Required dims: d_model, d_ffn (the expert width), n_expert_copies.
+
+role: ffn_moe
+description: "Routed expert bank of SwiGLU FFNs stored as packed gate_up_proj [n_expert_copies, 2·d_ffn, d_model] and down_proj [n_expert_copies, d_model, d_ffn]. Qwen3.5-MoE experts."
+graph:
+  gate_up_proj: { op: linear_param, in: x, dims: { in: d_model, out: "2 * d_ffn" }, shape: [n_expert_copies, "2 * d_ffn", d_model],
+                  weight_axes: [{ world: moe_copies, parts: n_expert_copies, fit: exact }, { segments: [{ segment: gate, extent: d_ffn, world: moe_expert, parts: d_ffn, fit: exact }, { segment: up, extent: d_ffn, world: moe_expert, parts: d_ffn, fit: exact }] }, { replicated: true }] }
+  gate_slice:   { op: slice, in: gate_up_proj, dims: { in: "2 * d_ffn", out: d_ffn } }
+  up_slice:     { op: slice, in: gate_up_proj, dims: { in: "2 * d_ffn", out: d_ffn } }
+  silu:         { op: silu, in: gate_slice, dim: d_ffn }
+  gate_mul:     { op: mul, in: [silu, up_slice], dim: d_ffn }
+  down_proj:    { op: linear_param, in: gate_mul, dims: { in: d_ffn, out: d_model }, shape: [n_expert_copies, d_model, d_ffn],
+                  weight_axes: [{ world: moe_copies, parts: n_expert_copies, fit: exact }, { replicated: true }, { world: moe_expert, parts: d_ffn, fit: exact }] }
+outputs: [down_proj]

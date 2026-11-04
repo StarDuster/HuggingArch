@@ -1,0 +1,323 @@
+{
+  "schema_version": 4,
+  "config": {
+    "auto_map": {
+      "AutoModel": "modeling_longcat_flash.LongcatFlashModel",
+      "AutoConfig": "configuration_longcat_flash.LongcatFlashConfig",
+      "AutoModelForCausalLM": "modeling_longcat_flash.LongcatFlashForCausalLM"
+    },
+    "moe_topk": 12,
+    "use_cache": true,
+    "num_layers": 28,
+    "rope_theta": 10000000.0,
+    "v_head_dim": 128,
+    "vocab_size": 131072,
+    "hidden_size": 6144,
+    "q_lora_rank": 1536,
+    "bos_token_id": 1,
+    "eos_token_id": 2,
+    "kv_lora_rank": 512,
+    "rms_norm_eps": 1e-05,
+    "architectures": [
+      "LongcatFlashOmniForCausalLM"
+    ],
+    "attention_bias": false,
+    "ffn_hidden_size": 12288,
+    "zero_expert_num": 256,
+    "attention_method": "MLA",
+    "mla_scale_q_lora": true,
+    "n_routed_experts": 512,
+    "qk_nope_head_dim": 128,
+    "qk_rope_head_dim": 64,
+    "zero_expert_type": "identity",
+    "attention_dropout": 0.0,
+    "mla_scale_kv_lora": true,
+    "num_attention_heads": 64,
+    "routed_scaling_factor": 6.0,
+    "expert_ffn_hidden_size": 2048,
+    "max_position_embeddings": 131072
+  },
+  "metadata": {
+    "header": {
+      "revision": "f65b9038a559d3624d5e52fad28bbe083eb2341e",
+      "total_size": 1121594245120,
+      "tensors": [
+        {
+          "name": "lm_head.weight",
+          "dtype": "BF16",
+          "shape": [
+            131072,
+            6144
+          ]
+        },
+        {
+          "name": "model.embed_tokens.weight",
+          "dtype": "BF16",
+          "shape": [
+            131072,
+            6144
+          ]
+        },
+        {
+          "name": "model.layers.{}.input_layernorm.{}.weight",
+          "dtype": "BF16",
+          "shape": [
+            6144
+          ],
+          "index": [
+            [
+              "0-27",
+              "0-1"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.mlp.experts.{}.down_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            6144,
+            2048
+          ],
+          "index": [
+            [
+              "0-27",
+              "0-511"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.mlp.experts.{}.gate_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            2048,
+            6144
+          ],
+          "index": [
+            [
+              "0-27",
+              "0-511"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.mlp.experts.{}.up_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            2048,
+            6144
+          ],
+          "index": [
+            [
+              "0-27",
+              "0-511"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.mlp.router.classifier.weight",
+          "dtype": "F32",
+          "shape": [
+            768,
+            6144
+          ],
+          "index": [
+            [
+              "0-27"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.mlp.router.e_score_correction_bias",
+          "dtype": "F32",
+          "shape": [
+            768
+          ],
+          "index": [
+            [
+              "0-27"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.mlps.{}.down_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            6144,
+            12288
+          ],
+          "index": [
+            [
+              "0-27",
+              "0-1"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.mlps.{}.gate_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            12288,
+            6144
+          ],
+          "index": [
+            [
+              "0-27",
+              "0-1"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.mlps.{}.up_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            12288,
+            6144
+          ],
+          "index": [
+            [
+              "0-27",
+              "0-1"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.post_attention_layernorm.{}.weight",
+          "dtype": "BF16",
+          "shape": [
+            6144
+          ],
+          "index": [
+            [
+              "0-27",
+              "0-1"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.self_attn.{}.kv_a_layernorm.weight",
+          "dtype": "BF16",
+          "shape": [
+            512
+          ],
+          "index": [
+            [
+              "0-27",
+              "0-1"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.self_attn.{}.kv_a_proj_with_mqa.weight",
+          "dtype": "BF16",
+          "shape": [
+            576,
+            6144
+          ],
+          "index": [
+            [
+              "0-27",
+              "0-1"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.self_attn.{}.kv_b_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            16384,
+            512
+          ],
+          "index": [
+            [
+              "0-27",
+              "0-1"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.self_attn.{}.o_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            6144,
+            8192
+          ],
+          "index": [
+            [
+              "0-27",
+              "0-1"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.self_attn.{}.q_a_layernorm.weight",
+          "dtype": "BF16",
+          "shape": [
+            1536
+          ],
+          "index": [
+            [
+              "0-27",
+              "0-1"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.self_attn.{}.q_a_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            1536,
+            6144
+          ],
+          "index": [
+            [
+              "0-27",
+              "0-1"
+            ]
+          ]
+        },
+        {
+          "name": "model.layers.{}.self_attn.{}.q_b_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            12288,
+            1536
+          ],
+          "index": [
+            [
+              "0-27",
+              "0-1"
+            ]
+          ]
+        },
+        {
+          "name": "model.norm.weight",
+          "dtype": "BF16",
+          "shape": [
+            6144
+          ]
+        }
+      ]
+    },
+    "quant_scheme": "none",
+    "num_bits": 0
+  },
+  "model_id": "meituan-longcat/LongCat-Flash-Omni",
+  "forward_source": {
+    "files": [
+      {
+        "path": "hf-cache/meituan-longcat/LongCat-Flash-Omni/configuration_longcat_flash.py",
+        "text": "\n\"\"\"LongcatFlash model configuration\"\"\"\n\nfrom transformers.configuration_utils import PretrainedConfig\nfrom transformers.modeling_rope_utils import rope_config_validation\n\n\nLONGCAT_PRETRAINED_CONFIG_ARCHIVE_MAP = {}\n\n\nclass LongcatFlashConfig(PretrainedConfig):\n    r\"\"\"\n    This is the configuration class to store the configuration of a [`LongcatFlashModel`]. It is used to instantiate an LongcatFlash\n    model according to the specified arguments, defining the model architecture. Instantiating a configuration with the\n    defaults will yield a similar configuration to that of the LongcatFlash.\n    Configuration objects inherit from [`PretrainedConfig`] and can be used to control the model outputs. Read the\n    documentation from [`PretrainedConfig`] for more information.\n\n\n    Args:\n        vocab_size (`int`, *optional*, defaults to 131072):\n            Vocabulary size of the Deep model. Defines the number of different tokens that can be represented by the\n            `inputs_ids` passed when calling [`LongcatFlashModel`]\n        hidden_size (`int`, *optional*, defaults to 7168):\n            Dimension of the hidden representations.\n        ffn_hidden_size (`int`, *optional*, defaults to 18432):\n            Dimension of the MLP representations.\n        expert_ffn_hidden_size (`int`, *optional*, defaults to 2048):\n            Dimension of the MoE representations.\n        num_layers (`int`, *optional*, defaults to 61):\n            Number of hidden layers in the Transformer decoder.\n        num_attention_heads (`int`, *optional*, defaults to 128):\n            Number of attention heads for each attention layer in the Transformer decoder.\n        num_key_value_heads (`int`, *optional*, defaults to 128):\n            This is the number of key_value heads that should be used to implement Grouped Query Attention. If\n            `num_key_value_heads=num_attention_heads`, the model will use Multi Head Attention (MHA), if\n            `num_key_value_heads=1 the model will use Multi Query Attention (MQA) otherwise GQA is used. When\n            converting a multi-head checkpoint to a GQA checkpoint, each group key and value head should be constructed\n            by meanpooling all the original heads within that group. For more details checkout [this\n            paper](https://arxiv.org/pdf/2305.13245.pdf). If it is not specified, will default to\n            `num_attention_heads`.\n        n_routed_experts (`int`, *optional*, defaults to 256):\n            Number of routed experts.\n        routed_scaling_factor (`float`, *optional*, defaults to 2.5):\n            Scaling factor or routed experts.\n        kv_lora_rank (`int`, *optional*, defaults to 512):\n            Rank of the LoRA matrices for key and value projections.\n        q_lora_rank (`int`, *optional*, defaults to 1536):\n            Rank of the LoRA matrices for query projections.\n        qk_rope_head_dim (`int`, *optional*, defaults to 64):\n            Dimension of the query/key heads that use rotary position embeddings.\n        v_head_dim (`int`, *optional*, defaults to 128):\n            Dimension of the value heads.\n        qk_nope_head_dim (`int`, *optional*, defaults to 128):\n            Dimension of the query/key heads that don't use rotary position embeddings.\n        norm_topk_prob (`bool`, *optional*, defaults to `True`):\n            Whether to normalize the weights of the routed experts.\n        hidden_act (`str` or `function`, *optional*, defaults to `\"silu\"`):\n            The non-linear activation function (function or string) in the decoder.\n        max_position_embeddings (`int`, *optional*, defaults to 4096):\n            The maximum sequence length that this model might ever be used with.\n        rms_norm_eps (`float`, *optional*, defaults to 1e-06):\n            The epsilon used by the rms normalization layers.\n        use_cache (`bool`, *optional*, defaults to `True`):\n            Whether or not the model should return the last key/values attentions (not used by all models). Only\n            relevant if `config.is_decoder=True`.\n        pad_token_id (`int`, *optional*):\n            Padding token id.\n        bos_token_id (`int`, *optional*, defaults to 0):\n            Beginning of stream token id.\n        eos_token_id (`int`, *optional*, defaults to 1):\n            End of stream token id.\n        tie_word_embeddings (`bool`, *optional*, defaults to `False`):\n            Whether to tie weight embeddings\n        rope_theta (`float`, *optional*, defaults to 10000.0):\n            The base period of the RoPE embeddings.\n        attention_bias (`bool`, defaults to `False`, *optional*, defaults to `False`):\n            Whether to use a bias in the query, key, value and output projection layers during self-attention.\n        attention_dropout (`float`, *optional*, defaults to 0.0):\n            The dropout ratio for the attention probabilities.\n        attention_method (`str`, *optional*, defaults to `\"MLA\"`):\n            The attention method to use.\n        initializer_range (`float`, *optional*, defaults to 0.006):\n            The initializer range for the model.\n        router_bias (`bool`, *optional*, defaults to `False`):\n            Whether to use a bias in the router.\n        zero_expert_num (`int`, *optional*, defaults to `None`):\n            The number of zero experts to use.\n        zero_expert_type (`str`, *optional*, defaults to `None`):\n            The type of zero expert to use.\n\n    ```python\n    >>> from transformers import LongcatFlashModel, LongcatFlashConfig\n\n    >>> # Initializing a LongcatFlash style configuration\n    >>> configuration = LongcatFlashConfig()\n\n    >>> # Accessing the model configuration\n    >>> configuration = model.config\n    ```\"\"\"\n\n    model_type = \"longcat_flash\"\n    keys_to_ignore_at_inference = [\"past_key_values\"]\n    base_model_tp_plan = {\n        \"layers.*.self_attn.k_proj\": \"colwise\",\n        \"layers.*.self_attn.v_proj\": \"colwise\",\n        \"layers.*.self_attn.o_proj\": \"rowwise\",\n        \"layers.*.mlp.experts.*.gate_proj\": \"local_colwise\",\n        \"layers.*.mlp.experts.*.up_proj\": \"local_colwise\",\n        \"layers.*.mlp.experts.*.down_proj\": \"local_rowwise\",\n        \"layers.*.mlps.*.gate_proj\": \"local_colwise\",\n        \"layers.*.mlps.*.up_proj\": \"local_colwise\",\n        \"layers.*.mlps.*.down_proj\": \"local_rowwise\",\n    }\n    base_model_pp_plan = {\n        \"embed_tokens\": ([\"input_ids\"], [\"inputs_embeds\"]),\n        \"layers\": ([\"hidden_states\", \"attention_mask\"], [\"hidden_states\"]),\n        \"norm\": ([\"hidden_states\"], [\"hidden_states\"]),\n    }\n\n    def __init__(\n        self,\n        vocab_size=131072,\n        hidden_size=7168,\n        ffn_hidden_size=18432,\n        expert_ffn_hidden_size=2048,\n        num_layers=61,\n        num_attention_heads=128,\n        num_key_value_heads=None,\n        n_routed_experts=256,\n        routed_scaling_factor=1,\n        kv_lora_rank=512,\n        q_lora_rank=1536,\n        qk_rope_head_dim=64,\n        v_head_dim=128,\n        qk_nope_head_dim=128,\n        mla_scale_q_lora=True,\n        mla_scale_kv_lora=True,\n        moe_topk=8,\n        norm_topk_prob=False,\n        hidden_act=\"silu\",\n        max_position_embeddings=4096,\n        rms_norm_eps=1e-6,\n        use_cache=True,\n        pad_token_id=None,\n        bos_token_id=0,\n        eos_token_id=1,\n        tie_word_embeddings=False,\n        rope_theta=10000.0,\n        attention_bias=False,\n        attention_dropout=0.0,\n        attention_method='MLA',\n        initializer_range=0.006,\n        router_bias=False,\n        zero_expert_num=None,\n        zero_expert_type=None,\n        **kwargs,\n    ):\n        self.vocab_size = vocab_size\n        self.max_position_embeddings = max_position_embeddings\n        self.hidden_size = hidden_size\n        self.ffn_hidden_size = ffn_hidden_size\n        self.expert_ffn_hidden_size = expert_ffn_hidden_size\n        self.num_layers = num_layers\n        self.num_attention_heads = num_attention_heads\n        self.n_routed_experts = n_routed_experts\n        self.routed_scaling_factor = routed_scaling_factor\n        self.kv_lora_rank = kv_lora_rank\n        self.q_lora_rank = q_lora_rank\n        self.qk_rope_head_dim = qk_rope_head_dim\n        self.v_head_dim = v_head_dim\n        self.qk_nope_head_dim = qk_nope_head_dim\n        self.qk_head_dim = qk_nope_head_dim + qk_rope_head_dim\n        self.moe_topk = moe_topk\n        self.norm_topk_prob = norm_topk_prob\n        self.mla_scale_q_lora = mla_scale_q_lora\n        self.mla_scale_kv_lora = mla_scale_kv_lora\n        self.attention_method = attention_method\n        self.initializer_range = initializer_range\n        self.router_bias = router_bias\n        self.zero_expert_num = zero_expert_num\n        self.zero_expert_type = zero_expert_type\n\n        if self.attention_method == \"MLA\":\n            self.head_dim = qk_rope_head_dim\n        else:\n            ValueError('attention_method should be one of [\"MLA\"]')\n\n\n        if num_key_value_heads is None:\n            num_key_value_heads = num_attention_heads\n\n        self.num_key_value_heads = num_key_value_heads\n        self.hidden_act = hidden_act\n        self.rms_norm_eps = rms_norm_eps\n        self.use_cache = use_cache\n        self.rope_theta = rope_theta\n        self.attention_bias = attention_bias\n        self.attention_dropout = attention_dropout\n\n        rope_config_validation(self)\n\n        super().__init__(\n            pad_token_id=pad_token_id,\n            bos_token_id=bos_token_id,\n            eos_token_id=eos_token_id,\n            tie_word_embeddings=tie_word_embeddings,\n            **kwargs,\n        )\n\n    @property\n    def num_hidden_layers(self):\n        return self.num_layers\n\n\n__all__ = [\"LongcatFlashConfig\"]\n"
+      },
+      {
+        "path": "hf-cache/meituan-longcat/LongCat-Flash-Omni/modeling_longcat_flash.py",
+        "text": "# -*- coding: utf-8 -*-\n# Copyright (c) 2025 Meituan\n# This code is licensed under the MIT License, for details, see the ./LICENSE file. \n\nfrom typing import Callable, Optional, Union\n\nimport torch\nimport torch.nn.functional as F\nfrom torch import nn\n\nfrom transformers.activations import ACT2FN\nfrom transformers.cache_utils import Cache, DynamicCache\nfrom transformers.generation import GenerationMixin\nfrom transformers.integrations import use_kernel_forward_from_hub\nfrom transformers.masking_utils import create_causal_mask\nfrom transformers.modeling_flash_attention_utils import FlashAttentionKwargs\nfrom transformers.modeling_layers import GradientCheckpointingLayer\nfrom transformers.modeling_outputs import BaseModelOutputWithPast, CausalLMOutputWithPast\nfrom transformers.modeling_rope_utils import ROPE_INIT_FUNCTIONS, dynamic_rope_update\nfrom transformers.modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel\nfrom transformers.processing_utils import Unpack\nfrom transformers.utils import TransformersKwargs, auto_docstring, can_return_tuple\nfrom transformers.utils.generic import check_model_inputs\nfrom .configuration_longcat_flash import LongcatFlashConfig\n\n\n@use_kernel_forward_from_hub(\"RMSNorm\")\nclass LongcatFlashRMSNorm(nn.Module):\n    def __init__(self, hidden_size, eps=1e-6):\n        \"\"\"\n        LongcatFlashRMSNorm is equivalent to T5LayerNorm\n        \"\"\"\n        super().__init__()\n        self.weight = nn.Parameter(torch.ones(hidden_size))\n        self.variance_epsilon = eps\n\n    def forward(self, hidden_states):\n        input_dtype = hidden_states.dtype\n        hidden_states = hidden_states.to(torch.float32)\n        variance = hidden_states.pow(2).mean(-1, keepdim=True)\n        hidden_states = hidden_states * torch.rsqrt(variance + self.variance_epsilon)\n        return self.weight * hidden_states.to(input_dtype)\n\n    def extra_repr(self):\n        return f\"{tuple(self.weight.shape)}, eps={self.variance_epsilon}\"\n\n\nclass LongcatFlashRotaryEmbedding(nn.Module):\n    def __init__(self, config: LongcatFlashConfig, device=None):\n        super().__init__()\n        # BC: \"rope_type\" was originally \"type\"\n        if hasattr(config, \"rope_scaling\") and isinstance(config.rope_scaling, dict):\n            self.rope_type = config.rope_scaling.get(\"rope_type\", config.rope_scaling.get(\"type\"))\n        else:\n            self.rope_type = \"default\"\n        self.max_seq_len_cached = config.max_position_embeddings\n        self.original_max_seq_len = config.max_position_embeddings\n\n        self.config = config\n        self.rope_init_fn = ROPE_INIT_FUNCTIONS[self.rope_type]\n\n        inv_freq, self.attention_scaling = self.rope_init_fn(self.config, device)\n        self.register_buffer(\"inv_freq\", inv_freq, persistent=False)\n        self.original_inv_freq = self.inv_freq\n\n    @torch.no_grad()\n    @dynamic_rope_update  # power user: used with advanced RoPE types (e.g. dynamic rope)\n    def forward(self, x, position_ids):\n        inv_freq_expanded = self.inv_freq[None, :, None].float().expand(position_ids.shape[0], -1, 1).to(x.device)\n        position_ids_expanded = position_ids[:, None, :].float()\n\n        device_type = x.device.type if isinstance(x.device.type, str) and x.device.type != \"mps\" else \"cpu\"\n        with torch.autocast(device_type=device_type, enabled=False):  # Force float32\n            freqs = (inv_freq_expanded.float() @ position_ids_expanded.float()).transpose(1, 2)\n            emb = torch.cat((freqs, freqs), dim=-1)\n            cos = emb.cos() * self.attention_scaling\n            sin = emb.sin() * self.attention_scaling\n\n        return cos.to(dtype=x.dtype), sin.to(dtype=x.dtype)\n\n\nclass LongcatFlashMLP(nn.Module):\n    def __init__(self, config, hidden_size=None, intermediate_size=None):\n        super().__init__()\n        self.config = config\n        self.hidden_size = config.hidden_size if hidden_size is None else hidden_size\n        self.intermediate_size = config.ffn_hidden_size if intermediate_size is None else intermediate_size\n\n        self.gate_proj = nn.Linear(self.hidden_size, self.intermediate_size, bias=False)\n        self.up_proj = nn.Linear(self.hidden_size, self.intermediate_size, bias=False)\n        self.down_proj = nn.Linear(self.intermediate_size, self.hidden_size, bias=False)\n        self.act_fn = ACT2FN[config.hidden_act]\n\n    def forward(self, x):\n        down_proj = self.down_proj(self.act_fn(self.gate_proj(x)) * self.up_proj(x))\n        return down_proj\n\n\nclass LongcatFlashTopkRouter(nn.Module):\n    def __init__(self, config):\n        super().__init__()\n        self.config = config\n        self.top_k = config.moe_topk\n        self.n_routed_experts = (\n            config.n_routed_experts\n            if config.zero_expert_num is None\n            else config.n_routed_experts + config.zero_expert_num\n        )\n        self.routed_scaling_factor = config.routed_scaling_factor\n        self.norm_topk_prob = config.norm_topk_prob\n        self.router_bias = config.router_bias\n\n        self.classifier = nn.Linear(config.hidden_size, self.n_routed_experts, bias=self.router_bias)\n        self.register_buffer(\"e_score_correction_bias\", torch.zeros((self.n_routed_experts)))\n\n    @torch.no_grad()\n    def get_topk_indices(self, scores):\n        scores_for_choice = scores.view(-1, self.n_routed_experts) + self.e_score_correction_bias.unsqueeze(0)\n        topk_indices = torch.topk(scores_for_choice, k=self.top_k, dim=-1, sorted=False)[1]\n        return topk_indices\n\n    def forward(self, hidden_states):\n        hidden_states = hidden_states.view(-1, self.config.hidden_size)\n        router_logits = F.linear(hidden_states.type(torch.float32), self.classifier.weight.type(torch.float32))\n        scores = router_logits.softmax(dim=-1)\n        topk_indices = self.get_topk_indices(scores)\n        topk_weights = scores.gather(1, topk_indices)\n        if self.norm_topk_prob:\n            denominator = topk_weights.sum(dim=-1, keepdim=True) + 1e-20\n            topk_weights /= denominator\n        topk_weights = topk_weights * self.routed_scaling_factor\n        return topk_indices, topk_weights\n\n\nclass LongcatFlashMoE(nn.Module):\n    \"\"\"\n    moe module.\n    \"\"\"\n\n    def __init__(self, config):\n        super().__init__()\n        self.config = config\n        self.experts = nn.ModuleList(\n            [\n                LongcatFlashMLP(config, intermediate_size=config.expert_ffn_hidden_size)\n                for _ in range(config.n_routed_experts)\n            ]\n        )\n        self.router = LongcatFlashTopkRouter(config)\n        self.zero_expert_num = config.zero_expert_num\n        self.zero_expert_type = config.zero_expert_type\n\n    def moe(self, hidden_states: torch.Tensor, topk_indices: torch.Tensor, topk_weights: torch.Tensor):\n        final_hidden_states = torch.zeros_like(hidden_states, dtype=topk_weights.dtype)\n        total_experts = len(self.experts) if self.zero_expert_num is None else len(self.experts) + self.zero_expert_num\n\n        expert_mask = torch.nn.functional.one_hot(topk_indices, num_classes=total_experts)\n        expert_mask = expert_mask.permute(2, 0, 1)\n\n        for expert_idx in range(total_experts):\n            expert = self.experts[expert_idx] if expert_idx < len(self.experts) else None\n            mask = expert_mask[expert_idx]\n            token_indices, weight_indices = torch.where(mask)\n\n            if token_indices.numel() > 0:\n                expert_weights = topk_weights[token_indices, weight_indices]\n                expert_input = hidden_states[token_indices]\n\n                if self.zero_expert_num is None or expert_idx < len(self.experts):\n                    expert_output = expert(expert_input)\n                elif self.zero_expert_type == \"identity\":\n                    expert_output = expert_input\n                else:\n                    raise ValueError(\"Unknown condition\")\n\n                weighted_output = expert_output * expert_weights.unsqueeze(-1)\n                final_hidden_states.index_add_(0, token_indices, weighted_output)\n\n        return final_hidden_states.type(hidden_states.dtype)\n\n    def forward(self, hidden_states):\n        orig_shape = hidden_states.shape\n        topk_indices, topk_weights = self.router(hidden_states)\n        hidden_states = hidden_states.view(-1, hidden_states.shape[-1])\n        hidden_states = self.moe(hidden_states, topk_indices, topk_weights).view(*orig_shape)\n        return hidden_states\n\n\ndef rotate_half(x):\n    \"\"\"Rotates half the hidden dims of the input.\"\"\"\n    x1 = x[..., : x.shape[-1] // 2]\n    x2 = x[..., x.shape[-1] // 2 :]\n    return torch.cat((-x2, x1), dim=-1)\n\n\ndef repeat_kv(hidden_states: torch.Tensor, n_rep: int) -> torch.Tensor:\n    \"\"\"\n    This is the equivalent of torch.repeat_interleave(x, dim=1, repeats=n_rep). The hidden states go from (batch,\n    num_key_value_heads, seqlen, head_dim) to (batch, num_attention_heads, seqlen, head_dim)\n    \"\"\"\n    batch, num_key_value_heads, slen, head_dim = hidden_states.shape\n    if n_rep == 1:\n        return hidden_states\n    hidden_states = hidden_states[:, :, None, :, :].expand(batch, num_key_value_heads, n_rep, slen, head_dim)\n    return hidden_states.reshape(batch, num_key_value_heads * n_rep, slen, head_dim)\n\n\ndef eager_attention_forward(\n    module: nn.Module,\n    query: torch.Tensor,\n    key: torch.Tensor,\n    value: torch.Tensor,\n    attention_mask: Optional[torch.Tensor],\n    scaling: float,\n    dropout: float = 0.0,\n    **kwargs: Unpack[TransformersKwargs],\n):\n    key_states = repeat_kv(key, module.num_key_value_groups)\n    value_states = repeat_kv(value, module.num_key_value_groups)\n\n    attn_weights = torch.matmul(query, key_states.transpose(2, 3)) * scaling\n    if attention_mask is not None:\n        causal_mask = attention_mask[:, :, :, : key_states.shape[-2]]\n        attn_weights = attn_weights + causal_mask\n\n    attn_weights = nn.functional.softmax(attn_weights, dim=-1, dtype=torch.float32).to(query.dtype)\n    attn_weights = nn.functional.dropout(attn_weights, p=dropout, training=module.training)\n    attn_output = torch.matmul(attn_weights, value_states)\n    attn_output = attn_output.transpose(1, 2).contiguous()\n\n    return attn_output, attn_weights\n\n\ndef apply_rotary_pos_emb(q, k, cos, sin, position_ids=None, unsqueeze_dim=1, use_mla=False):\n    \"\"\"Applies Rotary Position Embedding to the query and key tensors.\n    Args:\n        q (`torch.Tensor`): The query tensor.\n        k (`torch.Tensor`): The key tensor.\n        cos (`torch.Tensor`): The cosine part of the rotary embedding.\n        sin (`torch.Tensor`): The sine part of the rotary embedding.\n        position_ids (`torch.Tensor`, *optional*):\n            Deprecated and unused.\n        unsqueeze_dim (`int`, *optional*, defaults to 1):\n            The 'unsqueeze_dim' argument specifies the dimension along which to unsqueeze cos[position_ids] and\n            sin[position_ids] so that they can be properly broadcasted to the dimensions of q and k. For example, note\n            that cos[position_ids] and sin[position_ids] have the shape [batch_size, seq_len, head_dim]. Then, if q and\n            k have the shape [batch_size, heads, seq_len, head_dim], then setting unsqueeze_dim=1 makes\n            cos[position_ids] and sin[position_ids] broadcastable to the shapes of q and k. Similarly, if q and k have\n            the shape [batch_size, seq_len, heads, head_dim], then set unsqueeze_dim=2.\n    Returns:\n        `tuple(torch.Tensor)` comprising of the query and key tensors rotated using the Rotary Position Embedding.\n    \"\"\"\n    cos = cos.unsqueeze(unsqueeze_dim)\n    sin = sin.unsqueeze(unsqueeze_dim)\n\n    if use_mla:\n        b, h, s, d = q.shape\n        q = q.view(b, h, s, d // 2, 2).transpose(4, 3).reshape(b, h, s, d)\n\n        b, h, s, d = k.shape\n        k = k.view(b, h, s, d // 2, 2).transpose(4, 3).reshape(b, h, s, d)\n\n    q_embed = (q * cos) + (rotate_half(q) * sin)\n    k_embed = (k * cos) + (rotate_half(k) * sin)\n    return q_embed, k_embed\n\n\nclass LongcatFlashMLA(nn.Module):\n    \"\"\"Modified from Deepseek MLA\"\"\"\n\n    def __init__(self, config: LongcatFlashConfig, layer_idx: int):\n        super().__init__()\n        self.config = config\n        self.layer_idx = layer_idx\n        self.num_key_value_groups = config.num_attention_heads // config.num_key_value_heads\n        self.attention_dropout = config.attention_dropout\n        self.num_heads = config.num_attention_heads\n        self.rope_theta = config.rope_theta\n        self.q_lora_rank = config.q_lora_rank\n        self.qk_rope_head_dim = config.qk_rope_head_dim\n        self.kv_lora_rank = config.kv_lora_rank\n        self.v_head_dim = config.v_head_dim\n        self.qk_nope_head_dim = config.qk_nope_head_dim\n        self.qk_head_dim = config.qk_head_dim\n\n        self.is_causal = True\n        if self.q_lora_rank is None:\n            self.q_proj = nn.Linear(config.hidden_size, self.num_heads * self.qk_head_dim, bias=False)\n        else:\n            self.q_a_proj = nn.Linear(config.hidden_size, config.q_lora_rank, bias=config.attention_bias)\n            self.q_a_layernorm = LongcatFlashRMSNorm(config.q_lora_rank)\n            self.q_b_proj = nn.Linear(config.q_lora_rank, self.num_heads * self.qk_head_dim, bias=False)\n\n        self.kv_a_proj_with_mqa = nn.Linear(\n            config.hidden_size,\n            self.kv_lora_rank + self.qk_rope_head_dim,\n            bias=config.attention_bias,\n        )\n        self.kv_a_layernorm = LongcatFlashRMSNorm(self.kv_lora_rank)\n        self.kv_b_proj = nn.Linear(\n            self.kv_lora_rank,\n            self.num_heads * (self.qk_nope_head_dim + self.v_head_dim),\n            bias=False,\n        )\n\n        self.o_proj = nn.Linear(\n            self.num_heads * self.v_head_dim,\n            config.hidden_size,\n            bias=config.attention_bias,\n        )\n\n        if config.mla_scale_q_lora:\n            self.mla_scale_q_lora = (config.hidden_size / self.q_lora_rank) ** 0.5\n        if config.mla_scale_kv_lora:\n            self.mla_scale_kv_lora = (config.hidden_size / self.kv_lora_rank) ** 0.5\n        self.scaling = self.qk_head_dim ** (-0.5)\n\n    def forward(\n        self,\n        hidden_states: torch.Tensor,\n        position_embeddings: tuple[torch.Tensor, torch.Tensor],\n        attention_mask: Optional[torch.Tensor],\n        past_key_value: Optional[Cache] = None,\n        cache_position: Optional[torch.LongTensor] = None,\n        **kwargs: Unpack[FlashAttentionKwargs],\n    ) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[torch.Tensor]]]:\n        batch_size, seq_length = hidden_states.shape[:-1]\n        query_shape = (batch_size, seq_length, -1, self.qk_head_dim)\n        key_shape = (batch_size, seq_length, -1, self.qk_nope_head_dim + self.v_head_dim)\n\n        q_states = self.q_b_proj(self.q_a_layernorm(self.q_a_proj(hidden_states))).view(query_shape).transpose(1, 2)\n        q_pass, q_rot = torch.split(q_states, [self.qk_nope_head_dim, self.qk_rope_head_dim], dim=-1)\n\n        # apply q_lora scaling\n        if self.mla_scale_q_lora is not None:\n            q_pass = q_pass * self.mla_scale_q_lora\n            q_rot = q_rot * self.mla_scale_q_lora\n\n        compressed_kv = self.kv_a_proj_with_mqa(hidden_states)\n        k_pass, k_rot = torch.split(compressed_kv, [self.kv_lora_rank, self.qk_rope_head_dim], dim=-1)\n        k_pass = self.kv_a_layernorm(k_pass)\n\n        # apply kv_lora scaling\n        if self.mla_scale_kv_lora is not None:\n            k_pass = k_pass * self.mla_scale_kv_lora\n\n        k_pass = self.kv_b_proj(k_pass).view(key_shape).transpose(1, 2)\n        k_pass, value_states = torch.split(k_pass, [self.qk_nope_head_dim, self.v_head_dim], dim=-1)\n\n        k_rot = k_rot.view(batch_size, 1, seq_length, self.qk_rope_head_dim)\n\n        cos, sin = position_embeddings\n        q_rot, k_rot = apply_rotary_pos_emb(q_rot, k_rot, cos, sin, use_mla=True)\n        k_rot = k_rot.expand(*k_pass.shape[:-1], -1)\n\n        query_states = torch.cat((q_pass, q_rot), dim=-1)\n        key_states = torch.cat((k_pass, k_rot), dim=-1)\n\n        if past_key_value is not None:\n            cache_kwargs = {\"sin\": sin, \"cos\": cos, \"cache_position\": cache_position}\n            key_states, value_states = past_key_value.update(key_states, value_states, self.layer_idx, cache_kwargs)\n\n        if self.config._attn_implementation == \"flash_attention_2\" and self.qk_head_dim != self.v_head_dim:\n            value_states = F.pad(value_states, [0, self.qk_head_dim - self.v_head_dim])\n\n        attention_interface: Callable = eager_attention_forward\n        if self.config._attn_implementation != \"eager\":\n            attention_interface = ALL_ATTENTION_FUNCTIONS[self.config._attn_implementation]\n\n        attn_output, attn_weights = attention_interface(\n            self,\n            query_states,\n            key_states,\n            value_states,\n            attention_mask,\n            dropout=0.0 if not self.training else self.attention_dropout,\n            scaling=self.scaling,\n            **kwargs,\n        )\n\n        if self.config._attn_implementation == \"flash_attention_2\" and self.qk_head_dim != self.v_head_dim:\n            attn_output = attn_output[:, :, :, : self.v_head_dim]\n\n        attn_output = attn_output.reshape(batch_size, seq_length, -1).contiguous()\n        attn_output = self.o_proj(attn_output)\n        return attn_output, attn_weights\n\n\ndef create_attention_block(class_name, *args, **kwargs):\n    attention_mapping = {\"MLA\": LongcatFlashMLA}\n\n    chosen_class = attention_mapping.get(class_name)\n    if not chosen_class:\n        raise ValueError(f\"No class found for name: {class_name}\")\n\n    return chosen_class(*args, **kwargs)\n\n\nclass LongcatFlashDecoderLayer(GradientCheckpointingLayer):\n    def __init__(self, config: LongcatFlashConfig, layer_idx: int):\n        super().__init__()\n        self.layer_idx = layer_idx\n        self.hidden_size = config.hidden_size\n        self.mlp = LongcatFlashMoE(config)\n\n        self_attn = []\n        mlps = []\n        input_layernorm = []\n        post_attention_layernorm = []\n        for i in range(2):\n            self_attn.append(\n                create_attention_block(config.attention_method, config=config, layer_idx=layer_idx * 2 + i)\n            )\n            mlps.append(LongcatFlashMLP(config))\n            input_layernorm.append(LongcatFlashRMSNorm(config.hidden_size, eps=config.rms_norm_eps))\n            post_attention_layernorm.append(LongcatFlashRMSNorm(config.hidden_size, eps=config.rms_norm_eps))\n\n        self.self_attn = nn.ModuleList(self_attn)\n        self.mlps = nn.ModuleList(mlps)\n        self.input_layernorm = nn.ModuleList(input_layernorm)\n        self.post_attention_layernorm = nn.ModuleList(post_attention_layernorm)\n\n    def forward(\n        self,\n        hidden_states: torch.Tensor,\n        attention_mask: Optional[torch.Tensor] = None,\n        position_ids: Optional[torch.LongTensor] = None,\n        past_key_value: Optional[Cache] = None,\n        use_cache: Optional[bool] = False,\n        cache_position: Optional[torch.LongTensor] = None,\n        position_embeddings: Optional[tuple[torch.Tensor, torch.Tensor]] = None,\n        **kwargs: Unpack[FlashAttentionKwargs],\n    ) -> tuple[torch.FloatTensor, Optional[tuple[torch.FloatTensor, torch.FloatTensor]]]:\n        for i in range(2):\n            residual = hidden_states\n\n            hidden_states = self.input_layernorm[i](hidden_states)\n\n            hidden_states, _ = self.self_attn[i](\n                hidden_states=hidden_states,\n                attention_mask=attention_mask,\n                position_ids=position_ids,\n                past_key_value=past_key_value,\n                use_cache=use_cache,\n                cache_position=cache_position,\n                position_embeddings=position_embeddings,\n                **kwargs,\n            )\n            hidden_states = residual + hidden_states\n\n            residual = hidden_states\n            hidden_states = self.post_attention_layernorm[i](hidden_states)\n\n            if i == 0:\n                shortcut_mlp_output = self.mlp(hidden_states)  # shortcut output (MoE output)\n\n            hidden_states = self.mlps[i](hidden_states)\n            hidden_states = residual + hidden_states\n            if i == 1:\n                hidden_states = hidden_states + shortcut_mlp_output\n\n        return hidden_states\n\n\n@auto_docstring\nclass LongcatFlashPreTrainedModel(PreTrainedModel):\n    config: LongcatFlashConfig\n    base_model_prefix = \"model\"\n    supports_gradient_checkpointing = True\n    _no_split_modules = [\"LongcatFlashDecoderLayer\"]\n    _skip_keys_device_placement = [\"past_key_values\"]\n    _supports_flash_attn = True\n    _supports_sdpa = True\n    _supports_flex_attn = True\n    _can_compile_fullgraph = True\n    _supports_attention_backend = True\n    _can_record_outputs = {\n        \"hidden_states\": LongcatFlashDecoderLayer,\n        \"attentions\": LongcatFlashMLA,\n    }\n\n\n@auto_docstring\nclass LongcatFlashModel(LongcatFlashPreTrainedModel):\n    _keys_to_ignore_on_load_unexpected = [r\"model\\.mtp.*\"]\n\n    def __init__(self, config: LongcatFlashConfig):\n        super().__init__(config)\n        self.padding_idx = config.pad_token_id\n        self.vocab_size = config.vocab_size\n\n        self.embed_tokens = nn.Embedding(config.vocab_size, config.hidden_size, self.padding_idx)\n        self.layers = nn.ModuleList(\n            [LongcatFlashDecoderLayer(config, layer_idx) for layer_idx in range(config.num_hidden_layers)]\n        )\n        self.norm = LongcatFlashRMSNorm(config.hidden_size, eps=config.rms_norm_eps)\n        self.rotary_emb = LongcatFlashRotaryEmbedding(config=config)\n        self.gradient_checkpointing = False\n\n        # Initialize weights and apply final processing\n        self.post_init()\n\n    @check_model_inputs\n    @auto_docstring\n    def forward(\n        self,\n        input_ids: Optional[torch.LongTensor] = None,\n        attention_mask: Optional[torch.Tensor] = None,\n        position_ids: Optional[torch.LongTensor] = None,\n        past_key_values: Optional[Cache] = None,\n        inputs_embeds: Optional[torch.FloatTensor] = None,\n        cache_position: Optional[torch.LongTensor] = None,\n        use_cache: Optional[bool] = None,\n        **kwargs: Unpack[TransformersKwargs],\n    ) -> BaseModelOutputWithPast:\n        if (input_ids is None) ^ (inputs_embeds is not None):\n            raise ValueError(\"You must specify exactly one of input_ids or inputs_embeds\")\n\n        if inputs_embeds is None:\n            inputs_embeds: torch.Tensor = self.embed_tokens(input_ids)\n\n        if use_cache and past_key_values is None:\n            past_key_values = DynamicCache()\n\n        if cache_position is None:\n            past_seen_tokens = past_key_values.get_seq_length() if past_key_values is not None else 0\n            cache_position: torch.Tensor = torch.arange(\n                past_seen_tokens, past_seen_tokens + inputs_embeds.shape[1], device=inputs_embeds.device\n            )\n\n        if position_ids is None:\n            position_ids = cache_position.unsqueeze(0)\n\n        causal_mask = create_causal_mask(\n            config=self.config,\n            input_embeds=inputs_embeds,\n            attention_mask=attention_mask,\n            cache_position=cache_position,\n            past_key_values=past_key_values,\n            position_ids=position_ids,\n        )\n\n        hidden_states = inputs_embeds\n        position_embeddings = self.rotary_emb(hidden_states, position_ids)\n\n        for decoder_layer in self.layers[: self.config.num_hidden_layers]:\n            hidden_states = decoder_layer(\n                hidden_states,\n                attention_mask=causal_mask,\n                position_ids=position_ids,\n                past_key_value=past_key_values,\n                cache_position=cache_position,\n                position_embeddings=position_embeddings,\n                **kwargs,\n            )\n\n        hidden_states = self.norm(hidden_states)\n        return BaseModelOutputWithPast(\n            last_hidden_state=hidden_states,\n            past_key_values=past_key_values,\n        )\n\n\n@auto_docstring\nclass LongcatFlashForCausalLM(LongcatFlashPreTrainedModel, GenerationMixin):\n    _tied_weights_keys = [\"lm_head.weight\"]\n    _tp_plan = {\"lm_head\": \"colwise_rep\"}\n    _pp_plan = {\"lm_head\": ([\"hidden_states\"], [\"logits\"])}\n    _keys_to_ignore_on_load_unexpected = [r\"model\\.mtp.*\"]\n\n    def __init__(self, config):\n        super().__init__(config)\n        self.model = LongcatFlashModel(config)\n        self.vocab_size = config.vocab_size\n        self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)\n\n        # Initialize weights and apply final processing\n        self.post_init()\n\n    def set_decoder(self, decoder):\n        self.model = decoder\n\n    def get_decoder(self):\n        return self.model\n\n    @can_return_tuple\n    @auto_docstring\n    def forward(\n        self,\n        input_ids: Optional[torch.LongTensor] = None,\n        attention_mask: Optional[torch.Tensor] = None,\n        position_ids: Optional[torch.LongTensor] = None,\n        past_key_values: Optional[Cache] = None,\n        inputs_embeds: Optional[torch.FloatTensor] = None,\n        labels: Optional[torch.LongTensor] = None,\n        use_cache: Optional[bool] = None,\n        cache_position: Optional[torch.LongTensor] = None,\n        logits_to_keep: Union[int, torch.Tensor] = 0,\n        **kwargs: Unpack[TransformersKwargs],\n    ) -> CausalLMOutputWithPast:\n        r\"\"\"\n        Example:\n        ```python\n        >>> from transformers import AutoTokenizer, LongcatFlashForCausalLM\n        >>> model = LongcatFlashForCausalLM.from_pretrained(\"meta-longcat_flash/LongcatFlash-2-7b-hf\")\n        >>> tokenizer = AutoTokenizer.from_pretrained(\"meta-longcat_flash/LongcatFlash-2-7b-hf\")\n        >>> prompt = \"Hey, are you conscious? Can you talk to me?\"\n        >>> inputs = tokenizer(prompt, return_tensors=\"pt\")\n        >>> # Generate\n        >>> generate_ids = model.generate(inputs.input_ids, max_length=30)\n        >>> tokenizer.batch_decode(generate_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0]\n        \"Hey, are you conscious? Can you talk to me?\\nI'm not conscious, but I can talk to you.\"\n        ```\"\"\"\n        outputs: BaseModelOutputWithPast = self.model(\n            input_ids=input_ids,\n            attention_mask=attention_mask,\n            position_ids=position_ids,\n            past_key_values=past_key_values,\n            inputs_embeds=inputs_embeds,\n            use_cache=use_cache,\n            cache_position=cache_position,\n            **kwargs,\n        )\n\n        hidden_states = outputs.last_hidden_state\n        # Only compute necessary logits, and do not upcast them to float if we are not computing the loss\n        slice_indices = slice(-logits_to_keep, None) if isinstance(logits_to_keep, int) else logits_to_keep\n        logits = self.lm_head(hidden_states[:, slice_indices, :])\n\n        loss = None\n        if labels is not None:\n            loss = self.loss_function(logits=logits, labels=labels, vocab_size=self.config.vocab_size, **kwargs)\n\n        return CausalLMOutputWithPast(\n            loss=loss,\n            logits=logits,\n            past_key_values=outputs.past_key_values,\n            hidden_states=outputs.hidden_states,\n            attentions=outputs.attentions,\n        )\n\n\n__all__ = [\"LongcatFlashPreTrainedModel\", \"LongcatFlashModel\", \"LongcatFlashForCausalLM\"]\n"
+      }
+    ],
+    "paths": [
+      "hf-cache/meituan-longcat/LongCat-Flash-Omni/configuration_longcat_flash.py",
+      "hf-cache/meituan-longcat/LongCat-Flash-Omni/modeling_longcat_flash.py"
+    ],
+    "source": "hf_modeling_files"
+  },
+  "release_date": "2025-10-23"
+}

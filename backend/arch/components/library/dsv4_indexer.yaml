@@ -1,0 +1,109 @@
+# DeepSeek-V4 Sparse-Attention Indexer (CSA layers only).
+#
+# Selects top-K compressed KV positions per query for sparse attention.
+# Each layer with compress_ratio=4 carries one of these alongside the main
+# Compressor. The Indexer has its own *separate* small Compressor (with
+# index_head_dim < head_dim) so it can score over heavily-compressed KV
+# positions cheaply.
+#
+# Forward (model.py::Indexer.forward):
+#   q       = wq_b(q_a_norm).split(n_indexer_heads, d_indexer_head)                # [B, s_ctx, n_indexer_heads, d_indexer_head]
+#   apply_rope(q[..., -rope_head_dim:])                   # partial RoPE
+#   q       = rotate_activation(q)                        # Hadamard rotation (L414)
+#   compressor(x, start_pos)                              # updates kv_cache (its entry Hadamard-rotated, L369)
+#   weights = weights_proj(x) * n_indexer_heads**-0.5 * d_indexer_head**-0.5   # [B, s_ctx, n_indexer_heads]
+#   score   = einsum("bshd,btd->bsht", q, kv_cache)       # [B, s_ctx, n_indexer_heads, T]
+#   score   = (score.relu_() * weights[..., None]).sum(2) # [B, s_ctx, T]
+#   topk_indices = score.topk(min(index_topk, ...))[1]
+#
+# Required dims:
+#   d_model, d_q_lora, n_indexer_heads (index_n_heads), d_indexer_head (index_head_dim).
+# The internal Compressor uses Cape=4, Cdim_io = 2*d_indexer_head, Cdim_norm = d_indexer_head.
+#
+# Tensor names produced inside the wrapping Attention.indexer:
+#   indexer.weights_proj.weight     → [n_indexer_heads, d_model]
+#   indexer.wq_b.weight             → [n_indexer_heads*d_indexer_head, d_q_lora]
+#   indexer.compressor.{ape,norm,wkv,wgate} (overlap variant, head_dim=d_indexer_head)
+
+description: "DSv4 sparse-attention indexer: scores compressed KV positions and emits top-K indices for sparse attention."
+cache:
+  entries:
+    # Stored as the reference forward quantises it (MXFP4); the model
+    # declares that per checkpoint (`quant_context.cache_formats.index_key`).
+    - { node: compressor, kind: index_key }
+# The indexer owns a SEPARATE kv_cache for its compressed index keys
+# (model.py::Indexer.__init__ L399: `zeros(B, max_seq_len//ratio, index_head_dim)`,
+# MQA). Declared here so the wrapping attention's KV accounting counts it
+# (the indexer only OUTPUTS topk indices, so it can't be reached as a
+# top-level cached node — see kv_topology's sub-component recursion).
+inputs: [x, q_a_norm]
+graph:
+  weights_proj: { op: linear, role: attention_indexer, in: x, dims: { in: d_model, out: n_indexer_heads }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  wq_b:         { op: linear, in: q_a_norm, dims: { in: d_q_lora, out: "n_indexer_heads * d_indexer_head" }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  compressor:
+    op: dsv4_compressor_overlap
+    in: x
+    dims:
+      Cape: "4"
+      Cdim_io: "2 * d_indexer_head"
+      Cdim_norm: d_indexer_head
+      d_qk_rope: d_qk_rope
+      compress_ratio: compress_ratio   # the layer's own ratio; an indexer only exists on CSA layers, where it is 4
+      n_compressor_rotate: "1"        # model.py L398 `Compressor(..., True)`: the index key is Hadamard-rotated before it is cached
+      # The compressor's pooled output IS this indexer's separate kv_cache
+      # (source model.py::Indexer.__init__ L399: a distinct buffer at
+      # index_head_dim, MQA; ⌈s_ctx/4⌉ slots stored, ⌊s_ctx/4⌋ readable). Declared in this component's
+      # top-level cache entry and counted by the wrapping attention via
+      # kv_topology's sub-component recursion.
+  q_split:      { op: head_split, in: wq_b, dims: { n_heads: n_indexer_heads, d_head: d_indexer_head } }
+  q_rope:       { op: rope_emb, in: q_split, dim: d_qk_rope }
+  # model.py::Indexer.forward L414: `q = rotate_activation(q)` — every
+  # query head, d_indexer_head wide, Hadamard-rotated after its partial RoPE
+  # and before it is quantised (`fp4_act_quant`, L416). The key it is scored
+  # against is rotated the same way inside the compressor (L369), so the
+  # score is the unrotated one; the rotation is for the quantiser.
+  q_rotate:     { op: hadamard_transform, in: q_rope, dim: d_indexer_head }
+  k_broadcast:  { op: head_broadcast, in: compressor, dims: { n_heads: n_indexer_heads } }
+  # The indexer scores each query against the COMPRESSED KEY CACHE, whose size
+  # is the cached-position count — NOT the query length. Source (model.py::
+  # Indexer L420):
+  #   index_score = einsum("bshd,btd->bsht", q, kv_cache[:, :end_pos // ratio])
+  # `end_pos` is the cache length, so the key axis is ⌊cache_len / ratio⌋ — the
+  # complete windows; the pending window's slot is stored (⌈cache_len / ratio⌉)
+  # but not yet readable. The
+  # compressor states that count on the stream it hands over (its
+  # `token_pool_compressor`), and the score reads it off that stream, so the
+  # scan cannot read at a stride the cache was not written at. Query- and
+  # cache-length are distinct and only the stream's count scales the scan at
+  # decode (compute 2·B·n_indexer_heads·s_query·⌊s_kv/ratio⌋·d_indexer_head
+  # and the ⌊s_kv/ratio⌋ key read both follow it). Writing it as
+  # `s_query // ratio` would collapse the scan to ⌊1/4⌋=0 at decode.
+  score:        { op: attention_score, in: [q_rotate, k_broadcast], dims: { n_heads: n_indexer_heads, d_head: d_indexer_head } }
+  # weights_proj is [B,S,H], while attention_score is [B,H,S,T]. The
+  # source's weights[..., None]: a unit axis the multiply broadcasts, rather
+  # than an invalid trailing broadcast between those two shapes.
+  # The source scales both factors of the score: relu(q·k) by
+  # d_indexer_head^-0.5 and the head weights by n_indexer_heads^-0.5
+  # (transformers modeling_deepseek_v4.py DeepseekV4IndexerScorer:
+  # `softmax_scale = index_head_dim**-0.5`, `weights_scaling =
+  # index_n_heads**-0.5`). Both are positive constants, so they fold into the
+  # [B, S, H] head weights, which is where the serving stacks apply them:
+  # vLLM passes `softmax_scale` and `n_head**-0.5` to
+  # `fused_indexer_q_rope_quant` (models/deepseek_v4/attention.py), sglang
+  # multiplies `weights_proj` by `weight_scale = softmax_scale *
+  # n_heads**-0.5` (layers/attention/dsv4/indexer.py). One scale on H values
+  # per token rather than one on the H x T score matrix.
+  weights_scaled: { op: scale_const, in: weights_proj, dims: { in: n_indexer_heads }, formula: "w = weights_proj · d_indexer_head^-0.5 · n_indexer_heads^-0.5" }
+  weights_heads: { op: transpose, in: weights_scaled, axes: [0, 2, 1] }
+  weights_full:  { op: broadcast, in: weights_heads, axis: -1, dims: { width: "1" } }
+  # model.py: `score.relu_()` before the weighting — the ReLU is part of the
+  # logits the fused kernel computes (vLLM `fp8_mqa_logits_torch`:
+  # `score.relu() * weights`), so it is a node of its own here.
+  score_relu:    { op: relu, in: score, dim: n_indexer_heads }
+  weighted:      { op: mul, in: [score_relu, weights_full], dim: n_indexer_heads }
+  # Sum over the n_indexer_heads index heads (axis 1 of [B, n_indexer_heads, s_query, s_kv]) → [B, s_query, s_kv]
+  # logits. sum_reduce drops the LAST axis by default, so `axis: 1` is
+  # required to target n_indexer_heads, not s_kv (model.py: `score.sum(2)` over the head dim).
+  reduced:      { op: sum_reduce, in: weighted, axis: 1, dims: { in: n_indexer_heads } }
+  topk_idx:     { op: topk, in: reduced, dims: { in: n_indexer_heads, k: n_topk_keys } }
+outputs: [topk_idx]

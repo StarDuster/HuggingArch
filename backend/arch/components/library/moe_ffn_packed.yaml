@@ -1,0 +1,31 @@
+# MoE FFN with 3D-packed expert weights and block-level routing bias.
+# Used by: Step-3.5-Flash.
+#
+# Structural differences vs `moe_ffn` / `moe_ffn_gate_routing_bias`:
+#   - Expert projections sit at the component root — no `expert.` sub-path.
+#     Checkpoint packs all n_experts experts into a single 3D tensor per projection
+#     (shape [n_experts, out, in]) rather than n_experts separate 2D tensors.
+#   - Routing bias named `router_bias` at block level (sibling of `gate`),
+#     not `gate.e_score_correction_bias` under gate.
+#   - Shared expert under `share_expert` (not `shared_expert`).
+#
+# Required dims: d_model, d_ffn_expert, n_experts, n_experts_active
+# Optional dims: n_shared_experts (shared experts), n_route_targets (the gate's width, derived),
+#                d_ffn_shared (shared expert intermediate, default d_ffn_expert)
+
+role: ffn_moe
+description: "MoE with packed/grouped expert weights stored as a single tensor. Step3p5."
+graph:
+  gate:                       { op: linear, in: x, dims: { in: d_model, out: n_route_targets, bias: "0" }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  router_bias:                { op: parameter_vector, dim: n_route_targets, weight_axes: [{ replicated: true }] }
+  gate_biased:                { op: add, in: [gate, router_bias], dim: n_route_targets }
+  permute:                    { op: permute, in: [x, gate_biased] }
+  experts:                    { op: gated_experts, in: permute, module: null, dims: { d_model: d_model, d_ffn: d_ffn_expert }, expert_weight: leading_axis }
+  combine:                    { op: combine, in: [experts, gate_biased] }
+  share_expert.gate_proj:     { op: linear, in: x, dims: { in: d_model, out: d_ffn_shared }, repeat: n_shared_experts, weight_axes: [{ world: dense_ffn, parts: d_ffn_shared, fit: exact }, { replicated: true }] }
+  share_expert.up_proj:       { op: linear, in: x, dims: { in: d_model, out: d_ffn_shared }, repeat: n_shared_experts, weight_axes: [{ world: dense_ffn, parts: d_ffn_shared, fit: exact }, { replicated: true }] }
+  share_expert.silu:          { op: silu, in: share_expert.gate_proj, dim: d_ffn_shared, repeat: n_shared_experts }
+  share_expert.gate_mul:      { op: mul, in: [share_expert.silu, share_expert.up_proj], dim: d_ffn_shared, repeat: n_shared_experts }
+  share_expert.down_proj:     { op: linear, in: share_expert.gate_mul, dims: { in: d_ffn_shared, out: d_model }, repeat: n_shared_experts, weight_axes: [{ replicated: true }, { world: dense_ffn, parts: d_ffn_shared, fit: exact }] }
+  moe_out:                    { op: add, in: [combine, share_expert.down_proj], dim: d_model }
+outputs: [moe_out]

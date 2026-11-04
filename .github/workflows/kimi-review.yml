@@ -1,0 +1,142 @@
+# On-demand Kimi code review, requested by adding the `kimi-review` label to a PR.
+#
+# NOT automatic on every push: the `pull_request: [opened, synchronize]` trigger
+# burned the shared Kimi (MOONSHOT_API_KEY) quota on every commit — and with the
+# self-service contribute flow (authors already review locally with their own
+# key before opening/updating a PR, PASS-gated) an automatic re-review is
+# redundant. Add the `kimi-review` label to run it once; the job removes the
+# label when it finishes, so re-adding it requests another pass.
+#
+# The harness is anthropics/claude-code-action@v1 (i.e. Claude Code), but it is
+# pointed at the Kimi Code Anthropic-compatible endpoint — so the reviewer's
+# brain is Kimi, not Claude. GitHub identity (the comments) comes from the
+# HuggingArch GitHub App; the model call is authenticated with a Kimi Code
+# API key.
+#
+# Required:
+#   Variable HA_GITHUB_APP_ID          App ID or Client ID (Actions → Variables)
+#   Secret   HA_GITHUB_APP_PRIVATE_KEY PEM private key
+#   Secret   MOONSHOT_API_KEY          Kimi Code plan key, from the kimi.com/code
+#                                      console (the name is historical)
+# App ID is not sensitive; the action's own README reads it from vars.
+# A secret of the same name is accepted as fallback.
+#
+# This is a best-effort compatible-endpoint setup, NOT an official path — verify
+# on a throwaway PR before trusting it. Auth is wired via the ANTHROPIC_AUTH_TOKEN
+# env (Bearer); ANTHROPIC_API_KEY is set alongside it only because
+# claude-code-action v1 refuses to run without an API-key-shaped variable.
+# The base URL is https://api.kimi.ai/coding because the key belongs to a Kimi
+# Code plan; Moonshot open-platform keys (platform.moonshot.ai / .cn) would need
+# their matching api.moonshot.{ai,cn}/anthropic URLs instead — a 401 means the
+# key/base-URL pair is mismatched.
+name: kimi-review
+
+on:
+  pull_request:
+    types: [labeled]
+
+jobs:
+  review:
+    # Only when the `kimi-review` label is the one just added. Labeling requires
+    # write access, so this is inherently collaborator-gated (no author_association
+    # check needed). Removing + re-adding the label requests another review.
+    if: github.event.label.name == 'kimi-review'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Mint GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ vars.HA_GITHUB_APP_ID || secrets.HA_GITHUB_APP_ID }}
+          private-key: ${{ secrets.HA_GITHUB_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+
+      - name: Preflight secrets check
+        env:
+          MOONSHOT_API_KEY: ${{ secrets.MOONSHOT_API_KEY }}
+        run: |
+          if [ -z "$MOONSHOT_API_KEY" ]; then
+            echo "::error::secrets.MOONSHOT_API_KEY is empty for this job. It must be a REPOSITORY secret (Settings → Secrets and variables → Actions); secrets stored in a GitHub Environment or org-level secrets not covering this repo are invisible here."
+            exit 1
+          fi
+
+      - name: Kimi review
+        id: kimi
+        uses: anthropics/claude-code-action@v1
+        env:
+          ANTHROPIC_BASE_URL: https://api.kimi.ai/coding
+          ANTHROPIC_AUTH_TOKEN: ${{ secrets.MOONSHOT_API_KEY }}
+          # See this file's header: only present to satisfy the action's
+          # env validation; AUTH_TOKEN (Bearer) is the real credential.
+          ANTHROPIC_API_KEY: ${{ secrets.MOONSHOT_API_KEY }}
+        with:
+          github_token: ${{ steps.app-token.outputs.token }}
+          prompt: |
+            REPO: ${{ github.repository }}
+            PR NUMBER: ${{ github.event.pull_request.number }}
+
+            Review this pull request. Follow the repository's CLAUDE.md
+            conventions if one is present. Focus, in priority order, on:
+            - Correctness bugs and broken invariants
+            - Security implications
+            - Performance regressions
+            - Code quality and maintainability
+
+            Be concise and high-signal: raise only issues that matter, and skip
+            pure style nits. If the PR looks clean, say so in one line.
+
+            The PR branch is already checked out in the working directory.
+            Use `gh pr comment` for a short top-level summary.
+            Use `mcp__github_inline_comment__create_inline_comment` (with
+            `confirmed: true`) for specific line-level findings.
+            Only post GitHub comments — do not emit review text as chat messages.
+          claude_args: |
+            --model k3
+            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"
+
+      - name: Show Claude SDK failure details
+        if: failure()
+        env:
+          EXECUTION_FILE: ${{ steps.kimi.outputs.execution_file }}
+        run: |
+          node <<'NODE'
+          const fs = require("fs");
+          const path = process.env.EXECUTION_FILE;
+          if (!path || !fs.existsSync(path)) {
+            console.log("Claude execution file is unavailable.");
+            process.exit(0);
+          }
+          const messages = JSON.parse(fs.readFileSync(path, "utf8"));
+          const result = messages.filter((m) => m?.type === "result").at(-1);
+          if (!result) {
+            console.log("Claude execution file contains no result message.");
+            process.exit(0);
+          }
+          console.log(JSON.stringify({
+            subtype: result.subtype,
+            is_error: result.is_error,
+            duration_ms: result.duration_ms,
+            num_turns: result.num_turns,
+            errors: result.errors ?? [],
+            permission_denials: result.permission_denials ?? [],
+            modelUsage: result.modelUsage ?? {},
+          }, null, 2));
+          NODE
+
+      - name: Remove the kimi-review label
+        if: always()  # so re-adding the label always requests a fresh pass
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          gh api -X DELETE \
+            "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/labels/kimi-review" \
+            || echo "label already gone"

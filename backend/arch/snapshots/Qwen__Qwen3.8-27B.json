@@ -1,0 +1,875 @@
+{
+  "schema_version": 4,
+  "config": {
+    "model_type": "qwen3_5",
+    "text_config": {
+      "dtype": "bfloat16",
+      "head_dim": 256,
+      "use_cache": true,
+      "hidden_act": "silu",
+      "model_type": "qwen3_5_text",
+      "vocab_size": 248320,
+      "hidden_size": 5120,
+      "layer_types": [
+        "linear_attention",
+        "linear_attention",
+        "linear_attention",
+        "full_attention",
+        "linear_attention",
+        "linear_attention",
+        "linear_attention",
+        "full_attention",
+        "linear_attention",
+        "linear_attention",
+        "linear_attention",
+        "full_attention",
+        "linear_attention",
+        "linear_attention",
+        "linear_attention",
+        "full_attention",
+        "linear_attention",
+        "linear_attention",
+        "linear_attention",
+        "full_attention",
+        "linear_attention",
+        "linear_attention",
+        "linear_attention",
+        "full_attention",
+        "linear_attention",
+        "linear_attention",
+        "linear_attention",
+        "full_attention",
+        "linear_attention",
+        "linear_attention",
+        "linear_attention",
+        "full_attention",
+        "linear_attention",
+        "linear_attention",
+        "linear_attention",
+        "full_attention",
+        "linear_attention",
+        "linear_attention",
+        "linear_attention",
+        "full_attention",
+        "linear_attention",
+        "linear_attention",
+        "linear_attention",
+        "full_attention",
+        "linear_attention",
+        "linear_attention",
+        "linear_attention",
+        "full_attention",
+        "linear_attention",
+        "linear_attention",
+        "linear_attention",
+        "full_attention",
+        "linear_attention",
+        "linear_attention",
+        "linear_attention",
+        "full_attention",
+        "linear_attention",
+        "linear_attention",
+        "linear_attention",
+        "full_attention",
+        "linear_attention",
+        "linear_attention",
+        "linear_attention",
+        "full_attention"
+      ],
+      "bos_token_id": 248044,
+      "eos_token_id": 248044,
+      "pad_token_id": null,
+      "rms_norm_eps": 1e-06,
+      "attention_bias": false,
+      "mamba_ssm_dtype": "float32",
+      "rope_parameters": {
+        "rope_type": "default",
+        "rope_theta": 10000000,
+        "mrope_section": [
+          11,
+          11,
+          10
+        ],
+        "mrope_interleaved": true,
+        "partial_rotary_factor": 0.25
+      },
+      "attn_output_gate": true,
+      "output_gate_type": "swish",
+      "attention_dropout": 0.0,
+      "initializer_range": 0.02,
+      "intermediate_size": 17408,
+      "num_hidden_layers": 64,
+      "linear_key_head_dim": 128,
+      "num_attention_heads": 24,
+      "num_key_value_heads": 4,
+      "tie_word_embeddings": false,
+      "linear_num_key_heads": 16,
+      "linear_value_head_dim": 128,
+      "mtp_num_hidden_layers": 1,
+      "partial_rotary_factor": 0.25,
+      "linear_conv_kernel_dim": 4,
+      "linear_num_value_heads": 48,
+      "full_attention_interval": 4,
+      "max_position_embeddings": 262144,
+      "mtp_use_dedicated_embeddings": false
+    },
+    "architectures": [
+      "Qwen3_5ForConditionalGeneration"
+    ],
+    "vision_config": {
+      "depth": 27,
+      "num_heads": 16,
+      "hidden_act": "gelu_pytorch_tanh",
+      "model_type": "qwen3_5",
+      "patch_size": 16,
+      "hidden_size": 1152,
+      "in_channels": 3,
+      "out_hidden_size": 5120,
+      "initializer_range": 0.02,
+      "intermediate_size": 4304,
+      "spatial_merge_size": 2,
+      "temporal_patch_size": 2,
+      "num_position_embeddings": 2304,
+      "deepstack_visual_indexes": []
+    },
+    "image_token_id": 248056,
+    "video_token_id": 248057,
+    "language_model_only": false,
+    "tie_word_embeddings": false,
+    "vision_end_token_id": 248054,
+    "transformers_version": "5.8.0.dev0",
+    "vision_start_token_id": 248053
+  },
+  "metadata": {
+    "header": {
+      "revision": "1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0",
+      "total_size": 55562855904,
+      "tensors": [
+        {
+          "name": "lm_head.weight",
+          "dtype": "BF16",
+          "shape": [
+            248320,
+            5120
+          ]
+        },
+        {
+          "name": "model.language_model.embed_tokens.weight",
+          "dtype": "BF16",
+          "shape": [
+            248320,
+            5120
+          ]
+        },
+        {
+          "name": "model.language_model.layers.{}.input_layernorm.weight",
+          "dtype": "BF16",
+          "shape": [
+            5120
+          ],
+          "index": [
+            [
+              "0-63"
+            ]
+          ]
+        },
+        {
+          "name": "model.language_model.layers.{}.linear_attn.A_log",
+          "dtype": "BF16",
+          "shape": [
+            48
+          ],
+          "index": [
+            [
+              "0-2,4-6,8-10,12-14,16-18,20-22,24-26,28-30,32-34,36-38,40-42,44-46,48-50,52-54,56-58,60-62"
+            ]
+          ]
+        },
+        {
+          "name": "model.language_model.layers.{}.linear_attn.conv1d.weight",
+          "dtype": "BF16",
+          "shape": [
+            10240,
+            1,
+            4
+          ],
+          "index": [
+            [
+              "0-2,4-6,8-10,12-14,16-18,20-22,24-26,28-30,32-34,36-38,40-42,44-46,48-50,52-54,56-58,60-62"
+            ]
+          ]
+        },
+        {
+          "name": "model.language_model.layers.{}.linear_attn.dt_bias",
+          "dtype": "BF16",
+          "shape": [
+            48
+          ],
+          "index": [
+            [
+              "0-2,4-6,8-10,12-14,16-18,20-22,24-26,28-30,32-34,36-38,40-42,44-46,48-50,52-54,56-58,60-62"
+            ]
+          ]
+        },
+        {
+          "name": "model.language_model.layers.{}.linear_attn.in_proj_a.weight",
+          "dtype": "BF16",
+          "shape": [
+            48,
+            5120
+          ],
+          "index": [
+            [
+              "0-2,4-6,8-10,12-14,16-18,20-22,24-26,28-30,32-34,36-38,40-42,44-46,48-50,52-54,56-58,60-62"
+            ]
+          ]
+        },
+        {
+          "name": "model.language_model.layers.{}.linear_attn.in_proj_b.weight",
+          "dtype": "BF16",
+          "shape": [
+            48,
+            5120
+          ],
+          "index": [
+            [
+              "0-2,4-6,8-10,12-14,16-18,20-22,24-26,28-30,32-34,36-38,40-42,44-46,48-50,52-54,56-58,60-62"
+            ]
+          ]
+        },
+        {
+          "name": "model.language_model.layers.{}.linear_attn.in_proj_qkv.weight",
+          "dtype": "BF16",
+          "shape": [
+            10240,
+            5120
+          ],
+          "index": [
+            [
+              "0-2,4-6,8-10,12-14,16-18,20-22,24-26,28-30,32-34,36-38,40-42,44-46,48-50,52-54,56-58,60-62"
+            ]
+          ]
+        },
+        {
+          "name": "model.language_model.layers.{}.linear_attn.in_proj_z.weight",
+          "dtype": "BF16",
+          "shape": [
+            6144,
+            5120
+          ],
+          "index": [
+            [
+              "0-2,4-6,8-10,12-14,16-18,20-22,24-26,28-30,32-34,36-38,40-42,44-46,48-50,52-54,56-58,60-62"
+            ]
+          ]
+        },
+        {
+          "name": "model.language_model.layers.{}.linear_attn.norm.weight",
+          "dtype": "BF16",
+          "shape": [
+            128
+          ],
+          "index": [
+            [
+              "0-2,4-6,8-10,12-14,16-18,20-22,24-26,28-30,32-34,36-38,40-42,44-46,48-50,52-54,56-58,60-62"
+            ]
+          ]
+        },
+        {
+          "name": "model.language_model.layers.{}.linear_attn.out_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            5120,
+            6144
+          ],
+          "index": [
+            [
+              "0-2,4-6,8-10,12-14,16-18,20-22,24-26,28-30,32-34,36-38,40-42,44-46,48-50,52-54,56-58,60-62"
+            ]
+          ]
+        },
+        {
+          "name": "model.language_model.layers.{}.mlp.down_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            5120,
+            17408
+          ],
+          "index": [
+            [
+              "0-63"
+            ]
+          ]
+        },
+        {
+          "name": "model.language_model.layers.{}.mlp.gate_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            17408,
+            5120
+          ],
+          "index": [
+            [
+              "0-63"
+            ]
+          ]
+        },
+        {
+          "name": "model.language_model.layers.{}.mlp.up_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            17408,
+            5120
+          ],
+          "index": [
+            [
+              "0-63"
+            ]
+          ]
+        },
+        {
+          "name": "model.language_model.layers.{}.post_attention_layernorm.weight",
+          "dtype": "BF16",
+          "shape": [
+            5120
+          ],
+          "index": [
+            [
+              "0-63"
+            ]
+          ]
+        },
+        {
+          "name": "model.language_model.layers.{}.self_attn.k_norm.weight",
+          "dtype": "BF16",
+          "shape": [
+            256
+          ],
+          "index": [
+            [
+              "3,7,11,15,19,23,27,31,35,39,43,47,51,55,59,63"
+            ]
+          ]
+        },
+        {
+          "name": "model.language_model.layers.{}.self_attn.k_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            1024,
+            5120
+          ],
+          "index": [
+            [
+              "3,7,11,15,19,23,27,31,35,39,43,47,51,55,59,63"
+            ]
+          ]
+        },
+        {
+          "name": "model.language_model.layers.{}.self_attn.o_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            5120,
+            6144
+          ],
+          "index": [
+            [
+              "3,7,11,15,19,23,27,31,35,39,43,47,51,55,59,63"
+            ]
+          ]
+        },
+        {
+          "name": "model.language_model.layers.{}.self_attn.q_norm.weight",
+          "dtype": "BF16",
+          "shape": [
+            256
+          ],
+          "index": [
+            [
+              "3,7,11,15,19,23,27,31,35,39,43,47,51,55,59,63"
+            ]
+          ]
+        },
+        {
+          "name": "model.language_model.layers.{}.self_attn.q_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            12288,
+            5120
+          ],
+          "index": [
+            [
+              "3,7,11,15,19,23,27,31,35,39,43,47,51,55,59,63"
+            ]
+          ]
+        },
+        {
+          "name": "model.language_model.layers.{}.self_attn.v_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            1024,
+            5120
+          ],
+          "index": [
+            [
+              "3,7,11,15,19,23,27,31,35,39,43,47,51,55,59,63"
+            ]
+          ]
+        },
+        {
+          "name": "model.language_model.norm.weight",
+          "dtype": "BF16",
+          "shape": [
+            5120
+          ]
+        },
+        {
+          "name": "model.visual.blocks.{}.attn.proj.bias",
+          "dtype": "BF16",
+          "shape": [
+            1152
+          ],
+          "index": [
+            [
+              "0-26"
+            ]
+          ]
+        },
+        {
+          "name": "model.visual.blocks.{}.attn.proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            1152,
+            1152
+          ],
+          "index": [
+            [
+              "0-26"
+            ]
+          ]
+        },
+        {
+          "name": "model.visual.blocks.{}.attn.qkv.bias",
+          "dtype": "BF16",
+          "shape": [
+            3456
+          ],
+          "index": [
+            [
+              "0-26"
+            ]
+          ]
+        },
+        {
+          "name": "model.visual.blocks.{}.attn.qkv.weight",
+          "dtype": "BF16",
+          "shape": [
+            3456,
+            1152
+          ],
+          "index": [
+            [
+              "0-26"
+            ]
+          ]
+        },
+        {
+          "name": "model.visual.blocks.{}.mlp.linear_fc1.bias",
+          "dtype": "BF16",
+          "shape": [
+            4304
+          ],
+          "index": [
+            [
+              "0-26"
+            ]
+          ]
+        },
+        {
+          "name": "model.visual.blocks.{}.mlp.linear_fc1.weight",
+          "dtype": "BF16",
+          "shape": [
+            4304,
+            1152
+          ],
+          "index": [
+            [
+              "0-26"
+            ]
+          ]
+        },
+        {
+          "name": "model.visual.blocks.{}.mlp.linear_fc2.bias",
+          "dtype": "BF16",
+          "shape": [
+            1152
+          ],
+          "index": [
+            [
+              "0-26"
+            ]
+          ]
+        },
+        {
+          "name": "model.visual.blocks.{}.mlp.linear_fc2.weight",
+          "dtype": "BF16",
+          "shape": [
+            1152,
+            4304
+          ],
+          "index": [
+            [
+              "0-26"
+            ]
+          ]
+        },
+        {
+          "name": "model.visual.blocks.{}.norm1.bias",
+          "dtype": "BF16",
+          "shape": [
+            1152
+          ],
+          "index": [
+            [
+              "0-26"
+            ]
+          ]
+        },
+        {
+          "name": "model.visual.blocks.{}.norm1.weight",
+          "dtype": "BF16",
+          "shape": [
+            1152
+          ],
+          "index": [
+            [
+              "0-26"
+            ]
+          ]
+        },
+        {
+          "name": "model.visual.blocks.{}.norm2.bias",
+          "dtype": "BF16",
+          "shape": [
+            1152
+          ],
+          "index": [
+            [
+              "0-26"
+            ]
+          ]
+        },
+        {
+          "name": "model.visual.blocks.{}.norm2.weight",
+          "dtype": "BF16",
+          "shape": [
+            1152
+          ],
+          "index": [
+            [
+              "0-26"
+            ]
+          ]
+        },
+        {
+          "name": "model.visual.merger.linear_fc1.bias",
+          "dtype": "BF16",
+          "shape": [
+            4608
+          ]
+        },
+        {
+          "name": "model.visual.merger.linear_fc1.weight",
+          "dtype": "BF16",
+          "shape": [
+            4608,
+            4608
+          ]
+        },
+        {
+          "name": "model.visual.merger.linear_fc2.bias",
+          "dtype": "BF16",
+          "shape": [
+            5120
+          ]
+        },
+        {
+          "name": "model.visual.merger.linear_fc2.weight",
+          "dtype": "BF16",
+          "shape": [
+            5120,
+            4608
+          ]
+        },
+        {
+          "name": "model.visual.merger.norm.bias",
+          "dtype": "BF16",
+          "shape": [
+            1152
+          ]
+        },
+        {
+          "name": "model.visual.merger.norm.weight",
+          "dtype": "BF16",
+          "shape": [
+            1152
+          ]
+        },
+        {
+          "name": "model.visual.patch_embed.proj.bias",
+          "dtype": "BF16",
+          "shape": [
+            1152
+          ]
+        },
+        {
+          "name": "model.visual.patch_embed.proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            1152,
+            3,
+            2,
+            16,
+            16
+          ]
+        },
+        {
+          "name": "model.visual.pos_embed.weight",
+          "dtype": "BF16",
+          "shape": [
+            2304,
+            1152
+          ]
+        },
+        {
+          "name": "mtp.fc.weight",
+          "dtype": "BF16",
+          "shape": [
+            5120,
+            10240
+          ]
+        },
+        {
+          "name": "mtp.layers.{}.input_layernorm.weight",
+          "dtype": "BF16",
+          "shape": [
+            5120
+          ],
+          "index": [
+            [
+              "0"
+            ]
+          ]
+        },
+        {
+          "name": "mtp.layers.{}.mlp.down_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            5120,
+            17408
+          ],
+          "index": [
+            [
+              "0"
+            ]
+          ]
+        },
+        {
+          "name": "mtp.layers.{}.mlp.gate_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            17408,
+            5120
+          ],
+          "index": [
+            [
+              "0"
+            ]
+          ]
+        },
+        {
+          "name": "mtp.layers.{}.mlp.up_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            17408,
+            5120
+          ],
+          "index": [
+            [
+              "0"
+            ]
+          ]
+        },
+        {
+          "name": "mtp.layers.{}.post_attention_layernorm.weight",
+          "dtype": "BF16",
+          "shape": [
+            5120
+          ],
+          "index": [
+            [
+              "0"
+            ]
+          ]
+        },
+        {
+          "name": "mtp.layers.{}.self_attn.k_norm.weight",
+          "dtype": "BF16",
+          "shape": [
+            256
+          ],
+          "index": [
+            [
+              "0"
+            ]
+          ]
+        },
+        {
+          "name": "mtp.layers.{}.self_attn.k_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            1024,
+            5120
+          ],
+          "index": [
+            [
+              "0"
+            ]
+          ]
+        },
+        {
+          "name": "mtp.layers.{}.self_attn.o_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            5120,
+            6144
+          ],
+          "index": [
+            [
+              "0"
+            ]
+          ]
+        },
+        {
+          "name": "mtp.layers.{}.self_attn.q_norm.weight",
+          "dtype": "BF16",
+          "shape": [
+            256
+          ],
+          "index": [
+            [
+              "0"
+            ]
+          ]
+        },
+        {
+          "name": "mtp.layers.{}.self_attn.q_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            12288,
+            5120
+          ],
+          "index": [
+            [
+              "0"
+            ]
+          ]
+        },
+        {
+          "name": "mtp.layers.{}.self_attn.v_proj.weight",
+          "dtype": "BF16",
+          "shape": [
+            1024,
+            5120
+          ],
+          "index": [
+            [
+              "0"
+            ]
+          ]
+        },
+        {
+          "name": "mtp.norm.weight",
+          "dtype": "BF16",
+          "shape": [
+            5120
+          ]
+        },
+        {
+          "name": "mtp.pre_fc_norm_embedding.weight",
+          "dtype": "BF16",
+          "shape": [
+            5120
+          ]
+        },
+        {
+          "name": "mtp.pre_fc_norm_hidden.weight",
+          "dtype": "BF16",
+          "shape": [
+            5120
+          ]
+        }
+      ]
+    },
+    "quant_scheme": "none",
+    "num_bits": 0
+  },
+  "model_id": "Qwen/Qwen3.8-27B",
+  "model_str": "Qwen3_5ForCausalLM(\n  (model): Qwen3_5TextModel(\n    (embed_tokens): Embedding(248320, 5120)\n    (layers): ModuleList(\n      (0-2): 3 x Qwen3_5DecoderLayer(\n        (linear_attn): Qwen3_5GatedDeltaNet(\n          (act): SiLUActivation()\n          (conv1d): Conv1d(10240, 10240, kernel_size=(4,), stride=(1,), padding=(3,), groups=10240, bias=False)\n          (norm): Qwen3_5RMSNormGated()\n          (out_proj): Linear(in_features=6144, out_features=5120, bias=False)\n          (in_proj_qkv): Linear(in_features=5120, out_features=10240, bias=False)\n          (in_proj_z): Linear(in_features=5120, out_features=6144, bias=False)\n          (in_proj_b): Linear(in_features=5120, out_features=48, bias=False)\n          (in_proj_a): Linear(in_features=5120, out_features=48, bias=False)\n        )\n        (mlp): Qwen3_5MLP(\n          (gate_proj): Linear(in_features=5120, out_features=17408, bias=False)\n          (up_proj): Linear(in_features=5120, out_features=17408, bias=False)\n          (down_proj): Linear(in_features=17408, out_features=5120, bias=False)\n          (act_fn): SiLUActivation()\n        )\n        (input_layernorm): Qwen3_5RMSNorm((5120,), eps=1e-06)\n        (post_attention_layernorm): Qwen3_5RMSNorm((5120,), eps=1e-06)\n      )\n      (3): Qwen3_5DecoderLayer(\n        (self_attn): Qwen3_5Attention(\n          (q_proj): Linear(in_features=5120, out_features=12288, bias=False)\n          (k_proj): Linear(in_features=5120, out_features=1024, bias=False)\n          (v_proj): Linear(in_features=5120, out_features=1024, bias=False)\n          (o_proj): Linear(in_features=6144, out_features=5120, bias=False)\n          (q_norm): Qwen3_5RMSNorm((256,), eps=1e-06)\n          (k_norm): Qwen3_5RMSNorm((256,), eps=1e-06)\n        )\n        (mlp): Qwen3_5MLP(\n          (gate_proj): Linear(in_features=5120, out_features=17408, bias=False)\n          (up_proj): Linear(in_features=5120, out_features=17408, bias=False)\n          (down_proj): Linear(in_features=17408, out_features=5120, bias=False)\n          (act_fn): SiLUActivation()\n        )\n        (input_layernorm): Qwen3_5RMSNorm((5120,), eps=1e-06)\n        (post_attention_layernorm): Qwen3_5RMSNorm((5120,), eps=1e-06)\n      )\n      (4-6): 3 x Qwen3_5DecoderLayer(\n        (linear_attn): Qwen3_5GatedDeltaNet(\n          (act): SiLUActivation()\n          (conv1d): Conv1d(10240, 10240, kernel_size=(4,), stride=(1,), padding=(3,), groups=10240, bias=False)\n          (norm): Qwen3_5RMSNormGated()\n          (out_proj): Linear(in_features=6144, out_features=5120, bias=False)\n          (in_proj_qkv): Linear(in_features=5120, out_features=10240, bias=False)\n          (in_proj_z): Linear(in_features=5120, out_features=6144, bias=False)\n          (in_proj_b): Linear(in_features=5120, out_features=48, bias=False)\n          (in_proj_a): Linear(in_features=5120, out_features=48, bias=False)\n        )\n        (mlp): Qwen3_5MLP(\n          (gate_proj): Linear(in_features=5120, out_features=17408, bias=False)\n          (up_proj): Linear(in_features=5120, out_features=17408, bias=False)\n          (down_proj): Linear(in_features=17408, out_features=5120, bias=False)\n          (act_fn): SiLUActivation()\n        )\n        (input_layernorm): Qwen3_5RMSNorm((5120,), eps=1e-06)\n        (post_attention_layernorm): Qwen3_5RMSNorm((5120,), eps=1e-06)\n      )\n      (7): Qwen3_5DecoderLayer(\n        (self_attn): Qwen3_5Attention(\n          (q_proj): Linear(in_features=5120, out_features=12288, bias=False)\n          (k_proj): Linear(in_features=5120, out_features=1024, bias=False)\n          (v_proj): Linear(in_features=5120, out_features=1024, bias=False)\n          (o_proj): Linear(in_features=6144, out_features=5120, bias=False)\n          (q_norm): Qwen3_5RMSNorm((256,), eps=1e-06)\n          (k_norm): Qwen3_5RMSNorm((256,), eps=1e-06)\n        )\n        (mlp): Qwen3_5MLP(\n          (gate_proj): Linear(in_features=5120, out_features=17408, bias=False)\n          (up_proj): Linear(in_features=5120, out_features=17408, bias=False)\n          (down_proj): Linear(in_features=17408, out_features=5120, bias=False)\n          (act_fn): SiLUActivation()\n        )\n        (input_layernorm): Qwen3_5RMSNorm((5120,), eps=1e-06)\n        (post_attention_layernorm): Qwen3_5RMSNorm((5120,), eps=1e-06)\n      )\n      (8-10): 3 x Qwen3_5DecoderLayer(\n        (linear_attn): Qwen3_5GatedDeltaNet(\n          (act): SiLUActivation()\n          (conv1d): Conv1d(10240, 10240, kernel_size=(4,), stride=(1,), padding=(3,), groups=10240, bias=False)\n          (norm): Qwen3_5RMSNormGated()\n          (out_proj): Linear(in_features=6144, out_features=5120, bias=False)\n          (in_proj_qkv): Linear(in_features=5120, out_features=10240, bias=False)\n          (in_proj_z): Linear(in_features=5120, out_features=6144, bias=False)\n          (in_proj_b): Linear(in_features=5120, out_features=48, bias=False)\n          (in_proj_a): Linear(in_features=5120, out_features=48, bias=False)\n        )\n        (mlp): Qwen3_5MLP(\n          (gate_proj): Linear(in_features=5120, out_features=17408, bias=False)\n          (up_proj): Linear(in_features=5120, out_features=17408, bias=False)\n          (down_proj): Linear(in_features=17408, out_features=5120, bias=False)\n          (act_fn): SiLUActivation()\n        )\n        (input_layernorm): Qwen3_5RMSNorm((5120,), eps=1e-06)\n        (post_attention_layernorm): Qwen3_5RMSNorm((5120,), eps=1e-06)\n      )\n      (11): Qwen3_5DecoderLayer(\n        (self_attn): Qwen3_5Attention(\n          (q_proj): Linear(in_features=5120, out_features=12288, bias=False)\n          (k_proj): Linear(in_features=5120, out_features=1024, bias=False)\n          (v_proj): Linear(in_features=5120, out_features=1024, bias=False)\n          (o_proj): Linear(in_features=6144, out_features=5120, bias=False)\n          (q_norm): Qwen3_5RMSNorm((256,), eps=1e-06)\n          (k_norm): Qwen3_5RMSNorm((256,), eps=1e-06)\n        )\n        (mlp): Qwen3_5MLP(\n          (gate_proj): Linear(in_features=5120, out_features=17408, bias=False)\n          (up_proj): Linear(in_features=5120, out_features=17408, bias=False)\n          (down_proj): Linear(in_features=17408, out_features=5120, bias=False)\n          (act_fn): SiLUActivation()\n        )\n        (input_layernorm): Qwen3_5RMSNorm((5120,), eps=1e-06)\n        (post_attention_layernorm): Qwen3_5RMSNorm((5120,), eps=1e-06)\n      )\n      (12-14): 3 x Qwen3_5DecoderLayer(\n        (linear_attn): Qwen3_5GatedDeltaNet(\n          (act): SiLUActivation()\n          (conv1d): Conv1d(10240, 10240, kernel_size=(4,), stride=(1,), padding=(3,), groups=10240, bias=False)\n          (norm): Qwen3_5RMSNormGated()\n          (out_proj): Linear(in_features=6144, out_features=5120, bias=False)\n          (in_proj_qkv): Linear(in_features=5120, out_features=10240, bias=False)\n          (in_proj_z): Linear(in_features=5120, out_features=6144, bias=False)\n          (in_proj_b): Linear(in_features=5120, out_features=48, bias=False)\n          (in_proj_a): Linear(in_features=5120, out_features=48, bias=False)\n        )\n        (mlp): Qwen3_5MLP(\n          (gate_proj): Linear(in_features=5120, out_features=17408, bias=False)\n          (up_proj): Linear(in_features=5120, out_features=17408, bias=False)\n          (down_proj): Linear(in_features=17408, out_features=5120, bias=False)\n          (act_fn): SiLUActivation()\n        )\n        (input_layernorm): Qwen3_5RMSNorm((5120,), eps=1e-06)\n        (post_attention_layernorm): Qwen3_5RMSNorm((5120,), eps=1e-06)\n      )\n      (15): Qwen3_5DecoderLayer(\n        (self_attn): Qwen3_5Attention(\n          (q_proj): Linear(in_features=5120, out_features=12288, bias=False)\n          (k_proj): Linear(in_features=5120, out_features=1024, bias=False)\n          (v_proj): Linear(in_features=5120, out_features=1024, bias=False)\n          (o_proj): Linear(in_features=6144, out_features=5120, bias=False)\n          (q_norm): Qwen3_5RMSNorm((256,), eps=1e-06)\n          (k_norm): Qwen3_5RMSNorm((256,), eps=1e-06)\n        )\n        (mlp): Qwen3_5MLP(\n          (gate_proj): Linear(in_features=5120, out_features=17408, bias=False)\n          (up_proj): Linear(in_features=5120, out_features=17408, bias=False)\n          (down_proj): Linear(in_features=17408, out_features=5120, bias=False)\n          (act_fn): SiLUActivation()\n        )\n        (input_layernorm): Qwen3_5RMSNorm((5120,), eps=1e-06)\n        (post_attention_layernorm): Qwen3_5RMSNorm((5120,), eps=1e-06)\n      )\n      (16-18): 3 x Qwen3_5DecoderLayer(\n        (linear_attn): Qwen3_5GatedDeltaNet(\n          (act): SiLUActivation()\n          (conv1d): Conv1d(10240, 10240, kernel_size=(4,), stride=(1,), padding=(3,), groups=10240, bias=False)\n          (norm): Qwen3_5RMSNormGated()\n          (out_proj): Linear(in_features=6144, out_features=5120, bias=False)\n          (in_proj_qkv): Linear(in_features=5120, out_features=10240, bias=False)\n          (in_proj_z): Linear(in_features=5120, out_features=6144, bias=False)\n          (in_proj_b): Linear(in_features=5120, out_features=48, bias=False)\n          (in_proj_a): Linear(in_features=5120, out_features=48, bias=False)\n        )\n        (mlp): Qwen3_5MLP(\n          (gate_proj): Linear(in_features=5120, out_features=17408, bias=False)\n          (up_proj): Linear(in_features=5120, out_features=17408, bias=False)\n          (down_proj): Linear(in_features=17408, out_features=5120, bias=False)\n          (act_fn): SiLUActivation()\n        )\n        (input_layernorm): Qwen3_5RMSNorm((5120,), eps=1e-06)\n        (post_attention_layernorm): Qwen3_5RMSNorm((5120,), eps=1e-06)\n      )\n      (19): Qwen3_5DecoderLayer(\n        (self_attn): Qwen3_5Attention(\n          (q_proj): Linear(in_features=5120, out_features=12288, bias=False)\n          (k_proj): Linear(in_features=5120, out_features=1024, bias=False)\n          (v_proj): Linear(in_features=5120, out_features=1024, bias=False)\n          (o_proj): Linear(in_features=6144, out_features=5120, bias=False)\n          (q_norm): Qwen3_5RMSNorm((256,), eps=1e-06)\n          (k_norm): Qwen3_5RMSNorm((256,), eps=1e-06)\n        )\n        (mlp): Qwen3_5MLP(\n          (gate_proj): Linear(in_features=5120, out_features=17408, bias=False)\n          (up_proj): Linear(in_features=5120, out_features=17408, bias=False)\n          (down_proj): Linear(in_features=17408, out_features=5120, bias=False)\n          (act_fn): SiLUActivation()\n        )\n        (input_layernorm): Qwen3_5RMSNorm((5120,), eps=1e-06)\n        (post_attention_layernorm): Qwen3_5RMSNorm((5120,), eps=1e-06)\n      )\n      (20-22): 3 x Qwen3_5DecoderLayer(\n        (linear_attn): Qwen3_5GatedDeltaNet(\n          (act): SiLUActivation()\n          (conv1d): Conv1d(10240, 10240, kernel_size=(4,), stride=(1,), padding=(3,), groups=10240, bias=False)\n          (norm): Qwen3_5RMSNormGated()\n          (out_proj): Linear(in_features=6144, out_features=5120, bias=False)\n          (in_proj_qkv): Linear(in_features=5120, out_features=10240, bias=False)\n          (in_proj_z): Linear(in_features=5120, out_features=6144, bias=False)\n          (in_proj_b): Linear(in_features=5120, out_features=48, bias=False)\n          (in_proj_a): Linear(in_features=5120, out_features=48, bias=False)\n        )\n        (mlp): Qwen3_5MLP(\n          (gate_proj): Linear(in_features=5120, out_features=17408, bias=False)\n          (up_proj): Linear(in_features=5120, out_features=17408, bias=False)\n          (down_proj): Linear(in_features=17408, out_features=5120, bias=False)\n          (act_fn): SiLUActivation()\n        )\n        (input_layernorm): Qwen3_5RMSNorm((5120,), eps=1e-06)\n        (post_attention_layernorm): Qwen3_5RMSNorm((5120,), eps=1e-06)\n      )\n      (23): Qwen3_5DecoderLayer(\n        (self_attn): Qwen3_5Attention(\n          (q_proj): Linear(in_features=5120, out_features=12288, bias=False)\n          (k_proj): Linear(in_features=5120, out_features=1024, bias=False)\n          (v_proj): Linear(in_features=5120, out_features=1024, bias=False)\n          (o_proj): Linear(in_features=6144, out_features=5120, bias=False)\n          (q_norm): Qwen3_5RMSNorm((256,), eps=1e-06)\n          (k_norm): Qwen3_5RMSNorm((256,), eps=1e-06)\n        )\n        (mlp): Qwen3_5MLP(\n          (gate_proj): Linear(in_features=5120, out_features=17408, bias=False)\n          (up_proj): Linear(in_features=5120, out_features=17408, bias=False)\n          (down_proj): Linear(in_features=17408, out_features=5120, bias=False)\n          (act_fn): SiLUActivation()\n        )\n        (input_layernorm): Qwen3_5RMSNorm((5120,), eps=1e-06)\n        (post_attention_layernorm): Qwen3_5RMSNorm((5120,), eps=1e-06)\n      )\n      (24-26): 3 x Qwen3_5DecoderLayer(\n        (linear_attn): Qwen3_5GatedDeltaNet(\n          (act): SiLUActivation()\n          (conv1d): Conv1d(10240, 10240, kernel_size=(4,), stride=(1,), padding=(3,), groups=10240, bias=False)\n          (norm): Qwen3_5RMSNormGated()\n          (out_proj): Linear(in_features=6144, out_features=5120, bias=False)\n          (in_proj_qkv): Linear(in_features=5120, out_features=10240, bias=False)\n          (in_proj_z): Linear(in_features=5120, out_features=6144, bias=False)\n          (in_proj_b): Linear(in_features=5120, out_features=48, bias=False)\n          (in_proj_a): Linear(in_features=5120, out_features=48, bias=False)\n        )\n        (mlp): Qwen3_5MLP(\n          (gate_proj): Linear(in_features=5120, out_features=17408, bias=False)\n          (up_proj): Linear(in_features=5120, out_features=17408, bias=False)\n          (down_proj): Linear(in_features=17408, out_features=5120, bias=False)\n          (act_fn): SiLUActivation()\n        )\n        (input_layernorm): Qwen3_5RMSNorm((5120,), eps=1e-06)\n        (post_attention_layernorm): Qwen3_5RMSNorm((5120,), eps=1e-06)\n      )\n      (27): Qwen3_5DecoderLayer(\n        (self_attn): Qwen3_5Attention(\n          (q_proj): Linear(in_features=5120, out_features=12288, bias=False)\n          (k_proj): Linear(in_features=5120, out_features=1024, bias=False)\n          (v_proj): Linear(in_features=5120, out_features=1024, bias=False)\n          (o_proj): Linear(in_features=6144, out_features=5120, bias=False)\n          (q_norm): Qwen3_5RMSNorm((256,), eps=1e-06)\n          (k_norm): Qwen3_5RMSNorm((256,), eps=1e-06)\n        )\n        (mlp): Qwen3_5MLP(\n          (gate_proj): Linear(in_features=5120, out_features=17408, bias=False)\n          (up_proj): Linear(in_features=5120, out_features=17408, bias=False)\n          (down_proj): Linear(in_features=17408, out_features=5120, bias=False)\n          (act_fn): SiLUActivation()\n        )\n        (input_layernorm): Qwen3_5RMSNorm((5120,), eps=1e-06)\n        (post_attention_layernorm): Qwen3_5RMSNorm((5120,), eps=1e-06)\n      )\n      (28-30): 3 x Qwen3_5DecoderLayer(\n        (linear_attn): Qwen3_5GatedDeltaNet(\n          (act): SiLUActivation()\n          (conv1d): Conv1d(10240, 10240, kernel_size=(4,), stride=(1,), padding=(3,), groups=10240, bias=False)\n          (norm): Qwen3_5RMSNormGated()\n          (out_proj): Linear(in_features=6144, out_features=5120, bias=False)\n          (in_proj_qkv): Linear(in_features=5120, out_features=10240, bias=False)\n          (in_proj_z): Linear(in_features=5120, out_features=6144, bias=False)\n          (in_proj_b): Linear(in_features=5120, out_features=48, bias=False)\n          (in_proj_a): Linear(in_features=5120, out_features=48, bias=False)\n        )\n        (mlp): Qwen3_5MLP(\n          (gate_proj): Linear(in_features=5120, out_features=17408, bias=False)\n          (up_proj): Linear(in_features=5120, out_features=17408, bias=False)\n          (down_proj): Linear(in_features=17408, out_features=5120, bias=False)\n          (act_fn): SiLUActivation()\n        )\n        (input_layernorm): Qwen3_5RMSNorm((5120,), eps=1e-06)\n        (post_attention_layernorm): Qwen3_5RMSNorm((5120,), eps=1e-06)\n      )\n      (31): Qwen3_5DecoderLayer(\n        (self_attn): Qwen3_5Attention(\n          (q_proj): Linear(in_features=5120, out_features=12288, bias=False)\n          (k_proj): Linear(in_features=5120, out_features=1024, bias=False)\n          (v_proj): Linear(in_features=5120, out_features=1024, bias=False)\n          (o_proj): Linear(in_features=6144, out_features=5120, bias=False)\n          (q_norm): Qwen3_5RMSNorm((256,), eps=1e-06)\n          (k_norm): Qwen3_5RMSNorm((256,), eps=1e-06)\n        )\n        (mlp): Qwen3_5MLP(\n          (gate_proj): Linear(in_features=5120, out_features=17408, bias=False)\n          (up_proj): Linear(in_features=5120, out_features=17408, bias=False)\n          (down_proj): Linear(in_features=17408, out_features=5120, bias=False)\n          (act_fn): SiLUActivation()\n        )\n        (input_layernorm): Qwen3_5RMSNorm((5120,), eps=1e-06)\n        (post_attention_layernorm): Qwen3_5RMSNorm((5120,), eps=1e-06)\n      )\n      (32-34): 3 x Qwen3_5DecoderLayer(\n        (linear_attn): Qwen3_5GatedDeltaNet(\n          (act): SiLUActivation()\n          (conv1d): Conv1d(10240, 10240, kernel_size=(4,), stride=(1,), padding=(3,), groups=10240, bias=False)\n          (norm): Qwen3_5RMSNormGated()\n          (out_proj): Linear(in_features=6144, out_features=5120, bias=False)\n          (in_proj_qkv): Linear(in_features=5120, out_features=10240, bias=False)\n          (in_proj_z): Linear(in_features=5120, out_features=6144, bias=False)\n          (in_proj_b): Linear(in_features=5120, out_features=48, bias=False)\n          (in_proj_a): Linear(in_features=5120, out_features=48, bias=False)\n        )\n        (mlp): Qwen3_5MLP(\n          (gate_proj): Linear(in_features=5120, out_features=17408, bias=False)\n          (up_proj): Linear(in_features=5120, out_features=17408, bias=False)\n          (down_proj): Linear(in_features=17408, out_features=5120, bias=False)\n          (act_fn): SiLUActivation()\n        )\n        (input_layernorm): Qwen3_5RMSNorm((5120,), eps=1e-06)\n        (post_attention_layernorm): Qwen3_5RMSNorm((5120,), eps=1e-06)\n      )\n      (35): Qwen3_5DecoderLayer(\n        (self_attn): Qwen3_5Attention(\n          (q_proj): Linear(in_features=5120, out_features=12288, bias=False)\n          (k_proj): Linear(in_features=5120, out_features=1024, bias=False)\n          (v_proj): Linear(in_features=5120, out_features=1024, bias=False)\n          (o_proj): Linear(in_features=6144, out_features=5120, bias=False)\n          (q_norm): Qwen3_5RMSNorm((256,), eps=1e-06)\n          (k_norm): Qwen3_5RMSNorm((256,), eps=1e-06)\n        )\n        (mlp): Qwen3_5MLP(\n          (gate_proj): Linear(in_features=5120, out_features=17408, bias=False)\n          (up_proj): Linear(in_features=5120, out_features=17408, bias=False)\n          (down_proj): Linear(in_features=17408, out_features=5120, bias=False)\n          (act_fn): SiLUActivation()\n        )\n        (input_layernorm): Qwen3_5RMSNorm((5120,), eps=1e-06)\n        (post_attention_layernorm): Qwen3_5RMSNorm((5120,), eps=1e-06)\n      )\n      (36-38): 3 x Qwen3_5DecoderLayer(\n        (linear_attn): Qwen3_5GatedDeltaNet(\n          (act): SiLUActivation()\n          (conv1d): Conv1d(10240, 10240, kernel_size=(4,), stride=(1,), padding=(3,), groups=10240, bias=False)\n          (norm): Qwen3_5RMSNormGated()\n          (out_proj): Linear(in_features=6144, out_features=5120, bias=False)\n          (in_proj_qkv): Linear(in_features=5120, out_features=10240, bias=False)\n          (in_proj_z): Linear(in_features=5120, out_features=6144, bias=False)\n          (in_proj_b): Linear(in_features=5120, out_features=48, bias=False)\n          (in_proj_a): Linear(in_features=5120, out_features=48, bias=False)\n        )\n        (mlp): Qwen3_5MLP(\n          (gate_proj): Linear(in_features=5120, out_features=17408, bias=False)\n          (up_proj): Linear(in_features=5120, out_features=17408, bias=False)\n          (down_proj): Linear(in_features=17408, out_features=5120, bias=False)\n          (act_fn): SiLUActivation()\n        )\n        (input_layernorm): Qwen3_5RMSNorm((5120,), eps=1e-06)\n        (post_attention_layernorm): Qwen3_5RMSNorm((5120,), eps=1e-06)\n      )\n      (39): Qwen3_5DecoderLayer(\n        (self_attn): Qwen3_5Attention(\n          (q_proj): Linear(in_features=5120, out_features=12288, bias=False)\n          (k_proj): Linear(in_features=5120, out_features=1024, bias=False)\n          (v_proj): Linear(in_features=5120, out_features=1024, bias=False)\n          (o_proj): Linear(in_features=6144, out_features=5120, bias=False)\n          (q_norm): Qwen3_5RMSNorm((256,), eps=1e-06)\n          (k_norm): Qwen3_5RMSNorm((256,), eps=1e-06)\n        )\n        (mlp): Qwen3_5MLP(\n          (gate_proj): Linear(in_features=5120, out_features=17408, bias=False)\n          (up_proj): Linear(in_features=5120, out_features=17408, bias=False)\n          (down_proj): Linear(in_features=17408, out_features=5120, bias=False)\n          (act_fn): SiLUActivation()\n        )\n        (input_layernorm): Qwen3_5RMSNorm((5120,), eps=1e-06)\n        (post_attention_layernorm): Qwen3_5RMSNorm((5120,), eps=1e-06)\n      )\n      (40-42): 3 x Qwen3_5DecoderLayer(\n        (linear_attn): Qwen3_5GatedDeltaNet(\n          (act): SiLUActivation()\n          (conv1d): Conv1d(10240, 10240, kernel_size=(4,), stride=(1,), padding=(3,), groups=10240, bias=False)\n          (norm): Qwen3_5RMSNormGated()\n          (out_proj): Linear(in_features=6144, out_features=5120, bias=False)\n          (in_proj_qkv): Linear(in_features=5120, out_features=10240, bias=False)\n          (in_proj_z): Linear(in_features=5120, out_features=6144, bias=False)\n          (in_proj_b): Linear(in_features=5120, out_features=48, bias=False)\n          (in_proj_a): Linear(in_features=5120, out_features=48, bias=False)\n        )\n        (mlp): Qwen3_5MLP(\n          (gate_proj): Linear(in_features=5120, out_features=17408, bias=False)\n          (up_proj): Linear(in_features=5120, out_features=17408, bias=False)\n          (down_proj): Linear(in_features=17408, out_features=5120, bias=False)\n          (act_fn): SiLUActivation()\n        )\n        (input_layernorm): Qwen3_5RMSNorm((5120,), eps=1e-06)\n        (post_attention_layernorm): Qwen3_5RMSNorm((5120,), eps=1e-06)\n      )\n      (43): Qwen3_5DecoderLayer(\n        (self_attn): Qwen3_5Attention(\n          (q_proj): Linear(in_features=5120, out_features=12288, bias=False)\n          (k_proj): Linear(in_features=5120, out_features=1024, bias=False)\n          (v_proj): Linear(in_features=5120, out_features=1024, bias=False)\n          (o_proj): Linear(in_features=6144, out_features=5120, bias=False)\n          (q_norm): Qwen3_5RMSNorm((256,), eps=1e-06)\n          (k_norm): Qwen3_5RMSNorm((256,), eps=1e-06)\n        )\n        (mlp): Qwen3_5MLP(\n          (gate_proj): Linear(in_features=5120, out_features=17408, bias=False)\n          (up_proj): Linear(in_features=5120, out_features=17408, bias=False)\n          (down_proj): Linear(in_features=17408, out_features=5120, bias=False)\n          (act_fn): SiLUActivation()\n        )\n        (input_layernorm): Qwen3_5RMSNorm((5120,), eps=1e-06)\n        (post_attention_layernorm): Qwen3_5RMSNorm((5120,), eps=1e-06)\n      )\n      (44-46): 3 x Qwen3_5DecoderLayer(\n        (linear_attn): Qwen3_5GatedDeltaNet(\n          (act): SiLUActivation()\n          (conv1d): Conv1d(10240, 10240, kernel_size=(4,), stride=(1,), padding=(3,), groups=10240, bias=False)\n          (norm): Qwen3_5RMSNormGated()\n          (out_proj): Linear(in_features=6144, out_features=5120, bias=False)\n          (in_proj_qkv): Linear(in_features=5120, out_features=10240, bias=False)\n          (in_proj_z): Linear(in_features=5120, out_features=6144, bias=False)\n          (in_proj_b): Linear(in_features=5120, out_features=48, bias=False)\n          (in_proj_a): Linear(in_features=5120, out_features=48, bias=False)\n        )\n        (mlp): Qwen3_5MLP(\n          (gate_proj): Linear(in_features=5120, out_features=17408, bias=False)\n          (up_proj): Linear(in_features=5120, out_features=17408, bias=False)\n          (down_proj): Linear(in_features=17408, out_features=5120, bias=False)\n          (act_fn): SiLUActivation()\n        )\n        (input_layernorm): Qwen3_5RMSNorm((5120,), eps=1e-06)\n        (post_attention_layernorm): Qwen3_5RMSNorm((5120,), eps=1e-06)\n      )\n      (47): Qwen3_5DecoderLayer(\n        (self_attn): Qwen3_5Attention(\n          (q_proj): Linear(in_features=5120, out_features=12288, bias=False)\n          (k_proj): Linear(in_features=5120, out_features=1024, bias=False)\n          (v_proj): Linear(in_features=5120, out_features=1024, bias=False)\n          (o_proj): Linear(in_features=6144, out_features=5120, bias=False)\n          (q_norm): Qwen3_5RMSNorm((256,), eps=1e-06)\n          (k_norm): Qwen3_5RMSNorm((256,), eps=1e-06)\n        )\n        (mlp): Qwen3_5MLP(\n          (gate_proj): Linear(in_features=5120, out_features=17408, bias=False)\n          (up_proj): Linear(in_features=5120, out_features=17408, bias=False)\n          (down_proj): Linear(in_features=17408, out_features=5120, bias=False)\n          (act_fn): SiLUActivation()\n        )\n        (input_layernorm): Qwen3_5RMSNorm((5120,), eps=1e-06)\n        (post_attention_layernorm): Qwen3_5RMSNorm((5120,), eps=1e-06)\n      )\n      (48-50): 3 x Qwen3_5DecoderLayer(\n        (linear_attn): Qwen3_5GatedDeltaNet(\n          (act): SiLUActivation()\n          (conv1d): Conv1d(10240, 10240, kernel_size=(4,), stride=(1,), padding=(3,), groups=10240, bias=False)\n          (norm): Qwen3_5RMSNormGated()\n          (out_proj): Linear(in_features=6144, out_features=5120, bias=False)\n          (in_proj_qkv): Linear(in_features=5120, out_features=10240, bias=False)\n          (in_proj_z): Linear(in_features=5120, out_features=6144, bias=False)\n          (in_proj_b): Linear(in_features=5120, out_features=48, bias=False)\n          (in_proj_a): Linear(in_features=5120, out_features=48, bias=False)\n        )\n        (mlp): Qwen3_5MLP(\n          (gate_proj): Linear(in_features=5120, out_features=17408, bias=False)\n          (up_proj): Linear(in_features=5120, out_features=17408, bias=False)\n          (down_proj): Linear(in_features=17408, out_features=5120, bias=False)\n          (act_fn): SiLUActivation()\n        )\n        (input_layernorm): Qwen3_5RMSNorm((5120,), eps=1e-06)\n        (post_attention_layernorm): Qwen3_5RMSNorm((5120,), eps=1e-06)\n      )\n      (51): Qwen3_5DecoderLayer(\n        (self_attn): Qwen3_5Attention(\n          (q_proj): Linear(in_features=5120, out_features=12288, bias=False)\n          (k_proj): Linear(in_features=5120, out_features=1024, bias=False)\n          (v_proj): Linear(in_features=5120, out_features=1024, bias=False)\n          (o_proj): Linear(in_features=6144, out_features=5120, bias=False)\n          (q_norm): Qwen3_5RMSNorm((256,), eps=1e-06)\n          (k_norm): Qwen3_5RMSNorm((256,), eps=1e-06)\n        )\n        (mlp): Qwen3_5MLP(\n          (gate_proj): Linear(in_features=5120, out_features=17408, bias=False)\n          (up_proj): Linear(in_features=5120, out_features=17408, bias=False)\n          (down_proj): Linear(in_features=17408, out_features=5120, bias=False)\n          (act_fn): SiLUActivation()\n        )\n        (input_layernorm): Qwen3_5RMSNorm((5120,), eps=1e-06)\n        (post_attention_layernorm): Qwen3_5RMSNorm((5120,), eps=1e-06)\n      )\n      (52-54): 3 x Qwen3_5DecoderLayer(\n        (linear_attn): Qwen3_5GatedDeltaNet(\n          (act): SiLUActivation()\n          (conv1d): Conv1d(10240, 10240, kernel_size=(4,), stride=(1,), padding=(3,), groups=10240, bias=False)\n          (norm): Qwen3_5RMSNormGated()\n          (out_proj): Linear(in_features=6144, out_features=5120, bias=False)\n          (in_proj_qkv): Linear(in_features=5120, out_features=10240, bias=False)\n          (in_proj_z): Linear(in_features=5120, out_features=6144, bias=False)\n          (in_proj_b): Linear(in_features=5120, out_features=48, bias=False)\n          (in_proj_a): Linear(in_features=5120, out_features=48, bias=False)\n        )\n        (mlp): Qwen3_5MLP(\n          (gate_proj): Linear(in_features=5120, out_features=17408, bias=False)\n          (up_proj): Linear(in_features=5120, out_features=17408, bias=False)\n          (down_proj): Linear(in_features=17408, out_features=5120, bias=False)\n          (act_fn): SiLUActivation()\n        )\n        (input_layernorm): Qwen3_5RMSNorm((5120,), eps=1e-06)\n        (post_attention_layernorm): Qwen3_5RMSNorm((5120,), eps=1e-06)\n      )\n      (55): Qwen3_5DecoderLayer(\n        (self_attn): Qwen3_5Attention(\n          (q_proj): Linear(in_features=5120, out_features=12288, bias=False)\n          (k_proj): Linear(in_features=5120, out_features=1024, bias=False)\n          (v_proj): Linear(in_features=5120, out_features=1024, bias=False)\n          (o_proj): Linear(in_features=6144, out_features=5120, bias=False)\n          (q_norm): Qwen3_5RMSNorm((256,), eps=1e-06)\n          (k_norm): Qwen3_5RMSNorm((256,), eps=1e-06)\n        )\n        (mlp): Qwen3_5MLP(\n          (gate_proj): Linear(in_features=5120, out_features=17408, bias=False)\n          (up_proj): Linear(in_features=5120, out_features=17408, bias=False)\n          (down_proj): Linear(in_features=17408, out_features=5120, bias=False)\n          (act_fn): SiLUActivation()\n        )\n        (input_layernorm): Qwen3_5RMSNorm((5120,), eps=1e-06)\n        (post_attention_layernorm): Qwen3_5RMSNorm((5120,), eps=1e-06)\n      )\n      (56-58): 3 x Qwen3_5DecoderLayer(\n        (linear_attn): Qwen3_5GatedDeltaNet(\n          (act): SiLUActivation()\n          (conv1d): Conv1d(10240, 10240, kernel_size=(4,), stride=(1,), padding=(3,), groups=10240, bias=False)\n          (norm): Qwen3_5RMSNormGated()\n          (out_proj): Linear(in_features=6144, out_features=5120, bias=False)\n          (in_proj_qkv): Linear(in_features=5120, out_features=10240, bias=False)\n          (in_proj_z): Linear(in_features=5120, out_features=6144, bias=False)\n          (in_proj_b): Linear(in_features=5120, out_features=48, bias=False)\n          (in_proj_a): Linear(in_features=5120, out_features=48, bias=False)\n        )\n        (mlp): Qwen3_5MLP(\n          (gate_proj): Linear(in_features=5120, out_features=17408, bias=False)\n          (up_proj): Linear(in_features=5120, out_features=17408, bias=False)\n          (down_proj): Linear(in_features=17408, out_features=5120, bias=False)\n          (act_fn): SiLUActivation()\n        )\n        (input_layernorm): Qwen3_5RMSNorm((5120,), eps=1e-06)\n        (post_attention_layernorm): Qwen3_5RMSNorm((5120,), eps=1e-06)\n      )\n      (59): Qwen3_5DecoderLayer(\n        (self_attn): Qwen3_5Attention(\n          (q_proj): Linear(in_features=5120, out_features=12288, bias=False)\n          (k_proj): Linear(in_features=5120, out_features=1024, bias=False)\n          (v_proj): Linear(in_features=5120, out_features=1024, bias=False)\n          (o_proj): Linear(in_features=6144, out_features=5120, bias=False)\n          (q_norm): Qwen3_5RMSNorm((256,), eps=1e-06)\n          (k_norm): Qwen3_5RMSNorm((256,), eps=1e-06)\n        )\n        (mlp): Qwen3_5MLP(\n          (gate_proj): Linear(in_features=5120, out_features=17408, bias=False)\n          (up_proj): Linear(in_features=5120, out_features=17408, bias=False)\n          (down_proj): Linear(in_features=17408, out_features=5120, bias=False)\n          (act_fn): SiLUActivation()\n        )\n        (input_layernorm): Qwen3_5RMSNorm((5120,), eps=1e-06)\n        (post_attention_layernorm): Qwen3_5RMSNorm((5120,), eps=1e-06)\n      )\n      (60-62): 3 x Qwen3_5DecoderLayer(\n        (linear_attn): Qwen3_5GatedDeltaNet(\n          (act): SiLUActivation()\n          (conv1d): Conv1d(10240, 10240, kernel_size=(4,), stride=(1,), padding=(3,), groups=10240, bias=False)\n          (norm): Qwen3_5RMSNormGated()\n          (out_proj): Linear(in_features=6144, out_features=5120, bias=False)\n          (in_proj_qkv): Linear(in_features=5120, out_features=10240, bias=False)\n          (in_proj_z): Linear(in_features=5120, out_features=6144, bias=False)\n          (in_proj_b): Linear(in_features=5120, out_features=48, bias=False)\n          (in_proj_a): Linear(in_features=5120, out_features=48, bias=False)\n        )\n        (mlp): Qwen3_5MLP(\n          (gate_proj): Linear(in_features=5120, out_features=17408, bias=False)\n          (up_proj): Linear(in_features=5120, out_features=17408, bias=False)\n          (down_proj): Linear(in_features=17408, out_features=5120, bias=False)\n          (act_fn): SiLUActivation()\n        )\n        (input_layernorm): Qwen3_5RMSNorm((5120,), eps=1e-06)\n        (post_attention_layernorm): Qwen3_5RMSNorm((5120,), eps=1e-06)\n      )\n      (63): Qwen3_5DecoderLayer(\n        (self_attn): Qwen3_5Attention(\n          (q_proj): Linear(in_features=5120, out_features=12288, bias=False)\n          (k_proj): Linear(in_features=5120, out_features=1024, bias=False)\n          (v_proj): Linear(in_features=5120, out_features=1024, bias=False)\n          (o_proj): Linear(in_features=6144, out_features=5120, bias=False)\n          (q_norm): Qwen3_5RMSNorm((256,), eps=1e-06)\n          (k_norm): Qwen3_5RMSNorm((256,), eps=1e-06)\n        )\n        (mlp): Qwen3_5MLP(\n          (gate_proj): Linear(in_features=5120, out_features=17408, bias=False)\n          (up_proj): Linear(in_features=5120, out_features=17408, bias=False)\n          (down_proj): Linear(in_features=17408, out_features=5120, bias=False)\n          (act_fn): SiLUActivation()\n        )\n        (input_layernorm): Qwen3_5RMSNorm((5120,), eps=1e-06)\n        (post_attention_layernorm): Qwen3_5RMSNorm((5120,), eps=1e-06)\n      )\n    )\n    (norm): Qwen3_5RMSNorm((5120,), eps=1e-06)\n    (rotary_emb): Qwen3_5TextRotaryEmbedding()\n  )\n  (lm_head): Linear(in_features=5120, out_features=248320, bias=False)\n)",
+  "forward_source": {
+    "files": [
+      {
+        "path": "site-packages/transformers/models/qwen3_5/modeling_qwen3_5.py",
+        "text": "#                🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨\n#           This file was automatically generated from src/transformers/models/qwen3_5/modular_qwen3_5.py.\n#               Do NOT edit this file manually as any edits will be overwritten by the generation of\n#             the file from the modular. If any change should be done, please apply the change to the\n#                          modular_qwen3_5.py file directly. One of our CI enforces this.\n#                🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨\n# Copyright 2025 The Qwen Team and The HuggingFace Inc. team. All rights reserved.\n#\n# Licensed under the Apache License, Version 2.0 (the \"License\");\n# you may not use this file except in compliance with the License.\n# You may obtain a copy of the License at\n#\n#     http://www.apache.org/licenses/LICENSE-2.0\n#\n# Unless required by applicable law or agreed to in writing, software\n# distributed under the License is distributed on an \"AS IS\" BASIS,\n# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n# See the License for the specific language governing permissions and\n# limitations under the License.\n\nimport itertools\nimport warnings\nfrom collections.abc import Callable\nfrom dataclasses import dataclass\nfrom typing import Any, Optional\n\nimport torch\nimport torch.nn.functional as F\nfrom torch import nn\n\nfrom ... import initialization as init\nfrom ...activations import ACT2FN\nfrom ...cache_utils import Cache, DynamicCache\nfrom ...generation import GenerationMixin\nfrom ...integrations import use_kernel_forward_from_hub\nfrom ...integrations.accelerate import force_accelerate_hooks\nfrom ...masking_utils import create_causal_mask, create_recurrent_attention_mask\nfrom ...modeling_flash_attention_utils import FlashAttentionKwargs\nfrom ...modeling_layers import (\n    GenericForSequenceClassification,\n    GenericForTokenClassification,\n    GradientCheckpointingLayer,\n)\nfrom ...modeling_outputs import (\n    BaseModelOutputWithPast,\n    BaseModelOutputWithPooling,\n    CausalLMOutputWithPast,\n    SequenceClassifierOutputWithPast,\n)\nfrom ...modeling_rope_utils import ROPE_INIT_FUNCTIONS, dynamic_rope_update\nfrom ...modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel\nfrom ...processing_utils import Unpack\nfrom ...utils import TransformersKwargs, auto_docstring, can_return_tuple, logging, torch_compilable_check\nfrom ...utils.deprecation import deprecate_kwarg\nfrom ...utils.generic import (\n    accepts_precomputed_kwargs,\n    is_flash_attention_requested,\n    maybe_autocast,\n    merge_with_config_defaults,\n)\nfrom ...utils.import_utils import is_causal_conv1d_available, is_flash_linear_attention_available\nfrom ...utils.output_capturing import capture_outputs\nfrom ...vision_utils import get_vision_bilinear_indices_and_weights, get_vision_cu_seqlens, get_vision_position_ids\nfrom ..auto.modeling_auto import AutoModel\nfrom .configuration_qwen3_5 import Qwen3_5Config, Qwen3_5TextConfig, Qwen3_5VisionConfig\n\n\nif is_causal_conv1d_available():\n    from causal_conv1d import causal_conv1d_fn, causal_conv1d_update\nelse:\n    causal_conv1d_update, causal_conv1d_fn = None, None\n\nif is_flash_linear_attention_available():\n    from fla.modules import FusedRMSNormGated\n    from fla.ops.gated_delta_rule import chunk_gated_delta_rule, fused_recurrent_gated_delta_rule\nelse:\n    chunk_gated_delta_rule, fused_recurrent_gated_delta_rule = None, None\n    FusedRMSNormGated = None\n\nlogger = logging.get_logger(__name__)\n\n\nclass Qwen3_5VisionRotaryEmbedding(nn.Module):\n    inv_freq: torch.Tensor  # fix linting for `register_buffer`\n\n    def __init__(self, dim: int, theta: float = 10000.0) -> None:\n        super().__init__()\n        self.dim = dim\n        self.theta = theta\n        inv_freq = 1.0 / (theta ** (torch.arange(0, dim, 2, dtype=torch.float) / dim))\n        self.register_buffer(\"inv_freq\", inv_freq, persistent=False)\n\n    def forward(self, position_ids: torch.Tensor) -> torch.Tensor:\n        return (position_ids.unsqueeze(-1) * self.inv_freq).flatten(1)\n\n\nclass Qwen3_5TextRotaryEmbedding(nn.Module):\n    inv_freq: torch.Tensor  # fix linting for `register_buffer`\n\n    def __init__(self, config: Qwen3_5TextConfig, device=None):\n        super().__init__()\n        self.max_seq_len_cached = config.max_position_embeddings\n        self.original_max_seq_len = config.max_position_embeddings\n\n        self.config = config\n\n        self.rope_type = self.config.rope_parameters[\"rope_type\"]\n        rope_init_fn: Callable = self.compute_default_rope_parameters\n        if self.rope_type != \"default\":\n            rope_init_fn = ROPE_INIT_FUNCTIONS[self.rope_type]\n        inv_freq, self.attention_scaling = rope_init_fn(self.config, device)\n\n        self.register_buffer(\"inv_freq\", inv_freq, persistent=False)\n        self.register_buffer(\"original_inv_freq\", inv_freq.clone(), persistent=False)\n        self.mrope_section = config.rope_parameters.get(\"mrope_section\", [11, 11, 10])\n\n    @staticmethod\n    def compute_default_rope_parameters(\n        config: Qwen3_5TextConfig | None = None,\n        device: Optional[\"torch.device\"] = None,\n        seq_len: int | None = None,\n    ) -> tuple[\"torch.Tensor\", float]:\n        \"\"\"\n        Computes the inverse frequencies according to the original RoPE implementation\n        Args:\n            config ([`~transformers.PreTrainedConfig`]):\n                The model configuration.\n            device (`torch.device`):\n                The device to use for initialization of the inverse frequencies.\n            seq_len (`int`, *optional*):\n                The current sequence length. Unused for this type of RoPE.\n        Returns:\n            Tuple of (`torch.Tensor`, `float`), containing the inverse frequencies for the RoPE embeddings and the\n            post-processing scaling factor applied to the computed cos/sin (unused in this type of RoPE).\n        \"\"\"\n        base = config.rope_parameters[\"rope_theta\"]\n        partial_rotary_factor = config.rope_parameters.get(\"partial_rotary_factor\", 1.0)\n        head_dim = getattr(config, \"head_dim\", None) or config.hidden_size // config.num_attention_heads\n        dim = int(head_dim * partial_rotary_factor)\n\n        attention_factor = 1.0  # Unused in this type of RoPE\n\n        # Compute the inverse frequencies\n        inv_freq = 1.0 / (\n            base ** (torch.arange(0, dim, 2, dtype=torch.int64).to(device=device, dtype=torch.float) / dim)\n        )\n        return inv_freq, attention_factor\n\n    @torch.no_grad()\n    @dynamic_rope_update  # power user: used with advanced RoPE types (e.g. dynamic rope)\n    def forward(self, x, position_ids):\n        # In contrast to other models, Qwen3_5 has different position ids for the grids\n        # So we expand the inv_freq to shape (3, ...)\n        if position_ids.ndim == 2:\n            position_ids = position_ids[None, ...].expand(3, position_ids.shape[0], -1)\n        inv_freq_expanded = (\n            self.inv_freq[None, None, :, None].float().expand(3, position_ids.shape[1], -1, 1).to(x.device)\n        )\n        position_ids_expanded = position_ids[:, :, None, :].float()  # shape (3, bs, 1, positions)\n\n        device_type = x.device.type if isinstance(x.device.type, str) and x.device.type != \"mps\" else \"cpu\"\n        with maybe_autocast(device_type=device_type, enabled=False):  # Force float32\n            freqs = (inv_freq_expanded.float() @ position_ids_expanded.float()).transpose(2, 3)\n            freqs = self.apply_interleaved_mrope(freqs, self.mrope_section)\n            emb = torch.cat((freqs, freqs), dim=-1)\n            cos = emb.cos() * self.attention_scaling\n            sin = emb.sin() * self.attention_scaling\n\n        return cos.to(dtype=x.dtype), sin.to(dtype=x.dtype)\n\n    def apply_interleaved_mrope(self, freqs, mrope_section):\n        \"\"\"Apply interleaved MRoPE to 3D rotary embeddings.\n        Reorganizes frequency layout from chunked [TTT...HHH...WWW] to\n        interleaved [THWTHWTHW...TT], preserving frequency continuity.\n        args:\n            x: (3, bs, seq_len, head_dim // 2)\n            mrope_section: (3,)\n        returns:\n            x_t: (bs, seq_len, head_dim // 2)\n        \"\"\"\n        freqs_t = freqs[0]  # just overwrite the first dimension T\n        for dim, offset in enumerate((1, 2), start=1):  # H, W\n            length = mrope_section[dim] * 3\n            idx = slice(offset, length, 3)\n            freqs_t[..., idx] = freqs[dim, ..., idx]\n        return freqs_t\n\n\nclass Qwen3_5RMSNormGated(nn.Module):\n    def __init__(self, hidden_size, eps=1e-6, **kwargs):\n        super().__init__()\n        self.weight = nn.Parameter(torch.ones(hidden_size))\n        self.variance_epsilon = eps\n\n    def forward(self, hidden_states, gate=None):\n        input_dtype = hidden_states.dtype\n        hidden_states = hidden_states.to(torch.float32)\n        variance = hidden_states.pow(2).mean(-1, keepdim=True)\n        # Norm before gate\n        hidden_states = hidden_states * torch.rsqrt(variance + self.variance_epsilon)\n        hidden_states = self.weight * hidden_states.to(input_dtype)\n        hidden_states = hidden_states * F.silu(gate.to(torch.float32))\n\n        return hidden_states.to(input_dtype)\n\n\ndef apply_mask_to_padding_states(hidden_states, attention_mask):\n    \"\"\"\n    Tunes out the hidden states for padding tokens, see https://github.com/state-spaces/mamba/issues/66\n    \"\"\"\n    # NOTE: attention mask is a 2D boolean tensor\n    if attention_mask is not None and attention_mask.shape[1] > 1 and attention_mask.shape[0] > 1:\n        dtype = hidden_states.dtype\n        hidden_states = (hidden_states * attention_mask[:, :, None]).to(dtype)\n\n    return hidden_states\n\n\nis_fast_path_available = all(\n    (causal_conv1d_fn, causal_conv1d_update, chunk_gated_delta_rule, fused_recurrent_gated_delta_rule)\n)\n\n\ndef torch_causal_conv1d_update(\n    hidden_states,\n    conv_state,\n    weight,\n    bias=None,\n    activation=None,\n):\n    _, hidden_size, seq_len = hidden_states.shape\n    state_len = conv_state.shape[-1]\n\n    hidden_states_new = torch.cat([conv_state, hidden_states], dim=-1).to(weight.dtype)\n    conv_state.copy_(hidden_states_new[:, :, -state_len:])\n    out = F.conv1d(hidden_states_new, weight.unsqueeze(1), bias, padding=0, groups=hidden_size)\n    out = F.silu(out[:, :, -seq_len:])\n    out = out.to(hidden_states.dtype)\n    return out\n\n\ndef l2norm(x: torch.FloatTensor, dim: int = -1, eps: float = 1e-6):\n    \"\"\"This function is intended to align with the l2norm implementation in the FLA library.\"\"\"\n    inv_norm = torch.rsqrt((x * x).sum(dim=dim, keepdim=True) + eps)\n    return x * inv_norm\n\n\ndef torch_chunk_gated_delta_rule(\n    query,\n    key,\n    value,\n    g,\n    beta,\n    chunk_size=64,\n    initial_state=None,\n    output_final_state=False,\n    use_qk_l2norm_in_kernel=False,\n    **kwargs,\n):\n    initial_dtype = query.dtype\n    if use_qk_l2norm_in_kernel:\n        query = l2norm(query, dim=-1, eps=1e-6)\n        key = l2norm(key, dim=-1, eps=1e-6)\n    query, key, value, beta, g = [\n        x.transpose(1, 2).contiguous().to(torch.float32) for x in (query, key, value, beta, g)\n    ]\n\n    batch_size, num_heads, sequence_length, k_head_dim = key.shape\n    v_head_dim = value.shape[-1]\n    pad_size = (chunk_size - sequence_length % chunk_size) % chunk_size\n    query = F.pad(query, (0, 0, 0, pad_size))\n    key = F.pad(key, (0, 0, 0, pad_size))\n    value = F.pad(value, (0, 0, 0, pad_size))\n    beta = F.pad(beta, (0, pad_size))\n    g = F.pad(g, (0, pad_size))\n    total_sequence_length = sequence_length + pad_size\n    scale = 1 / (query.shape[-1] ** 0.5)\n    query = query * scale\n\n    v_beta = value * beta.unsqueeze(-1)\n    k_beta = key * beta.unsqueeze(-1)\n    # reshape to chunks\n    query, key, value, k_beta, v_beta = [\n        x.reshape(x.shape[0], x.shape[1], -1, chunk_size, x.shape[-1]) for x in (query, key, value, k_beta, v_beta)\n    ]\n    g = g.reshape(g.shape[0], g.shape[1], -1, chunk_size)\n    mask = torch.triu(torch.ones(chunk_size, chunk_size, dtype=torch.bool, device=query.device), diagonal=0)\n\n    # chunk decay\n    g = g.cumsum(dim=-1)\n    decay_mask = ((g.unsqueeze(-1) - g.unsqueeze(-2)).tril().exp().float()).tril()\n    attn = -((k_beta @ key.transpose(-1, -2)) * decay_mask).masked_fill(mask, 0)\n    for i in range(1, chunk_size):\n        row = attn[..., i, :i].clone()\n        sub = attn[..., :i, :i].clone()\n        attn[..., i, :i] = row + (row.unsqueeze(-1) * sub).sum(-2)\n    attn = attn + torch.eye(chunk_size, dtype=attn.dtype, device=attn.device)\n    value = attn @ v_beta\n    k_cumdecay = attn @ (k_beta * g.exp().unsqueeze(-1))\n    last_recurrent_state = (\n        torch.zeros(batch_size, num_heads, k_head_dim, v_head_dim, dtype=value.dtype, device=value.device)\n        if initial_state is None\n        else initial_state.to(value)\n    )\n    core_attn_out = torch.zeros_like(value)\n    mask = torch.triu(torch.ones(chunk_size, chunk_size, dtype=torch.bool, device=query.device), diagonal=1)\n\n    # for each chunk\n    for i in range(0, total_sequence_length // chunk_size):\n        q_i, k_i, v_i = query[:, :, i], key[:, :, i], value[:, :, i]\n        attn = q_i @ k_i.transpose(-1, -2) * decay_mask[:, :, i]\n        v_prime = (k_cumdecay[:, :, i]) @ last_recurrent_state\n        v_new = v_i - v_prime\n        attn_inter = (q_i * g[:, :, i, :, None].exp()) @ last_recurrent_state\n        core_attn_out[:, :, i] = attn_inter + attn @ v_new\n        last_recurrent_state = (\n            last_recurrent_state * g[:, :, i, -1, None, None].exp()\n            + (k_i * (g[:, :, i, -1, None] - g[:, :, i]).exp()[..., None]).transpose(-1, -2) @ v_new\n        )\n\n    if not output_final_state:\n        last_recurrent_state = None\n    core_attn_out = core_attn_out.reshape(core_attn_out.shape[0], core_attn_out.shape[1], -1, core_attn_out.shape[-1])\n    core_attn_out = core_attn_out[:, :, :sequence_length]\n    core_attn_out = core_attn_out.transpose(1, 2).contiguous().to(initial_dtype)\n    return core_attn_out, last_recurrent_state\n\n\ndef torch_recurrent_gated_delta_rule(\n    query, key, value, g, beta, initial_state, output_final_state, use_qk_l2norm_in_kernel=False\n):\n    initial_dtype = query.dtype\n    if use_qk_l2norm_in_kernel:\n        query = l2norm(query, dim=-1, eps=1e-6)\n        key = l2norm(key, dim=-1, eps=1e-6)\n    query, key, value, beta, g = [\n        x.transpose(1, 2).contiguous().to(torch.float32) for x in (query, key, value, beta, g)\n    ]\n\n    batch_size, num_heads, sequence_length, k_head_dim = key.shape\n    v_head_dim = value.shape[-1]\n    scale = 1 / (query.shape[-1] ** 0.5)\n    query = query * scale\n\n    core_attn_out = torch.zeros(\n        batch_size, num_heads, sequence_length, v_head_dim, dtype=value.dtype, device=value.device\n    )\n    last_recurrent_state = (\n        torch.zeros(batch_size, num_heads, k_head_dim, v_head_dim, dtype=value.dtype, device=value.device)\n        if initial_state is None\n        else initial_state.to(value)\n    )\n\n    for i in range(sequence_length):\n        q_t = query[:, :, i]\n        k_t = key[:, :, i]\n        v_t = value[:, :, i]\n        g_t = g[:, :, i].exp().unsqueeze(-1).unsqueeze(-1)\n        beta_t = beta[:, :, i].unsqueeze(-1)\n\n        last_recurrent_state = last_recurrent_state * g_t\n        kv_mem = (last_recurrent_state * k_t.unsqueeze(-1)).sum(dim=-2)\n        delta = (v_t - kv_mem) * beta_t\n        last_recurrent_state = last_recurrent_state + k_t.unsqueeze(-1) * delta.unsqueeze(-2)\n        core_attn_out[:, :, i] = (last_recurrent_state * q_t.unsqueeze(-1)).sum(dim=-2)\n\n    if not output_final_state:\n        last_recurrent_state = None\n    core_attn_out = core_attn_out.transpose(1, 2).contiguous().to(initial_dtype)\n    return core_attn_out, last_recurrent_state\n\n\n@use_kernel_forward_from_hub(\"Qwen3_5GatedDeltaNet\")\nclass Qwen3_5GatedDeltaNet(nn.Module):\n    def __init__(self, config: Qwen3_5Config, layer_idx: int):\n        super().__init__()\n        self.hidden_size = config.hidden_size\n        self.num_v_heads = config.linear_num_value_heads\n        self.num_k_heads = config.linear_num_key_heads\n        self.head_k_dim = config.linear_key_head_dim\n        self.head_v_dim = config.linear_value_head_dim\n        self.key_dim = self.head_k_dim * self.num_k_heads\n        self.value_dim = self.head_v_dim * self.num_v_heads\n\n        self.conv_kernel_size = config.linear_conv_kernel_dim\n        self.layer_idx = layer_idx\n        self.activation = config.hidden_act\n        self.act = ACT2FN[config.hidden_act]\n        self.layer_norm_epsilon = config.rms_norm_eps\n\n        # QKV\n        self.conv_dim = self.key_dim * 2 + self.value_dim\n        self.conv1d = nn.Conv1d(\n            in_channels=self.conv_dim,\n            out_channels=self.conv_dim,\n            bias=False,\n            kernel_size=self.conv_kernel_size,\n            groups=self.conv_dim,\n            padding=self.conv_kernel_size - 1,\n        )\n\n        # time step projection (discretization)\n        # instantiate once and copy inv_dt in init_weights of PretrainedModel\n        self.dt_bias = nn.Parameter(torch.ones(self.num_v_heads))\n\n        A = torch.empty(self.num_v_heads).uniform_(0, 16)\n        self.A_log = nn.Parameter(torch.log(A))\n\n        self.norm = (\n            Qwen3_5RMSNormGated(self.head_v_dim, eps=self.layer_norm_epsilon)\n            if FusedRMSNormGated is None\n            else FusedRMSNormGated(\n                self.head_v_dim,\n                eps=self.layer_norm_epsilon,\n                activation=self.activation,\n            )\n        )\n\n        self.out_proj = nn.Linear(self.value_dim, self.hidden_size, bias=False)\n\n        self.causal_conv1d_fn = causal_conv1d_fn\n        self.causal_conv1d_update = causal_conv1d_update or torch_causal_conv1d_update\n        self.chunk_gated_delta_rule = chunk_gated_delta_rule or torch_chunk_gated_delta_rule\n        self.recurrent_gated_delta_rule = fused_recurrent_gated_delta_rule or torch_recurrent_gated_delta_rule\n\n        if not is_fast_path_available:\n            logger.warning_once(\n                \"The fast path is not available because one of the required library is not installed. Falling back to \"\n                \"torch implementation. To install follow https://github.com/fla-org/flash-linear-attention#installation and\"\n                \" https://github.com/Dao-AILab/causal-conv1d\"\n            )\n\n        self.layer_type = config.layer_types[layer_idx]\n\n        self.in_proj_qkv = nn.Linear(self.hidden_size, self.key_dim * 2 + self.value_dim, bias=False)\n        self.in_proj_z = nn.Linear(self.hidden_size, self.value_dim, bias=False)\n        self.in_proj_b = nn.Linear(self.hidden_size, self.num_v_heads, bias=False)\n        self.in_proj_a = nn.Linear(self.hidden_size, self.num_v_heads, bias=False)\n\n    @force_accelerate_hooks(\"conv1d\")\n    def forward(\n        self,\n        hidden_states: torch.Tensor,\n        cache_params: Cache | None = None,\n        attention_mask: torch.Tensor | None = None,\n        **kwargs: Unpack[TransformersKwargs],\n    ):\n        hidden_states = apply_mask_to_padding_states(hidden_states, attention_mask)\n\n        # Set up dimensions for reshapes later\n        batch_size, seq_len, _ = hidden_states.shape\n\n        # We have cached `conv_state` / `recurrent_state` to continue from. The two cached modes\n        # (single-token decode and chunk-tokens continuation) share the state read here; they only\n        # diverge in how the conv input is assembled and which kernel consumes the states below,\n        # which we gate locally on `seq_len`.\n        use_precomputed_states = cache_params is not None and cache_params.has_previous_state(self.layer_idx)\n\n        # getting projected states from cache if it exists\n        if use_precomputed_states:\n            conv_state = cache_params.layers[self.layer_idx].conv_states[0]\n            recurrent_state = cache_params.layers[self.layer_idx].recurrent_states[0]\n\n        mixed_qkv = self.in_proj_qkv(hidden_states)\n        mixed_qkv = mixed_qkv.transpose(1, 2)\n\n        z = self.in_proj_z(hidden_states)\n        z = z.reshape(batch_size, seq_len, -1, self.head_v_dim)\n\n        b = self.in_proj_b(hidden_states)\n        a = self.in_proj_a(hidden_states)\n\n        if use_precomputed_states and seq_len == 1:\n            # Single-token cached decode: the fused per-step kernel updates the conv state in-place.\n            mixed_qkv = self.causal_conv1d_update(\n                mixed_qkv,\n                conv_state,\n                self.conv1d.weight.squeeze(1),\n                self.conv1d.bias,\n                self.activation,\n            )\n        else:\n            # Multi-token forward (prefill, or chunked-tokens decode when the cache has prior state).\n            if use_precomputed_states:\n                # Cached chunked-tokens decode: prepend the cached conv context so the causal conv\n                # sees the correct left-context rather than zero-padding. Dropped from the output\n                # at the end of this branch.\n                mixed_qkv = torch.cat([conv_state, mixed_qkv], dim=-1)\n            if cache_params is not None:\n                new_conv_state = F.pad(mixed_qkv, (self.conv_kernel_size - mixed_qkv.shape[-1], 0))\n                cache_params.update_conv_state(new_conv_state, self.layer_idx)\n            if self.causal_conv1d_fn is not None:\n                mixed_qkv = self.causal_conv1d_fn(\n                    x=mixed_qkv,\n                    weight=self.conv1d.weight.squeeze(1),\n                    bias=self.conv1d.bias,\n                    activation=self.activation,\n                    seq_idx=kwargs.get(\"seq_idx\"),\n                )\n            else:\n                mixed_qkv = F.silu(self.conv1d(mixed_qkv)[:, :, : mixed_qkv.shape[-1]])\n            if use_precomputed_states:\n                mixed_qkv = mixed_qkv[:, :, -seq_len:]\n\n        mixed_qkv = mixed_qkv.transpose(1, 2)\n        query, key, value = torch.split(\n            mixed_qkv,\n            [\n                self.key_dim,\n                self.key_dim,\n                self.value_dim,\n            ],\n            dim=-1,\n        )\n\n        query = query.reshape(batch_size, seq_len, -1, self.head_k_dim)\n        key = key.reshape(batch_size, seq_len, -1, self.head_k_dim)\n        value = value.reshape(batch_size, seq_len, -1, self.head_v_dim)\n\n        beta = b.sigmoid()\n        # If the model is loaded in fp16, without the .float() here, A might be -inf\n        g = -self.A_log.float().exp() * F.softplus(a.float() + self.dt_bias)\n        if self.num_v_heads // self.num_k_heads > 1:\n            query = query.repeat_interleave(self.num_v_heads // self.num_k_heads, dim=2)\n            key = key.repeat_interleave(self.num_v_heads // self.num_k_heads, dim=2)\n\n        if use_precomputed_states and seq_len == 1:\n            core_attn_out, last_recurrent_state = self.recurrent_gated_delta_rule(\n                query,\n                key,\n                value,\n                g=g,\n                beta=beta,\n                initial_state=recurrent_state,\n                output_final_state=cache_params is not None,\n                use_qk_l2norm_in_kernel=True,\n            )\n        else:\n            core_attn_out, last_recurrent_state = self.chunk_gated_delta_rule(\n                query,\n                key,\n                value,\n                g=g,\n                beta=beta,\n                initial_state=recurrent_state if use_precomputed_states else None,\n                output_final_state=cache_params is not None,\n                use_qk_l2norm_in_kernel=True,\n                # The chunked FLA kernel takes a single `cu_seqlens` arg; for packed self-attention this matches q-side lengths.\n                cu_seqlens=kwargs.get(\"cu_seq_lens_q\"),\n            )\n\n        # Update cache\n        if cache_params is not None:\n            cache_params.update_recurrent_state(last_recurrent_state, self.layer_idx)\n\n        # reshape input data into 2D tensor\n        core_attn_out = core_attn_out.reshape(-1, self.head_v_dim)\n        z = z.reshape(-1, self.head_v_dim)\n        core_attn_out = self.norm(core_attn_out, z)\n        core_attn_out = core_attn_out.reshape(batch_size, seq_len, -1)\n\n        output = self.out_proj(core_attn_out)\n        return output\n\n\ndef rotate_half(x):\n    \"\"\"Rotates half the hidden dims of the input.\"\"\"\n    x1 = x[..., : x.shape[-1] // 2]\n    x2 = x[..., x.shape[-1] // 2 :]\n    return torch.cat((-x2, x1), dim=-1)\n\n\n# Adapted from transformers.models.glm.modular_glm.apply_rotary_pos_emb\ndef apply_rotary_pos_emb(q, k, cos, sin, unsqueeze_dim=1):\n    \"\"\"Applies Rotary Position Embedding to the query and key tensors.\n\n    Removes the interleaving of cos and sin from GLM\n\n    Args:\n        q (`torch.Tensor`): The query tensor.\n        k (`torch.Tensor`): The key tensor.\n        cos (`torch.Tensor`): The cosine part of the rotary embedding.\n        sin (`torch.Tensor`): The sine part of the rotary embedding.\n        unsqueeze_dim (`int`, *optional*, defaults to 1):\n            The 'unsqueeze_dim' argument specifies the dimension along which to unsqueeze cos[position_ids] and\n            sin[position_ids] so that they can be properly broadcasted to the dimensions of q and k. For example, note\n            that cos[position_ids] and sin[position_ids] have the shape [batch_size, seq_len, head_dim]. Then, if q and\n            k have the shape [batch_size, heads, seq_len, head_dim], then setting unsqueeze_dim=1 makes\n            cos[position_ids] and sin[position_ids] broadcastable to the shapes of q and k. Similarly, if q and k have\n            the shape [batch_size, seq_len, heads, head_dim], then set unsqueeze_dim=2.\n    Returns:\n        `tuple(torch.Tensor)` comprising of the query and key tensors rotated using the Rotary Position Embedding.\n    \"\"\"\n    cos = cos.unsqueeze(unsqueeze_dim)\n    sin = sin.unsqueeze(unsqueeze_dim)\n\n    # Keep half or full tensor for later concatenation\n    rotary_dim = cos.shape[-1]\n    q_rot, q_pass = q[..., :rotary_dim], q[..., rotary_dim:]\n    k_rot, k_pass = k[..., :rotary_dim], k[..., rotary_dim:]\n\n    # Apply rotary embeddings on the first half or full tensor\n    q_embed = (q_rot * cos) + (rotate_half(q_rot) * sin)\n    k_embed = (k_rot * cos) + (rotate_half(k_rot) * sin)\n\n    # Concatenate back to full shape\n    q_embed = torch.cat([q_embed, q_pass], dim=-1)\n    k_embed = torch.cat([k_embed, k_pass], dim=-1)\n    return q_embed, k_embed\n\n\ndef repeat_kv(hidden_states: torch.Tensor, n_rep: int) -> torch.Tensor:\n    \"\"\"\n    This is the equivalent of torch.repeat_interleave(x, dim=1, repeats=n_rep). The hidden states go from (batch,\n    num_key_value_heads, seqlen, head_dim) to (batch, num_attention_heads, seqlen, head_dim)\n    \"\"\"\n    batch, num_key_value_heads, slen, head_dim = hidden_states.shape\n    if n_rep == 1:\n        return hidden_states\n    hidden_states = hidden_states[:, :, None, :, :].expand(batch, num_key_value_heads, n_rep, slen, head_dim)\n    return hidden_states.reshape(batch, num_key_value_heads * n_rep, slen, head_dim)\n\n\ndef eager_attention_forward(\n    module: nn.Module,\n    query: torch.Tensor,\n    key: torch.Tensor,\n    value: torch.Tensor,\n    attention_mask: torch.Tensor | None,\n    scaling: float,\n    dropout: float = 0.0,\n    **kwargs: Unpack[TransformersKwargs],\n):\n    key_states = repeat_kv(key, module.num_key_value_groups)\n    value_states = repeat_kv(value, module.num_key_value_groups)\n\n    attn_weights = torch.matmul(query, key_states.transpose(2, 3)) * scaling\n    if attention_mask is not None:\n        attn_weights = attn_weights + attention_mask\n\n    attn_weights = nn.functional.softmax(attn_weights, dim=-1, dtype=torch.float32).to(query.dtype)\n    attn_weights = nn.functional.dropout(attn_weights, p=dropout, training=module.training)\n    attn_output = torch.matmul(attn_weights, value_states)\n    attn_output = attn_output.transpose(1, 2).contiguous()\n\n    return attn_output, attn_weights\n\n\nclass Qwen3_5Attention(nn.Module):\n    \"\"\"Multi-headed attention from 'Attention Is All You Need' paper\"\"\"\n\n    def __init__(self, config: Qwen3_5Config, layer_idx: int):\n        super().__init__()\n        self.config = config\n        self.layer_idx = layer_idx\n        self.head_dim = getattr(config, \"head_dim\", config.hidden_size // config.num_attention_heads)\n        self.num_key_value_groups = config.num_attention_heads // config.num_key_value_heads\n        self.scaling = self.head_dim**-0.5\n        self.attention_dropout = config.attention_dropout\n        self.is_causal = True\n        self.q_proj = nn.Linear(\n            config.hidden_size, config.num_attention_heads * self.head_dim * 2, bias=config.attention_bias\n        )\n        self.k_proj = nn.Linear(\n            config.hidden_size, config.num_key_value_heads * self.head_dim, bias=config.attention_bias\n        )\n        self.v_proj = nn.Linear(\n            config.hidden_size, config.num_key_value_heads * self.head_dim, bias=config.attention_bias\n        )\n        self.o_proj = nn.Linear(\n            config.num_attention_heads * self.head_dim, config.hidden_size, bias=config.attention_bias\n        )\n        self.q_norm = Qwen3_5RMSNorm(self.head_dim, eps=config.rms_norm_eps)  # unlike olmo, only on the head dim!\n        self.k_norm = Qwen3_5RMSNorm(self.head_dim, eps=config.rms_norm_eps)  # thus post q_norm does not need reshape\n\n    def forward(\n        self,\n        hidden_states: torch.Tensor,\n        position_embeddings: tuple[torch.Tensor, torch.Tensor],\n        attention_mask: torch.Tensor | None,\n        past_key_values: Cache | None = None,\n        **kwargs: Unpack[FlashAttentionKwargs],\n    ) -> tuple[torch.Tensor, torch.Tensor | None]:\n        input_shape = hidden_states.shape[:-1]\n        hidden_shape = (*input_shape, -1, self.head_dim)\n\n        query_states, gate = torch.chunk(\n            self.q_proj(hidden_states).view(*input_shape, -1, self.head_dim * 2), 2, dim=-1\n        )\n        gate = gate.reshape(*input_shape, -1)\n\n        query_states = self.q_norm(query_states.view(hidden_shape)).transpose(1, 2)\n        key_states = self.k_norm(self.k_proj(hidden_states).view(hidden_shape)).transpose(1, 2)\n        value_states = self.v_proj(hidden_states).view(hidden_shape).transpose(1, 2)\n\n        cos, sin = position_embeddings\n        query_states, key_states = apply_rotary_pos_emb(query_states, key_states, cos, sin)\n\n        if past_key_values is not None:\n            key_states, value_states = past_key_values.update(key_states, value_states, self.layer_idx)\n\n        attention_interface: Callable = ALL_ATTENTION_FUNCTIONS.get_interface(\n            self.config._attn_implementation, eager_attention_forward\n        )\n\n        attn_output, attn_weights = attention_interface(\n            self,\n            query_states,\n            key_states,\n            value_states,\n            attention_mask,\n            dropout=0.0 if not self.training else self.attention_dropout,\n            scaling=self.scaling,\n            **kwargs,\n        )\n\n        attn_output = attn_output.reshape(*input_shape, -1).contiguous()\n        attn_output = attn_output * torch.sigmoid(gate)\n\n        attn_output = self.o_proj(attn_output)\n        return attn_output, attn_weights\n\n\nclass Qwen3_5MLP(nn.Module):\n    def __init__(self, config: Qwen3_5Config, intermediate_size: int):\n        super().__init__()\n        self.config = config\n        self.hidden_size = config.hidden_size\n        self.intermediate_size = intermediate_size\n        self.gate_proj = nn.Linear(self.hidden_size, self.intermediate_size, bias=False)\n        self.up_proj = nn.Linear(self.hidden_size, self.intermediate_size, bias=False)\n        self.down_proj = nn.Linear(self.intermediate_size, self.hidden_size, bias=False)\n        self.act_fn = ACT2FN[config.hidden_act]\n\n    def forward(self, x):\n        down_proj = self.down_proj(self.act_fn(self.gate_proj(x)) * self.up_proj(x))\n        return down_proj\n\n\nclass Qwen3_5RMSNorm(nn.Module):\n    def __init__(self, dim: int, eps: float = 1e-6):\n        super().__init__()\n        self.eps = eps\n        self.weight = nn.Parameter(torch.zeros(dim))\n\n    def _norm(self, x):\n        return x * torch.rsqrt(x.pow(2).mean(-1, keepdim=True) + self.eps)\n\n    def forward(self, x):\n        output = self._norm(x.float())\n        # Llama does x.to(float16) * w whilst Qwen3_5 is (x * w).to(float16)\n        # See https://github.com/huggingface/transformers/pull/29402\n        output = output * (1.0 + self.weight.float())\n        return output.type_as(x)\n\n    def extra_repr(self):\n        return f\"{tuple(self.weight.shape)}, eps={self.eps}\"\n\n\nclass Qwen3_5DecoderLayer(GradientCheckpointingLayer):\n    def __init__(self, config: Qwen3_5TextConfig, layer_idx: int):\n        super().__init__()\n        self.hidden_size = config.hidden_size\n        self.block_type = config.layer_types[layer_idx]\n        if self.block_type == \"linear_attention\":\n            self.linear_attn = Qwen3_5GatedDeltaNet(config, layer_idx)\n        elif self.block_type == \"full_attention\":\n            self.self_attn = Qwen3_5Attention(config, layer_idx)\n        self.mlp = Qwen3_5MLP(config, config.intermediate_size)\n        self.input_layernorm = Qwen3_5RMSNorm(config.hidden_size, eps=config.rms_norm_eps)\n        self.post_attention_layernorm = Qwen3_5RMSNorm(config.hidden_size, eps=config.rms_norm_eps)\n\n    def forward(\n        self,\n        hidden_states: torch.Tensor,\n        position_embeddings: tuple[torch.Tensor, torch.Tensor],\n        attention_mask: torch.Tensor | None = None,\n        position_ids: torch.LongTensor | None = None,\n        past_key_values: Cache | None = None,\n        **kwargs: Unpack[TransformersKwargs],\n    ) -> torch.FloatTensor:\n        residual = hidden_states\n\n        hidden_states = self.input_layernorm(hidden_states)\n\n        # Token Mixer\n        if self.block_type == \"linear_attention\":\n            hidden_states = self.linear_attn(\n                hidden_states=hidden_states,\n                cache_params=past_key_values,\n                attention_mask=attention_mask,\n                **kwargs,\n            )\n        elif self.block_type == \"full_attention\":\n            # Self Attention\n            hidden_states, _ = self.self_attn(\n                hidden_states=hidden_states,\n                attention_mask=attention_mask,\n                position_ids=position_ids,\n                past_key_values=past_key_values,\n                position_embeddings=position_embeddings,\n                **kwargs,\n            )\n\n        hidden_states = residual + hidden_states\n\n        # Fully Connected\n        residual = hidden_states\n        hidden_states = self.post_attention_layernorm(hidden_states)\n        hidden_states = self.mlp(hidden_states)\n        hidden_states = residual + hidden_states\n\n        return hidden_states\n\n\nclass Qwen3_5PreTrainedModel(PreTrainedModel):\n    config: Qwen3_5Config\n    base_model_prefix = \"model\"\n    supports_gradient_checkpointing = True\n    _no_split_modules = [\"Qwen3_5DecoderLayer\", \"Qwen3_5VisionBlock\"]\n    _skip_keys_device_placement = [\"past_key_values\"]\n    _supports_flash_attn = True\n    _supports_sdpa = True\n    _keys_to_ignore_on_load_unexpected = [r\"^mtp.*\"]\n    _can_record_outputs = {\n        \"hidden_states\": Qwen3_5DecoderLayer,\n        \"attentions\": Qwen3_5Attention,\n    }\n    _is_stateful = True\n    _can_compile_fullgraph = True\n\n    @torch.no_grad()\n    def _init_weights(self, module):\n        super()._init_weights(module)\n        if isinstance(module, Qwen3_5GatedDeltaNet):\n            init.ones_(module.dt_bias)\n            init.copy_(module.A_log, torch.empty_like(module.A_log).uniform_(0, 16).log_())\n        # We initialize with 0s to be 1 centered as the RMSNorm here does (1 + weight)\n        elif isinstance(module, Qwen3_5RMSNorm):\n            init.zeros_(module.weight)\n        elif isinstance(module, Qwen3_5VisionRotaryEmbedding):\n            inv_freq = 1.0 / (module.theta ** (torch.arange(0, module.dim, 2, dtype=torch.float) / module.dim))\n            init.copy_(module.inv_freq, inv_freq)\n\n\nclass Qwen3_5VisionMLP(nn.Module):\n    def __init__(self, config):\n        super().__init__()\n        self.hidden_size = config.hidden_size\n        self.intermediate_size = config.intermediate_size\n        self.linear_fc1 = nn.Linear(self.hidden_size, self.intermediate_size, bias=True)\n        self.linear_fc2 = nn.Linear(self.intermediate_size, self.hidden_size, bias=True)\n        self.act_fn = ACT2FN[config.hidden_act]\n\n    def forward(self, hidden_state):\n        return self.linear_fc2(self.act_fn(self.linear_fc1(hidden_state)))\n\n\nclass Qwen3_5VisionPatchEmbed(nn.Module):\n    def __init__(self, config) -> None:\n        super().__init__()\n        self.patch_size = config.patch_size\n        self.temporal_patch_size = config.temporal_patch_size\n        self.in_channels = config.in_channels\n        self.embed_dim = config.hidden_size\n\n        kernel_size = [self.temporal_patch_size, self.patch_size, self.patch_size]\n        self.proj = nn.Conv3d(self.in_channels, self.embed_dim, kernel_size=kernel_size, stride=kernel_size, bias=True)\n\n    def forward(self, hidden_states: torch.Tensor) -> torch.Tensor:\n        target_dtype = self.proj.weight.dtype\n        hidden_states = hidden_states.view(\n            -1, self.in_channels, self.temporal_patch_size, self.patch_size, self.patch_size\n        )\n        hidden_states = self.proj(hidden_states.to(dtype=target_dtype)).view(-1, self.embed_dim)\n        return hidden_states\n\n\nclass Qwen3_5VisionPatchMerger(nn.Module):\n    def __init__(self, config: Qwen3_5VisionConfig, use_postshuffle_norm=False) -> None:\n        super().__init__()\n        self.hidden_size = config.hidden_size * (config.spatial_merge_size**2)\n        self.use_postshuffle_norm = use_postshuffle_norm\n        self.norm = nn.LayerNorm(self.hidden_size if use_postshuffle_norm else config.hidden_size, eps=1e-6)\n        self.linear_fc1 = nn.Linear(self.hidden_size, self.hidden_size)\n        self.act_fn = nn.GELU()\n        self.linear_fc2 = nn.Linear(self.hidden_size, config.out_hidden_size)\n\n    def forward(self, x: torch.Tensor) -> torch.Tensor:\n        x = self.norm(x.view(-1, self.hidden_size) if self.use_postshuffle_norm else x).view(-1, self.hidden_size)\n        x = self.linear_fc2(self.act_fn(self.linear_fc1(x)))\n        return x\n\n\ndef apply_rotary_pos_emb_vision(\n    q: torch.Tensor, k: torch.Tensor, cos: torch.Tensor, sin: torch.Tensor\n) -> tuple[torch.Tensor, torch.Tensor]:\n    orig_q_dtype = q.dtype\n    orig_k_dtype = k.dtype\n    q, k = q.float(), k.float()\n    cos, sin = cos.unsqueeze(-2).float(), sin.unsqueeze(-2).float()\n    q_embed = (q * cos) + (rotate_half(q) * sin)\n    k_embed = (k * cos) + (rotate_half(k) * sin)\n    q_embed = q_embed.to(orig_q_dtype)\n    k_embed = k_embed.to(orig_k_dtype)\n    return q_embed, k_embed\n\n\nclass Qwen3_5VisionAttention(nn.Module):\n    def __init__(self, config: Qwen3_5VisionConfig) -> None:\n        super().__init__()\n        self.dim = config.hidden_size\n        self.num_heads = config.num_heads\n        self.head_dim = self.dim // self.num_heads\n        self.num_key_value_groups = 1  # needed for eager attention\n        self.qkv = nn.Linear(self.dim, self.dim * 3, bias=True)\n        self.proj = nn.Linear(self.dim, self.dim)\n        self.scaling = self.head_dim**-0.5\n        self.config = config\n        self.attention_dropout = 0.0\n        self.is_causal = False\n\n    @deprecate_kwarg(\"rotary_pos_emb\", version=\"v5.10\")\n    def forward(\n        self,\n        hidden_states: torch.Tensor,\n        cu_seqlens: torch.Tensor,\n        position_embeddings: tuple[torch.Tensor, torch.Tensor] | None = None,\n        **kwargs,\n    ) -> torch.Tensor:\n        seq_length = hidden_states.shape[0]\n        query_states, key_states, value_states = (\n            self.qkv(hidden_states).reshape(seq_length, 3, self.num_heads, -1).permute(1, 0, 2, 3).unbind(0)\n        )\n        cos, sin = position_embeddings\n        query_states, key_states = apply_rotary_pos_emb_vision(query_states, key_states, cos, sin)\n\n        query_states = query_states.transpose(0, 1).unsqueeze(0)\n        key_states = key_states.transpose(0, 1).unsqueeze(0)\n        value_states = value_states.transpose(0, 1).unsqueeze(0)\n\n        attention_interface: Callable = ALL_ATTENTION_FUNCTIONS.get_interface(\n            self.config._attn_implementation, eager_attention_forward\n        )\n\n        if is_flash_attention_requested(self.config):\n            # Flash Attention: Use cu_seqlens for variable length attention\n            max_seqlen = (cu_seqlens[1:] - cu_seqlens[:-1]).max()\n            attn_output, _ = attention_interface(\n                self,\n                query_states,\n                key_states,\n                value_states,\n                attention_mask=None,\n                scaling=self.scaling,\n                dropout=0.0 if not self.training else self.attention_dropout,\n                cu_seq_lens_q=cu_seqlens,\n                cu_seq_lens_k=cu_seqlens,\n                max_length_q=max_seqlen,\n                max_length_k=max_seqlen,\n                is_causal=False,\n                **kwargs,\n            )\n        else:\n            # Other implementations: Process each chunk separately\n            lengths = cu_seqlens[1:] - cu_seqlens[:-1]\n            splits = [\n                torch.split(tensor, lengths.tolist(), dim=2) for tensor in (query_states, key_states, value_states)\n            ]\n\n            attn_outputs = [\n                attention_interface(\n                    self,\n                    q,\n                    k,\n                    v,\n                    attention_mask=None,\n                    scaling=self.scaling,\n                    dropout=0.0 if not self.training else self.attention_dropout,\n                    is_causal=False,\n                    **kwargs,\n                )[0]\n                for q, k, v in zip(*splits)\n            ]\n            attn_output = torch.cat(attn_outputs, dim=1)\n\n        attn_output = attn_output.reshape(seq_length, -1).contiguous()\n        attn_output = self.proj(attn_output)\n        return attn_output\n\n\nclass Qwen3_5VisionBlock(GradientCheckpointingLayer):\n    def __init__(self, config, attn_implementation: str = \"sdpa\") -> None:\n        super().__init__()\n        self.norm1 = nn.LayerNorm(config.hidden_size, eps=1e-6)\n        self.norm2 = nn.LayerNorm(config.hidden_size, eps=1e-6)\n        self.attn = Qwen3_5VisionAttention(config=config)\n        self.mlp = Qwen3_5VisionMLP(config=config)\n\n    @deprecate_kwarg(\"rotary_pos_emb\", version=\"v5.10\")\n    @auto_docstring\n    def forward(\n        self,\n        hidden_states: torch.Tensor,\n        cu_seqlens: torch.Tensor,\n        position_embeddings: tuple[torch.Tensor, torch.Tensor] | None = None,\n        **kwargs,\n    ) -> torch.Tensor:\n        r\"\"\"\n        cu_seqlens (`torch.Tensor`):\n            Cumulative sequence lengths used for packed variable-length attention in Flash Attention kernels.\n        \"\"\"\n        hidden_states = hidden_states + self.attn(\n            self.norm1(hidden_states),\n            cu_seqlens=cu_seqlens,\n            position_embeddings=position_embeddings,\n            **kwargs,\n        )\n        hidden_states = hidden_states + self.mlp(self.norm2(hidden_states))\n        return hidden_states\n\n\nclass Qwen3_5VisionModel(Qwen3_5PreTrainedModel):\n    config: Qwen3_5VisionConfig\n    input_modalities = (\"image\", \"video\")\n    _can_record_outputs = {\n        \"hidden_states\": Qwen3_5VisionBlock,\n        \"attentions\": Qwen3_5VisionAttention,\n    }\n    _no_split_modules = [\"Qwen3_5VisionBlock\"]\n\n    def __init__(self, config, *inputs, **kwargs) -> None:\n        super().__init__(config, *inputs, **kwargs)\n        self.spatial_merge_size = config.spatial_merge_size\n        self.patch_size = config.patch_size\n        self.spatial_merge_unit = self.spatial_merge_size * self.spatial_merge_size\n\n        self.patch_embed = Qwen3_5VisionPatchEmbed(\n            config=config,\n        )\n\n        self.pos_embed = nn.Embedding(config.num_position_embeddings, config.hidden_size)\n        self.num_grid_per_side = int(config.num_position_embeddings**0.5)\n\n        head_dim = config.hidden_size // config.num_heads\n        self.rotary_pos_emb = Qwen3_5VisionRotaryEmbedding(head_dim // 2)\n\n        self.blocks = nn.ModuleList([Qwen3_5VisionBlock(config) for _ in range(config.depth)])\n        self.merger = Qwen3_5VisionPatchMerger(\n            config=config,\n            use_postshuffle_norm=False,\n        )\n\n        self.gradient_checkpointing = False\n\n        self.post_init()\n\n    def rot_pos_emb(self, grid_thw: torch.Tensor) -> torch.Tensor:\n        warnings.warn(\n            f\"`{self.__class__.__name__}.rot_pos_emb` is deprecated and will be removed in v5.11. Use `get_vision_position_ids` from `transformers.vision_utils` and apply the rotary embedding module.\",\n            FutureWarning,\n            stacklevel=2,\n        )\n        position_ids = get_vision_position_ids(grid_thw, self.spatial_merge_size)\n        rotary_pos_emb = self.rotary_pos_emb(position_ids)\n        return rotary_pos_emb\n\n    def fast_pos_embed_interpolate(self, grid_thw):\n        warnings.warn(\n            f\"`{self.__class__.__name__}.fast_pos_embed_interpolate` is deprecated and will be removed in v5.11. Use `get_vision_bilinear_indices_and_weights` from `transformers.vision_utils` and apply `self.pos_embed`.\",\n            FutureWarning,\n            stacklevel=2,\n        )\n        bilinear_indices, bilinear_weights = get_vision_bilinear_indices_and_weights(\n            grid_thw,\n            num_grid_per_side=self.num_grid_per_side,\n            spatial_merge_size=self.config.spatial_merge_size,\n        )\n        return (self.pos_embed(bilinear_indices) * bilinear_weights[:, :, None]).sum(0)\n\n    @merge_with_config_defaults\n    @capture_outputs\n    def forward(self, hidden_states: torch.Tensor, grid_thw: torch.Tensor, **kwargs) -> torch.Tensor:\n        \"\"\"\n        Args:\n            hidden_states (`torch.Tensor` of shape `(seq_len, hidden_size)`):\n                The final hidden states of the model.\n            grid_thw (`torch.Tensor` of shape `(num_images_or_videos, 3)`):\n                The temporal, height and width of feature shape of each image in LLM.\n\n        Returns:\n            `torch.Tensor`: hidden_states.\n        \"\"\"\n        bilinear_indices, bilinear_weights = get_vision_bilinear_indices_and_weights(\n            grid_thw,\n            num_grid_per_side=self.num_grid_per_side,\n            spatial_merge_size=self.config.spatial_merge_size,\n            kwargs=kwargs,\n        )\n        position_ids = get_vision_position_ids(grid_thw, self.spatial_merge_size, kwargs=kwargs)\n        cu_seqlens = get_vision_cu_seqlens(grid_thw, kwargs=kwargs)\n\n        hidden_states = self.patch_embed(hidden_states)\n        pos_embeds = (self.pos_embed(bilinear_indices) * bilinear_weights[:, :, None]).sum(0)\n        hidden_states = hidden_states + pos_embeds.to(hidden_states.dtype)\n        rotary_pos_emb = self.rotary_pos_emb(position_ids)\n\n        seq_len, _ = hidden_states.size()\n        hidden_states = hidden_states.reshape(seq_len, -1)\n        rotary_pos_emb = rotary_pos_emb.reshape(seq_len, -1)\n        emb = torch.cat((rotary_pos_emb, rotary_pos_emb), dim=-1)\n        position_embeddings = (emb.cos(), emb.sin())\n\n        for blk in self.blocks:\n            hidden_states = blk(\n                hidden_states,\n                cu_seqlens=cu_seqlens,\n                position_embeddings=position_embeddings,\n                **kwargs,\n            )\n\n        merged_hidden_states = self.merger(hidden_states)\n\n        return BaseModelOutputWithPooling(\n            last_hidden_state=hidden_states,\n            pooler_output=merged_hidden_states,\n        )\n\n\n@auto_docstring\n@dataclass\nclass Qwen3_5ModelOutputWithPast(BaseModelOutputWithPast):\n    r\"\"\"\n    rope_deltas (`torch.LongTensor` of shape `(batch_size, )`, *optional*):\n        The rope index difference between sequence length and multimodal rope.\n        The attribute is deprecated and will be removed in v5.20, use `model.base_model.rope_deltas` instead.\n    \"\"\"\n\n    rope_deltas: torch.LongTensor | None = None\n\n\nclass Qwen3_5TextModel(Qwen3_5PreTrainedModel):\n    config: Qwen3_5TextConfig\n\n    def __init__(self, config: Qwen3_5TextConfig):\n        super().__init__(config)\n        self.embed_tokens = nn.Embedding(config.vocab_size, config.hidden_size, config.pad_token_id)\n        self.layers = nn.ModuleList(\n            [Qwen3_5DecoderLayer(config, layer_idx) for layer_idx in range(config.num_hidden_layers)]\n        )\n        self.norm = Qwen3_5RMSNorm(config.hidden_size, eps=config.rms_norm_eps)\n        self.rotary_emb = Qwen3_5TextRotaryEmbedding(config=config)\n        self.gradient_checkpointing = False\n        # Initialize weights and apply final processing\n        self.post_init()\n\n    @merge_with_config_defaults\n    @capture_outputs\n    @auto_docstring\n    def forward(\n        self,\n        input_ids: torch.LongTensor | None = None,\n        attention_mask: torch.Tensor | None = None,\n        position_ids: torch.LongTensor | None = None,\n        past_key_values: Cache | None = None,\n        inputs_embeds: torch.FloatTensor | None = None,\n        use_cache: bool | None = None,\n        **kwargs: Unpack[TransformersKwargs],\n    ) -> BaseModelOutputWithPast:\n        if (input_ids is None) ^ (inputs_embeds is not None):\n            raise ValueError(\"You must specify exactly one of input_ids or inputs_embeds\")\n\n        if inputs_embeds is None:\n            inputs_embeds = self.embed_tokens(input_ids)\n\n        if use_cache and past_key_values is None:\n            past_key_values = DynamicCache(config=self.config)\n\n        # the hard coded `4` is for text, temporal, height and width.\n        if position_ids is None:\n            past_seen_tokens = past_key_values.get_seq_length() if past_key_values is not None else 0\n            position_ids = torch.arange(inputs_embeds.shape[1], device=inputs_embeds.device) + past_seen_tokens\n            position_ids = position_ids.view(1, 1, -1).expand(4, inputs_embeds.shape[0], -1)\n        elif position_ids.ndim == 2:\n            position_ids = position_ids[None, ...].expand(4, position_ids.shape[0], -1)\n\n        if position_ids.ndim == 3 and position_ids.shape[0] == 4:\n            text_position_ids = position_ids[0]\n            position_ids = position_ids[1:]\n        else:\n            text_position_ids = None\n\n        if not isinstance(causal_mask_mapping := attention_mask, dict):\n            # Prepare mask arguments\n            mask_kwargs = {\n                \"config\": self.config,\n                \"inputs_embeds\": inputs_embeds,\n                \"attention_mask\": attention_mask,\n                \"past_key_values\": past_key_values,\n                \"position_ids\": text_position_ids,\n            }\n            # Create the masks\n            causal_mask_mapping = {\n                \"full_attention\": create_causal_mask(**mask_kwargs),\n                \"linear_attention\": create_recurrent_attention_mask(**mask_kwargs),\n            }\n\n        hidden_states = inputs_embeds\n        position_embeddings = self.rotary_emb(hidden_states, position_ids)\n\n        for i, decoder_layer in enumerate(self.layers[: self.config.num_hidden_layers]):\n            hidden_states = decoder_layer(\n                hidden_states,\n                position_embeddings=position_embeddings,\n                attention_mask=causal_mask_mapping[self.config.layer_types[i]],\n                position_ids=text_position_ids,\n                past_key_values=past_key_values,\n                use_cache=use_cache,\n                **kwargs,\n            )\n\n        hidden_states = self.norm(hidden_states)\n\n        return Qwen3_5ModelOutputWithPast(\n            last_hidden_state=hidden_states,\n            past_key_values=past_key_values,\n        )\n\n\n@auto_docstring\nclass Qwen3_5Model(Qwen3_5PreTrainedModel):\n    base_model_prefix = \"model\"\n    # Reference: fix gemma3 grad acc #37208\n    accepts_loss_kwargs = False\n    _no_split_modules = [\"Qwen3_5DecoderLayer\", \"Qwen3_5VisionBlock\"]\n\n    def __init__(self, config):\n        super().__init__(config)\n        self.visual = AutoModel.from_config(config.vision_config)\n        self.language_model = AutoModel.from_config(config.text_config)\n        self.rope_deltas = None  # cache rope_deltas here\n\n        # Initialize weights and apply final processing\n        self.post_init()\n\n    def get_vision_position_ids(\n        self,\n        start_position: int,\n        grid_thw: list[int, int, int] | torch.Tensor,\n        temp_merge_size: int = 1,\n        spatial_merge_size: int = 1,\n        time_interval: int = 1,\n        device: str | torch.device | None = None,\n    ):\n        \"\"\"\n        Compute 3D positional indices for vision tokens derived from a single image or video input.\n\n        The positions are generated from the input grid defined by temporal (T), height (H), and\n        width (W) dimensions. Temporal and spatial dimensions can be downscaled according to the\n        merge sizes used in the vision backbone. The resulting positions are offset by `start_position`.\n\n        Args:\n            start_position (`int`):\n                Offset added to all computed positional indices.\n            grid_thw (`Sequence[int]` or `torch.Tensor` of shape `(3,)`):\n                The (T, H, W) grid representing the feature layout of the current image or video after patch embedding.\n            temp_merge_size (`int`, *optional*):\n                Factor by which the temporal dimension is reduced in the backbone. The temporal grid size is divided\n                by this value. Defaults to 1.\n            spatial_merge_size (`int`, *optional*):\n                Factor by which the spatial dimensions (H and W) are reduced in the backbone. Both H and W are divided\n                by this value. Defaults to 1.\n            time_interval (`int`, *optional*):\n                Spacing factor applied between consecutive temporal position indices.Defaults to 1.\n            device (`str` or `torch.device`, *optional*):\n                Device on which the resulting tensor is allocated. If `None`, uses the current default device.\n\n        Returns:\n            torch.LongTensor of shape (3, sequence_length):\n                Positional indices for temporal, height, and width dimensions,\n                flattened into sequence form and offset by `start_position`.\n        \"\"\"\n        llm_grid_t, llm_grid_h, llm_grid_w = (\n            grid_thw[0].item() // temp_merge_size,\n            grid_thw[1].item() // spatial_merge_size,\n            grid_thw[2].item() // spatial_merge_size,\n        )\n\n        position_temporal = torch.arange(llm_grid_t, device=device) * time_interval\n        position_height = torch.arange(llm_grid_h, device=device) + start_position\n        position_width = torch.arange(llm_grid_w, device=device) + start_position\n\n        T_grid, H_grid, W_grid = torch.meshgrid(position_temporal, position_height, position_width, indexing=\"ij\")\n        vision_position_ids = torch.stack([T_grid, H_grid, W_grid], dim=0).reshape(3, -1)\n        vision_position_ids[0] += start_position  # must be after time_interval multiply\n        return vision_position_ids\n\n    def get_rope_index(\n        self,\n        input_ids: torch.LongTensor,\n        mm_token_type_ids: torch.IntTensor,\n        image_grid_thw: torch.LongTensor | None = None,\n        video_grid_thw: torch.LongTensor | None = None,\n        attention_mask: torch.Tensor | None = None,\n        **kwargs,\n    ) -> tuple[torch.Tensor, torch.Tensor]:\n        \"\"\"\n        Difference from Qwen2VL/Qwen2.5VL's get_rope_index:\n        - Since Qwen3.5 use timestamps to separate videos, like <t1> <vision_start> <frame1> <vision_end> <t2> <vision_start> <frame2> <vision_end>, the video_grid_thw should also be split too.\n\n        Args:\n            input_ids (`torch.LongTensor` of shape `(batch_size, sequence_length)`):\n                Indices of input sequence tokens in the vocabulary. Padding will be ignored by default should you provide\n                it.\n            mm_token_type_ids (`torch.IntTensor` of shape `(batch_size, sequence_length)`):\n                Token type ids matching each modality to a different value in the input sequence, i.e. text (0), image (1), video (2).\n            image_grid_thw (`torch.LongTensor` of shape `(num_images, 3)`, *optional*):\n                The temporal, height and width of feature shape of each image in LLM.\n            video_grid_thw (`torch.LongTensor` of shape `(num_videos, 3)`, *optional*):\n                The temporal, height and width of feature shape of each video in LLM.\n            attention_mask (`torch.Tensor` of shape `(batch_size, sequence_length)`, *optional*):\n                Mask to avoid performing attention on padding token indices. Mask values selected in `[0, 1]`:\n\n                - 1 for tokens that are **not masked**,\n                - 0 for tokens that are **masked**.\n\n        Returns:\n            position_ids (`torch.LongTensor` of shape `(3, batch_size, sequence_length)`)\n            mrope_position_deltas (`torch.Tensor` of shape `(batch_size)`)\n        \"\"\"\n\n        # Separate video grid thw into multiple grids because timestamps are used to separate videos.\n        if video_grid_thw is not None:\n            video_grid_thw = torch.repeat_interleave(video_grid_thw, video_grid_thw[:, 0], dim=0)\n            video_grid_thw[:, 0] = 1\n        spatial_merge_size = self.config.vision_config.spatial_merge_size\n\n        mrope_position_deltas = []\n        position_ids = torch.zeros(\n            3,\n            input_ids.shape[0],\n            input_ids.shape[1],\n            dtype=input_ids.dtype,\n            device=input_ids.device,\n        )\n        grid_iters = {\n            1: iter(image_grid_thw) if image_grid_thw is not None else None,\n            2: iter(video_grid_thw) if video_grid_thw is not None else None,\n        }\n\n        for batch_idx, current_input_ids in enumerate(input_ids):\n            input_token_type = mm_token_type_ids[batch_idx]\n            if attention_mask is not None:\n                current_input_ids = current_input_ids[attention_mask[batch_idx].bool()]\n                input_token_type = input_token_type[attention_mask[batch_idx].bool()]\n\n            input_type_group = []\n            for key, group in itertools.groupby(enumerate(input_token_type.tolist()), lambda x: x[1]):\n                group = list(group)\n                start_index = group[0][0]\n                end_index = group[-1][0] + 1\n                input_type_group.append((key, start_index, end_index))\n\n            current_pos = 0\n            llm_pos_ids_list = []\n            for modality_type, start_idx, end_idx in input_type_group:\n                # text == 0\n                if modality_type == 0:\n                    text_len = end_idx - start_idx\n                    llm_pos_ids_list.append(\n                        torch.arange(text_len, device=input_ids.device).view(1, -1).expand(3, -1) + current_pos\n                    )\n                    current_pos += text_len\n                # image == 1, video == 2\n                else:\n                    grid_thw = next(grid_iters[modality_type])\n                    vision_position_ids = self.get_vision_position_ids(\n                        current_pos, grid_thw, 1, spatial_merge_size, device=input_ids.device\n                    )\n                    llm_pos_ids_list.append(vision_position_ids)\n                    current_pos += max(grid_thw[1], grid_thw[2]) // spatial_merge_size\n            llm_positions = torch.cat(llm_pos_ids_list, dim=1).reshape(3, -1)\n            if attention_mask is not None:\n                position_ids[:, batch_idx, attention_mask[batch_idx].bool()] = llm_positions.to(position_ids.device)\n            else:\n                position_ids[:, batch_idx] = llm_positions.to(position_ids.device)\n            mrope_position_deltas.append(llm_positions.max() + 1 - len(current_input_ids))\n        mrope_position_deltas = torch.tensor(mrope_position_deltas, device=input_ids.device).unsqueeze(1)\n        return position_ids, mrope_position_deltas\n\n    @accepts_precomputed_kwargs(modality=\"video\")\n    @can_return_tuple\n    @auto_docstring\n    def get_video_features(\n        self,\n        pixel_values_videos: torch.FloatTensor,\n        video_grid_thw: torch.LongTensor | None = None,\n        **kwargs: Unpack[TransformersKwargs],\n    ) -> tuple | BaseModelOutputWithPooling:\n        r\"\"\"\n        pixel_values_videos (`torch.FloatTensor` of shape `(batch_size, num_channels, image_size, image_size)`):\n            The tensors corresponding to the input videos.\n        video_grid_thw (`torch.LongTensor` of shape `(num_videos, 3)`, *optional*):\n            The temporal, height and width of feature shape of each video in LLM.\n        \"\"\"\n        # Same implementation as for images\n        return self.get_image_features(pixel_values_videos, video_grid_thw, **kwargs)\n\n    @accepts_precomputed_kwargs(modality=\"image\")\n    @can_return_tuple\n    @auto_docstring\n    def get_image_features(\n        self,\n        pixel_values: torch.FloatTensor,\n        image_grid_thw: torch.LongTensor | None = None,\n        **kwargs: Unpack[TransformersKwargs],\n    ) -> tuple | BaseModelOutputWithPooling:\n        r\"\"\"\n        pixel_values (`torch.FloatTensor` of shape `(batch_size, num_channels, image_size, image_size)`):\n            The tensors corresponding to the input images.\n        image_grid_thw (`torch.LongTensor` of shape `(num_images, 3)`, *optional*):\n            The temporal, height and width of feature shape of each image in LLM.\n        \"\"\"\n        pixel_values = pixel_values.type(self.visual.dtype)\n        vision_output: BaseModelOutputWithPooling = self.visual(\n            pixel_values, grid_thw=image_grid_thw, return_dict=True, **kwargs\n        )\n        image_embeds = vision_output.pooler_output\n        split_sizes = (image_grid_thw.prod(-1) // self.visual.spatial_merge_size**2).tolist()\n        image_embeds = torch.split(image_embeds, split_sizes)\n        vision_output.pooler_output = image_embeds\n\n        return vision_output\n\n    def get_placeholder_mask(\n        self,\n        input_ids: torch.LongTensor,\n        inputs_embeds: torch.FloatTensor,\n        image_features: torch.FloatTensor | None = None,\n        video_features: torch.FloatTensor | None = None,\n    ):\n        \"\"\"\n        Obtains multimodal placeholder mask from `input_ids` or `inputs_embeds`, and checks that the placeholder token count is\n        equal to the length of multimodal features. If the lengths are different, an error is raised.\n        \"\"\"\n        if input_ids is None:\n            special_image_mask = inputs_embeds == self.get_input_embeddings()(\n                torch.tensor(self.config.image_token_id, dtype=torch.long, device=inputs_embeds.device)\n            )\n            special_image_mask = special_image_mask.all(-1)\n            special_video_mask = inputs_embeds == self.get_input_embeddings()(\n                torch.tensor(self.config.video_token_id, dtype=torch.long, device=inputs_embeds.device)\n            )\n            special_video_mask = special_video_mask.all(-1)\n        else:\n            special_image_mask = input_ids == self.config.image_token_id\n            special_video_mask = input_ids == self.config.video_token_id\n\n        n_image_tokens = special_image_mask.sum()\n        special_image_mask = special_image_mask.unsqueeze(-1).to(inputs_embeds.device)\n        if image_features is not None:\n            torch_compilable_check(\n                n_image_tokens * inputs_embeds.shape[-1] == image_features.numel(),\n                f\"Image features and image tokens do not match, tokens: {n_image_tokens}, features: {image_features.shape[0]}\",\n            )\n\n        n_video_tokens = special_video_mask.sum()\n        special_video_mask = special_video_mask.unsqueeze(-1).to(inputs_embeds.device)\n        if video_features is not None:\n            torch_compilable_check(\n                n_video_tokens * inputs_embeds.shape[-1] == video_features.numel(),\n                f\"Video features and video tokens do not match, tokens: {n_video_tokens}, features: {video_features.shape[0]}\",\n            )\n        return special_image_mask, special_video_mask\n\n    def compute_3d_position_ids(\n        self,\n        input_ids: torch.Tensor | None,\n        inputs_embeds: torch.Tensor | None,\n        image_grid_thw: torch.Tensor | None = None,\n        video_grid_thw: torch.Tensor | None = None,\n        attention_mask: torch.Tensor | None = None,\n        past_key_values: torch.Tensor | None = None,\n        mm_token_type_ids: torch.IntTensor | None = None,\n    ) -> torch.Tensor | None:\n        past_key_values_length = 0 if past_key_values is None else past_key_values.get_seq_length()\n        has_multimodal = image_grid_thw is not None or video_grid_thw is not None\n        if has_multimodal and mm_token_type_ids is None and input_ids is not None:\n            raise ValueError(\n                \"Multimodal data was passed (via `image_grid_thw` or `video_grid_thw`) but `mm_token_type_ids` is \"\n                \"missing. Please pass `mm_token_type_ids` to the model so that multimodal RoPE (M-RoPE) can be \"\n                \"computed correctly. `mm_token_type_ids` is returned by the processor alongside `input_ids`.\"\n            )\n        can_compute_mrope = input_ids is not None and mm_token_type_ids is not None and has_multimodal\n\n        if can_compute_mrope and (self.rope_deltas is None or past_key_values_length == 0):\n            position_ids, rope_deltas = self.get_rope_index(\n                input_ids,\n                image_grid_thw=image_grid_thw,\n                video_grid_thw=video_grid_thw,\n                attention_mask=attention_mask,\n                mm_token_type_ids=mm_token_type_ids,\n            )\n            self.rope_deltas = rope_deltas\n        # Use pre-calculated rope-deltas to infer correct 3D position ids during incremental\n        # generation (past_key_values_length > 0) or when only inputs_embeds is provided (no input_ids\n        # to recompute from). Skip when input_ids is provided without past_key_values to avoid shape\n        # mismatches from stale rope_deltas (e.g., training forward pass after generation).\n        elif self.rope_deltas is not None and (past_key_values_length > 0 or input_ids is None):\n            batch_size, seq_length, _ = inputs_embeds.shape\n            if attention_mask is not None:\n                position_ids = attention_mask.long().cumsum(-1) - 1\n                position_ids = position_ids.masked_fill(attention_mask == 0, 0)\n                position_ids = position_ids.view(1, batch_size, -1).repeat(3, 1, 1).to(inputs_embeds.device)\n            else:\n                position_ids = torch.arange(past_key_values_length, past_key_values_length + seq_length)\n                position_ids = position_ids.view(1, 1, -1).expand(3, batch_size, -1).to(inputs_embeds.device)\n            delta = self.rope_deltas.repeat_interleave(batch_size // self.rope_deltas.shape[0], dim=0)\n            position_ids = position_ids + delta.to(device=inputs_embeds.device)\n        else:\n            # Can't build correct 3D positions. Let the model infer it\n            position_ids = None\n        return position_ids\n\n    @auto_docstring\n    @can_return_tuple\n    def forward(\n        self,\n        input_ids: torch.LongTensor = None,\n        attention_mask: torch.Tensor | None = None,\n        position_ids: torch.LongTensor | None = None,\n        past_key_values: Cache | None = None,\n        inputs_embeds: torch.FloatTensor | None = None,\n        pixel_values: torch.Tensor | None = None,\n        pixel_values_videos: torch.FloatTensor | None = None,\n        image_grid_thw: torch.LongTensor | None = None,\n        video_grid_thw: torch.LongTensor | None = None,\n        mm_token_type_ids: torch.IntTensor | None = None,\n        **kwargs: Unpack[TransformersKwargs],\n    ) -> tuple | Qwen3_5ModelOutputWithPast:\n        r\"\"\"\n        image_grid_thw (`torch.LongTensor` of shape `(num_images, 3)`, *optional*):\n            The temporal, height and width of feature shape of each image in LLM.\n        video_grid_thw (`torch.LongTensor` of shape `(num_videos, 3)`, *optional*):\n            The temporal, height and width of feature shape of each video in LLM.\n        \"\"\"\n        if (input_ids is None) ^ (inputs_embeds is not None):\n            raise ValueError(\"You must specify exactly one of input_ids or inputs_embeds\")\n\n        if inputs_embeds is None:\n            inputs_embeds = self.get_input_embeddings()(input_ids)\n\n        if pixel_values is not None:\n            image_outputs: BaseModelOutputWithPooling = self.get_image_features(\n                pixel_values, image_grid_thw, return_dict=True, **kwargs\n            )\n            image_embeds = image_outputs.pooler_output\n            image_embeds = torch.cat(image_embeds, dim=0).to(inputs_embeds.device, inputs_embeds.dtype)\n            image_mask, _ = self.get_placeholder_mask(\n                input_ids, inputs_embeds=inputs_embeds, image_features=image_embeds\n            )\n            inputs_embeds = inputs_embeds.masked_scatter(image_mask, image_embeds)\n\n        if pixel_values_videos is not None:\n            video_outputs: BaseModelOutputWithPooling = self.get_video_features(\n                pixel_values_videos, video_grid_thw, return_dict=True, **kwargs\n            )\n            video_embeds = video_outputs.pooler_output\n            video_embeds = torch.cat(video_embeds, dim=0).to(inputs_embeds.device, inputs_embeds.dtype)\n            _, video_mask = self.get_placeholder_mask(\n                input_ids, inputs_embeds=inputs_embeds, video_features=video_embeds\n            )\n            inputs_embeds = inputs_embeds.masked_scatter(video_mask, video_embeds)\n\n        if position_ids is None:\n            position_ids = self.compute_3d_position_ids(\n                input_ids=input_ids,\n                image_grid_thw=image_grid_thw,\n                video_grid_thw=video_grid_thw,\n                inputs_embeds=inputs_embeds,\n                attention_mask=attention_mask,\n                past_key_values=past_key_values,\n                mm_token_type_ids=mm_token_type_ids,\n            )\n\n        outputs = self.language_model(\n            input_ids=None,\n            position_ids=position_ids,\n            attention_mask=attention_mask,\n            past_key_values=past_key_values,\n            inputs_embeds=inputs_embeds,\n            **kwargs,\n        )\n\n        return Qwen3_5ModelOutputWithPast(\n            **outputs,\n            rope_deltas=self.rope_deltas,\n        )\n\n\n@auto_docstring\nclass Qwen3_5ForCausalLM(Qwen3_5PreTrainedModel, GenerationMixin):\n    _tied_weights_keys = {\"lm_head.weight\": \"model.embed_tokens.weight\"}\n    _tp_plan = {\"lm_head\": \"colwise_gather_output\"}\n    _pp_plan = {\"lm_head\": ([\"hidden_states\"], [\"logits\"])}\n    config: Qwen3_5TextConfig\n    _keys_to_ignore_on_load_unexpected = [r\"^mtp.*\", r\"^model.visual.*\"]\n\n    def __init__(self, config):\n        super().__init__(config)\n        self.model = Qwen3_5TextModel(config)\n        self.vocab_size = config.vocab_size\n        self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)\n\n        # Initialize weights and apply final processing\n        self.post_init()\n\n    @can_return_tuple\n    @auto_docstring\n    def forward(\n        self,\n        input_ids: torch.LongTensor | None = None,\n        attention_mask: torch.Tensor | None = None,\n        position_ids: torch.LongTensor | None = None,\n        past_key_values: Cache | None = None,\n        inputs_embeds: torch.FloatTensor | None = None,\n        labels: torch.LongTensor | None = None,\n        use_cache: bool | None = None,\n        logits_to_keep: int | torch.Tensor = 0,\n        **kwargs: Unpack[TransformersKwargs],\n    ) -> CausalLMOutputWithPast:\n        r\"\"\"\n        labels (`torch.LongTensor` of shape `(batch_size, sequence_length)`, *optional*):\n            Labels for computing the masked language modeling loss. Indices should either be in `[0, ...,\n            config.vocab_size]` or -100 (see `input_ids` docstring). Tokens with indices set to `-100` are ignored\n            (masked), the loss is only computed for the tokens with labels in `[0, ..., config.vocab_size]`.\n\n        Example:\n\n        ```python\n        >>> from transformers import AutoTokenizer, Qwen3_5ForCausalLM\n\n        >>> model = Qwen3_5ForCausalLM.from_pretrained(\"Qwen/Qwen3_5-8B\")\n        >>> tokenizer = AutoTokenizer.from_pretrained(\"Qwen/Qwen3_5-8B\")\n\n        >>> prompt = \"Hey, are you conscious? Can you talk to me?\"\n        >>> inputs = tokenizer(prompt, return_tensors=\"pt\")\n\n        >>> # Generate\n        >>> generate_ids = model.generate(inputs.input_ids, max_length=30)\n        >>> tokenizer.batch_decode(generate_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0]\n        \"Hey, are you conscious? Can you talk to me?\\nI'm not conscious, but I can talk to you.\"\n        ```\"\"\"\n        outputs: BaseModelOutputWithPast = self.model(\n            input_ids=input_ids,\n            attention_mask=attention_mask,\n            position_ids=position_ids,\n            past_key_values=past_key_values,\n            inputs_embeds=inputs_embeds,\n            use_cache=use_cache,\n            **kwargs,\n        )\n\n        hidden_states = outputs.last_hidden_state\n        # Only compute necessary logits, and do not upcast them to float if we are not computing the loss\n        slice_indices = slice(-logits_to_keep, None) if isinstance(logits_to_keep, int) else logits_to_keep\n        logits = self.lm_head(hidden_states[:, slice_indices, :])\n\n        loss = None\n        if labels is not None:\n            loss = self.loss_function(logits=logits, labels=labels, vocab_size=self.config.vocab_size, **kwargs)\n\n        return CausalLMOutputWithPast(\n            loss=loss,\n            logits=logits,\n            past_key_values=outputs.past_key_values,\n            hidden_states=outputs.hidden_states,\n            attentions=outputs.attentions,\n        )\n\n\nclass Qwen3_5ForTokenClassification(GenericForTokenClassification, Qwen3_5PreTrainedModel):\n    config: Qwen3_5Config\n\n\n@auto_docstring\n@dataclass\nclass Qwen3_5CausalLMOutputWithPast(CausalLMOutputWithPast):\n    r\"\"\"\n    rope_deltas (`torch.LongTensor` of shape `(batch_size, )`, *optional*):\n        The rope index difference between sequence length and multimodal rope.\n        The attribute is deprecated and will be removed in v5.20, use `model.base_model.rope_deltas` instead.\n    \"\"\"\n\n    rope_deltas: torch.LongTensor | None = None\n\n\nclass Qwen3_5ForConditionalGeneration(Qwen3_5PreTrainedModel, GenerationMixin):\n    _tied_weights_keys = {\"lm_head.weight\": \"model.language_model.embed_tokens.weight\"}\n    # Reference: fix gemma3 grad acc #37208\n    accepts_loss_kwargs = False\n\n    def __init__(self, config):\n        super().__init__(config)\n        self.model = Qwen3_5Model(config)\n        self.lm_head = nn.Linear(config.text_config.hidden_size, config.text_config.vocab_size, bias=False)\n\n        self.post_init()\n\n    @auto_docstring\n    def get_video_features(\n        self,\n        pixel_values_videos: torch.FloatTensor,\n        video_grid_thw: torch.LongTensor | None = None,\n        **kwargs: Unpack[TransformersKwargs],\n    ) -> tuple | BaseModelOutputWithPooling:\n        r\"\"\"\n        pixel_values_videos (`torch.FloatTensor` of shape `(batch_size, num_channels, image_size, image_size)`):\n            The tensors corresponding to the input videos.\n        video_grid_thw (`torch.LongTensor` of shape `(num_videos, 3)`, *optional*):\n            The temporal, height and width of feature shape of each video in LLM.\n        \"\"\"\n        return self.model.get_video_features(pixel_values_videos, video_grid_thw, **kwargs)\n\n    @auto_docstring\n    def get_image_features(\n        self,\n        pixel_values: torch.FloatTensor,\n        image_grid_thw: torch.LongTensor | None = None,\n        **kwargs: Unpack[TransformersKwargs],\n    ) -> tuple | BaseModelOutputWithPooling:\n        r\"\"\"\n        pixel_values (`torch.FloatTensor` of shape `(batch_size, num_channels, image_size, image_size)`):\n            The tensors corresponding to the input images.\n        image_grid_thw (`torch.LongTensor` of shape `(num_images, 3)`, *optional*):\n            The temporal, height and width of feature shape of each image in LLM.\n        \"\"\"\n        return self.model.get_image_features(pixel_values, image_grid_thw, **kwargs)\n\n    @can_return_tuple\n    def forward(\n        self,\n        input_ids: torch.LongTensor = None,\n        attention_mask: torch.Tensor | None = None,\n        position_ids: torch.LongTensor | None = None,\n        past_key_values: Cache | None = None,\n        inputs_embeds: torch.FloatTensor | None = None,\n        labels: torch.LongTensor | None = None,\n        pixel_values: torch.Tensor | None = None,\n        pixel_values_videos: torch.FloatTensor | None = None,\n        image_grid_thw: torch.LongTensor | None = None,\n        video_grid_thw: torch.LongTensor | None = None,\n        mm_token_type_ids: torch.IntTensor | None = None,\n        logits_to_keep: int | torch.Tensor = 0,\n        **kwargs: Unpack[TransformersKwargs],\n    ) -> tuple | Qwen3_5CausalLMOutputWithPast:\n        r\"\"\"\n        labels (`torch.LongTensor` of shape `(batch_size, sequence_length)`, *optional*):\n            Labels for computing the masked language modeling loss. Indices should either be in `[0, ...,\n            config.vocab_size]` or -100 (see `input_ids` docstring). Tokens with indices set to `-100` are ignored\n            (masked), the loss is only computed for the tokens with labels in `[0, ..., config.vocab_size]`.\n        image_grid_thw (`torch.LongTensor` of shape `(num_images, 3)`, *optional*):\n            The temporal, height and width of feature shape of each image in LLM.\n        video_grid_thw (`torch.LongTensor` of shape `(num_videos, 3)`, *optional*):\n            The temporal, height and width of feature shape of each video in LLM.\n\n        Example:\n\n        ```python\n        >>> from transformers import AutoProcessor, Qwen3_5ForConditionalGeneration\n\n        >>> model = Qwen3_5ForConditionalGeneration.from_pretrained(\"Qwen/Qwen3-VL-8B-Instruct\")\n        >>> processor = AutoProcessor.from_pretrained(\"Qwen/Qwen3-VL-8B-Instruct\")\n\n        >>> messages = [\n            {\n                \"role\": \"user\",\n                \"content\": [\n                    {\n                        \"type\": \"image\",\n                        \"image\": \"https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/pipeline-cat-chonk.jpeg\",\n                    },\n                    {\"type\": \"text\", \"text\": \"Describe the image.\"},\n                ],\n            }\n        ]\n\n        >>> inputs = processor.apply_chat_template(\n            messages,\n            tokenize=True,\n            add_generation_prompt=True,\n            return_dict=True,\n            return_tensors=\"pt\"\n        )\n\n        >>> # Generate\n        >>> generated_ids = model.generate(**inputs, max_new_tokens=1024)\n        >>> generated_ids_trimmed = [out_ids[len(in_ids) :] for in_ids, out_ids in zip(inputs.input_ids, generated_ids)]\n        >>> output_text = processor.batch_decode(generated_ids_trimmed, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0]\n        >>> print(output_text)\n        ```\n        \"\"\"\n\n        outputs = self.model(\n            input_ids=input_ids,\n            pixel_values=pixel_values,\n            pixel_values_videos=pixel_values_videos,\n            image_grid_thw=image_grid_thw,\n            video_grid_thw=video_grid_thw,\n            position_ids=position_ids,\n            attention_mask=attention_mask,\n            past_key_values=past_key_values,\n            inputs_embeds=inputs_embeds,\n            mm_token_type_ids=mm_token_type_ids,\n            **kwargs,\n        )\n\n        hidden_states = outputs[0]\n\n        # Only compute necessary logits, and do not upcast them to float if we are not computing the loss\n        slice_indices = slice(-logits_to_keep, None) if isinstance(logits_to_keep, int) else logits_to_keep\n        logits = self.lm_head(hidden_states[:, slice_indices, :])\n\n        loss = None\n        if labels is not None:\n            loss = self.loss_function(logits=logits, labels=labels, vocab_size=self.config.text_config.vocab_size)\n\n        return Qwen3_5CausalLMOutputWithPast(\n            loss=loss,\n            logits=logits,\n            past_key_values=outputs.past_key_values,\n            hidden_states=outputs.hidden_states,\n            attentions=outputs.attentions,\n            rope_deltas=outputs.rope_deltas,\n        )\n\n    def prepare_inputs_for_generation(\n        self,\n        input_ids,\n        past_key_values=None,\n        attention_mask=None,\n        inputs_embeds=None,\n        position_ids=None,\n        use_cache=True,\n        pixel_values=None,\n        pixel_values_videos=None,\n        image_grid_thw=None,\n        video_grid_thw=None,\n        is_first_iteration=False,\n        **kwargs,\n    ):\n        # Overwritten -- in specific circumstances we don't want to forward image inputs to the model\n\n        model_inputs = super().prepare_inputs_for_generation(\n            input_ids,\n            past_key_values=past_key_values,\n            attention_mask=attention_mask,\n            inputs_embeds=inputs_embeds,\n            position_ids=position_ids,\n            pixel_values=pixel_values,\n            pixel_values_videos=pixel_values_videos,\n            image_grid_thw=image_grid_thw,\n            video_grid_thw=video_grid_thw,\n            use_cache=use_cache,\n            is_first_iteration=is_first_iteration,\n            **kwargs,\n        )\n\n        if not is_first_iteration and use_cache:\n            model_inputs[\"pixel_values\"] = None\n            model_inputs[\"pixel_values_videos\"] = None\n\n        return model_inputs\n\n    def _prepare_position_ids_for_generation(self, inputs_tensor, model_kwargs):\n        # Overwritten -- requires 3D position ids\n\n        text_positions = super()._prepare_position_ids_for_generation(inputs_tensor, model_kwargs)\n\n        # Early exit in case we are continuing generation from past kv\n        past_length = 0\n        if (cache := model_kwargs.get(\"past_key_values\")) is not None:\n            past_length = cache.get_seq_length()\n        if past_length != 0 and self.model.rope_deltas is not None:\n            position_ids = text_positions[None, ...] + self.model.rope_deltas\n            return position_ids\n\n        # Otherwise compute 3d position ids for vision tokens and concat with text position ids\n        if \"input_ids\" in model_kwargs and model_kwargs[\"input_ids\"].shape[1] > 0:\n            inputs_tensor = model_kwargs[\"input_ids\"]\n\n        is_input_ids = len(inputs_tensor.shape) == 2 and inputs_tensor.dtype in [torch.int, torch.long]\n        if (\n            is_input_ids\n            and model_kwargs.get(\"mm_token_type_ids\") is not None\n            and (model_kwargs.get(\"image_grid_thw\") is not None or model_kwargs.get(\"video_grid_thw\") is not None)\n        ):\n            model_kwargs = {k: v for k, v in model_kwargs.items() if k != \"input_ids\"}\n            vision_positions, rope_deltas = self.model.get_rope_index(inputs_tensor, **model_kwargs)\n            self.model.rope_deltas = rope_deltas\n        else:\n            vision_positions = text_positions.unsqueeze(0).expand(3, -1, -1)\n            self.model.rope_deltas = torch.zeros(\n                inputs_tensor.shape[0], 1, dtype=torch.long, device=inputs_tensor.device\n            )\n\n        # Concatenate \"text + vision\" positions into [4, bs, seq-len]\n        text_positions = text_positions[None, ...]\n        position_ids = torch.cat([text_positions, vision_positions], dim=0)\n\n        return position_ids\n\n    def _get_image_nums_and_video_nums(\n        self,\n        input_ids: torch.LongTensor | None,\n        inputs_embeds: torch.Tensor | None = None,\n    ) -> tuple[torch.Tensor, torch.Tensor]:\n        \"\"\"\n        Get the number of images and videos for each sample to calculate the separation length of the sample tensor.\n        These parameters are not passed through the processor to avoid unpredictable impacts from interface modifications.\n\n        Args:\n            input_ids (`torch.LongTensor` of shape `(batch_size, sequence_length)`):\n                Indices of input sequence tokens in the vocabulary.\n\n        Returns:\n            image_nums (`torch.LongTensor` of shape `(batch_size, num_images_sample)`)\n            video_nums (`torch.LongTensor` of shape `(batch_size, num_videos_sample)`)\n        \"\"\"\n        image_token_id = self.config.image_token_id\n        video_token_id = self.config.video_token_id\n        vision_start_token_id = self.config.vision_start_token_id\n\n        if inputs_embeds is not None:\n            vision_start_mask = (\n                inputs_embeds\n                == self.get_input_embeddings()(\n                    torch.tensor(vision_start_token_id, dtype=torch.long, device=inputs_embeds.device)\n                )\n            )[..., 0]\n            image_mask = (\n                inputs_embeds\n                == self.get_input_embeddings()(\n                    torch.tensor(image_token_id, dtype=torch.long, device=inputs_embeds.device)\n                )\n            )[..., 0]\n            video_mask = (\n                inputs_embeds\n                == self.get_input_embeddings()(\n                    torch.tensor(video_token_id, dtype=torch.long, device=inputs_embeds.device)\n                )\n            )[..., 0]\n        else:\n            vision_start_mask = input_ids == vision_start_token_id\n            image_mask = input_ids == image_token_id\n            video_mask = input_ids == video_token_id\n\n        vision_first_mask = torch.roll(vision_start_mask, shifts=1, dims=1)\n        image_nums = torch.sum(vision_first_mask & image_mask, dim=1)\n        video_nums = torch.sum(vision_first_mask & video_mask, dim=1)\n\n        return image_nums, video_nums\n\n    def _expand_inputs_for_generation(\n        self,\n        expand_size: int = 1,\n        is_encoder_decoder: bool = False,\n        input_ids: torch.LongTensor | None = None,\n        **model_kwargs,\n    ) -> tuple[torch.LongTensor, dict[str, Any]]:\n        # Overwritten -- Qwen3_5 use timestamps and remove second_per_grid_ts\n        # Support for expanding tensors without a batch size dimension\n        # e.g., pixel_values, image_grid_thw, pixel_values_videos, video_grid_thw\n        # pixel_values.shape[0] is sum(seqlen_images for samples)\n        # image_grid_thw.shape[0] is sum(num_images for samples)\n\n        if expand_size == 1:\n            return input_ids, model_kwargs\n\n        visual_keys = [\"pixel_values\", \"image_grid_thw\", \"pixel_values_videos\", \"video_grid_thw\"]\n\n        def _expand_dict_for_generation_visual(dict_to_expand):\n            image_grid_thw = model_kwargs.get(\"image_grid_thw\", None)\n            video_grid_thw = model_kwargs.get(\"video_grid_thw\", None)\n            image_nums, video_nums = self._get_image_nums_and_video_nums(\n                input_ids, inputs_embeds=model_kwargs.get(\"inputs_embeds\", None)\n            )\n\n            # video_nums: (batch_size,)\n            # since video_nums is the number of videos in the input dependent on the input_ids(vision_start),\n            # but Qwen3_5 append vision_start to each frame of each video, so we need to recover the real video_nums according to video_grid_thw\n            if video_grid_thw is not None:\n                cumulative_frame_counts = torch.cumsum(video_grid_thw[:, 0], dim=0)\n                cumulative_token_video_counts = torch.cumsum(video_nums, dim=0)\n                # Find video boundaries in cumulative_frame_counts\n                video_boundary_indices = torch.searchsorted(cumulative_frame_counts, cumulative_token_video_counts)\n                # example: video_boundary_indices = [3, 5] means video_nums = [4, 2]\n                video_nums = torch.diff(torch.cat([-video_boundary_indices.new_ones(1), video_boundary_indices]))\n\n            def _repeat_interleave_samples(x, lengths, repeat_times):\n                samples = torch.split(x, lengths)\n                repeat_args = [repeat_times] + [1] * (x.dim() - 1)\n                result = torch.cat([sample.repeat(*repeat_args) for sample in samples], dim=0)\n                return result\n\n            for key in dict_to_expand:\n                if key == \"pixel_values\":\n                    # split images into samples\n                    samples = torch.split(image_grid_thw, list(image_nums))\n                    # compute the sequence length of images for each sample\n                    lengths = [torch.prod(sample, dim=1).sum() for sample in samples]\n                    dict_to_expand[key] = _repeat_interleave_samples(\n                        dict_to_expand[key], lengths=lengths, repeat_times=expand_size\n                    )\n                elif key == \"image_grid_thw\":\n                    # get the num of images for each sample\n                    lengths = list(image_nums)\n                    dict_to_expand[key] = _repeat_interleave_samples(\n                        dict_to_expand[key], lengths=lengths, repeat_times=expand_size\n                    )\n                elif key == \"pixel_values_videos\":\n                    samples = torch.split(video_grid_thw, list(video_nums))\n                    lengths = [torch.prod(sample, dim=1).sum() for sample in samples]\n                    dict_to_expand[key] = _repeat_interleave_samples(\n                        dict_to_expand[key], lengths=lengths, repeat_times=expand_size\n                    )\n                elif key == \"video_grid_thw\":\n                    lengths = list(video_nums)\n                    dict_to_expand[key] = _repeat_interleave_samples(\n                        dict_to_expand[key], lengths=lengths, repeat_times=expand_size\n                    )\n            return dict_to_expand\n\n        def _expand_dict_for_generation(dict_to_expand):\n            for key in dict_to_expand:\n                if key == \"position_ids\" and dict_to_expand[key].ndim == 3:\n                    dict_to_expand[key] = dict_to_expand[key].repeat_interleave(expand_size, dim=1)\n                elif (\n                    dict_to_expand[key] is not None\n                    and isinstance(dict_to_expand[key], torch.Tensor)\n                    and key not in visual_keys\n                ):\n                    dict_to_expand[key] = dict_to_expand[key].repeat_interleave(expand_size, dim=0)\n            return dict_to_expand\n\n        model_kwargs = _expand_dict_for_generation_visual(model_kwargs)\n\n        if input_ids is not None:\n            input_ids = input_ids.repeat_interleave(expand_size, dim=0)\n\n        model_kwargs = _expand_dict_for_generation(model_kwargs)\n\n        if is_encoder_decoder:\n            if model_kwargs.get(\"encoder_outputs\") is None:\n                raise ValueError(\"If `is_encoder_decoder` is True, make sure that `encoder_outputs` is defined.\")\n            model_kwargs[\"encoder_outputs\"] = _expand_dict_for_generation(model_kwargs[\"encoder_outputs\"])\n\n        return input_ids, model_kwargs\n\n\nclass Qwen3_5TextForSequenceClassification(GenericForSequenceClassification, Qwen3_5PreTrainedModel):\n    config: Qwen3_5TextConfig\n    input_modalities = (\"text\",)\n\n\nclass Qwen3_5ForSequenceClassification(GenericForSequenceClassification, Qwen3_5PreTrainedModel):\n    def forward(\n        self,\n        input_ids: torch.LongTensor = None,\n        attention_mask: torch.Tensor | None = None,\n        position_ids: torch.LongTensor | None = None,\n        past_key_values: Cache | None = None,\n        inputs_embeds: torch.FloatTensor | None = None,\n        pixel_values: torch.Tensor | None = None,\n        pixel_values_videos: torch.FloatTensor | None = None,\n        image_grid_thw: torch.LongTensor | None = None,\n        video_grid_thw: torch.LongTensor | None = None,\n        mm_token_type_ids: torch.IntTensor | None = None,\n        **kwargs: Unpack[TransformersKwargs],\n    ) -> SequenceClassifierOutputWithPast:\n        return super().forward(\n            input_ids=input_ids,\n            attention_mask=attention_mask,\n            position_ids=position_ids,\n            past_key_values=past_key_values,\n            inputs_embeds=inputs_embeds,\n            pixel_values=pixel_values,\n            pixel_values_videos=pixel_values_videos,\n            image_grid_thw=image_grid_thw,\n            video_grid_thw=video_grid_thw,\n            mm_token_type_ids=mm_token_type_ids,\n            **kwargs,\n        )\n\n\n__all__ = [\n    \"Qwen3_5VisionModel\",\n    \"Qwen3_5TextModel\",\n    \"Qwen3_5Model\",\n    \"Qwen3_5ForCausalLM\",\n    \"Qwen3_5TextForSequenceClassification\",\n    \"Qwen3_5ForSequenceClassification\",\n    \"Qwen3_5ForTokenClassification\",\n    \"Qwen3_5ForConditionalGeneration\",\n    \"Qwen3_5PreTrainedModel\",\n]\n"
+      }
+    ],
+    "paths": [
+      "site-packages/transformers/models/qwen3_5/modeling_qwen3_5.py"
+    ],
+    "source": "local_transformers"
+  },
+  "processor": {
+    "preprocessor_config.json": {
+      "size": {
+        "longest_edge": 16777216,
+        "shortest_edge": 65536
+      },
+      "patch_size": 16,
+      "temporal_patch_size": 2,
+      "merge_size": 2,
+      "image_mean": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "image_std": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "processor_class": "Qwen3VLProcessor",
+      "image_processor_type": "Qwen2VLImageProcessorFast"
+    },
+    "video_preprocessor_config.json": {
+      "size": {
+        "longest_edge": 25165824,
+        "shortest_edge": 4096
+      },
+      "patch_size": 16,
+      "temporal_patch_size": 2,
+      "merge_size": 2,
+      "image_mean": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "image_std": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "processor_class": "Qwen3VLProcessor",
+      "video_processor_type": "Qwen3VLVideoProcessor"
+    }
+  },
+  "release_date": "2026-08-05"
+}

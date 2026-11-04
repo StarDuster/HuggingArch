@@ -1,0 +1,27 @@
+# ViT encoder block with LayerScale on both branches, 2-D-RoPE attention and a
+# QuickGELU MLP — Step-5's `EncoderVisionBlock`
+# (inference/vision_encoder.py:268-341):
+#
+#   x = x + ls_1.gamma * attn(ln_1(x), grid_hw)
+#   x = x + ls_2.gamma * mlp(ln_2(x))
+#
+# Same topology and the same tensors as `perception_encoder_block`; the two
+# sub-components differ (2-D RoPE on q/k, QuickGELU instead of exact GELU), so
+# this block binds the Step-5 forms.
+#
+# Required dims: d_vis_model, n_vis_heads, d_vis_head, d_vis_ffn
+
+role: block
+description: "ViT encoder block: pre-LayerNorm + LayerScale on both branches, fused-QKV 2-D-RoPE attention, biased QuickGELU MLP."
+graph:
+  ln_1:              { op: layernorm, in: x, dim: d_vis_model, weight_axes: [{ replicated: true }] }
+  attn:              { op: vit_fused_qkv_rope2d_attention, in: ln_1 }
+  ls_1.gamma:        { op: parameter_vector, dim: d_vis_model, weight_axes: [{ replicated: true }] }
+  ls_scaled_attn:    { op: mul, in: [attn, ls_1.gamma], dim: d_vis_model }
+  attn_residual:     { op: add, in: [x, ls_scaled_attn], dim: d_vis_model }
+  ln_2:              { op: layernorm, in: attn_residual, dim: d_vis_model, weight_axes: [{ replicated: true }] }
+  mlp:               { op: vit_quick_gelu_mlp, in: ln_2 }
+  ls_2.gamma:        { op: parameter_vector, dim: d_vis_model, weight_axes: [{ replicated: true }] }
+  ls_scaled_mlp:     { op: mul, in: [mlp, ls_2.gamma], dim: d_vis_model }
+  block_out:         { op: add, in: [attn_residual, ls_scaled_mlp], dim: d_vis_model }
+outputs: [block_out]

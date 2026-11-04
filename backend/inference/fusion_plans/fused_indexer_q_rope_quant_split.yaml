@@ -1,0 +1,35 @@
+# The CSA2 indexer's query preparation, where the spec spells the partial
+# rotation as slice → rope → concat (`csa2_index_score`) rather than as one
+# `rope_emb` over the head (`dsv4_indexer`). V4.1 has no Hadamard, so this
+# is the same vLLM kernel at the V4.1 boundary; the unsplit plan describes
+# V4's graph and why sglang binds this form only for SM100+ decode.
+#
+# A pattern node matches one spec node, so the two writings of one rotation
+# need two plans — as `fused_qk_rmsnorm_rope_gate` and its `_split_gain`
+# sibling do for a two-node RMSNorm.
+
+fused_op: fused_indexer_q_rope_quant_split
+
+naive_pattern:
+  nodes:
+    q_rope_slice:   { op: slice,       inputs: [external.q] }
+    q_norope_slice: { op: slice,       inputs: [external.q] }
+    q_rope:         { op: rope_emb,    inputs: [q_rope_slice.out] }
+    q_concat:       { op: concat,      inputs: [q_norope_slice.out, q_rope.out] }
+    weights_scaled: { op: scale_const, inputs: [external.weights] }
+    quant: { op: quantise_activation, inputs: [q_concat.out], optional: true }
+  io_mapping:
+    q:           external.q
+    weights:     external.weights
+    output:      quant.out
+    weights_out: weights_scaled.out
+
+# Output contract, the same kernel's as in `fused_indexer_q_rope_quant`: the
+# query is written quantised, which is a new buffer, so the whole of it
+# crosses this launch on both sides (a cast on the query, where one stands,
+# is the optional `quant` member). Absent the declaration this writing of
+# the rotation — the one that spells it slice → rope → concat — would have
+# its absorbed partition read as a re-partition nobody moved
+# (`fusion._passed_through`) and be billed half of what the other writing of
+# the SAME launch is billed.
+allocates_output: "vllm.models.deepseek_v4.common.ops.fused_indexer_q.fused_indexer_q_rope_quant (fused_indexer_q.py:549, from deepseek_v41/attention.py:1454): one block per (token, head) rotates the rope channels and writes the head quantised (FP8, or MXFP4 with per-32 block scales); sglang's index_q_rope_pack_weights (kernels/ops/attention/dsv4/fp4_indexer_rope.py:91) writes the FP4 query the DeepGEMM decode path reads"

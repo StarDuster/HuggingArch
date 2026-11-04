@@ -1,0 +1,65 @@
+# GLM-5.3-Flash's k-pool indexer compressor — the gate + position-bias
+# softmax pool of `compress_ratio` index keys, quantised and written into the
+# index-K cache, in one launch.
+#
+# Naive subgraph (glm_kpool_compressor and its decode form, from the
+# position-bias add on):
+#
+#   w         = softmax_r(gate_win + pos_table)        # per channel over the pool
+#   pool_keys = Σ_r keys_win · w
+#   rotate    = hadamard_transform(pool_keys)          # the index-K format's transform
+#   compress  = token_pool_compressor(rotate)          # the cached index key
+#
+# The pool windows (`keys_win` / `gate_win`, and in prefill the `slice` to
+# the complete pools before them) stay outside: in prefill vLLM gathers them
+# with torch indexing before the launch, and in decode they are the ring
+# rows the launch reads. The k LayerNorm before them is a launch of its own
+# in both frameworks (vLLM `_fused_indexer_k_norm`,
+# models/glm5next/common/attention.py:316).
+#
+# vLLM (audited at v0.32.0), `SparseAttnIndexerKpool`
+# (models/glm5next/nvidia/sparse_indexer.py):
+#   prefill — `_kpool_compress_insert` (:54, call :221) →
+#     `kpool_compress_and_write_cache` (models/glm5next/nvidia/ops/
+#     kpool_compress.py:259): softmax(gate + pos_table) pool, Hadamard, FP8 and
+#     the cache write in one Triton launch, after the `k[idx]` /
+#     `gate_score[idx]` gathers (:85-88);
+#   decode — `kpool_decode_update_and_maybe_write_cache_batched`
+#     (kpool_compress.py:626, call :533, one `_kpool_decode_update_batched_kernel`
+#     launch): stashes the token in the tail ring and, on the token that
+#     completes a pool, pools, quantises and writes it.
+# sglang (audited at v0.5.22), `IndexerKPool._compress_write`
+# (srt/layers/attention/dsa/dsa_indexer_kpool.py:591):
+#   decode — `kpool_decode_update_index_cache` (:357 → srt/mem_cache/
+#     memory_pool.py:5359 → kpool_fp8_index.py:795, one
+#     `_kpool_decode_update_and_maybe_write_cache_kernel` launch :849);
+#   extend — `_compress_write_extend` (:370) → `kpool_assemble_softmax_rotate_write_cache` (:466 →
+#     kpool_fp8_index.py:1306, one launch :1342), or without an extend plan
+#     `kpool_softmax_rotate_write_cache` (:314 → kpool_fp8_index.py:699, one
+#     launch :763) per request.
+# The Hadamard rotation is a node: the index-K cache's format
+# (`fp8_pow2_hadamard128`, `transform: hadamard`) grafts a
+# `hadamard_transform` on the edge into the cached key
+# (`inference/materialize_cast.py`), and both launches compute it (vLLM
+# `_hadamard128` at kpool_compress.py:219 prefill / :582 decode; sglang
+# `_hadamard128` in kpool_fp8_index.py at :984 (no-plan extend), :1146
+# (decode) and :1203 via `_hadamard_quantize_fp8` (assembled extend,
+# :1283)), so it is a REQUIRED member: a deployment storing
+# the key in a format with no transform runs neither of these launches.
+# The FP8 quantisation is the cached record's format, billed on the write.
+
+fused_op: fused_kpool_compress_store
+
+naive_pattern:
+  nodes:
+    pool_logits:   { op: position_table_add,    inputs: [external.gate, external.pos_table] }
+    pool_probs:    { op: softmax_act,           inputs: [pool_logits.out] }
+    pool_weighted: { op: mul,                   inputs: [external.keys, pool_probs.out] }
+    pool_keys:     { op: sum_reduce,            inputs: [pool_weighted.out] }
+    rotate:        { op: hadamard_transform,    inputs: [pool_keys.out] }
+    compress:      { op: token_pool_compressor, inputs: [rotate.out] }
+  io_mapping:
+    keys:      external.keys
+    gate:      external.gate
+    pos_table: external.pos_table
+    output:    compress.out

@@ -1,0 +1,60 @@
+# Inkling MoE FFN.
+#
+# Packed + fused expert bank (no per-expert index, no `.weight` suffix):
+#   mlp.experts.w13_weight   [n_experts, 2*d_ffn_expert, d_model]  fused gate+up, all n_experts experts
+#   mlp.experts.w2_weight    [n_experts, d_model, d_ffn_expert]    down proj, all n_experts experts
+# Two always-on packed shared experts:
+#   mlp.shared_experts.shared_w13_weight [n_shared_experts, 2*d_ffn_expert, d_model]
+#   mlp.shared_experts.shared_w2_weight  [n_shared_experts, d_model, d_ffn_expert]
+# Sigmoid gate with bias + shared-expert sink: the gate scores n_route_targets + n_shared_experts
+# lanes and the top-k runs over the routed ones alone (vllm/models/inkling/nvidia/moe.py:208-216),
+# so the gate's width is written here, in this component:
+#   mlp.gate.weight [n_route_targets + n_shared_experts, d_model]   mlp.gate.bias [n_experts]
+#   mlp.gate.global_scale [1] mlp.global_scale [1]  (route/global scalars)
+#
+# The routed bank is `fused_gated_experts` (packed gate+up and down, naked
+# nn.Parameters with the experts on the leading axis) under Inkling's names.
+# The shared experts are naked nn.Parameters too, bound by a custom op
+# (weight_tensor_suffix: "") and repeated n_shared_experts-wide.
+role: ffn_moe
+description: "Inkling MoE: packed fused experts (w13/w2) + n_shared_experts packed shared experts + sigmoid gate with bias & sink."
+custom_ops:
+  packed_expert_linear:
+    # `In` / `Out` are the op's own parameter names, bound per call site — see
+    # `ops_base.py::reject_divisible_parameter_names` for why they may not be
+    # symbols the shard policy divides.
+    flops: "2 * B * s_ctx * In * Out"
+    params: "In * Out"
+    # Call sites bind `In` / `Out`, not the linear default `in` / `out`.
+    weight_shape: [Out, In]
+    signature:
+      x: [B, s_ctx, In]
+    shape_kind: axis_replace
+    out_key: Out
+    axis_locked: -1
+    couples_on: [In]
+    weight_tensor_suffix: ""
+    formula: "y = s_window[e] . x  (packed [n_experts,Out,In] nn.Parameter)"
+    description: "Plain BF16 packed per-expert linear: the n_experts experts share one 3-D nn.Parameter (mlp.experts.w13_weight / w2_weight) with no per-expert index and no .weight suffix. Single projection term (In*Out per expert); no existing primitive both omits the .weight suffix and dispatches n_experts-wide, so it cannot compose from the registered ops."
+graph:
+  gate:                 { op: linear, in: x, dims: { in: d_model, out: "n_route_targets + n_shared_experts" }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  gate.bias:            { op: parameter_vector, dim: n_experts, weight_axes: [{ replicated: true }] }
+  gate_routed_slice:    { op: slice, in: gate, dims: { in: "n_route_targets + n_shared_experts", out: n_experts } }
+  gate_biased:          { op: add, in: [gate_routed_slice, gate.bias], dim: n_experts }
+  permute:              { op: permute, in: [x, gate_biased] }
+  experts:              { op: fused_gated_experts, in: permute, dims: { d_model: d_model, d_ffn: d_ffn_expert }, inner_modules: { gate_up_proj: w13_weight, down_proj: w2_weight }, expert_weight: leading_axis }
+  combine:              { op: combine, in: [experts, gate_biased] }
+  # Always-on packed shared experts (n_shared_experts of them).
+  shared_experts.shared_w13_weight: { op: packed_expert_linear, in: x, dims: { In: d_model, Out: "2 * d_ffn_expert" }, repeat: n_shared_experts }
+  shared_experts.gate_slice:        { op: slice, in: shared_experts.shared_w13_weight, dims: { in: "2 * d_ffn_expert", out: d_ffn_expert }, repeat: n_shared_experts }
+  shared_experts.up_slice:          { op: slice, in: shared_experts.shared_w13_weight, dims: { in: "2 * d_ffn_expert", out: d_ffn_expert }, repeat: n_shared_experts }
+  shared_experts.silu:              { op: silu, in: shared_experts.gate_slice, dim: d_ffn_expert, repeat: n_shared_experts }
+  shared_experts.gate_mul:          { op: mul, in: [shared_experts.silu, shared_experts.up_slice], dim: d_ffn_expert, repeat: n_shared_experts }
+  shared_experts.shared_w2_weight:  { op: packed_expert_linear, in: shared_experts.gate_mul, dims: { In: d_ffn_expert, Out: d_model }, repeat: n_shared_experts }
+  moe_out:              { op: add, in: [combine, shared_experts.shared_w2_weight], dim: d_model }
+  # Gate route-scale scalar (per-tensor, multiplies logits in the real
+  # kernel; kept as a leaf param so it binds). NOTE: MoE layers carry only
+  # mlp.gate.global_scale — the top-level mlp.global_scale exists only on the
+  # dense layers, so it lives in inkling_dense_ffn, not here.
+  gate.global_scale:    { op: parameter_vector, dim: "1", weight_axes: [{ replicated: true }] }
+outputs: [moe_out]

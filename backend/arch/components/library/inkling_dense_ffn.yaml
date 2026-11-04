@@ -1,0 +1,17 @@
+# Inkling dense FFN (leading dense layers + MTP head).
+#
+# Fused-gate/up SwiGLU with Inkling checkpoint naming:
+#   mlp.w13_dn.weight [2*d_ffn, d_model]  fused gate+up (d_ffn = dense_intermediate_size)
+#   mlp.w2_md.weight  [d_model, d_ffn]    down proj
+#   mlp.global_scale  [1]       global output scalar
+role: ffn_dense
+description: "Inkling dense fused-SwiGLU FFN (w13_dn / w2_md) + global scale."
+graph:
+  w13_dn:       { op: linear, in: x, dims: { in: d_model, out: "2 * d_ffn" }, weight_axes: [{ segments: [{ segment: gate, extent: d_ffn, world: dense_ffn, parts: d_ffn, fit: exact }, { segment: up, extent: d_ffn, world: dense_ffn, parts: d_ffn, fit: exact }] }, { replicated: true }] }
+  gate_slice:   { op: slice, in: w13_dn, dims: { in: "2 * d_ffn", out: d_ffn } }
+  up_slice:     { op: slice, in: w13_dn, dims: { in: "2 * d_ffn", out: d_ffn } }
+  silu:         { op: silu, in: gate_slice, dim: d_ffn }
+  gate_mul:     { op: mul, in: [silu, up_slice], dim: d_ffn }
+  w2_md:        { op: linear, in: gate_mul, dims: { in: d_ffn, out: d_model }, weight_axes: [{ replicated: true }, { world: dense_ffn, parts: d_ffn, fit: exact }] }
+  global_scale: { op: parameter_vector, dim: "1", weight_axes: [{ replicated: true }] }
+outputs: [w2_md]

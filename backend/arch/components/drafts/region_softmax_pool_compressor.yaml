@@ -1,0 +1,80 @@
+# Region compressor of a CSA block-compress indexer: pools `compress_ratio`
+# consecutive index keys into ONE summary vector with a per-channel softmax
+# over a separately projected gate, and caches one summary per complete
+# region. First observed in Step-5 (`csa_compress_regions`,
+# inference/kernel.py:293-371, driven by `update_summaries_prefill`
+# kernel.py:2008-2043).
+#
+# Pooling law, exactly as the kernel writes it (kernel.py:339-348):
+#
+#   shift       = max over (token, channel) of the region's gate logits
+#   weights     = exp(index_z - shift)                     # per channel
+#   summary[d]  = Σ_t weights[t,d] · index_k[t,d] / Σ_t weights[t,d]
+#
+# i.e. a per-CHANNEL softmax over the `region_block_size` tokens of the
+# region (the shift is a constant that cancels), weighting the keys. The
+# component takes the keys and the gate logits as INPUTS: in Step-5 both are
+# projections of the attention's own hidden state (`sparse_indexer_k` after
+# LayerNorm + RoPE, and `sparse_indexer_z` raw), so this component owns no
+# weights of its own — unlike `csa2_compressor_gated`, which carries its own
+# wkv / wgate / norm, and unlike `glm_kpool_compressor`, which adds a learned
+# position-in-pool table (`ape`) to the gate. Step-5 has no such table: the
+# gate is the projection alone.
+#
+# Only COMPLETE regions get a summary (kernel.py:2026 zeroes a partial
+# region's count); the ragged tail stays in the pending ring
+# (kernel.py:2034-2043 prefill, :2046-2077 decode) until its region fills.
+# The summary cache is FP8-E4M3 (`DSALayerCache.summary`, kernel.py:1891-1895;
+# the kernel rounds through BF16 before E4M3, kernel.py:366-371), the two
+# pending rings BF16 (kernel.py:1896-1899).
+#
+# Required dims: d_indexer_head (the summary / key width), compress_ratio
+#   (tokens pooled per region = sparse_config.region_block_size).
+
+description: "Region compressor: per-channel softmax over compress_ratio consecutive gate logits weighting the index keys into one cached summary per region (no position table, no weights of its own)."
+# Decode appends one token per step to the pending ring and pools once every
+# compress_ratio steps (kernel.py:2046-2077) — its own subgraph.
+decode_variant: region_softmax_pool_compressor_decode
+inputs: [keys, gates]
+cache:
+  entries:
+    # One summary per complete region: ⌈s_kv/m⌉ slots stored (the pending
+    # region owns one), ⌊s_kv/m⌋ readable — `token_pool_compressor`'s laws.
+    # FP8-E4M3 as the cache is allocated and written (kernel.py:1891-1895, :371).
+    - { node: pooled_out, kind: index_key, dtype: fp8 }
+    # The pending region's raw index keys and gate logits, BF16,
+    # region_block_size rows each (kernel.py:1896-1899); prefill leaves its
+    # ragged tail there (:2034-2043) and decode fills one row per step (:2062).
+    - { state: key_state,  kind: compressor_state, carrier: pool_weighted, shape: [compress_ratio, d_indexer_head], dtype: bf16 }
+    - { state: gate_state, kind: compressor_state, carrier: pool_probs,    shape: [compress_ratio, d_indexer_head], dtype: bf16 }
+graph:
+  # The step's complete regions: ragged tail dropped first, then the sequence
+  # folded into (region, position-in-region) — an exact product, no rounding.
+  keys_usable: { op: slice, in: keys,  axis: 1, dims: { out: "floor(s_ctx / compress_ratio) * compress_ratio" } }
+  gate_usable: { op: slice, in: gates, axis: 1, dims: { out: "floor(s_ctx / compress_ratio) * compress_ratio" } }
+  keys_win:    { op: view_split, in: keys_usable, axis: 1, dims: { s_slots: "floor(s_ctx / compress_ratio)", window: compress_ratio } }
+  gate_win:    { op: view_split, in: gate_usable, axis: 1, dims: { s_slots: "floor(s_ctx / compress_ratio)", window: compress_ratio } }
+  pool_probs:
+    op: softmax_act
+    in: gate_win
+    dim: compress_ratio
+    axis: 2
+    formula: "w[b, r, p, d] = exp(z[b, r, p, d]) / Σ_{p'<m} exp(z[b, r, p', d])   (m = compress_ratio = tokens pooled per region, r = region, p = position in that region, d = channel; kernel.py:343-348)"
+  pool_weighted:
+    op: mul
+    in: [keys_win, pool_probs]
+    dim: d_indexer_head
+    formula: "y[b, r, p, d] = index_k[b, r, p, d] · w[b, r, p, d]"
+  pool_keys:
+    op: sum_reduce
+    in: pool_weighted
+    axis: 2
+    dims: { in: compress_ratio }
+    formula: "summary[b, r, d] = Σ_{p<m} (index_k · w)[b, r, p, d]   (kernel.py:345-348)"
+  pooled_out:
+    op: token_pool_compressor
+    in: pool_keys
+    dim: d_indexer_head
+    dims: { compress_ratio: compress_ratio }
+    formula: "cache.summary[region r] = summary[r]   (one FP8 row per complete region; storage ⌈s_kv/m⌉, read ⌊s_kv/m⌋; kernel.py:2028-2032)"
+outputs: [pooled_out]

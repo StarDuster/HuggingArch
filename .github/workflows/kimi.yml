@@ -1,0 +1,131 @@
+# Interactive Kimi — triggered by an @huggingarch-bot[bot] mention in an issue or PR.
+#
+# Same harness (claude-code-action) pointed at Moonshot's Anthropic-compatible
+# endpoint. Someone writes "@huggingarch-bot[bot] ..." in an issue, a PR comment, a PR review,
+# or a new issue body, and Kimi picks up the thread. GitHub identity is the
+# HuggingArch GitHub App; the model call uses a Moonshot API key.
+#
+# The trigger phrase is the App's bot login and is matched literally
+# (case-sensitive): picking it from GitHub's @ autocomplete inserts exactly
+# the right text.
+#
+# Required: same as kimi-review.yml
+#   Variable HA_GITHUB_APP_ID, Secret HA_GITHUB_APP_PRIVATE_KEY,
+#   Secret MOONSHOT_API_KEY. See kimi-review.yml's header.
+name: kimi
+
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+  pull_request_review:
+    types: [submitted]
+  issues:
+    types: [opened, assigned]
+
+jobs:
+  kimi:
+    # Trusted authors only: this job holds contents:write plus the App
+    # private key, so an @huggingarch-bot[bot] mention from anyone below collaborator
+    # must not start it.
+    if: |
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@huggingarch-bot[bot]') && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)) ||
+      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@huggingarch-bot[bot]') && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)) ||
+      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@huggingarch-bot[bot]') && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.review.author_association)) ||
+      (github.event_name == 'issues' && (contains(github.event.issue.body, '@huggingarch-bot[bot]') || contains(github.event.issue.title, '@huggingarch-bot[bot]')) && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.issue.author_association))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      id-token: write
+    steps:
+      # issue_comment / review events check out the default branch by default,
+      # which lacks files added by the PR and breaks the action's local SHA
+      # computation — check out the PR head instead when triggered on a PR.
+      - name: Resolve ref to check out
+        id: ref
+        run: |
+          case "${{ github.event_name }}" in
+            issue_comment)
+              if [ "${{ github.event.issue.pull_request != null }}" = "true" ]; then
+                echo "ref=refs/pull/${{ github.event.issue.number }}/head" >> "$GITHUB_OUTPUT"
+              else
+                echo "ref=" >> "$GITHUB_OUTPUT"
+              fi
+              ;;
+            pull_request_review_comment|pull_request_review)
+              echo "ref=refs/pull/${{ github.event.pull_request.number }}/head" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "ref=" >> "$GITHUB_OUTPUT"
+              ;;
+          esac
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.ref.outputs.ref }}
+          fetch-depth: 1
+
+      - name: Mint GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ vars.HA_GITHUB_APP_ID || secrets.HA_GITHUB_APP_ID }}
+          private-key: ${{ secrets.HA_GITHUB_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+
+      - name: Preflight secrets check
+        env:
+          MOONSHOT_API_KEY: ${{ secrets.MOONSHOT_API_KEY }}
+        run: |
+          if [ -z "$MOONSHOT_API_KEY" ]; then
+            echo "::error::secrets.MOONSHOT_API_KEY is empty for this job. It must be a REPOSITORY secret (Settings → Secrets and variables → Actions); secrets stored in a GitHub Environment or org-level secrets not covering this repo are invisible here."
+            exit 1
+          fi
+
+      - name: Kimi
+        id: kimi
+        uses: anthropics/claude-code-action@v1
+        env:
+          ANTHROPIC_BASE_URL: https://api.kimi.ai/coding
+          ANTHROPIC_AUTH_TOKEN: ${{ secrets.MOONSHOT_API_KEY }}
+          # claude-code-action v1 validates that ANTHROPIC_API_KEY (or an
+          # OAuth/federation credential) exists before it will run at all.
+          # AUTH_TOKEN stays the real credential (Bearer wins over x-api-key);
+          # this var only satisfies the validator.
+          ANTHROPIC_API_KEY: ${{ secrets.MOONSHOT_API_KEY }}
+        with:
+          github_token: ${{ steps.app-token.outputs.token }}
+          trigger_phrase: "@huggingarch-bot[bot]"
+          claude_args: "--model k3"
+
+      - name: Show Claude SDK failure details
+        if: failure()
+        env:
+          EXECUTION_FILE: ${{ steps.kimi.outputs.execution_file }}
+        run: |
+          node <<'NODE'
+          const fs = require("fs");
+          const path = process.env.EXECUTION_FILE;
+          if (!path || !fs.existsSync(path)) {
+            console.log("Claude execution file is unavailable.");
+            process.exit(0);
+          }
+          const messages = JSON.parse(fs.readFileSync(path, "utf8"));
+          const result = messages.filter((m) => m?.type === "result").at(-1);
+          if (!result) {
+            console.log("Claude execution file contains no result message.");
+            process.exit(0);
+          }
+          console.log(JSON.stringify({
+            subtype: result.subtype,
+            is_error: result.is_error,
+            duration_ms: result.duration_ms,
+            num_turns: result.num_turns,
+            errors: result.errors ?? [],
+            permission_denials: result.permission_denials ?? [],
+            modelUsage: result.modelUsage ?? {},
+          }, null, 2));
+          NODE

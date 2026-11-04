@@ -1,0 +1,34 @@
+# Aux-loss-free top-K router (Bailing/Ling variant) — structurally
+# identical to `router_noaux_tc` but the per-expert correction bias is
+# stored as `gate.expert_bias` rather than `gate.e_score_correction_bias`.
+#
+# Mirrors `router_noaux_tc`: parent MoE component wraps it as a
+# non-primary `gate:` invocation, and `compose_weight_name` folds the
+# primary `linear` onto the wrapper to produce the HF `mlp.gate.weight`
+# tensor name. Sibling Parameters / inline ops are flat siblings of
+# `linear`, named without the `gate.` prefix; the wrapper provides the
+# `mlp.gate.` HF namespace via weight_name composition, not via node-id
+# nesting.
+#
+# Required dims: d_model, n_route_targets, n_expert_groups (config.n_group),
+# n_groups_active (config.topk_group).
+# Optional dims: n_experts_active.
+
+role: router
+description: "Aux-loss-free top-K router with `gate.expert_bias` (Bailing/Ling). Same routing math as router_noaux_tc; differs only in bias parameter name."
+graph:
+  linear:                    { op: linear, in: x, dims: { in: d_model, out: n_route_targets, bias: "0" }, module: null, weight_axes: [{ replicated: true }, { replicated: true }] }
+  sigmoid:                   { op: sigmoid, in: linear, dim: n_route_targets }
+  expert_bias:               { op: parameter_vector, dim: n_route_targets, weight_axes: [{ replicated: true }] }
+  scores_biased:             { op: add, in: [sigmoid, expert_bias], dim: n_route_targets }
+
+  group_top2_sum: { op: group_top2_sum, in: scores_biased, dims: { in: n_route_targets, n_expert_groups: n_expert_groups } }
+  group_topk:     { op: topk,           in: group_top2_sum, dims: { in: n_expert_groups, k: n_groups_active } }
+  group_mask:     { op: group_mask_apply, in: [scores_biased, group_topk], dims: { in: n_route_targets, n_groups_active: n_groups_active } }
+
+  topk_indices:  { op: topk,              in: group_mask, dims: { in: n_route_targets, k: n_experts_active } }
+  topk_gather:   { op: gather,            in: [sigmoid, topk_indices], dims: { in: n_route_targets, k: n_experts_active } }
+  topk_norm:     { op: normalize_sum_one, in: topk_gather, dims: { in: n_experts_active } }
+  topk_scale:    { op: scale_const,       in: topk_norm,   dims: { in: n_experts_active } }
+
+outputs: [topk_scale]

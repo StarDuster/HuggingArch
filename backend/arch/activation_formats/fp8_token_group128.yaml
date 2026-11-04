@@ -1,0 +1,4 @@
+description: "FP8 (E4M3) activations, one dynamic F32 scale per token per 128 channels."
+source: "transformers integrations/finegrained_fp8.py FP8Linear.forward → fp8_linear (per-token-group quant, group 128)"
+dtype: F8_E4M3
+scale: { granularity: per-group, group: 128, dtype: F32 }

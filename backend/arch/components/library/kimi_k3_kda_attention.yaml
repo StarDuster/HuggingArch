@@ -1,0 +1,146 @@
+# Kimi Delta Attention (KDA) — Kimi-K3 linear-attention layers.
+#
+# KDA is a fine-grained (per-channel decay) variant of Gated DeltaNet. It
+# differs from `gated_delta_net_attention` (Qwen3.5) / `_fused` (Qwen3-Next)
+# in three structural ways, all visible in the checkpoint tensor set:
+#   1. SEPARATE q_proj / k_proj / v_proj (not a fused in_proj), each d_model → n_lin_v_heads·d_lin_k_head,
+#      each followed by its OWN depthwise causal short conv (q/k/v_conv1d).
+#   2. FULL-RANK channel-wise decay gate computed low-rank:
+#         f = f_b_proj(f_a_proj(x))            # d_model → d_gate_lowrank → n_lin_v_heads·d_lin_k_head
+#         g = lower_bound · sigmoid(exp(A_log) · (f + dt_bias))   # gate_lower_bound set (Kimi-K3: -5.0)
+#         g = -exp(A_log) · softplus(f + dt_bias)                 # gate_lower_bound unset
+#      per (head, key-dim). The checkpoint stores A_log as [d_lin_k_head] and
+#      dt_bias as [n_lin_v_heads·d_lin_k_head]. vLLM and sglang read A_log
+#      per head (`A_log + i_h`; sglang `kimi_k3.py:1560-1586` narrows the
+#      stored vector to the first num_heads entries); the graph multiplies it
+#      elementwise into the [n_lin_v_heads, d_lin_k_head] gate either way.
+#   3. Per-head update gate β = sigmoid(b_proj(x))   # b_proj: d_model → n_lin_v_heads.
+#      Output is RMSNorm-gated (o_norm over head-dim) then multiplied by an
+#      output gate sigmoid(g_proj(x)) before o_proj — sglang builds the pair as
+#      `FusedRMSNormGated(head_dim, activation="sigmoid")` (`kimi_k3.py`).
+#
+# Forward (modeling_kimi_linear.py and sglang's `KimiK3` KDA path):
+#   q = silu(q_conv1d(q_proj(x)));  k = silu(k_conv1d(k_proj(x)));
+#   v = silu(v_conv1d(v_proj(x)))
+#   f = f_b_proj(f_a_proj(x)) + dt_bias
+#   g = gate_lower_bound · sigmoid(exp(A_log) · f)   if gate_lower_bound is set
+#   g = -exp(A_log) · softplus(f)                    otherwise
+#   β = sigmoid(b_proj(x))
+#   q, k = l2norm(q), l2norm(k)                  # per key head
+#   o = gated_delta_rule(q, k, v, g, β)          # O(1) recurrent state; scales q by d_k^-0.5
+#   o = o_norm(o) · sigmoid(g_proj(x))           # RMSNorm-gated + output gate
+#   out = o_proj(o)
+#
+# The two gate forms are one graph with `when:` switches on
+# n_gate_lower_bound = present(linear_attn_config.gate_lower_bound): the
+# source branches on `gate_lower_bound is not None` (transformers
+# modeling_kimi_linear.py KimiDeltaAttention.forward passes
+# `safe_gate=self.gate_lower_bound is not None, lower_bound=...` to
+# chunk_kda / fused_recurrent_kda; sglang `kimi_k3.py:1640-1641` sets
+# `attn.lower_bound` from the config and
+# `fused_sigmoid_gating_recurrent.py:185-196` computes
+# `lower_bound * sigmoid(exp(A_log) * x)` when it is set, `-exp(A_log) *
+# softplus(x)` otherwise; vLLM `kimi_k3/nvidia/ops/third_party/kda/
+# fused_recurrent.py:65-75` and `chunk.py:505-513` branch the same way).
+#
+# Required dims: d_model, n_lin_k_heads, n_lin_v_heads, d_lin_k_head, d_lin_v_head, s_conv_kernel, d_gate_lowrank, n_gate_lower_bound.  All linears bias-free.
+role: attention
+description: "Kimi Delta Attention (KDA): separate q/k/v proj + per-q/k/v short conv, low-rank channel-wise decay gate, per-head beta, RMSNorm-gated output + sigmoid output gate. Kimi-K3 linear-attn layers."
+# Compute flavor shown to users. The recurrent state is GatedDeltaNet-shaped
+# (the cache family), but KDA is a distinct mechanism (fine-grained per-channel
+# decay), so the displayed label must say KDA, not the generic GatedDeltaNet.
+attn_variant: KDA
+cache:
+  family: GatedDeltaNet
+  entries:
+    # The delta-rule matrix, carried by the scan, V-first: the forward calls
+    # `chunk_kda` / `fused_recurrent_kda` with `transpose_state_layout=True`
+    # (modeling_kimi_linear.py:625, :643), which fla maps to `state_v_first`
+    # and holds the state as [N, H, V, K] (fla-core 0.5.2 fla/ops/kda/chunk.py
+    # :352-360, fla/ops/common/chunk_delta_h.py:702-704), so per request it is
+    # [n_lin_v_heads, d_lin_v_head, d_lin_k_head].
+    # Kept in F32: modeling_kimi_linear.py:610-647 caches the `recurrent_state`
+    # fla returns from `chunk_kda` / `fused_recurrent_kda`, and fla-core 0.5.2
+    # allocates that final state as float32 on both paths
+    # (fla/ops/common/chunk_delta_h.py:704, :707 `k.new_zeros(..., dtype=
+    # torch.float32)`, reached from fla/ops/kda/chunk_fwd.py:94;
+    # fla/ops/kda/fused_recurrent.py:276, :278 `q.new_empty(..., dtype=
+    # torch.float32)`, `inplace_final_state=False` at :477). The conv states
+    # stay at the model's dtype.
+    - { state: recurrent_state, kind: recurrent_state, carrier: delta_rule, shape: [n_lin_v_heads, d_lin_v_head, d_lin_k_head], dtype: F32 }
+    # Each short conv keeps its own window, [C, kernel_size], resolved in the
+    # conv's own frame: q/k/v_conv1d are fla `ShortConvolution`s
+    # (modeling_kimi_linear.py:504-516, caches returned at :583-597), whose
+    # cache is `[N, D, W]` with W the kernel size (fla/modules/conv/short_conv.py
+    # `cache = x.new_zeros(N, D, W)`).
+    - { state: q_conv_state, kind: conv_state, carrier: q_conv1d, shape: [C, kernel_size] }
+    - { state: k_conv_state, kind: conv_state, carrier: k_conv1d, shape: [C, kernel_size] }
+    - { state: v_conv_state, kind: conv_state, carrier: v_conv1d, shape: [C, kernel_size] }
+graph:
+  # --- Q / K / V projections, each with its own depthwise short conv ---
+  q_proj:   { op: linear, in: x, dims: { in: d_model, out: "n_lin_v_heads * d_lin_k_head" }, weight_axes: [{ world: attention, parts: n_lin_v_heads, fit: replica_cells }, { replicated: true }] }
+  k_proj:   { op: linear, in: x, dims: { in: d_model, out: "n_lin_v_heads * d_lin_k_head" }, weight_axes: [{ world: attention, parts: n_lin_v_heads, fit: replica_cells }, { replicated: true }] }
+  v_proj:   { op: linear, in: x, dims: { in: d_model, out: "n_lin_v_heads * d_lin_v_head" }, weight_axes: [{ world: attention, parts: n_lin_v_heads, fit: replica_cells }, { replicated: true }] }
+  q_conv1d: { op: conv1d, role: attention_short_conv, in: q_proj, dims: { C: "n_lin_v_heads * d_lin_k_head", C_in: "n_lin_v_heads * d_lin_k_head", C_out: "n_lin_v_heads * d_lin_k_head", kernel_size: s_conv_kernel, dilation: "1", groups: "n_lin_v_heads * d_lin_k_head", bias: "0" }, weight_axes: [{ world: attention, parts: n_lin_v_heads, fit: replica_cells }, { replicated: true }, { replicated: true }] }
+  k_conv1d: { op: conv1d, role: attention_short_conv, in: k_proj, dims: { C: "n_lin_v_heads * d_lin_k_head", C_in: "n_lin_v_heads * d_lin_k_head", C_out: "n_lin_v_heads * d_lin_k_head", kernel_size: s_conv_kernel, dilation: "1", groups: "n_lin_v_heads * d_lin_k_head", bias: "0" }, weight_axes: [{ world: attention, parts: n_lin_v_heads, fit: replica_cells }, { replicated: true }, { replicated: true }] }
+  v_conv1d: { op: conv1d, role: attention_short_conv, in: v_proj, dims: { C: "n_lin_v_heads * d_lin_v_head", C_in: "n_lin_v_heads * d_lin_v_head", C_out: "n_lin_v_heads * d_lin_v_head", kernel_size: s_conv_kernel, dilation: "1", groups: "n_lin_v_heads * d_lin_v_head", bias: "0" }, weight_axes: [{ world: attention, parts: n_lin_v_heads, fit: replica_cells }, { replicated: true }, { replicated: true }] }
+  q_act:    { op: silu, in: q_conv1d, dim: "n_lin_v_heads * d_lin_k_head" }
+  k_act:    { op: silu, in: k_conv1d, dim: "n_lin_v_heads * d_lin_k_head" }
+  v_act:    { op: silu, in: v_conv1d, dim: "n_lin_v_heads * d_lin_v_head" }
+  # The head splits are the `head_split` component (view_split + transpose)
+  # spelled inline here and below (f, g): the same two view ops, so the same
+  # function and cost, with every step of the mixer in this component's
+  # scope — the span the frameworks' decode kernels launch as one
+  # (`fused_kda_decode`, `fused_recurrent_kda_per_channel`).
+  q_unflatten: { op: view_split, in: q_act, axis: -1, dims: { in: "n_lin_k_heads * d_lin_k_head", n_heads: n_lin_k_heads, d_head: d_lin_k_head } }
+  q_split_heads: { op: transpose, in: q_unflatten, axes: [0, 2, 1, 3] }
+  k_unflatten: { op: view_split, in: k_act, axis: -1, dims: { in: "n_lin_k_heads * d_lin_k_head", n_heads: n_lin_k_heads, d_head: d_lin_k_head } }
+  k_split_heads: { op: transpose, in: k_unflatten, axes: [0, 2, 1, 3] }
+  v_unflatten: { op: view_split, in: v_act, axis: -1, dims: { in: "n_lin_v_heads * d_lin_v_head", n_heads: n_lin_v_heads, d_head: d_lin_v_head } }
+  v_split_heads: { op: transpose, in: v_unflatten, axes: [0, 2, 1, 3] }
+  # q/k L2 normalization over each key head: vLLM's prefill passes
+  # `use_qk_l2norm_in_kernel=True` to `chunk_kda_with_fused_gate` and its
+  # packed decode kernel normalizes `b_q` / `b_k` in-register (kimi_k3
+  # `kda.py`); sglang's KDA backends pass the same flag. The
+  # d_lin_k_head^-0.5 query scale that follows is part of `delta_rule`.
+  q_l2norm: { op: l2norm, in: q_split_heads, dim: d_lin_k_head }
+  k_l2norm: { op: l2norm, in: k_split_heads, dim: d_lin_k_head }
+
+  # --- Low-rank channel-wise decay gate g ---
+  f_a_proj:   { op: linear, in: x, dims: { in: d_model, out: d_gate_lowrank }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  f_b_proj:   { op: linear, in: f_a_proj, dims: { in: d_gate_lowrank, out: "n_lin_v_heads * d_lin_k_head" }, weight_axes: [{ world: attention, parts: n_lin_v_heads, fit: replica_cells }, { replicated: true }] }
+  dt_bias:    { op: parameter_vector, dim: "n_lin_v_heads * d_lin_k_head", weight_axes: [{ world: attention, parts: n_lin_v_heads, fit: replica_cells }] }
+  f_plus_dt:  { op: add, in: [f_b_proj, dt_bias], dim: "n_lin_v_heads * d_lin_k_head" }
+  # Unbounded form only: softplus before the rate multiply.
+  softplus_f: { op: softplus, in: f_plus_dt, dim: "n_lin_v_heads * d_lin_k_head", when: "1 - n_gate_lower_bound" }
+  f_unflatten: { op: view_split, in: softplus_f, axis: -1, dims: { in: "n_lin_v_heads * d_lin_k_head", n_heads: n_lin_v_heads, d_head: d_lin_k_head } }
+  f_heads:    { op: transpose, in: f_unflatten, axes: [0, 2, 1, 3] }
+  A_log:      { op: parameter_vector, dim: d_lin_k_head, weight_axes: [{ replicated: true }] }
+  exp_A:      { op: exp, in: A_log, dim: d_lin_k_head }
+  # Unbounded form only: the rate enters negated, g = -exp(A_log) · softplus(f).
+  neg_exp_A:  { op: scale_const, in: exp_A, dims: { in: d_lin_k_head }, when: "1 - n_gate_lower_bound", formula: "y = −exp(A_log)" }
+  g_rate:     { op: mul, in: [f_heads, neg_exp_A], dim: d_lin_k_head }
+  # Lower-bounded form only: g = lower_bound · sigmoid(exp(A_log) · f), in (lower_bound, 0).
+  g_sigmoid:  { op: sigmoid, in: g_rate, dim: d_lin_k_head, when: n_gate_lower_bound }
+  g_decay:    { op: scale_const, in: g_sigmoid, dims: { in: d_lin_k_head }, when: n_gate_lower_bound, formula: "g = lower_bound · sigmoid(exp(A_log) · (f + dt_bias)),  lower_bound = linear_attn_config.gate_lower_bound" }
+
+  # --- Per-head update gate beta ---
+  b_proj:     { op: linear, in: x, dims: { in: d_model, out: n_lin_v_heads }, weight_axes: [{ world: attention, parts: n_lin_v_heads, fit: replica_cells }, { replicated: true }] }
+  beta:       { op: sigmoid, in: b_proj, dim: n_lin_v_heads }
+
+  # --- Core linear-attention recurrence (zero params) ---
+  delta_rule: { op: gated_delta_rule, in: [q_l2norm, k_l2norm, v_split_heads, g_decay, beta] }
+
+  # --- RMSNorm-gated output + sigmoid output gate + projection ---
+  o_norm:   { op: rmsnorm, in: delta_rule, dim: d_lin_v_head, weight_axes: [{ replicated: true }] }
+  g_proj:   { op: linear, in: x, dims: { in: d_model, out: "n_lin_v_heads * d_lin_v_head" }, weight_axes: [{ world: attention, parts: n_lin_v_heads, fit: replica_cells }, { replicated: true }] }
+  # Heads split before the sigmoid (elementwise, so the same function): the
+  # gated norm reads `o_norm` and the activated gate in one component scope,
+  # the form `rmsnorm_gated` matches (as gated_delta_net_attention's z gate).
+  g_unflatten: { op: view_split, in: g_proj, axis: -1, dims: { in: "n_lin_v_heads * d_lin_v_head", n_heads: n_lin_v_heads, d_head: d_lin_v_head } }
+  g_split_heads: { op: transpose, in: g_unflatten, axes: [0, 2, 1, 3] }
+  g_act:    { op: sigmoid, in: g_split_heads, dim: d_lin_v_head }
+  o_gated:  { op: mul, in: [o_norm, g_act], dim: d_lin_v_head }
+  o_merge_heads: { op: head_merge, in: o_gated, dims: { n_heads: n_lin_v_heads, d_head: d_lin_v_head } }
+  o_proj:   { op: linear, in: o_merge_heads, dims: { in: "n_lin_v_heads * d_lin_v_head", out: d_model }, weight_axes: [{ replicated: true }, { world: attention, parts: n_lin_v_heads, fit: replica_cells }] }
+outputs: [o_proj]

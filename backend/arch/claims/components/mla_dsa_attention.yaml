@@ -1,0 +1,21 @@
+schema: huggingarch.claims/v1
+subject: mla_dsa_attention
+axioms:
+  checks:
+  - kind: kv_growth
+    storage: per_token
+    src: 'model.py::MLA.forward — DSA STORES the full latent KV per token (`self.kv_cache[:,
+      start:end] = kv`, no eviction); sparsity is read-side only (top-K), so storage
+      grows per token even though each query reads Min(s_kv, n_topk_keys). Store-full,
+      read-sparse.'
+  - kind: kv_growth
+    node: indexer.key_concat
+    storage: per_token
+    expect: d_indexer_head
+    src: model.py::Indexer.__init__ `self.register_buffer("k_cache", zeros(max_batch,
+      max_seq_len, self.head_dim, dtype=float8_e4m3))` — the lightning-indexer key
+      is MQA (one head_dim=index_head_dim vector per position, NOT index_n_heads*d_indexer_head)
+      and FP8, stored full-length (`k_cache[:, start:end] = k_fp8`). The cached key is
+      the ROTATED one (transformers DeepseekV32Indexer.forward rotates k_rot, cats
+      [k_rot, k_pass], then writes the cache). Unlike V4, V3.2 has no indexer
+      compressor, so it grows at the FULL rate.

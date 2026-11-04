@@ -1,0 +1,50 @@
+# DeepSeek-V4.1-Flash `Block.hc_mixes` — the COEFFICIENT HALF of V4-Pro's
+# `hc_pre`, split out because V4.1 consumes the three coefficient sets in two
+# different places.
+#
+# source/model.py:948-955:
+#     def hc_mixes(self, x, hc_fn, hc_scale, hc_base):
+#         x = x.flatten(2).float()
+#         rsqrt = torch.rsqrt(x.square().mean(-1, keepdim=True) + self.norm_eps)
+#         mixes = F.linear(x, hc_fn) * rsqrt
+#         return hc_split_sinkhorn(mixes, hc_scale, hc_base, self.hc_mult, ...)
+#
+# `library/hc_pre.yaml` is these four nodes PLUS the `hc_weighted_reduce` that
+# applies the freshly computed `pre` to the same `x` (hc_pre.yaml:33). V4.1's
+# `forward` (source/model.py:976-994) never does that: the reduce it runs next
+# uses the PREVIOUS sub-block's `pre`, so the reduce has to stay at the call
+# site and only the coefficient computation is shared. Hence this component is
+# `hc_pre` minus its last line — same zero learnable parameters, same
+# caller-owned weights (`fn`, `scale`, `base`), same three outputs.
+#
+# Ports mirror the source's triple return: the main output is `pre`
+# (hc_split_sinkhorn's primary), `post` and `comb` are the two secondary ports.
+#
+# Required dims at call site: d_model, n_hidden_copies, d_hc_mix.
+
+role: hyper_connection
+description: "DSv4.1 Block.hc_mixes: rms-scale the flattened n_hidden_copies hidden copies, project to d_hc_mix through a caller-owned weight and sinkhorn-split into (pre, post, comb). hc_pre without the reduce — V4.1 applies `pre` one sub-block later."
+# `x` is the hidden stream ALREADY FLATTENED over the copy axis, [B, s_ctx,
+# n_hidden_copies · d_model]: `x = x.flatten(2).float()` is the first line of the
+# method (source/model.py:949) and the caller holds that flattening anyway,
+# because the HC stream crosses block boundaries in it. Everything below then
+# operates on the flat vector, exactly as the source does.
+inputs: [x, fn, scale, base]   # x: [B,s_ctx,n_hidden_copies·d_model], fn: [d_hc_mix, n_hidden_copies·d_model], scale: [3], base: [d_hc_mix]
+
+graph:
+  # `rsqrt = torch.rsqrt(x.square().mean(-1, keepdim=True) + self.norm_eps)` —
+  # over the WHOLE flattened vector, not per copy.
+  rms:    { op: rmsnorm_unscaled, in: x, dim: "n_hidden_copies * d_model" }
+  mixes:  { op: linear_external_weight, in: [rms, fn], dims: { in: "n_hidden_copies * d_model", out: d_hc_mix } }
+  split:  { op: hc_split_sinkhorn, in: [mixes, scale, base], dims: { d_hc_mix: d_hc_mix, n_hidden_copies: n_hidden_copies } }
+
+outputs: [split]
+
+secondary_outputs:
+  post: split.post
+  comb: split.comb
+
+# No `axioms:` block: there is nothing to state — `hc_mixes` is a method, not a
+# module, and registers no buffer (source/model.py:948-955).
+# `library/hc_pre.yaml` — the same pure function with the reduce attached —
+# likewise states none.

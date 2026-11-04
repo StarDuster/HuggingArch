@@ -1,0 +1,64 @@
+# Gated DeltaNet decode step in one launch: q/k L2 norm, the forget gate
+# g = -exp(a_log) * softplus(dt_raw + dt_bias), the update gate
+# beta = sigmoid(beta_raw) and the delta-rule recurrence.
+#
+# Naive subgraph (gated_delta_net_attention, gated_delta_net_fused_attention):
+#
+#   q, k = l2norm(q), l2norm(k)
+#   g    = neg_exp(a_log) * softplus(dt_raw + dt_bias)
+#   beta = sigmoid(beta_raw)
+#   o    = gated_delta_rule(q, k, v, g, beta)
+#
+# DECODE ONLY. Both frameworks run a decode step as one recurrent kernel
+# that reads the post-conv q|k|v, raw dt_raw and beta_raw, a_log and
+# dt_bias and the recurrent state, and writes o and the state:
+#   vLLM (audited at v0.32.0): `fused_recurrent_gated_delta_rule_packed_decode`
+#     (third_party/flash_linear_attention/ops/fused_recurrent.py:343, kernel
+#     :256; loads :313-315, l2norm :317-319, gate + beta :322-329), called from
+#     model_executor/layers/mamba/gdn/qwen_gdn_linear_attn.py:1766
+#     (`_forward_core_decode_non_spec`, taken at :1366-1371 for a decode-only
+#     non-spec batch; `VLLM_ENABLE_FLA_PACKED_RECURRENT_DECODE` default on,
+#     envs.py:1230). A speculative / mixed batch runs
+#     `fused_sigmoid_gating_delta_rule_update(use_qk_l2norm_in_kernel=True)`
+#     (:1543, :1570, :1629), the same boundary.
+#   sglang (audited at v0.5.22): `fused_recurrent_gated_delta_rule_packed_decode`
+#     (kernels/ops/attention/fla/fused_recurrent.py:269, kernel :187), from
+#     srt/layers/attention/linear/gdn_backend.py:868 via
+#     kernels/gdn_triton.py:121 (`supports_packed_decode` = not CPU/NPU, :43);
+#     else `decode()` -> `fused_sigmoid_gating_delta_rule_update`
+#     (gdn_triton.py:153), same boundary. The FlashInfer decode backend
+#     (chosen only by server arguments — see the sglang.yaml entry;
+#     arg_groups/attention_hook.py:287-302) takes the same raw operands (gdn_flashinfer.py:387-476,
+#     `use_qk_l2norm=True`); its internals are not in tree.
+#
+# Prefill differs in both frameworks (a chunked kernel with separate prep
+# launches: sglang's `fused_gdn_gating`; vLLM's `fused_post_conv_prep`,
+# `fused_gdn_post_conv_prep.yaml`, which also writes a contiguous copy of
+# v), which is why the binding entries ask `phase: [decode]`.
+#
+# The recurrence carries the mixer's recurrent state (carrier
+# `delta_rule`); its read moves onto this launch (`traffic._settle_cache_reads`).
+
+fused_op: fused_recurrent_gated_delta_rule
+
+naive_pattern:
+  nodes:
+    q_norm:   { op: l2norm,    inputs: [external.q] }
+    k_norm:   { op: l2norm,    inputs: [external.k] }
+    dt:       { op: add,       inputs: [external.dt_raw, external.dt_bias] }
+    softplus: { op: softplus,  inputs: [dt.out] }
+    rate:     { op: neg_exp,   inputs: [external.a_log] }
+    decay:    { op: mul,       inputs: [rate.out, softplus.out] }
+    beta:     { op: sigmoid,   inputs: [external.beta_raw] }
+    rule:
+      op: gated_delta_rule
+      inputs: [q_norm.out, k_norm.out, external.v, decay.out, beta.out]
+  io_mapping:
+    q:        external.q
+    k:        external.k
+    v:        external.v
+    dt_raw:   external.dt_raw
+    beta_raw: external.beta_raw
+    a_log:    external.a_log
+    dt_bias:  external.dt_bias
+    output:   rule.out

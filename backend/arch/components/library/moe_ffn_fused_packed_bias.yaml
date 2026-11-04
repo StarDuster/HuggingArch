@@ -1,0 +1,116 @@
+# MoE FFN with FUSED gate_up + PACKED expert tensors + BIAS on every linear,
+# as MXFP4-quantized triples in the checkpoint.
+# First observed in: GPT-OSS (OpenAI gpt-oss-20b/120b).
+#
+# Structural traits (vs other moe_ffn_* variants):
+#   - Router: `linear, bias=1`, then top-K over the LOGITS and a softmax over
+#     the K picked values (`GptOssTopKRouter.forward`, modeling_gpt_oss.py:
+#     133-134) — the weights sum to one per token. vLLM gets the same weights
+#     as softmax over all experts + top-K + renormalize (gpt_oss.py:219,
+#     `renormalize=True`). Bias is on the linear; there is NO separate
+#     `e_score_correction_bias` parameter.
+#   - Experts are PACKED (single 3-D tensor per projection, shape
+#     [n_experts, out, in]; no `experts.<i>.` per-expert sub-path) AND FUSED
+#     (`gate_up_proj` of shape [n_experts, 2·d_ffn_expert, d_model], two zero-FLOP slices recover
+#     gate / up).
+#   - The expert weights are MXFP4-quantized in the checkpoint and stored
+#     as three sibling tensors per projection (NOT as `<id>.weight` and
+#     `<id>.bias`):
+#       experts.<proj>_blocks  — shape [n_experts, out, in/32, 16] (uint8, 4-bit
+#                                pairs packed two per byte → half logical)
+#       experts.<proj>_scales  — shape [n_experts, out, in/32]    (uint8 per-block
+#                                exponent; counted as params, not metadata)
+#       experts.<proj>_bias    — shape [n_experts, out]           (BF16 vector)
+#     The `_bias` siblings are parameter_vector nodes here; `_blocks` /
+#     `_scales` come from the mxfp4 quant scheme (see the quant-storage
+#     note in the graph). The compute is one custom op
+#     (`mxfp4_fused_linear`) whose flops match a real linear+bias.
+#   - No shared experts.
+#
+# Required dims: d_model, d_ffn_expert, n_experts, n_experts_active
+#
+# `dim:` formulas use the MXFP4 group size of 32 (each 32-elem block packs
+# into 16 bytes + 1 scale byte). `d_model / 32` and `d_ffn_expert / 32` must be integral.
+
+role: ffn_moe
+description: "MoE with packed experts + fused gate_up_proj + per-linear bias + MXFP4 storage triples. GPT-OSS."
+custom_ops:
+  mxfp4_fused_linear:
+    flops: "B * s_ctx * Out + 2 * B * s_ctx * In * Out"
+    # The op OWNS its weight, so the per-op decode READ sees the expert
+    # weight: one `[Out, In]` matrix here, and the call sites declare the
+    # bank's `[n_expert_copies, Out, In]` (`shape:`), whose elements the
+    # parameter count then is.
+    params: "In * Out"
+    # The op's weight geometry, declared, so the storage layer reads `in`
+    # directly instead of dividing `params` by the output axis.
+    #
+    # `In` / `Out` are the op's own parameter names, bound per call site, and
+    # neither may be a symbol `dims.yaml` classifies: an axis gets its identity
+    # from what the call site binds, and a parameter name that also lives in
+    # `dims.yaml` would give it a second, sharded-by-name identity that
+    # disagrees with the binding (e.g. `d_model`, which nothing shards).
+    weight_shape: [Out, In]
+    # Two operands. The bias is an independent `nn.Parameter` this op
+    # reads — `formula` says `+ bias` and `flops` carries its `B·s_ctx·Out`
+    # term, so the add is priced here; the edge gives the bias tensor a
+    # reader, so its bytes are billed to the kernel that streams them rather
+    # than to the parameter node that stores them.
+    #
+    # The bias template is deliberately empty: the bias is
+    # `[n_expert_copies, Out]`, one row per expert, and contributes no axis
+    # label the FLOPs read. (Which is also why it cannot be a separate
+    # `add`: elementwise broadcast aligns from the tail, and `[E, Out]`
+    # against the GEMM's `[E, M, Out]` pairs `E` with `M`.)
+    signature:
+      x: [B, s_ctx, In]
+      bias: []
+    shape_kind: axis_replace
+    out_key: Out
+    axis_locked: -1
+    # A linear, so the same one axis: `In` is what the matmul sums over.
+    couples_on: [In]
+    formula: "y = dequant_mxfp4(blocks, scales) · x + bias"
+    description: "MXFP4 4-bit linear with bias (compute-only; storage in sibling _blocks/_scales/_bias parameter_vector nodes. blocks/scales stay siblings; the bias is threaded in as the second operand so the tensor it reads has a reader)."
+graph:
+  router:                       { op: linear, role: router, in: x, dims: { in: d_model, out: n_route_targets, bias: "1" }, weight_axes: [{ replicated: true }, { replicated: true }] }
+  topk_indices:                 { op: topk, in: router, dims: { in: n_route_targets, k: n_experts_active } }
+  topk_gather:                  { op: gather, in: [router, topk_indices], dims: { in: n_route_targets, k: n_experts_active } }
+  topk_softmax:                 { op: softmax_act, in: topk_gather, dim: n_experts_active }
+
+  permute:                      { op: permute, in: [x, topk_softmax] }
+
+  # Quant storage layout: this component declares only the LOGICAL
+  # compute graph (mxfp4_fused_linear nodes + bias). The on-disk
+  # packed-weight tensors (`*_blocks`) and per-block scales
+  # (`*_scales`) are NOT declared here — they are emitted by the
+  # engine at compute time when a consuming model spec sets
+  # `quant_context.per_role.ffn_moe.method: mxfp4`. The recipe lives
+  # in `backend/arch/quant_schemes/mxfp4.yaml`. Bias tensors are
+  # architectural (BF16) and stay declared inline, one row per expert:
+  # `[n_expert_copies, payload]`, the same leading axis every weight of the
+  # bank declares. `n_expert_copies` and not `n_experts`: expert parallelism
+  # divides the copies, so a per-rank reader would otherwise keep the whole
+  # bias beside a sharded weight.
+  experts.gate_up_proj_bias:    { op: parameter_vector, dim: "2 * d_ffn_expert", shape: [n_expert_copies, "2 * d_ffn_expert"], expert_weight: leading_axis,
+                                  weight_axes: [{ world: moe_copies, parts: n_expert_copies, fit: exact }, { segments: [{ segment: gate, extent: d_ffn_expert, world: moe_expert, parts: d_ffn_expert, fit: exact }, { segment: up, extent: d_ffn_expert, world: moe_expert, parts: d_ffn_expert, fit: exact }] }] }
+  experts.gate_up_proj:         { op: mxfp4_fused_linear, in: [permute, experts.gate_up_proj_bias],
+                                  dims: { In: d_model, Out: "2 * d_ffn_expert" },
+                                  shape: [n_expert_copies, "2 * d_ffn_expert", d_model],
+                                  weight_axes: [{ world: moe_copies, parts: n_expert_copies, fit: exact }, { segments: [{ segment: gate, extent: d_ffn_expert, world: moe_expert, parts: d_ffn_expert, fit: exact }, { segment: up, extent: d_ffn_expert, world: moe_expert, parts: d_ffn_expert, fit: exact }] }, { replicated: true }],
+                                  expert_weight: leading_axis }
+  experts.gate_slice:           { op: slice, in: experts.gate_up_proj, dims: { in: "2 * d_ffn_expert", out: d_ffn_expert } }
+  experts.up_slice:             { op: slice, in: experts.gate_up_proj, dims: { in: "2 * d_ffn_expert", out: d_ffn_expert } }
+  experts.silu:                 { op: silu, in: experts.gate_slice, dim: d_ffn_expert }
+  experts.gate_mul:             { op: mul, in: [experts.silu, experts.up_slice], dim: d_ffn_expert }
+
+  experts.down_proj_bias:       { op: parameter_vector, dim: d_model, shape: [n_expert_copies, d_model], expert_weight: leading_axis,
+                                  weight_axes: [{ world: moe_copies, parts: n_expert_copies, fit: exact }, { replicated: true }] }
+  experts.down_proj:            { op: mxfp4_fused_linear, in: [experts.gate_mul, experts.down_proj_bias],
+                                  dims: { In: d_ffn_expert, Out: d_model },
+                                  shape: [n_expert_copies, d_model, d_ffn_expert],
+                                  weight_axes: [{ world: moe_copies, parts: n_expert_copies, fit: exact }, { replicated: true }, { world: moe_expert, parts: d_ffn_expert, fit: exact }],
+                                  expert_weight: leading_axis }
+
+  combine:                      { op: combine, in: [experts.down_proj, topk_softmax] }
+outputs: [combine]

@@ -1,0 +1,45 @@
+# Hyper-Connections "pre" mixing — reduce n_hidden_copies parallel hidden copies
+# into 1 hidden copy that attention / FFN can run on.
+#
+# Source mirror: `Block.hc_pre(self, x, hc_fn, hc_scale, hc_base)` in
+# V4-Pro `inference/model.py`. Source is a pure method that takes the
+# 3 nn.Parameter weights as arguments — they live at Block scope, not
+# inside the method. Spec mirrors this faithfully:
+#
+#   • component owns ZERO learnable params
+#   • caller passes 3 weight tensors as inputs (`fn`, `scale`, `base`)
+#   • component returns 3 outputs (reduced + post + comb) via main +
+#     secondary ports, matching the source's `(y, post, comb)` triple
+#     return.
+#
+# Forward:
+#   x_flat = x.flatten(2).float()                                 # [B,s_ctx,n_hidden_copies·d_model]
+#   rsqrt  = 1 / sqrt(mean(x_flat²) + ε)
+#   mixes  = F.linear(x_flat, fn) * rsqrt                         # [B,s_ctx,d_hc_mix]
+#   pre, post, comb = hc_split_sinkhorn(mixes, scale, base)
+#   reduced = sum(pre.unsqueeze(-1) * x, dim=2)                   # [B,s_ctx,d_model]
+#   return reduced, post, comb
+#
+# Required dims at call site: d_model, n_hidden_copies, d_hc_mix (= (2 + n_hidden_copies) · n_hidden_copies).
+
+role: hyper_connection
+description: "Hyper-Connections pre-mix: flatten n_hidden_copies copies, project to d_hc_mix-dim mix vector via externally-owned weight, sinkhorn-split into (pre[n_hidden_copies], post[n_hidden_copies], comb[n_hidden_copies,n_hidden_copies]), reduce n_hidden_copies copies → [B,s_ctx,d_model]. Pure-function compound mirroring V4-Pro Block.hc_pre — params owned by caller."
+inputs: [x, fn, scale, base]   # x: [B,s_ctx,n_hidden_copies,d_model], fn: [d_hc_mix, n_hidden_copies·d_model], scale: [3], base: [d_hc_mix]
+
+graph:
+  flat:    { op: view_merge, in: x }
+  norm:    { op: rmsnorm_unscaled, in: flat, dim: "n_hidden_copies * d_model" }
+  mixes:   { op: linear_external_weight, in: [norm, fn], dims: { in: "n_hidden_copies * d_model", out: d_hc_mix } }
+  split:   { op: hc_split_sinkhorn, in: [mixes, scale, base], dims: { d_hc_mix: d_hc_mix, n_hidden_copies: n_hidden_copies } }
+  reduced: { op: hc_weighted_reduce, in: [x, split], dims: { n_hidden_copies: n_hidden_copies, d_model: d_model } }
+
+outputs: [reduced]
+
+# Two extra ports exposing the sinkhorn split's `post` (n_hidden_copies-vector for
+# the post-attn re-spread) and `comb` (n_hidden_copies×n_hidden_copies cross-mix matrix). Caller
+# reads as `<wrapper>.post` / `<wrapper>.comb` and feeds into hc_post,
+# matching V4-Pro source's `(reduced, post, comb) = hc_pre(...)` triple
+# return.
+secondary_outputs:
+  post: split.post
+  comb: split.comb

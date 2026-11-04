@@ -1,0 +1,4 @@
+# Identity file for THUDM/glm-4-9b-chat
+base: glm4
+match:
+  model_id: [THUDM/glm-4-9b-chat]

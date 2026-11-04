@@ -1,0 +1,19 @@
+# Qwen3.5-MoE full-attention layer (every 4th backbone layer).
+# Thin pre_norm wrapper binding the fused-QZ sigmoid-gated GQA attention and
+# the fused/scaled-shared MoE FFN.
+role: block
+description: "Qwen3.5-MoE full-attention layer: pre-norm + fused-QZ sigmoid-gated GQA + scaled-shared MoE FFN."
+
+graph:
+  layer:
+    module: null
+    op: pre_norm
+    in: x
+    params:
+      # Qwen3.5 / Qwen3.8 rotate by three position streams: the HF text rotary
+      # class sections by `mrope_section`, defaulting to [11, 11, 10] when the
+      # rope parameters carry none, and expands inv_freq over 3 streams
+      # (modeling_qwen3_5_moe.py `Qwen3_5MoeTextRotaryEmbedding`, :162, :193).
+      attn: { template: gqa_qknorm_partial_rope_sigmoid_gated_attention, params: { rope: mrope } }
+      ffn:  moe_ffn_fused_scaled_shared
+outputs: [layer]
