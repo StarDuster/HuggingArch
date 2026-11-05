@@ -339,12 +339,12 @@ quant_context:
     # SGLang's fused loader uses the global KV-head count (4), including for
     # SWA, whose local component binds eight KV heads.
     attention: { method: fp8, block_h: 128, block_w: 128,
-                 block_scale_layout: { kind: tp_interleaved, checkpoint_tp: 4, world: tp_attention, loaders: { sglang: whole_chunks, vllm: head_gather } },
-                 scale_shape: ["checkpoint_tp * ((out // checkpoint_tp + block_h - 1) // block_h)",
+                 block_scale_layout: { kind: tp_interleaved, checkpoint_tp: 4, world: tp_attention },
+                 scale_shape: ["chunks_per_rank * ((out // chunks_per_rank + block_h - 1) // block_h)",
                                "(in + block_w - 1) // block_w"] }
     attention_swa: { method: fp8, block_h: 128, block_w: 128,
-                     block_scale_layout: { kind: tp_interleaved, checkpoint_tp: 4, world: tp_attention, loaders: { sglang: whole_chunks, vllm: head_gather } },
-                     scale_shape: ["checkpoint_tp * ((out // checkpoint_tp + block_h - 1) // block_h)",
+                     block_scale_layout: { kind: tp_interleaved, checkpoint_tp: 4, world: tp_attention },
+                     scale_shape: ["chunks_per_rank * ((out // chunks_per_rank + block_h - 1) // block_h)",
                                    "(in + block_w - 1) // block_w"] }
     ffn_dense: { method: fp8, block_h: 128, block_w: 128 }
     ffn_moe:   { method: fp8, block_h: 128, block_w: 128 }

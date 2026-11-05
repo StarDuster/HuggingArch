@@ -91,8 +91,6 @@ class BlockScaleLayout(BaseModel):
     kind: Literal["tp_interleaved"]
     checkpoint_tp: int = Field(gt=0)
     world: str
-    loaders: Dict[Literal["sglang", "vllm"],
-                  Literal["whole_chunks", "head_gather"]]
 
 
 class PerRoleEntry(BaseModel):
@@ -382,6 +380,17 @@ def _validate_quant_entry_fields(
 
 
 
+def _validate_block_scale_entry(location: str, entry: Any) -> None:
+    if entry.block_scale_layout is not None and entry.method != "fp8":
+        raise ValueError(f"{location}: block_scale_layout requires method: fp8")
+    if (entry.block_scale_layout is None
+            and any(re.search(r"\bchunks_per_rank\b", axis)
+                    for axis in entry.scale_shape or ())):
+        raise ValueError(
+            f"{location}: scale_shape uses chunks_per_rank without "
+            "block_scale_layout")
+
+
 class QuantContext(BaseModel):
     """Top-level quant configuration on a model spec. Optional — when
     absent, the model is treated as fully unquantized at `BF16` (or
@@ -484,14 +493,14 @@ class QuantContext(BaseModel):
             _validate_quant_entry_fields(
                 f"quant_context.per_role.{role}", entry.method,
                 set(entry.model_extra or {}), entry.scale_shape)
-            if entry.block_scale_layout is not None and entry.method != "fp8":
-                raise ValueError("block_scale_layout requires method: fp8")
+            _validate_block_scale_entry(
+                f"quant_context.per_role.{role}", entry)
         for index, entry in enumerate(self.overrides):
             _validate_quant_entry_fields(
                 f"quant_context.overrides[{index}]", entry.method,
                 set(entry.model_extra or {}), entry.scale_shape)
-            if entry.block_scale_layout is not None and entry.method != "fp8":
-                raise ValueError("block_scale_layout requires method: fp8")
+            _validate_block_scale_entry(
+                f"quant_context.overrides[{index}]", entry)
         selectors = []
         for index, entry in enumerate(self.overrides):
             selector = entry.select

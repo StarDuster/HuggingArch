@@ -44,8 +44,7 @@ LEGACY_DROP = "legacy_drop"
 
 
 
-def _scale_block_refusal(row: Dict[str, Any], *,
-                         framework: str = DEFAULT_FRAMEWORK) -> Optional[str]:
+def _scale_block_refusal(row: Dict[str, Any]) -> Optional[str]:
     """Why a deployment with this per-rank shape cannot load, when a weight
     it multiplies carries a BLOCK scale — or None when it can.
 
@@ -118,15 +117,10 @@ def _scale_block_refusal(row: Dict[str, Any], *,
         if width_k and shard.k_local % width_k and (shard.cuts_k or grouped):
             return refusal("d_reduce", shard.k_local, width_k)
         layout = shard.block_scale_layout
-        loader = (layout["loaders"].get(framework) if layout is not None
-                  and layout["kind"] == "tp_interleaved" else None)
+        loader = layout.get("loader") if layout is not None else None
+        if layout is not None and layout.get("load_refusal"):
+            return str(layout["load_refusal"])
         if loader:
-            checkpoint_tp = int(layout["checkpoint_tp"])
-            runtime_tp = int(layout["runtime_tp"])
-            if loader == "whole_chunks" and checkpoint_tp % runtime_tp:
-                return (f"the fused weight checkpoint is TP={checkpoint_tp}-interleaved; "
-                        f"{framework} requires attention TP to divide that degree, "
-                        f"got TP={runtime_tp}")
             # SGLang loads whole checkpoint chunks at matching TP. At lower
             # TP it dequantizes those chunks, deinterleaves Q/K/V and
             # requantizes the entire fused rank matrix, padding its final
@@ -536,6 +530,7 @@ def _build_jobs_over_points(
             timed_stacks=frozenset({stack}),
             precision=precision,
             gpu=card,
+            allow_load_refusals=True,
             breakdown=False,
         ) for stack in stacks]
 
@@ -574,6 +569,7 @@ def _build_jobs_over_points(
                 include_aux_timing=True,
                 precision=precision,
                 gpu=card,
+                allow_load_refusals=True,
                 breakdown=False,
             )
 
@@ -848,7 +844,7 @@ def _build_jobs_over_points(
                 # serialization of it.
                 row_dtype_env_json = point.dtype_env_json
                 row_dtype_env = json.loads(row_dtype_env_json)
-                unshardable = _scale_block_refusal(row, framework=framework)
+                unshardable = _scale_block_refusal(row)
                 if unshardable:
                     agg = str(row.get("aggregation_id", "") or op)
                     note = f"{op} [{agg}]: {unshardable}"

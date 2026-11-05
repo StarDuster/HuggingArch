@@ -1559,12 +1559,22 @@ class Analysis:
             return None
         return sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))[0][0]
 
-    def with_load_formats(self, framework: str) -> "Analysis":
+    @cached_property
+    def load_refusals(self) -> Tuple[str, ...]:
+        """Why this deployment's selected loaders cannot materialize a rank."""
+        return tuple(dict.fromkeys(
+            rep.resident.load_refusal
+            for tensors in self.formats.values.values()
+            for reps in tensors
+            for rep in reps
+            if rep.resident.load_refusal is not None))
+
+    def with_load_formats(self, loaders: Mapping[str, str]) -> "Analysis":
         """This walk with the resident representations its loader creates.
 
-        The checkpoint side of every representation is preserved. Framework
-        selection is supplied by the serving reader, which owns that fact;
-        metadata, whole residency and rank projection then share one format.
+        The checkpoint side of every representation is preserved. The caller
+        resolves each layout kind to a framework's loader and passes only that
+        plain mapping; metadata, residency and rank projection share one format.
         """
         values = {}
         changed = False
@@ -1576,12 +1586,14 @@ class Analysis:
                 for segment_index, rep in enumerate(reps):
                     contract = rep.resident.block_scale_layout
                     loaded = rep.resident
-                    if contract is not None and framework in contract.loaders:
+                    loader = (loaders.get(contract.kind)
+                              if contract is not None else None)
+                    if loader is not None:
                         axes = self._axis_segments[(uid, index, segment_index)]
                         local_stored = replace(stored, shape=tuple(
                             sum(local for _, local in parts) for parts in axes))
                         loaded = rep.resident.for_loader(
-                            stored, local_stored, framework=framework,
+                            stored, local_stored, loader=loader,
                             runtime_tp=self.rule.world_degree(contract.world))
                     changed |= loaded is not rep.resident
                     segments.append(rep if loaded is rep.resident
@@ -1639,6 +1651,8 @@ class Analysis:
                         _, rows_held = held.matrix_dims
                         load_layout = {
                             **contract.model_dump(),
+                            "loader": resident.loader,
+                            "load_refusal": resident.load_refusal,
                             "runtime_tp": self.rule.world_degree(contract.world),
                             "rows_local": rows_held,
                         }

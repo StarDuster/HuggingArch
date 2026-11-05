@@ -372,8 +372,9 @@ def build_serving_layers(cell: Any, *,
     # selector gaps nothing had answered.
     apply_launches = bool(launches) or bool(
         unavailable_launches and framework_binding.deployment.peak_families)
-    loaded = (analysis.with_load_formats(framework_binding.framework)
-              if framework_binding is not None else analysis)
+    loaders = (framework_binding.weight_loaders_for(analysis.program, analysis)
+               if framework_binding is not None else {})
+    loaded = analysis.with_load_formats(loaders)
     load_changed = loaded is not analysis
     analysis = loaded
     if apply_launches or required or load_changed:

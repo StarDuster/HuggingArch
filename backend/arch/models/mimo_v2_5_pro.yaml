@@ -135,9 +135,9 @@ quant_context:
       method: fp8
       block_h: 128
       block_w: 128
-      block_scale_layout: { kind: tp_interleaved, checkpoint_tp: 8, world: tp_attention, loaders: { sglang: whole_chunks, vllm: head_gather } }
+      block_scale_layout: { kind: tp_interleaved, checkpoint_tp: 8, world: tp_attention }
       scale_shape:
-        - "checkpoint_tp * ((out // checkpoint_tp + block_h - 1) // block_h)"
+        - "chunks_per_rank * ((out // chunks_per_rank + block_h - 1) // block_h)"
         - "(in + block_w - 1) // block_w"
     - tensors_re: 'mlp\.gate\.e_score_correction_bias$'
       dtype: F32

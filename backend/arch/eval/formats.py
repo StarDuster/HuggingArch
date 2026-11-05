@@ -158,6 +158,11 @@ class MetadataGeometry:
 #: row's `weight_granularity` slot is checked against.
 WEIGHT_GRANULARITY = re.compile(r"per-tile:\d+x\d+|per-group:\d+|per-channel|per-tensor")
 
+#: The load-time scale-grid transforms eval knows how to materialize. Framework
+#: bindings select one; this is the closed vocabulary their loader rejects
+#: unknown names against, not a framework registry.
+LOADER_TRANSFORMS = frozenset({"whole_chunks", "head_gather"})
+
 
 def scale_strategy_of(scheme: Any, config: Mapping[str, Any]) -> Optional[str]:
     """The scale strategy a weight's scales follow: the per-role `strategy:`
@@ -221,6 +226,12 @@ class TensorFormat:
     #: it arrives — every checkpoint format, and W4A16.
     activation_format: Optional[str] = None
     block_scale_layout: Any = None
+    #: The framework-selected load transform, resolved outside eval and passed
+    #: in as plain data. None means the checkpoint format is used unchanged.
+    loader: Optional[str] = None
+    #: Why the selected loader cannot materialize this rank. Refused formats
+    #: publish no rank-local scale surface; estimate entry points reject them.
+    load_refusal: Optional[str] = None
 
     @property
     def method(self) -> Optional[str]:
@@ -332,8 +343,8 @@ class TensorFormat:
         """Storage for `params` logical elements, metadata included."""
         return self.weight_bytes_for(params) + self.metadata_bytes
 
-    def for_loader(self, stored: Any, local_stored: Any, *, framework: str,
-                   runtime_tp: int) -> "TensorFormat":
+    def for_loader(self, stored: Any, local_stored: Any, *,
+                   loader: Optional[str], runtime_tp: int) -> "TensorFormat":
         """The resident format after a declared loader merges FP8 chunks.
 
         A matching degree loads checkpoint chunks unchanged. Other supported
@@ -341,10 +352,17 @@ class TensorFormat:
         rank's full fused matrix with the scheme's ordinary block grid.
         """
         contract = self.block_scale_layout
-        loader = contract.loaders.get(framework) if contract is not None else None
-        if (not loader or runtime_tp == contract.checkpoint_tp
-                or (loader == "whole_chunks" and contract.checkpoint_tp % runtime_tp)):
+        if contract is None or not loader:
             return self
+        selected = replace(self, loader=loader)
+        if runtime_tp == contract.checkpoint_tp:
+            return selected
+        if loader == "whole_chunks" and contract.checkpoint_tp % runtime_tp:
+            return replace(selected, load_refusal=(
+                f"{stored.name}: the fused weight checkpoint is "
+                f"TP={contract.checkpoint_tp}-interleaved; the {loader} "
+                f"loader requires attention TP to divide that degree, got "
+                f"TP={runtime_tp}"))
         bound = {**self.bindings, **local_stored.as_dims()}
         # Format metadata is the whole deployment's resident storage. The
         # physical projection below evaluates the same geometry at one rank.
@@ -359,7 +377,7 @@ class TensorFormat:
             geometries.append(MetadataGeometry(
                 suffix=sibling.suffix, axes=tuple(axes), cardinality=None,
                 stored_transform=_metadata_stored_transform(stored, axes)))
-        return replace(self, metadata=tuple(metadata),
+        return replace(selected, metadata=tuple(metadata),
                        metadata_geometry=tuple(geometries))
 
     def project_metadata(
@@ -385,14 +403,22 @@ class TensorFormat:
                 f"tensors but {len(self.metadata_geometry)} geometry declarations"
             )
         projected = dict(local_symbols or {})
-        if self.block_scale_layout is not None:
-            # At a supported degree each rank owns this many complete
-            # checkpoint chunks. Unsupported degrees retain a conservative
-            # analytical projection; only the planner claims loadability.
+        uses_chunks = any(
+            geometry.axes is not None
+            and any("chunks_per_rank" in axis for axis in geometry.axes)
+            for geometry in self.metadata_geometry)
+        if uses_chunks:
+            if self.block_scale_layout is None:
+                raise ValueError(
+                    f"{stored.name}: scale geometry uses chunks_per_rank "
+                    "without a block_scale_layout")
             checkpoint_tp = self.block_scale_layout.checkpoint_tp
-            projected["checkpoint_tp"] = (
-                checkpoint_tp // runtime_tp if checkpoint_tp % runtime_tp == 0
-                else checkpoint_tp)
+            # A loader-free checkpoint walk is analytical, not a deployability
+            # claim. A selected loader that cannot load publishes load_refusal;
+            # estimate and capacity reject that analysis before reading it.
+            projected["chunks_per_rank"] = (
+                checkpoint_tp // runtime_tp
+                if checkpoint_tp % runtime_tp == 0 else checkpoint_tp)
         conflicting = sorted(
             name
             for name in set(projected).intersection(self.bindings)
@@ -1035,7 +1061,9 @@ class FormatPolicy:
         # `in` cannot displace the stored tensor's.
         bound = {**(node_dims or {}), **config, **dims, "num_bits": bits}
         if entry.block_scale_layout is not None:
-            bound["checkpoint_tp"] = entry.block_scale_layout.checkpoint_tp
+            # The unsharded checkpoint is one rank owning every chunk. Rank
+            # projection rebinds this symbol to that rank's complete chunks.
+            bound["chunks_per_rank"] = entry.block_scale_layout.checkpoint_tp
         # A cardinality formula is written about the WEIGHT — `(in/block_h) *
         # (out/block_w)`, `(in*out)/group_size` — so `in` and `out` have to be
         # the weight's own two dims. Whatever is bound under those names in the
