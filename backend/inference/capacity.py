@@ -1515,6 +1515,7 @@ def _capacity_preparation(
         deployment=ServingDeployment.at(
             gpu_sku=gpu_sku,
             activation_dtype=resolved_precision.model_dtype,
+            tensor_parallel=int(parallel.tp_attention),
             server_flags=knobs.framework_options),
     )
 

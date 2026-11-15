@@ -1,0 +1,1833 @@
+[
+  {
+    "op": "scatter_rows_replace",
+    "aggregation_id": "language_model.model.embed_merge",
+    "reason": "missing_signature"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_kda_dense_first|self_attention_res_norm.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_tensor",
+    "aggregation_id": "block_kda_dense_first|self_attention_res_proj.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_kda_dense_first|self_attn.dt_bias",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_kda_dense_first|self_attn.A_log",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "transpose",
+    "aggregation_id": "block_kda_dense_first|self_attn.o_merge_heads.permute__head_merge",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "view_merge",
+    "aggregation_id": "block_kda_dense_first|self_attn.o_merge_heads.flatten__head_merge",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "stack_init",
+    "aggregation_id": "block_kda_dense_first|block_residual_init__block_kda_dense_first",
+    "reason": "missing_signature"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_kda_dense_first|mlp_res_norm.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_tensor",
+    "aggregation_id": "block_kda_dense_first|mlp_res_proj.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_kda_moe[Sar=1]|self_attention_res_norm.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_tensor",
+    "aggregation_id": "block_kda_moe[Sar=1]|self_attention_res_proj.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_kda_moe[Sar=1]|self_attn.dt_bias",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_kda_moe[Sar=1]|self_attn.A_log",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "transpose",
+    "aggregation_id": "block_kda_moe[Sar=1]|self_attn.o_merge_heads.permute__head_merge",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "view_merge",
+    "aggregation_id": "block_kda_moe[Sar=1]|self_attn.o_merge_heads.flatten__head_merge",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_kda_moe[Sar=1]|mlp_res_norm.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_tensor",
+    "aggregation_id": "block_kda_moe[Sar=1]|mlp_res_proj.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_kda_moe[Sar=1]|block_sparse_moe.gate.e_score_correction_bias",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_dsa_moe[Sar=1]|self_attention_res_norm.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_tensor",
+    "aggregation_id": "block_dsa_moe[Sar=1]|self_attention_res_proj.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "view_split",
+    "aggregation_id": "block_dsa_moe[Sar=1]|self_attn.q_split_heads.unflatten__head_split",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "transpose",
+    "aggregation_id": "block_dsa_moe[Sar=1]|self_attn.q_split_heads.permute__head_split",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "slice",
+    "aggregation_id": "block_dsa_moe[Sar=1]|self_attn.q_nope_slice__kimi_k31_dsa_attention",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "slice",
+    "aggregation_id": "block_dsa_moe[Sar=1]|self_attn.q_pe_slice__kimi_k31_dsa_attention",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_tensor",
+    "aggregation_id": "block_dsa_moe[Sar=1]|self_attn.kv_b_proj",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "slice",
+    "aggregation_id": "block_dsa_moe[Sar=1]|self_attn.kv_latent_slice__kimi_k31_dsa_attention",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "slice",
+    "aggregation_id": "block_dsa_moe[Sar=1]|self_attn.k_pe_slice__kimi_k31_dsa_attention",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "broadcast",
+    "aggregation_id": "block_dsa_moe[Sar=1]|self_attn.k_concat.expand__head_broadcast",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "transpose",
+    "aggregation_id": "block_dsa_moe[Sar=1]|self_attn.k_concat.permute__head_broadcast",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "broadcast",
+    "aggregation_id": "block_dsa_moe[Sar=1]|self_attn.k_latent_broadcast.expand__head_broadcast",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "transpose",
+    "aggregation_id": "block_dsa_moe[Sar=1]|self_attn.k_latent_broadcast.permute__head_broadcast",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "view_split",
+    "aggregation_id": "block_dsa_moe[Sar=1]|self_attn.indexer.q_split_heads.unflatten__head_split",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "transpose",
+    "aggregation_id": "block_dsa_moe[Sar=1]|self_attn.indexer.q_split_heads.permute__head_split",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "transpose",
+    "aggregation_id": "block_dsa_moe[Sar=1]|self_attn.o_merge_heads.permute__head_merge",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "view_merge",
+    "aggregation_id": "block_dsa_moe[Sar=1]|self_attn.o_merge_heads.flatten__head_merge",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_dsa_moe[Sar=1]|mlp_res_norm.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_tensor",
+    "aggregation_id": "block_dsa_moe[Sar=1]|mlp_res_proj.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_dsa_moe[Sar=1]|block_sparse_moe.gate.e_score_correction_bias",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_kda_moe_start[Sar=1]|self_attention_res_norm.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_tensor",
+    "aggregation_id": "block_kda_moe_start[Sar=1]|self_attention_res_proj.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_kda_moe_start[Sar=1]|self_attn.dt_bias",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_kda_moe_start[Sar=1]|self_attn.A_log",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "transpose",
+    "aggregation_id": "block_kda_moe_start[Sar=1]|self_attn.o_merge_heads.permute__head_merge",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "view_merge",
+    "aggregation_id": "block_kda_moe_start[Sar=1]|self_attn.o_merge_heads.flatten__head_merge",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "stack_append",
+    "aggregation_id": "block_kda_moe_start[Sar=1]|block_residual_append__block_kda_moe_start",
+    "reason": "missing_signature"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_kda_moe_start[Sar=1]|mlp_res_norm.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_tensor",
+    "aggregation_id": "block_kda_moe_start[Sar=1]|mlp_res_proj.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_kda_moe_start[Sar=1]|block_sparse_moe.gate.e_score_correction_bias",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_kda_moe[Sar=2]|self_attention_res_norm.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_tensor",
+    "aggregation_id": "block_kda_moe[Sar=2]|self_attention_res_proj.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_kda_moe[Sar=2]|self_attn.dt_bias",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_kda_moe[Sar=2]|self_attn.A_log",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "transpose",
+    "aggregation_id": "block_kda_moe[Sar=2]|self_attn.o_merge_heads.permute__head_merge",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "view_merge",
+    "aggregation_id": "block_kda_moe[Sar=2]|self_attn.o_merge_heads.flatten__head_merge",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_kda_moe[Sar=2]|mlp_res_norm.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_tensor",
+    "aggregation_id": "block_kda_moe[Sar=2]|mlp_res_proj.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_kda_moe[Sar=2]|block_sparse_moe.gate.e_score_correction_bias",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_dsa_moe[Sar=2]|self_attention_res_norm.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_tensor",
+    "aggregation_id": "block_dsa_moe[Sar=2]|self_attention_res_proj.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "view_split",
+    "aggregation_id": "block_dsa_moe[Sar=2]|self_attn.q_split_heads.unflatten__head_split",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "transpose",
+    "aggregation_id": "block_dsa_moe[Sar=2]|self_attn.q_split_heads.permute__head_split",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "slice",
+    "aggregation_id": "block_dsa_moe[Sar=2]|self_attn.q_nope_slice__kimi_k31_dsa_attention",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "slice",
+    "aggregation_id": "block_dsa_moe[Sar=2]|self_attn.q_pe_slice__kimi_k31_dsa_attention",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_tensor",
+    "aggregation_id": "block_dsa_moe[Sar=2]|self_attn.kv_b_proj",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "slice",
+    "aggregation_id": "block_dsa_moe[Sar=2]|self_attn.kv_latent_slice__kimi_k31_dsa_attention",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "slice",
+    "aggregation_id": "block_dsa_moe[Sar=2]|self_attn.k_pe_slice__kimi_k31_dsa_attention",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "broadcast",
+    "aggregation_id": "block_dsa_moe[Sar=2]|self_attn.k_concat.expand__head_broadcast",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "transpose",
+    "aggregation_id": "block_dsa_moe[Sar=2]|self_attn.k_concat.permute__head_broadcast",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "broadcast",
+    "aggregation_id": "block_dsa_moe[Sar=2]|self_attn.k_latent_broadcast.expand__head_broadcast",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "transpose",
+    "aggregation_id": "block_dsa_moe[Sar=2]|self_attn.k_latent_broadcast.permute__head_broadcast",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "view_split",
+    "aggregation_id": "block_dsa_moe[Sar=2]|self_attn.indexer.q_split_heads.unflatten__head_split",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "transpose",
+    "aggregation_id": "block_dsa_moe[Sar=2]|self_attn.indexer.q_split_heads.permute__head_split",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "transpose",
+    "aggregation_id": "block_dsa_moe[Sar=2]|self_attn.o_merge_heads.permute__head_merge",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "view_merge",
+    "aggregation_id": "block_dsa_moe[Sar=2]|self_attn.o_merge_heads.flatten__head_merge",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_dsa_moe[Sar=2]|mlp_res_norm.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_tensor",
+    "aggregation_id": "block_dsa_moe[Sar=2]|mlp_res_proj.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_dsa_moe[Sar=2]|block_sparse_moe.gate.e_score_correction_bias",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_kda_moe_start[Sar=2]|self_attention_res_norm.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_tensor",
+    "aggregation_id": "block_kda_moe_start[Sar=2]|self_attention_res_proj.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_kda_moe_start[Sar=2]|self_attn.dt_bias",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_kda_moe_start[Sar=2]|self_attn.A_log",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "transpose",
+    "aggregation_id": "block_kda_moe_start[Sar=2]|self_attn.o_merge_heads.permute__head_merge",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "view_merge",
+    "aggregation_id": "block_kda_moe_start[Sar=2]|self_attn.o_merge_heads.flatten__head_merge",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "stack_append",
+    "aggregation_id": "block_kda_moe_start[Sar=2]|block_residual_append__block_kda_moe_start",
+    "reason": "missing_signature"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_kda_moe_start[Sar=2]|mlp_res_norm.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_tensor",
+    "aggregation_id": "block_kda_moe_start[Sar=2]|mlp_res_proj.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_kda_moe_start[Sar=2]|block_sparse_moe.gate.e_score_correction_bias",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_kda_moe[Sar=3]|self_attention_res_norm.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_tensor",
+    "aggregation_id": "block_kda_moe[Sar=3]|self_attention_res_proj.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_kda_moe[Sar=3]|self_attn.dt_bias",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_kda_moe[Sar=3]|self_attn.A_log",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "transpose",
+    "aggregation_id": "block_kda_moe[Sar=3]|self_attn.o_merge_heads.permute__head_merge",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "view_merge",
+    "aggregation_id": "block_kda_moe[Sar=3]|self_attn.o_merge_heads.flatten__head_merge",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_kda_moe[Sar=3]|mlp_res_norm.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_tensor",
+    "aggregation_id": "block_kda_moe[Sar=3]|mlp_res_proj.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_kda_moe[Sar=3]|block_sparse_moe.gate.e_score_correction_bias",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_dsa_moe[Sar=3]|self_attention_res_norm.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_tensor",
+    "aggregation_id": "block_dsa_moe[Sar=3]|self_attention_res_proj.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "view_split",
+    "aggregation_id": "block_dsa_moe[Sar=3]|self_attn.q_split_heads.unflatten__head_split",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "transpose",
+    "aggregation_id": "block_dsa_moe[Sar=3]|self_attn.q_split_heads.permute__head_split",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "slice",
+    "aggregation_id": "block_dsa_moe[Sar=3]|self_attn.q_nope_slice__kimi_k31_dsa_attention",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "slice",
+    "aggregation_id": "block_dsa_moe[Sar=3]|self_attn.q_pe_slice__kimi_k31_dsa_attention",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_tensor",
+    "aggregation_id": "block_dsa_moe[Sar=3]|self_attn.kv_b_proj",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "slice",
+    "aggregation_id": "block_dsa_moe[Sar=3]|self_attn.kv_latent_slice__kimi_k31_dsa_attention",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "slice",
+    "aggregation_id": "block_dsa_moe[Sar=3]|self_attn.k_pe_slice__kimi_k31_dsa_attention",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "broadcast",
+    "aggregation_id": "block_dsa_moe[Sar=3]|self_attn.k_concat.expand__head_broadcast",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "transpose",
+    "aggregation_id": "block_dsa_moe[Sar=3]|self_attn.k_concat.permute__head_broadcast",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "broadcast",
+    "aggregation_id": "block_dsa_moe[Sar=3]|self_attn.k_latent_broadcast.expand__head_broadcast",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "transpose",
+    "aggregation_id": "block_dsa_moe[Sar=3]|self_attn.k_latent_broadcast.permute__head_broadcast",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "view_split",
+    "aggregation_id": "block_dsa_moe[Sar=3]|self_attn.indexer.q_split_heads.unflatten__head_split",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "transpose",
+    "aggregation_id": "block_dsa_moe[Sar=3]|self_attn.indexer.q_split_heads.permute__head_split",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "transpose",
+    "aggregation_id": "block_dsa_moe[Sar=3]|self_attn.o_merge_heads.permute__head_merge",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "view_merge",
+    "aggregation_id": "block_dsa_moe[Sar=3]|self_attn.o_merge_heads.flatten__head_merge",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_dsa_moe[Sar=3]|mlp_res_norm.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_tensor",
+    "aggregation_id": "block_dsa_moe[Sar=3]|mlp_res_proj.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_dsa_moe[Sar=3]|block_sparse_moe.gate.e_score_correction_bias",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_kda_moe_start[Sar=3]|self_attention_res_norm.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_tensor",
+    "aggregation_id": "block_kda_moe_start[Sar=3]|self_attention_res_proj.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_kda_moe_start[Sar=3]|self_attn.dt_bias",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_kda_moe_start[Sar=3]|self_attn.A_log",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "transpose",
+    "aggregation_id": "block_kda_moe_start[Sar=3]|self_attn.o_merge_heads.permute__head_merge",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "view_merge",
+    "aggregation_id": "block_kda_moe_start[Sar=3]|self_attn.o_merge_heads.flatten__head_merge",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "stack_append",
+    "aggregation_id": "block_kda_moe_start[Sar=3]|block_residual_append__block_kda_moe_start",
+    "reason": "missing_signature"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_kda_moe_start[Sar=3]|mlp_res_norm.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_tensor",
+    "aggregation_id": "block_kda_moe_start[Sar=3]|mlp_res_proj.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_kda_moe_start[Sar=3]|block_sparse_moe.gate.e_score_correction_bias",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_kda_moe[Sar=4]|self_attention_res_norm.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_tensor",
+    "aggregation_id": "block_kda_moe[Sar=4]|self_attention_res_proj.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_kda_moe[Sar=4]|self_attn.dt_bias",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_kda_moe[Sar=4]|self_attn.A_log",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "transpose",
+    "aggregation_id": "block_kda_moe[Sar=4]|self_attn.o_merge_heads.permute__head_merge",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "view_merge",
+    "aggregation_id": "block_kda_moe[Sar=4]|self_attn.o_merge_heads.flatten__head_merge",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_kda_moe[Sar=4]|mlp_res_norm.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_tensor",
+    "aggregation_id": "block_kda_moe[Sar=4]|mlp_res_proj.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_kda_moe[Sar=4]|block_sparse_moe.gate.e_score_correction_bias",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_dsa_moe[Sar=4]|self_attention_res_norm.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_tensor",
+    "aggregation_id": "block_dsa_moe[Sar=4]|self_attention_res_proj.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "view_split",
+    "aggregation_id": "block_dsa_moe[Sar=4]|self_attn.q_split_heads.unflatten__head_split",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "transpose",
+    "aggregation_id": "block_dsa_moe[Sar=4]|self_attn.q_split_heads.permute__head_split",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "slice",
+    "aggregation_id": "block_dsa_moe[Sar=4]|self_attn.q_nope_slice__kimi_k31_dsa_attention",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "slice",
+    "aggregation_id": "block_dsa_moe[Sar=4]|self_attn.q_pe_slice__kimi_k31_dsa_attention",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_tensor",
+    "aggregation_id": "block_dsa_moe[Sar=4]|self_attn.kv_b_proj",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "slice",
+    "aggregation_id": "block_dsa_moe[Sar=4]|self_attn.kv_latent_slice__kimi_k31_dsa_attention",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "slice",
+    "aggregation_id": "block_dsa_moe[Sar=4]|self_attn.k_pe_slice__kimi_k31_dsa_attention",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "broadcast",
+    "aggregation_id": "block_dsa_moe[Sar=4]|self_attn.k_concat.expand__head_broadcast",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "transpose",
+    "aggregation_id": "block_dsa_moe[Sar=4]|self_attn.k_concat.permute__head_broadcast",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "broadcast",
+    "aggregation_id": "block_dsa_moe[Sar=4]|self_attn.k_latent_broadcast.expand__head_broadcast",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "transpose",
+    "aggregation_id": "block_dsa_moe[Sar=4]|self_attn.k_latent_broadcast.permute__head_broadcast",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "view_split",
+    "aggregation_id": "block_dsa_moe[Sar=4]|self_attn.indexer.q_split_heads.unflatten__head_split",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "transpose",
+    "aggregation_id": "block_dsa_moe[Sar=4]|self_attn.indexer.q_split_heads.permute__head_split",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "transpose",
+    "aggregation_id": "block_dsa_moe[Sar=4]|self_attn.o_merge_heads.permute__head_merge",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "view_merge",
+    "aggregation_id": "block_dsa_moe[Sar=4]|self_attn.o_merge_heads.flatten__head_merge",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_dsa_moe[Sar=4]|mlp_res_norm.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_tensor",
+    "aggregation_id": "block_dsa_moe[Sar=4]|mlp_res_proj.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_dsa_moe[Sar=4]|block_sparse_moe.gate.e_score_correction_bias",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_kda_moe_start[Sar=4]|self_attention_res_norm.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_tensor",
+    "aggregation_id": "block_kda_moe_start[Sar=4]|self_attention_res_proj.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_kda_moe_start[Sar=4]|self_attn.dt_bias",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_kda_moe_start[Sar=4]|self_attn.A_log",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "transpose",
+    "aggregation_id": "block_kda_moe_start[Sar=4]|self_attn.o_merge_heads.permute__head_merge",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "view_merge",
+    "aggregation_id": "block_kda_moe_start[Sar=4]|self_attn.o_merge_heads.flatten__head_merge",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "stack_append",
+    "aggregation_id": "block_kda_moe_start[Sar=4]|block_residual_append__block_kda_moe_start",
+    "reason": "missing_signature"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_kda_moe_start[Sar=4]|mlp_res_norm.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_tensor",
+    "aggregation_id": "block_kda_moe_start[Sar=4]|mlp_res_proj.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_kda_moe_start[Sar=4]|block_sparse_moe.gate.e_score_correction_bias",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_kda_moe[Sar=5]|self_attention_res_norm.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_tensor",
+    "aggregation_id": "block_kda_moe[Sar=5]|self_attention_res_proj.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_kda_moe[Sar=5]|self_attn.dt_bias",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_kda_moe[Sar=5]|self_attn.A_log",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "transpose",
+    "aggregation_id": "block_kda_moe[Sar=5]|self_attn.o_merge_heads.permute__head_merge",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "view_merge",
+    "aggregation_id": "block_kda_moe[Sar=5]|self_attn.o_merge_heads.flatten__head_merge",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_kda_moe[Sar=5]|mlp_res_norm.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_tensor",
+    "aggregation_id": "block_kda_moe[Sar=5]|mlp_res_proj.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_kda_moe[Sar=5]|block_sparse_moe.gate.e_score_correction_bias",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_dsa_moe[Sar=5]|self_attention_res_norm.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_tensor",
+    "aggregation_id": "block_dsa_moe[Sar=5]|self_attention_res_proj.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "view_split",
+    "aggregation_id": "block_dsa_moe[Sar=5]|self_attn.q_split_heads.unflatten__head_split",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "transpose",
+    "aggregation_id": "block_dsa_moe[Sar=5]|self_attn.q_split_heads.permute__head_split",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "slice",
+    "aggregation_id": "block_dsa_moe[Sar=5]|self_attn.q_nope_slice__kimi_k31_dsa_attention",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "slice",
+    "aggregation_id": "block_dsa_moe[Sar=5]|self_attn.q_pe_slice__kimi_k31_dsa_attention",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_tensor",
+    "aggregation_id": "block_dsa_moe[Sar=5]|self_attn.kv_b_proj",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "slice",
+    "aggregation_id": "block_dsa_moe[Sar=5]|self_attn.kv_latent_slice__kimi_k31_dsa_attention",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "slice",
+    "aggregation_id": "block_dsa_moe[Sar=5]|self_attn.k_pe_slice__kimi_k31_dsa_attention",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "broadcast",
+    "aggregation_id": "block_dsa_moe[Sar=5]|self_attn.k_concat.expand__head_broadcast",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "transpose",
+    "aggregation_id": "block_dsa_moe[Sar=5]|self_attn.k_concat.permute__head_broadcast",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "broadcast",
+    "aggregation_id": "block_dsa_moe[Sar=5]|self_attn.k_latent_broadcast.expand__head_broadcast",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "transpose",
+    "aggregation_id": "block_dsa_moe[Sar=5]|self_attn.k_latent_broadcast.permute__head_broadcast",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "view_split",
+    "aggregation_id": "block_dsa_moe[Sar=5]|self_attn.indexer.q_split_heads.unflatten__head_split",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "transpose",
+    "aggregation_id": "block_dsa_moe[Sar=5]|self_attn.indexer.q_split_heads.permute__head_split",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "transpose",
+    "aggregation_id": "block_dsa_moe[Sar=5]|self_attn.o_merge_heads.permute__head_merge",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "view_merge",
+    "aggregation_id": "block_dsa_moe[Sar=5]|self_attn.o_merge_heads.flatten__head_merge",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_dsa_moe[Sar=5]|mlp_res_norm.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_tensor",
+    "aggregation_id": "block_dsa_moe[Sar=5]|mlp_res_proj.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_dsa_moe[Sar=5]|block_sparse_moe.gate.e_score_correction_bias",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_kda_moe_start[Sar=5]|self_attention_res_norm.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_tensor",
+    "aggregation_id": "block_kda_moe_start[Sar=5]|self_attention_res_proj.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_kda_moe_start[Sar=5]|self_attn.dt_bias",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_kda_moe_start[Sar=5]|self_attn.A_log",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "transpose",
+    "aggregation_id": "block_kda_moe_start[Sar=5]|self_attn.o_merge_heads.permute__head_merge",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "view_merge",
+    "aggregation_id": "block_kda_moe_start[Sar=5]|self_attn.o_merge_heads.flatten__head_merge",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "stack_append",
+    "aggregation_id": "block_kda_moe_start[Sar=5]|block_residual_append__block_kda_moe_start",
+    "reason": "missing_signature"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_kda_moe_start[Sar=5]|mlp_res_norm.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_tensor",
+    "aggregation_id": "block_kda_moe_start[Sar=5]|mlp_res_proj.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_kda_moe_start[Sar=5]|block_sparse_moe.gate.e_score_correction_bias",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_kda_moe[Sar=6]|self_attention_res_norm.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_tensor",
+    "aggregation_id": "block_kda_moe[Sar=6]|self_attention_res_proj.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_kda_moe[Sar=6]|self_attn.dt_bias",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_kda_moe[Sar=6]|self_attn.A_log",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "transpose",
+    "aggregation_id": "block_kda_moe[Sar=6]|self_attn.o_merge_heads.permute__head_merge",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "view_merge",
+    "aggregation_id": "block_kda_moe[Sar=6]|self_attn.o_merge_heads.flatten__head_merge",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_kda_moe[Sar=6]|mlp_res_norm.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_tensor",
+    "aggregation_id": "block_kda_moe[Sar=6]|mlp_res_proj.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_kda_moe[Sar=6]|block_sparse_moe.gate.e_score_correction_bias",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_dsa_moe[Sar=6]|self_attention_res_norm.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_tensor",
+    "aggregation_id": "block_dsa_moe[Sar=6]|self_attention_res_proj.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "view_split",
+    "aggregation_id": "block_dsa_moe[Sar=6]|self_attn.q_split_heads.unflatten__head_split",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "transpose",
+    "aggregation_id": "block_dsa_moe[Sar=6]|self_attn.q_split_heads.permute__head_split",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "slice",
+    "aggregation_id": "block_dsa_moe[Sar=6]|self_attn.q_nope_slice__kimi_k31_dsa_attention",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "slice",
+    "aggregation_id": "block_dsa_moe[Sar=6]|self_attn.q_pe_slice__kimi_k31_dsa_attention",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_tensor",
+    "aggregation_id": "block_dsa_moe[Sar=6]|self_attn.kv_b_proj",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "slice",
+    "aggregation_id": "block_dsa_moe[Sar=6]|self_attn.kv_latent_slice__kimi_k31_dsa_attention",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "slice",
+    "aggregation_id": "block_dsa_moe[Sar=6]|self_attn.k_pe_slice__kimi_k31_dsa_attention",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "broadcast",
+    "aggregation_id": "block_dsa_moe[Sar=6]|self_attn.k_concat.expand__head_broadcast",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "transpose",
+    "aggregation_id": "block_dsa_moe[Sar=6]|self_attn.k_concat.permute__head_broadcast",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "broadcast",
+    "aggregation_id": "block_dsa_moe[Sar=6]|self_attn.k_latent_broadcast.expand__head_broadcast",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "transpose",
+    "aggregation_id": "block_dsa_moe[Sar=6]|self_attn.k_latent_broadcast.permute__head_broadcast",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "view_split",
+    "aggregation_id": "block_dsa_moe[Sar=6]|self_attn.indexer.q_split_heads.unflatten__head_split",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "transpose",
+    "aggregation_id": "block_dsa_moe[Sar=6]|self_attn.indexer.q_split_heads.permute__head_split",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "transpose",
+    "aggregation_id": "block_dsa_moe[Sar=6]|self_attn.o_merge_heads.permute__head_merge",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "view_merge",
+    "aggregation_id": "block_dsa_moe[Sar=6]|self_attn.o_merge_heads.flatten__head_merge",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_dsa_moe[Sar=6]|mlp_res_norm.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_tensor",
+    "aggregation_id": "block_dsa_moe[Sar=6]|mlp_res_proj.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_dsa_moe[Sar=6]|block_sparse_moe.gate.e_score_correction_bias",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_kda_moe_start[Sar=6]|self_attention_res_norm.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_tensor",
+    "aggregation_id": "block_kda_moe_start[Sar=6]|self_attention_res_proj.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_kda_moe_start[Sar=6]|self_attn.dt_bias",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_kda_moe_start[Sar=6]|self_attn.A_log",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "transpose",
+    "aggregation_id": "block_kda_moe_start[Sar=6]|self_attn.o_merge_heads.permute__head_merge",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "view_merge",
+    "aggregation_id": "block_kda_moe_start[Sar=6]|self_attn.o_merge_heads.flatten__head_merge",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "stack_append",
+    "aggregation_id": "block_kda_moe_start[Sar=6]|block_residual_append__block_kda_moe_start",
+    "reason": "missing_signature"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_kda_moe_start[Sar=6]|mlp_res_norm.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_tensor",
+    "aggregation_id": "block_kda_moe_start[Sar=6]|mlp_res_proj.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_kda_moe_start[Sar=6]|block_sparse_moe.gate.e_score_correction_bias",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_kda_moe[Sar=7]|self_attention_res_norm.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_tensor",
+    "aggregation_id": "block_kda_moe[Sar=7]|self_attention_res_proj.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_kda_moe[Sar=7]|self_attn.dt_bias",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_kda_moe[Sar=7]|self_attn.A_log",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "transpose",
+    "aggregation_id": "block_kda_moe[Sar=7]|self_attn.o_merge_heads.permute__head_merge",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "view_merge",
+    "aggregation_id": "block_kda_moe[Sar=7]|self_attn.o_merge_heads.flatten__head_merge",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_kda_moe[Sar=7]|mlp_res_norm.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_tensor",
+    "aggregation_id": "block_kda_moe[Sar=7]|mlp_res_proj.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_kda_moe[Sar=7]|block_sparse_moe.gate.e_score_correction_bias",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_dsa_moe[Sar=7]|self_attention_res_norm.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_tensor",
+    "aggregation_id": "block_dsa_moe[Sar=7]|self_attention_res_proj.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "view_split",
+    "aggregation_id": "block_dsa_moe[Sar=7]|self_attn.q_split_heads.unflatten__head_split",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "transpose",
+    "aggregation_id": "block_dsa_moe[Sar=7]|self_attn.q_split_heads.permute__head_split",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "slice",
+    "aggregation_id": "block_dsa_moe[Sar=7]|self_attn.q_nope_slice__kimi_k31_dsa_attention",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "slice",
+    "aggregation_id": "block_dsa_moe[Sar=7]|self_attn.q_pe_slice__kimi_k31_dsa_attention",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_tensor",
+    "aggregation_id": "block_dsa_moe[Sar=7]|self_attn.kv_b_proj",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "slice",
+    "aggregation_id": "block_dsa_moe[Sar=7]|self_attn.kv_latent_slice__kimi_k31_dsa_attention",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "slice",
+    "aggregation_id": "block_dsa_moe[Sar=7]|self_attn.k_pe_slice__kimi_k31_dsa_attention",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "broadcast",
+    "aggregation_id": "block_dsa_moe[Sar=7]|self_attn.k_concat.expand__head_broadcast",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "transpose",
+    "aggregation_id": "block_dsa_moe[Sar=7]|self_attn.k_concat.permute__head_broadcast",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "broadcast",
+    "aggregation_id": "block_dsa_moe[Sar=7]|self_attn.k_latent_broadcast.expand__head_broadcast",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "transpose",
+    "aggregation_id": "block_dsa_moe[Sar=7]|self_attn.k_latent_broadcast.permute__head_broadcast",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "view_split",
+    "aggregation_id": "block_dsa_moe[Sar=7]|self_attn.indexer.q_split_heads.unflatten__head_split",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "transpose",
+    "aggregation_id": "block_dsa_moe[Sar=7]|self_attn.indexer.q_split_heads.permute__head_split",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "transpose",
+    "aggregation_id": "block_dsa_moe[Sar=7]|self_attn.o_merge_heads.permute__head_merge",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "view_merge",
+    "aggregation_id": "block_dsa_moe[Sar=7]|self_attn.o_merge_heads.flatten__head_merge",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_dsa_moe[Sar=7]|mlp_res_norm.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_tensor",
+    "aggregation_id": "block_dsa_moe[Sar=7]|mlp_res_proj.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_dsa_moe[Sar=7]|block_sparse_moe.gate.e_score_correction_bias",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_kda_moe_start[Sar=7]|self_attention_res_norm.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_tensor",
+    "aggregation_id": "block_kda_moe_start[Sar=7]|self_attention_res_proj.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_kda_moe_start[Sar=7]|self_attn.dt_bias",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_kda_moe_start[Sar=7]|self_attn.A_log",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "transpose",
+    "aggregation_id": "block_kda_moe_start[Sar=7]|self_attn.o_merge_heads.permute__head_merge",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "view_merge",
+    "aggregation_id": "block_kda_moe_start[Sar=7]|self_attn.o_merge_heads.flatten__head_merge",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "stack_append",
+    "aggregation_id": "block_kda_moe_start[Sar=7]|block_residual_append__block_kda_moe_start",
+    "reason": "missing_signature"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_kda_moe_start[Sar=7]|mlp_res_norm.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_tensor",
+    "aggregation_id": "block_kda_moe_start[Sar=7]|mlp_res_proj.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_kda_moe_start[Sar=7]|block_sparse_moe.gate.e_score_correction_bias",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_kda_moe[Sar=8]|self_attention_res_norm.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_tensor",
+    "aggregation_id": "block_kda_moe[Sar=8]|self_attention_res_proj.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_kda_moe[Sar=8]|self_attn.dt_bias",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_kda_moe[Sar=8]|self_attn.A_log",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "transpose",
+    "aggregation_id": "block_kda_moe[Sar=8]|self_attn.o_merge_heads.permute__head_merge",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "view_merge",
+    "aggregation_id": "block_kda_moe[Sar=8]|self_attn.o_merge_heads.flatten__head_merge",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_kda_moe[Sar=8]|mlp_res_norm.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_tensor",
+    "aggregation_id": "block_kda_moe[Sar=8]|mlp_res_proj.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_kda_moe[Sar=8]|block_sparse_moe.gate.e_score_correction_bias",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_dsa_moe[Sar=8]|self_attention_res_norm.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_tensor",
+    "aggregation_id": "block_dsa_moe[Sar=8]|self_attention_res_proj.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "view_split",
+    "aggregation_id": "block_dsa_moe[Sar=8]|self_attn.q_split_heads.unflatten__head_split",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "transpose",
+    "aggregation_id": "block_dsa_moe[Sar=8]|self_attn.q_split_heads.permute__head_split",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "slice",
+    "aggregation_id": "block_dsa_moe[Sar=8]|self_attn.q_nope_slice__kimi_k31_dsa_attention",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "slice",
+    "aggregation_id": "block_dsa_moe[Sar=8]|self_attn.q_pe_slice__kimi_k31_dsa_attention",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_tensor",
+    "aggregation_id": "block_dsa_moe[Sar=8]|self_attn.kv_b_proj",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "slice",
+    "aggregation_id": "block_dsa_moe[Sar=8]|self_attn.kv_latent_slice__kimi_k31_dsa_attention",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "slice",
+    "aggregation_id": "block_dsa_moe[Sar=8]|self_attn.k_pe_slice__kimi_k31_dsa_attention",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "broadcast",
+    "aggregation_id": "block_dsa_moe[Sar=8]|self_attn.k_concat.expand__head_broadcast",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "transpose",
+    "aggregation_id": "block_dsa_moe[Sar=8]|self_attn.k_concat.permute__head_broadcast",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "broadcast",
+    "aggregation_id": "block_dsa_moe[Sar=8]|self_attn.k_latent_broadcast.expand__head_broadcast",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "transpose",
+    "aggregation_id": "block_dsa_moe[Sar=8]|self_attn.k_latent_broadcast.permute__head_broadcast",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "view_split",
+    "aggregation_id": "block_dsa_moe[Sar=8]|self_attn.indexer.q_split_heads.unflatten__head_split",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "transpose",
+    "aggregation_id": "block_dsa_moe[Sar=8]|self_attn.indexer.q_split_heads.permute__head_split",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "transpose",
+    "aggregation_id": "block_dsa_moe[Sar=8]|self_attn.o_merge_heads.permute__head_merge",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "view_merge",
+    "aggregation_id": "block_dsa_moe[Sar=8]|self_attn.o_merge_heads.flatten__head_merge",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_dsa_moe[Sar=8]|mlp_res_norm.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_tensor",
+    "aggregation_id": "block_dsa_moe[Sar=8]|mlp_res_proj.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "block_dsa_moe[Sar=8]|block_sparse_moe.gate.e_score_correction_bias",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_vector",
+    "aggregation_id": "language_model.model.output_attn_res_norm.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "parameter_tensor",
+    "aggregation_id": "language_model.model.output_attn_res_proj.weight",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "sample",
+    "aggregation_id": "language_model.lm_head__sampled",
+    "reason": "zero_launch"
+  },
+  {
+    "op": "all_gather",
+    "aggregation_id": "block_dsa_moe[Sar=1]|self_attn.indexer.comm4__all_gather__on__topk",
+    "reason": "missing_projection",
+    "detail": "no shape projection for signature 'all_gather' (shape_in=[8, 1, 2048]) \u2014 would fabricate model-wide dims"
+  },
+  {
+    "op": "runtime_stage",
+    "aggregation_id": "block_dsa_moe[Sar=1]|self_attn.indexer.comm5__runtime_stage__on__topk",
+    "reason": "missing_signature"
+  },
+  {
+    "op": "runtime_stage",
+    "aggregation_id": "block_dsa_moe[Sar=1]|self_attn.indexer.comm6__runtime_stage__on__topk",
+    "reason": "missing_signature"
+  },
+  {
+    "op": "runtime_stage",
+    "aggregation_id": "block_dsa_moe[Sar=1]|self_attn.comm7__runtime_stage__on__attn_apply_latent",
+    "reason": "missing_signature"
+  },
+  {
+    "op": "all_to_all",
+    "aggregation_id": "block_dsa_moe[Sar=1]|self_attn.comm8__all_to_all__on__o_merge_heads",
+    "reason": "missing_projection",
+    "detail": "no shape projection for signature 'all_to_all' (shape_in=[8, 96, 1, 128]) \u2014 would fabricate model-wide dims"
+  },
+  {
+    "op": "all_gather",
+    "aggregation_id": "block_dsa_moe[Sar=2]|self_attn.indexer.comm12__all_gather__on__topk",
+    "reason": "missing_projection",
+    "detail": "no shape projection for signature 'all_gather' (shape_in=[8, 1, 2048]) \u2014 would fabricate model-wide dims"
+  },
+  {
+    "op": "runtime_stage",
+    "aggregation_id": "block_dsa_moe[Sar=2]|self_attn.indexer.comm13__runtime_stage__on__topk",
+    "reason": "missing_signature"
+  },
+  {
+    "op": "runtime_stage",
+    "aggregation_id": "block_dsa_moe[Sar=2]|self_attn.indexer.comm14__runtime_stage__on__topk",
+    "reason": "missing_signature"
+  },
+  {
+    "op": "runtime_stage",
+    "aggregation_id": "block_dsa_moe[Sar=2]|self_attn.comm15__runtime_stage__on__attn_apply_latent",
+    "reason": "missing_signature"
+  },
+  {
+    "op": "all_to_all",
+    "aggregation_id": "block_dsa_moe[Sar=2]|self_attn.comm16__all_to_all__on__o_merge_heads",
+    "reason": "missing_projection",
+    "detail": "no shape projection for signature 'all_to_all' (shape_in=[8, 96, 1, 128]) \u2014 would fabricate model-wide dims"
+  },
+  {
+    "op": "all_gather",
+    "aggregation_id": "block_dsa_moe[Sar=3]|self_attn.indexer.comm20__all_gather__on__topk",
+    "reason": "missing_projection",
+    "detail": "no shape projection for signature 'all_gather' (shape_in=[8, 1, 2048]) \u2014 would fabricate model-wide dims"
+  },
+  {
+    "op": "runtime_stage",
+    "aggregation_id": "block_dsa_moe[Sar=3]|self_attn.indexer.comm21__runtime_stage__on__topk",
+    "reason": "missing_signature"
+  },
+  {
+    "op": "runtime_stage",
+    "aggregation_id": "block_dsa_moe[Sar=3]|self_attn.indexer.comm22__runtime_stage__on__topk",
+    "reason": "missing_signature"
+  },
+  {
+    "op": "runtime_stage",
+    "aggregation_id": "block_dsa_moe[Sar=3]|self_attn.comm23__runtime_stage__on__attn_apply_latent",
+    "reason": "missing_signature"
+  },
+  {
+    "op": "all_to_all",
+    "aggregation_id": "block_dsa_moe[Sar=3]|self_attn.comm24__all_to_all__on__o_merge_heads",
+    "reason": "missing_projection",
+    "detail": "no shape projection for signature 'all_to_all' (shape_in=[8, 96, 1, 128]) \u2014 would fabricate model-wide dims"
+  },
+  {
+    "op": "all_gather",
+    "aggregation_id": "block_dsa_moe[Sar=4]|self_attn.indexer.comm28__all_gather__on__topk",
+    "reason": "missing_projection",
+    "detail": "no shape projection for signature 'all_gather' (shape_in=[8, 1, 2048]) \u2014 would fabricate model-wide dims"
+  },
+  {
+    "op": "runtime_stage",
+    "aggregation_id": "block_dsa_moe[Sar=4]|self_attn.indexer.comm29__runtime_stage__on__topk",
+    "reason": "missing_signature"
+  },
+  {
+    "op": "runtime_stage",
+    "aggregation_id": "block_dsa_moe[Sar=4]|self_attn.indexer.comm30__runtime_stage__on__topk",
+    "reason": "missing_signature"
+  },
+  {
+    "op": "runtime_stage",
+    "aggregation_id": "block_dsa_moe[Sar=4]|self_attn.comm31__runtime_stage__on__attn_apply_latent",
+    "reason": "missing_signature"
+  },
+  {
+    "op": "all_to_all",
+    "aggregation_id": "block_dsa_moe[Sar=4]|self_attn.comm32__all_to_all__on__o_merge_heads",
+    "reason": "missing_projection",
+    "detail": "no shape projection for signature 'all_to_all' (shape_in=[8, 96, 1, 128]) \u2014 would fabricate model-wide dims"
+  },
+  {
+    "op": "all_gather",
+    "aggregation_id": "block_dsa_moe[Sar=5]|self_attn.indexer.comm36__all_gather__on__topk",
+    "reason": "missing_projection",
+    "detail": "no shape projection for signature 'all_gather' (shape_in=[8, 1, 2048]) \u2014 would fabricate model-wide dims"
+  },
+  {
+    "op": "runtime_stage",
+    "aggregation_id": "block_dsa_moe[Sar=5]|self_attn.indexer.comm37__runtime_stage__on__topk",
+    "reason": "missing_signature"
+  },
+  {
+    "op": "runtime_stage",
+    "aggregation_id": "block_dsa_moe[Sar=5]|self_attn.indexer.comm38__runtime_stage__on__topk",
+    "reason": "missing_signature"
+  },
+  {
+    "op": "runtime_stage",
+    "aggregation_id": "block_dsa_moe[Sar=5]|self_attn.comm39__runtime_stage__on__attn_apply_latent",
+    "reason": "missing_signature"
+  },
+  {
+    "op": "all_to_all",
+    "aggregation_id": "block_dsa_moe[Sar=5]|self_attn.comm40__all_to_all__on__o_merge_heads",
+    "reason": "missing_projection",
+    "detail": "no shape projection for signature 'all_to_all' (shape_in=[8, 96, 1, 128]) \u2014 would fabricate model-wide dims"
+  },
+  {
+    "op": "all_gather",
+    "aggregation_id": "block_dsa_moe[Sar=6]|self_attn.indexer.comm44__all_gather__on__topk",
+    "reason": "missing_projection",
+    "detail": "no shape projection for signature 'all_gather' (shape_in=[8, 1, 2048]) \u2014 would fabricate model-wide dims"
+  },
+  {
+    "op": "runtime_stage",
+    "aggregation_id": "block_dsa_moe[Sar=6]|self_attn.indexer.comm45__runtime_stage__on__topk",
+    "reason": "missing_signature"
+  },
+  {
+    "op": "runtime_stage",
+    "aggregation_id": "block_dsa_moe[Sar=6]|self_attn.indexer.comm46__runtime_stage__on__topk",
+    "reason": "missing_signature"
+  },
+  {
+    "op": "runtime_stage",
+    "aggregation_id": "block_dsa_moe[Sar=6]|self_attn.comm47__runtime_stage__on__attn_apply_latent",
+    "reason": "missing_signature"
+  },
+  {
+    "op": "all_to_all",
+    "aggregation_id": "block_dsa_moe[Sar=6]|self_attn.comm48__all_to_all__on__o_merge_heads",
+    "reason": "missing_projection",
+    "detail": "no shape projection for signature 'all_to_all' (shape_in=[8, 96, 1, 128]) \u2014 would fabricate model-wide dims"
+  },
+  {
+    "op": "all_gather",
+    "aggregation_id": "block_dsa_moe[Sar=7]|self_attn.indexer.comm52__all_gather__on__topk",
+    "reason": "missing_projection",
+    "detail": "no shape projection for signature 'all_gather' (shape_in=[8, 1, 2048]) \u2014 would fabricate model-wide dims"
+  },
+  {
+    "op": "runtime_stage",
+    "aggregation_id": "block_dsa_moe[Sar=7]|self_attn.indexer.comm53__runtime_stage__on__topk",
+    "reason": "missing_signature"
+  },
+  {
+    "op": "runtime_stage",
+    "aggregation_id": "block_dsa_moe[Sar=7]|self_attn.indexer.comm54__runtime_stage__on__topk",
+    "reason": "missing_signature"
+  },
+  {
+    "op": "runtime_stage",
+    "aggregation_id": "block_dsa_moe[Sar=7]|self_attn.comm55__runtime_stage__on__attn_apply_latent",
+    "reason": "missing_signature"
+  },
+  {
+    "op": "all_to_all",
+    "aggregation_id": "block_dsa_moe[Sar=7]|self_attn.comm56__all_to_all__on__o_merge_heads",
+    "reason": "missing_projection",
+    "detail": "no shape projection for signature 'all_to_all' (shape_in=[8, 96, 1, 128]) \u2014 would fabricate model-wide dims"
+  },
+  {
+    "op": "all_gather",
+    "aggregation_id": "block_dsa_moe[Sar=8]|self_attn.indexer.comm60__all_gather__on__topk",
+    "reason": "missing_projection",
+    "detail": "no shape projection for signature 'all_gather' (shape_in=[8, 1, 2048]) \u2014 would fabricate model-wide dims"
+  },
+  {
+    "op": "runtime_stage",
+    "aggregation_id": "block_dsa_moe[Sar=8]|self_attn.indexer.comm61__runtime_stage__on__topk",
+    "reason": "missing_signature"
+  },
+  {
+    "op": "runtime_stage",
+    "aggregation_id": "block_dsa_moe[Sar=8]|self_attn.indexer.comm62__runtime_stage__on__topk",
+    "reason": "missing_signature"
+  },
+  {
+    "op": "runtime_stage",
+    "aggregation_id": "block_dsa_moe[Sar=8]|self_attn.comm63__runtime_stage__on__attn_apply_latent",
+    "reason": "missing_signature"
+  },
+  {
+    "op": "all_to_all",
+    "aggregation_id": "block_dsa_moe[Sar=8]|self_attn.comm64__all_to_all__on__o_merge_heads",
+    "reason": "missing_projection",
+    "detail": "no shape projection for signature 'all_to_all' (shape_in=[8, 96, 1, 128]) \u2014 would fabricate model-wide dims"
+  },
+  {
+    "op": "mla_q_concat_kv_insert",
+    "aggregation_id": "block_dsa_moe[Sar=1]|self_attn.q_concat__kimi_k31_dsa_attention",
+    "reason": "missing_signature"
+  },
+  {
+    "op": "mla_q_concat_kv_insert",
+    "aggregation_id": "block_dsa_moe[Sar=2]|self_attn.q_concat__kimi_k31_dsa_attention",
+    "reason": "missing_signature"
+  },
+  {
+    "op": "mla_q_concat_kv_insert",
+    "aggregation_id": "block_dsa_moe[Sar=3]|self_attn.q_concat__kimi_k31_dsa_attention",
+    "reason": "missing_signature"
+  },
+  {
+    "op": "mla_q_concat_kv_insert",
+    "aggregation_id": "block_dsa_moe[Sar=4]|self_attn.q_concat__kimi_k31_dsa_attention",
+    "reason": "missing_signature"
+  },
+  {
+    "op": "mla_q_concat_kv_insert",
+    "aggregation_id": "block_dsa_moe[Sar=5]|self_attn.q_concat__kimi_k31_dsa_attention",
+    "reason": "missing_signature"
+  },
+  {
+    "op": "mla_q_concat_kv_insert",
+    "aggregation_id": "block_dsa_moe[Sar=6]|self_attn.q_concat__kimi_k31_dsa_attention",
+    "reason": "missing_signature"
+  },
+  {
+    "op": "mla_q_concat_kv_insert",
+    "aggregation_id": "block_dsa_moe[Sar=7]|self_attn.q_concat__kimi_k31_dsa_attention",
+    "reason": "missing_signature"
+  },
+  {
+    "op": "mla_q_concat_kv_insert",
+    "aggregation_id": "block_dsa_moe[Sar=8]|self_attn.q_concat__kimi_k31_dsa_attention",
+    "reason": "missing_signature"
+  }
+]

@@ -1,0 +1,344 @@
+Ignoring incompatible flashinfer-cubin package (cubins will be downloaded on demand to /tmp/scratch-space/k3-performance/cache/flashinfer/.cache/flashinfer/cubins): flashinfer-cubin version (0.7.2) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+Ignoring incompatible flashinfer-jit-cache package (kernels will be JIT-compiled instead): flashinfer-jit-cache version (0.7.2+cu130) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+Ignoring incompatible flashinfer-cubin package (cubins will be downloaded on demand to /tmp/scratch-space/k3-performance/cache/flashinfer/.cache/flashinfer/cubins): flashinfer-cubin version (0.7.2) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+Ignoring incompatible flashinfer-jit-cache package (kernels will be JIT-compiled instead): flashinfer-jit-cache version (0.7.2+cu130) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+Ignoring incompatible flashinfer-cubin package (cubins will be downloaded on demand to /tmp/scratch-space/k3-performance/cache/flashinfer/.cache/flashinfer/cubins): flashinfer-cubin version (0.7.2) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+Ignoring incompatible flashinfer-jit-cache package (kernels will be JIT-compiled instead): flashinfer-jit-cache version (0.7.2+cu130) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+Ignoring incompatible flashinfer-cubin package (cubins will be downloaded on demand to /tmp/scratch-space/k3-performance/cache/flashinfer/.cache/flashinfer/cubins): flashinfer-cubin version (0.7.2) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+Ignoring incompatible flashinfer-jit-cache package (kernels will be JIT-compiled instead): flashinfer-jit-cache version (0.7.2+cu130) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+Ignoring incompatible flashinfer-cubin package (cubins will be downloaded on demand to /tmp/scratch-space/k3-performance/cache/flashinfer/.cache/flashinfer/cubins): flashinfer-cubin version (0.7.2) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+Ignoring incompatible flashinfer-jit-cache package (kernels will be JIT-compiled instead): flashinfer-jit-cache version (0.7.2+cu130) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+Ignoring incompatible flashinfer-cubin package (cubins will be downloaded on demand to /tmp/scratch-space/k3-performance/cache/flashinfer/.cache/flashinfer/cubins): flashinfer-cubin version (0.7.2) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+Ignoring incompatible flashinfer-jit-cache package (kernels will be JIT-compiled instead): flashinfer-jit-cache version (0.7.2+cu130) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+Ignoring incompatible flashinfer-cubin package (cubins will be downloaded on demand to /tmp/scratch-space/k3-performance/cache/flashinfer/.cache/flashinfer/cubins): flashinfer-cubin version (0.7.2) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+Ignoring incompatible flashinfer-jit-cache package (kernels will be JIT-compiled instead): flashinfer-jit-cache version (0.7.2+cu130) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+Ignoring incompatible flashinfer-cubin package (cubins will be downloaded on demand to /tmp/scratch-space/k3-performance/cache/flashinfer/.cache/flashinfer/cubins): flashinfer-cubin version (0.7.2) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+Ignoring incompatible flashinfer-jit-cache package (kernels will be JIT-compiled instead): flashinfer-jit-cache version (0.7.2+cu130) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+rank3: multicast ready; creating independent expert partition
+rank1: multicast ready; creating independent expert partition
+rank0: multicast ready; creating independent expert partitionrank6:
+ multicast ready; creating independent expert partition
+rank2: multicast ready; creating independent expert partitionrank7:
+ multicast ready; creating independent expert partitionrank4:
+ multicast ready; creating independent expert partition
+rank5: multicast ready; creating independent expert partition
+Traceback (most recent call last):
+  File "<unknown>", line 0, in __tvm_ffi_trtllm_fp4_block_scale_moe
+  File "/opt/sglang/lib/python3.12/site-packages/flashinfer/data/csrc/trtllm_fused_moe_kernel_launcher.cu", line 6346, in tvm::ffi::Array<tvm::ffi::Optional<tvm::ffi::Tensor> > flashinfer::trtllm_fp4_block_scale_moe(int64_t, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::TensorView, tvm::ffi::TensorView, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::TensorView, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::TensorView, tvm::ffi::TensorView, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::TensorView, tvm::ffi::TensorView, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, int64_t, int64_t, tvm::ffi::Optional<long int>, tvm::ffi::Optional<long int>, tvm::ffi::Optional<long int>, int64_t, int64_t, int64_t, tvm::ffi::Optional<double>, int64_t, bool, bool, int64_t, tvm::ffi::TensorView, tvm::ffi::Array<long int>, bool, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Array<tvm::ffi::Tensor>, tvm::ffi::Array<tvm::ffi::Tensor>, bool, tvm::ffi::Optional<long int>, tvm::ffi::Optional<long int>, tvm::ffi::Optional<tvm::ffi::TensorView>, bool, int64_t)
+NotImplementedError: Unsupported hidden state scale shape.
+[rank3]: Traceback (most recent call last):
+[rank3]:   File "/tmp/scratch-space/k3-performance/benchmark/b300-runtime-calibration/latent_span_tp8.py", line 110, in <module>
+[rank3]:     verdict,rel,cos,typ,worst=_cross_check(BenchCase(run=lambda:run(args),to_canonical=lambda y:y),expected,'fp8_e4m3')
+[rank3]:                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank3]:   File "/tmp/scratch-space/k3-performance/calibration-worktree/kernel_bench/driver.py", line 1477, in _cross_check
+[rank3]:     produced = trace.run(case.run) if trace is not None else case.run()
+[rank3]:                                                              ^^^^^^^^^^
+[rank3]:   File "/tmp/scratch-space/k3-performance/benchmark/b300-runtime-calibration/latent_span_tp8.py", line 110, in <lambda>
+[rank3]:     verdict,rel,cos,typ,worst=_cross_check(BenchCase(run=lambda:run(args),to_canonical=lambda y:y),expected,'fp8_e4m3')
+[rank3]:                                                                 ^^^^^^^^^
+[rank3]:   File "/tmp/scratch-space/k3-performance/benchmark/b300-runtime-calibration/latent_span_tp8.py", line 86, in run
+[rank3]:     partial=_run_trtllm_prepared_routing_moe(weights,routed.ids,routed.metadata,body,routed.x_q,routed.x_s,out,False)
+[rank3]:             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank3]:   File "/tmp/scratch-space/k3-performance/benchmark/agentx-yyh/sglang-recipe/python/sglang/srt/layers/moe/moe_runner/flashinfer_trtllm.py", line 473, in _run_trtllm_prepared_routing_moe
+[rank3]:     workspace = runner.forward(
+[rank3]:                 ^^^^^^^^^^^^^^^
+[rank3]:   File "/opt/sglang/lib/python3.12/site-packages/flashinfer/fused_moe/backends/trtllm/sm100_runner.py", line 617, in forward
+[rank3]:     result = self.moe_op.trtllm_fp4_block_scale_moe(
+[rank3]:              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank3]:   File "python/tvm_ffi/cython/function.pxi", line 968, in tvm_ffi.core.Function.__call__
+[rank3]:   File "<unknown>", line 0, in __tvm_ffi_trtllm_fp4_block_scale_moe
+[rank3]:   File "/opt/sglang/lib/python3.12/site-packages/flashinfer/data/csrc/trtllm_fused_moe_kernel_launcher.cu", line 6346, in tvm::ffi::Array<tvm::ffi::Optional<tvm::ffi::Tensor> > flashinfer::trtllm_fp4_block_scale_moe(int64_t, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::TensorView, tvm::ffi::TensorView, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::TensorView, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::TensorView, tvm::ffi::TensorView, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::TensorView, tvm::ffi::TensorView, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, int64_t, int64_t, tvm::ffi::Optional<long int>, tvm::ffi::Optional<long int>, tvm::ffi::Optional<long int>, int64_t, int64_t, int64_t, tvm::ffi::Optional<double>, int64_t, bool, bool, int64_t, tvm::ffi::TensorView, tvm::ffi::Array<long int>, bool, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Array<tvm::ffi::Tensor>, tvm::ffi::Array<tvm::ffi::Tensor>, bool, tvm::ffi::Optional<long int>, tvm::ffi::Optional<long int>, tvm::ffi::Optional<tvm::ffi::TensorView>, bool, int64_t)
+[rank3]:     TVM_FFI_LOG_AND_THROW(NotImplementedError) << "Unsupported hidden state scale shape.";
+
+[rank3]: RuntimeError: Unsupported hidden state scale shape.
+Traceback (most recent call last):
+  File "<unknown>", line 0, in __tvm_ffi_trtllm_fp4_block_scale_moe
+  File "/opt/sglang/lib/python3.12/site-packages/flashinfer/data/csrc/trtllm_fused_moe_kernel_launcher.cu", line 6346, in tvm::ffi::Array<tvm::ffi::Optional<tvm::ffi::Tensor> > flashinfer::trtllm_fp4_block_scale_moe(int64_t, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::TensorView, tvm::ffi::TensorView, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::TensorView, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::TensorView, tvm::ffi::TensorView, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::TensorView, tvm::ffi::TensorView, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, int64_t, int64_t, tvm::ffi::Optional<long int>, tvm::ffi::Optional<long int>, tvm::ffi::Optional<long int>, int64_t, int64_t, int64_t, tvm::ffi::Optional<double>, int64_t, bool, bool, int64_t, tvm::ffi::TensorView, tvm::ffi::Array<long int>, bool, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Array<tvm::ffi::Tensor>, tvm::ffi::Array<tvm::ffi::Tensor>, bool, tvm::ffi::Optional<long int>, tvm::ffi::Optional<long int>, tvm::ffi::Optional<tvm::ffi::TensorView>, bool, int64_t)
+NotImplementedError: Unsupported hidden state scale shape.
+[rank6]: Traceback (most recent call last):
+[rank6]:   File "/tmp/scratch-space/k3-performance/benchmark/b300-runtime-calibration/latent_span_tp8.py", line 110, in <module>
+[rank6]:     verdict,rel,cos,typ,worst=_cross_check(BenchCase(run=lambda:run(args),to_canonical=lambda y:y),expected,'fp8_e4m3')
+[rank6]:                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank6]:   File "/tmp/scratch-space/k3-performance/calibration-worktree/kernel_bench/driver.py", line 1477, in _cross_check
+[rank6]:     produced = trace.run(case.run) if trace is not None else case.run()
+[rank6]:                                                              ^^^^^^^^^^
+[rank6]:   File "/tmp/scratch-space/k3-performance/benchmark/b300-runtime-calibration/latent_span_tp8.py", line 110, in <lambda>
+[rank6]:     verdict,rel,cos,typ,worst=_cross_check(BenchCase(run=lambda:run(args),to_canonical=lambda y:y),expected,'fp8_e4m3')
+[rank6]:                                                                 ^^^^^^^^^
+[rank6]:   File "/tmp/scratch-space/k3-performance/benchmark/b300-runtime-calibration/latent_span_tp8.py", line 86, in run
+[rank6]:     partial=_run_trtllm_prepared_routing_moe(weights,routed.ids,routed.metadata,body,routed.x_q,routed.x_s,out,False)
+[rank6]:             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank6]:   File "/tmp/scratch-space/k3-performance/benchmark/agentx-yyh/sglang-recipe/python/sglang/srt/layers/moe/moe_runner/flashinfer_trtllm.py", line 473, in _run_trtllm_prepared_routing_moe
+[rank6]:     workspace = runner.forward(
+[rank6]:                 ^^^^^^^^^^^^^^^
+[rank6]:   File "/opt/sglang/lib/python3.12/site-packages/flashinfer/fused_moe/backends/trtllm/sm100_runner.py", line 617, in forward
+[rank6]:     result = self.moe_op.trtllm_fp4_block_scale_moe(
+[rank6]:              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank6]:   File "python/tvm_ffi/cython/function.pxi", line 968, in tvm_ffi.core.Function.__call__
+[rank6]:   File "<unknown>", line 0, in __tvm_ffi_trtllm_fp4_block_scale_moe
+[rank6]:   File "/opt/sglang/lib/python3.12/site-packages/flashinfer/data/csrc/trtllm_fused_moe_kernel_launcher.cu", line 6346, in tvm::ffi::Array<tvm::ffi::Optional<tvm::ffi::Tensor> > flashinfer::trtllm_fp4_block_scale_moe(int64_t, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::TensorView, tvm::ffi::TensorView, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::TensorView, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::TensorView, tvm::ffi::TensorView, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::TensorView, tvm::ffi::TensorView, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, int64_t, int64_t, tvm::ffi::Optional<long int>, tvm::ffi::Optional<long int>, tvm::ffi::Optional<long int>, int64_t, int64_t, int64_t, tvm::ffi::Optional<double>, int64_t, bool, bool, int64_t, tvm::ffi::TensorView, tvm::ffi::Array<long int>, bool, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Array<tvm::ffi::Tensor>, tvm::ffi::Array<tvm::ffi::Tensor>, bool, tvm::ffi::Optional<long int>, tvm::ffi::Optional<long int>, tvm::ffi::Optional<tvm::ffi::TensorView>, bool, int64_t)
+[rank6]:     TVM_FFI_LOG_AND_THROW(NotImplementedError) << "Unsupported hidden state scale shape.";
+
+[rank6]: RuntimeError: Unsupported hidden state scale shape.
+Traceback (most recent call last):
+  File "<unknown>", line 0, in __tvm_ffi_trtllm_fp4_block_scale_moe
+  File "/opt/sglang/lib/python3.12/site-packages/flashinfer/data/csrc/trtllm_fused_moe_kernel_launcher.cu", line 6346, in tvm::ffi::Array<tvm::ffi::Optional<tvm::ffi::Tensor> > flashinfer::trtllm_fp4_block_scale_moe(int64_t, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::TensorView, tvm::ffi::TensorView, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::TensorView, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::TensorView, tvm::ffi::TensorView, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::TensorView, tvm::ffi::TensorView, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, int64_t, int64_t, tvm::ffi::Optional<long int>, tvm::ffi::Optional<long int>, tvm::ffi::Optional<long int>, int64_t, int64_t, int64_t, tvm::ffi::Optional<double>, int64_t, bool, bool, int64_t, tvm::ffi::TensorView, tvm::ffi::Array<long int>, bool, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Array<tvm::ffi::Tensor>, tvm::ffi::Array<tvm::ffi::Tensor>, bool, tvm::ffi::Optional<long int>, tvm::ffi::Optional<long int>, tvm::ffi::Optional<tvm::ffi::TensorView>, bool, int64_t)
+NotImplementedError: Unsupported hidden state scale shape.
+[rank1]: Traceback (most recent call last):
+[rank1]:   File "/tmp/scratch-space/k3-performance/benchmark/b300-runtime-calibration/latent_span_tp8.py", line 110, in <module>
+[rank1]:     verdict,rel,cos,typ,worst=_cross_check(BenchCase(run=lambda:run(args),to_canonical=lambda y:y),expected,'fp8_e4m3')
+[rank1]:                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank1]:   File "/tmp/scratch-space/k3-performance/calibration-worktree/kernel_bench/driver.py", line 1477, in _cross_check
+[rank1]:     produced = trace.run(case.run) if trace is not None else case.run()
+[rank1]:                                                              ^^^^^^^^^^
+[rank1]:   File "/tmp/scratch-space/k3-performance/benchmark/b300-runtime-calibration/latent_span_tp8.py", line 110, in <lambda>
+[rank1]:     verdict,rel,cos,typ,worst=_cross_check(BenchCase(run=lambda:run(args),to_canonical=lambda y:y),expected,'fp8_e4m3')
+[rank1]:                                                                 ^^^^^^^^^
+[rank1]:   File "/tmp/scratch-space/k3-performance/benchmark/b300-runtime-calibration/latent_span_tp8.py", line 86, in run
+[rank1]:     partial=_run_trtllm_prepared_routing_moe(weights,routed.ids,routed.metadata,body,routed.x_q,routed.x_s,out,False)
+[rank1]:             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank1]:   File "/tmp/scratch-space/k3-performance/benchmark/agentx-yyh/sglang-recipe/python/sglang/srt/layers/moe/moe_runner/flashinfer_trtllm.py", line 473, in _run_trtllm_prepared_routing_moe
+[rank1]:     workspace = runner.forward(
+[rank1]:                 ^^^^^^^^^^^^^^^
+[rank1]:   File "/opt/sglang/lib/python3.12/site-packages/flashinfer/fused_moe/backends/trtllm/sm100_runner.py", line 617, in forward
+[rank1]:     result = self.moe_op.trtllm_fp4_block_scale_moe(
+[rank1]:              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank1]:   File "python/tvm_ffi/cython/function.pxi", line 968, in tvm_ffi.core.Function.__call__
+[rank1]:   File "<unknown>", line 0, in __tvm_ffi_trtllm_fp4_block_scale_moe
+[rank1]:   File "/opt/sglang/lib/python3.12/site-packages/flashinfer/data/csrc/trtllm_fused_moe_kernel_launcher.cu", line 6346, in tvm::ffi::Array<tvm::ffi::Optional<tvm::ffi::Tensor> > flashinfer::trtllm_fp4_block_scale_moe(int64_t, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::TensorView, tvm::ffi::TensorView, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::TensorView, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::TensorView, tvm::ffi::TensorView, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::TensorView, tvm::ffi::TensorView, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, int64_t, int64_t, tvm::ffi::Optional<long int>, tvm::ffi::Optional<long int>, tvm::ffi::Optional<long int>, int64_t, int64_t, int64_t, tvm::ffi::Optional<double>, int64_t, bool, bool, int64_t, tvm::ffi::TensorView, tvm::ffi::Array<long int>, bool, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Array<tvm::ffi::Tensor>, tvm::ffi::Array<tvm::ffi::Tensor>, bool, tvm::ffi::Optional<long int>, tvm::ffi::Optional<long int>, tvm::ffi::Optional<tvm::ffi::TensorView>, bool, int64_t)
+[rank1]:     TVM_FFI_LOG_AND_THROW(NotImplementedError) << "Unsupported hidden state scale shape.";
+
+[rank1]: RuntimeError: Unsupported hidden state scale shape.
+Traceback (most recent call last):
+  File "<unknown>", line 0, in __tvm_ffi_trtllm_fp4_block_scale_moe
+  File "/opt/sglang/lib/python3.12/site-packages/flashinfer/data/csrc/trtllm_fused_moe_kernel_launcher.cu", line 6346, in tvm::ffi::Array<tvm::ffi::Optional<tvm::ffi::Tensor> > flashinfer::trtllm_fp4_block_scale_moe(int64_t, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::TensorView, tvm::ffi::TensorView, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::TensorView, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::TensorView, tvm::ffi::TensorView, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::TensorView, tvm::ffi::TensorView, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, int64_t, int64_t, tvm::ffi::Optional<long int>, tvm::ffi::Optional<long int>, tvm::ffi::Optional<long int>, int64_t, int64_t, int64_t, tvm::ffi::Optional<double>, int64_t, bool, bool, int64_t, tvm::ffi::TensorView, tvm::ffi::Array<long int>, bool, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Array<tvm::ffi::Tensor>, tvm::ffi::Array<tvm::ffi::Tensor>, bool, tvm::ffi::Optional<long int>, tvm::ffi::Optional<long int>, tvm::ffi::Optional<tvm::ffi::TensorView>, bool, int64_t)
+NotImplementedError: Unsupported hidden state scale shape.
+[rank2]: Traceback (most recent call last):
+[rank2]:   File "/tmp/scratch-space/k3-performance/benchmark/b300-runtime-calibration/latent_span_tp8.py", line 110, in <module>
+[rank2]:     verdict,rel,cos,typ,worst=_cross_check(BenchCase(run=lambda:run(args),to_canonical=lambda y:y),expected,'fp8_e4m3')
+[rank2]:                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank2]:   File "/tmp/scratch-space/k3-performance/calibration-worktree/kernel_bench/driver.py", line 1477, in _cross_check
+[rank2]:     produced = trace.run(case.run) if trace is not None else case.run()
+[rank2]:                                                              ^^^^^^^^^^
+[rank2]:   File "/tmp/scratch-space/k3-performance/benchmark/b300-runtime-calibration/latent_span_tp8.py", line 110, in <lambda>
+[rank2]:     verdict,rel,cos,typ,worst=_cross_check(BenchCase(run=lambda:run(args),to_canonical=lambda y:y),expected,'fp8_e4m3')
+[rank2]:                                                                 ^^^^^^^^^
+[rank2]:   File "/tmp/scratch-space/k3-performance/benchmark/b300-runtime-calibration/latent_span_tp8.py", line 86, in run
+[rank2]:     partial=_run_trtllm_prepared_routing_moe(weights,routed.ids,routed.metadata,body,routed.x_q,routed.x_s,out,False)
+[rank2]:             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank2]:   File "/tmp/scratch-space/k3-performance/benchmark/agentx-yyh/sglang-recipe/python/sglang/srt/layers/moe/moe_runner/flashinfer_trtllm.py", line 473, in _run_trtllm_prepared_routing_moe
+[rank2]:     workspace = runner.forward(
+[rank2]:                 ^^^^^^^^^^^^^^^
+[rank2]:   File "/opt/sglang/lib/python3.12/site-packages/flashinfer/fused_moe/backends/trtllm/sm100_runner.py", line 617, in forward
+[rank2]:     result = self.moe_op.trtllm_fp4_block_scale_moe(
+[rank2]:              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank2]:   File "python/tvm_ffi/cython/function.pxi", line 968, in tvm_ffi.core.Function.__call__
+[rank2]:   File "<unknown>", line 0, in __tvm_ffi_trtllm_fp4_block_scale_moe
+[rank2]:   File "/opt/sglang/lib/python3.12/site-packages/flashinfer/data/csrc/trtllm_fused_moe_kernel_launcher.cu", line 6346, in tvm::ffi::Array<tvm::ffi::Optional<tvm::ffi::Tensor> > flashinfer::trtllm_fp4_block_scale_moe(int64_t, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::TensorView, tvm::ffi::TensorView, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::TensorView, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::TensorView, tvm::ffi::TensorView, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::TensorView, tvm::ffi::TensorView, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, int64_t, int64_t, tvm::ffi::Optional<long int>, tvm::ffi::Optional<long int>, tvm::ffi::Optional<long int>, int64_t, int64_t, int64_t, tvm::ffi::Optional<double>, int64_t, bool, bool, int64_t, tvm::ffi::TensorView, tvm::ffi::Array<long int>, bool, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Array<tvm::ffi::Tensor>, tvm::ffi::Array<tvm::ffi::Tensor>, bool, tvm::ffi::Optional<long int>, tvm::ffi::Optional<long int>, tvm::ffi::Optional<tvm::ffi::TensorView>, bool, int64_t)
+[rank2]:     TVM_FFI_LOG_AND_THROW(NotImplementedError) << "Unsupported hidden state scale shape.";
+
+[rank2]: RuntimeError: Unsupported hidden state scale shape.
+Traceback (most recent call last):
+  File "<unknown>", line 0, in __tvm_ffi_trtllm_fp4_block_scale_moe
+  File "/opt/sglang/lib/python3.12/site-packages/flashinfer/data/csrc/trtllm_fused_moe_kernel_launcher.cu", line 6346, in tvm::ffi::Array<tvm::ffi::Optional<tvm::ffi::Tensor> > flashinfer::trtllm_fp4_block_scale_moe(int64_t, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::TensorView, tvm::ffi::TensorView, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::TensorView, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::TensorView, tvm::ffi::TensorView, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::TensorView, tvm::ffi::TensorView, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, int64_t, int64_t, tvm::ffi::Optional<long int>, tvm::ffi::Optional<long int>, tvm::ffi::Optional<long int>, int64_t, int64_t, int64_t, tvm::ffi::Optional<double>, int64_t, bool, bool, int64_t, tvm::ffi::TensorView, tvm::ffi::Array<long int>, bool, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Array<tvm::ffi::Tensor>, tvm::ffi::Array<tvm::ffi::Tensor>, bool, tvm::ffi::Optional<long int>, tvm::ffi::Optional<long int>, tvm::ffi::Optional<tvm::ffi::TensorView>, bool, int64_t)
+NotImplementedError: Unsupported hidden state scale shape.
+[rank0]: Traceback (most recent call last):
+[rank0]:   File "/tmp/scratch-space/k3-performance/benchmark/b300-runtime-calibration/latent_span_tp8.py", line 110, in <module>
+[rank0]:     verdict,rel,cos,typ,worst=_cross_check(BenchCase(run=lambda:run(args),to_canonical=lambda y:y),expected,'fp8_e4m3')
+[rank0]:                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/tmp/scratch-space/k3-performance/calibration-worktree/kernel_bench/driver.py", line 1477, in _cross_check
+[rank0]:     produced = trace.run(case.run) if trace is not None else case.run()
+[rank0]:                                                              ^^^^^^^^^^
+[rank0]:   File "/tmp/scratch-space/k3-performance/benchmark/b300-runtime-calibration/latent_span_tp8.py", line 110, in <lambda>
+[rank0]:     verdict,rel,cos,typ,worst=_cross_check(BenchCase(run=lambda:run(args),to_canonical=lambda y:y),expected,'fp8_e4m3')
+[rank0]:                                                                 ^^^^^^^^^
+[rank0]:   File "/tmp/scratch-space/k3-performance/benchmark/b300-runtime-calibration/latent_span_tp8.py", line 86, in run
+[rank0]:     partial=_run_trtllm_prepared_routing_moe(weights,routed.ids,routed.metadata,body,routed.x_q,routed.x_s,out,False)
+[rank0]:             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/tmp/scratch-space/k3-performance/benchmark/agentx-yyh/sglang-recipe/python/sglang/srt/layers/moe/moe_runner/flashinfer_trtllm.py", line 473, in _run_trtllm_prepared_routing_moe
+[rank0]:     workspace = runner.forward(
+[rank0]:                 ^^^^^^^^^^^^^^^
+[rank0]:   File "/opt/sglang/lib/python3.12/site-packages/flashinfer/fused_moe/backends/trtllm/sm100_runner.py", line 617, in forward
+[rank0]:     result = self.moe_op.trtllm_fp4_block_scale_moe(
+[rank0]:              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "python/tvm_ffi/cython/function.pxi", line 968, in tvm_ffi.core.Function.__call__
+[rank0]:   File "<unknown>", line 0, in __tvm_ffi_trtllm_fp4_block_scale_moe
+[rank0]:   File "/opt/sglang/lib/python3.12/site-packages/flashinfer/data/csrc/trtllm_fused_moe_kernel_launcher.cu", line 6346, in tvm::ffi::Array<tvm::ffi::Optional<tvm::ffi::Tensor> > flashinfer::trtllm_fp4_block_scale_moe(int64_t, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::TensorView, tvm::ffi::TensorView, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::TensorView, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::TensorView, tvm::ffi::TensorView, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::TensorView, tvm::ffi::TensorView, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, int64_t, int64_t, tvm::ffi::Optional<long int>, tvm::ffi::Optional<long int>, tvm::ffi::Optional<long int>, int64_t, int64_t, int64_t, tvm::ffi::Optional<double>, int64_t, bool, bool, int64_t, tvm::ffi::TensorView, tvm::ffi::Array<long int>, bool, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Array<tvm::ffi::Tensor>, tvm::ffi::Array<tvm::ffi::Tensor>, bool, tvm::ffi::Optional<long int>, tvm::ffi::Optional<long int>, tvm::ffi::Optional<tvm::ffi::TensorView>, bool, int64_t)
+[rank0]:     TVM_FFI_LOG_AND_THROW(NotImplementedError) << "Unsupported hidden state scale shape.";
+
+[rank0]: RuntimeError: Unsupported hidden state scale shape.
+Traceback (most recent call last):
+  File "<unknown>", line 0, in __tvm_ffi_trtllm_fp4_block_scale_moe
+  File "/opt/sglang/lib/python3.12/site-packages/flashinfer/data/csrc/trtllm_fused_moe_kernel_launcher.cu", line 6346, in tvm::ffi::Array<tvm::ffi::Optional<tvm::ffi::Tensor> > flashinfer::trtllm_fp4_block_scale_moe(int64_t, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::TensorView, tvm::ffi::TensorView, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::TensorView, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::TensorView, tvm::ffi::TensorView, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::TensorView, tvm::ffi::TensorView, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, int64_t, int64_t, tvm::ffi::Optional<long int>, tvm::ffi::Optional<long int>, tvm::ffi::Optional<long int>, int64_t, int64_t, int64_t, tvm::ffi::Optional<double>, int64_t, bool, bool, int64_t, tvm::ffi::TensorView, tvm::ffi::Array<long int>, bool, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Array<tvm::ffi::Tensor>, tvm::ffi::Array<tvm::ffi::Tensor>, bool, tvm::ffi::Optional<long int>, tvm::ffi::Optional<long int>, tvm::ffi::Optional<tvm::ffi::TensorView>, bool, int64_t)
+NotImplementedError: Unsupported hidden state scale shape.
+[rank4]: Traceback (most recent call last):
+[rank4]:   File "/tmp/scratch-space/k3-performance/benchmark/b300-runtime-calibration/latent_span_tp8.py", line 110, in <module>
+[rank4]:     verdict,rel,cos,typ,worst=_cross_check(BenchCase(run=lambda:run(args),to_canonical=lambda y:y),expected,'fp8_e4m3')
+[rank4]:                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank4]:   File "/tmp/scratch-space/k3-performance/calibration-worktree/kernel_bench/driver.py", line 1477, in _cross_check
+[rank4]:     produced = trace.run(case.run) if trace is not None else case.run()
+[rank4]:                                                              ^^^^^^^^^^
+[rank4]:   File "/tmp/scratch-space/k3-performance/benchmark/b300-runtime-calibration/latent_span_tp8.py", line 110, in <lambda>
+[rank4]:     verdict,rel,cos,typ,worst=_cross_check(BenchCase(run=lambda:run(args),to_canonical=lambda y:y),expected,'fp8_e4m3')
+[rank4]:                                                                 ^^^^^^^^^
+[rank4]:   File "/tmp/scratch-space/k3-performance/benchmark/b300-runtime-calibration/latent_span_tp8.py", line 86, in run
+[rank4]:     partial=_run_trtllm_prepared_routing_moe(weights,routed.ids,routed.metadata,body,routed.x_q,routed.x_s,out,False)
+[rank4]:             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank4]:   File "/tmp/scratch-space/k3-performance/benchmark/agentx-yyh/sglang-recipe/python/sglang/srt/layers/moe/moe_runner/flashinfer_trtllm.py", line 473, in _run_trtllm_prepared_routing_moe
+[rank4]:     workspace = runner.forward(
+[rank4]:                 ^^^^^^^^^^^^^^^
+[rank4]:   File "/opt/sglang/lib/python3.12/site-packages/flashinfer/fused_moe/backends/trtllm/sm100_runner.py", line 617, in forward
+[rank4]:     result = self.moe_op.trtllm_fp4_block_scale_moe(
+[rank4]:              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank4]:   File "python/tvm_ffi/cython/function.pxi", line 968, in tvm_ffi.core.Function.__call__
+[rank4]:   File "<unknown>", line 0, in __tvm_ffi_trtllm_fp4_block_scale_moe
+[rank4]:   File "/opt/sglang/lib/python3.12/site-packages/flashinfer/data/csrc/trtllm_fused_moe_kernel_launcher.cu", line 6346, in tvm::ffi::Array<tvm::ffi::Optional<tvm::ffi::Tensor> > flashinfer::trtllm_fp4_block_scale_moe(int64_t, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::TensorView, tvm::ffi::TensorView, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::TensorView, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::TensorView, tvm::ffi::TensorView, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::TensorView, tvm::ffi::TensorView, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, int64_t, int64_t, tvm::ffi::Optional<long int>, tvm::ffi::Optional<long int>, tvm::ffi::Optional<long int>, int64_t, int64_t, int64_t, tvm::ffi::Optional<double>, int64_t, bool, bool, int64_t, tvm::ffi::TensorView, tvm::ffi::Array<long int>, bool, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Array<tvm::ffi::Tensor>, tvm::ffi::Array<tvm::ffi::Tensor>, bool, tvm::ffi::Optional<long int>, tvm::ffi::Optional<long int>, tvm::ffi::Optional<tvm::ffi::TensorView>, bool, int64_t)
+[rank4]:     TVM_FFI_LOG_AND_THROW(NotImplementedError) << "Unsupported hidden state scale shape.";
+
+[rank4]: RuntimeError: Unsupported hidden state scale shape.
+Traceback (most recent call last):
+  File "<unknown>", line 0, in __tvm_ffi_trtllm_fp4_block_scale_moe
+  File "/opt/sglang/lib/python3.12/site-packages/flashinfer/data/csrc/trtllm_fused_moe_kernel_launcher.cu", line 6346, in tvm::ffi::Array<tvm::ffi::Optional<tvm::ffi::Tensor> > flashinfer::trtllm_fp4_block_scale_moe(int64_t, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::TensorView, tvm::ffi::TensorView, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::TensorView, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::TensorView, tvm::ffi::TensorView, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::TensorView, tvm::ffi::TensorView, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, int64_t, int64_t, tvm::ffi::Optional<long int>, tvm::ffi::Optional<long int>, tvm::ffi::Optional<long int>, int64_t, int64_t, int64_t, tvm::ffi::Optional<double>, int64_t, bool, bool, int64_t, tvm::ffi::TensorView, tvm::ffi::Array<long int>, bool, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Array<tvm::ffi::Tensor>, tvm::ffi::Array<tvm::ffi::Tensor>, bool, tvm::ffi::Optional<long int>, tvm::ffi::Optional<long int>, tvm::ffi::Optional<tvm::ffi::TensorView>, bool, int64_t)
+NotImplementedError: Unsupported hidden state scale shape.
+[rank7]: Traceback (most recent call last):
+[rank7]:   File "/tmp/scratch-space/k3-performance/benchmark/b300-runtime-calibration/latent_span_tp8.py", line 110, in <module>
+[rank7]:     verdict,rel,cos,typ,worst=_cross_check(BenchCase(run=lambda:run(args),to_canonical=lambda y:y),expected,'fp8_e4m3')
+[rank7]:                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank7]:   File "/tmp/scratch-space/k3-performance/calibration-worktree/kernel_bench/driver.py", line 1477, in _cross_check
+[rank7]:     produced = trace.run(case.run) if trace is not None else case.run()
+[rank7]:                                                              ^^^^^^^^^^
+[rank7]:   File "/tmp/scratch-space/k3-performance/benchmark/b300-runtime-calibration/latent_span_tp8.py", line 110, in <lambda>
+[rank7]:     verdict,rel,cos,typ,worst=_cross_check(BenchCase(run=lambda:run(args),to_canonical=lambda y:y),expected,'fp8_e4m3')
+[rank7]:                                                                 ^^^^^^^^^
+[rank7]:   File "/tmp/scratch-space/k3-performance/benchmark/b300-runtime-calibration/latent_span_tp8.py", line 86, in run
+[rank7]:     partial=_run_trtllm_prepared_routing_moe(weights,routed.ids,routed.metadata,body,routed.x_q,routed.x_s,out,False)
+[rank7]:             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank7]:   File "/tmp/scratch-space/k3-performance/benchmark/agentx-yyh/sglang-recipe/python/sglang/srt/layers/moe/moe_runner/flashinfer_trtllm.py", line 473, in _run_trtllm_prepared_routing_moe
+[rank7]:     workspace = runner.forward(
+[rank7]:                 ^^^^^^^^^^^^^^^
+[rank7]:   File "/opt/sglang/lib/python3.12/site-packages/flashinfer/fused_moe/backends/trtllm/sm100_runner.py", line 617, in forward
+[rank7]:     result = self.moe_op.trtllm_fp4_block_scale_moe(
+[rank7]:              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank7]:   File "python/tvm_ffi/cython/function.pxi", line 968, in tvm_ffi.core.Function.__call__
+[rank7]:   File "<unknown>", line 0, in __tvm_ffi_trtllm_fp4_block_scale_moe
+[rank7]:   File "/opt/sglang/lib/python3.12/site-packages/flashinfer/data/csrc/trtllm_fused_moe_kernel_launcher.cu", line 6346, in tvm::ffi::Array<tvm::ffi::Optional<tvm::ffi::Tensor> > flashinfer::trtllm_fp4_block_scale_moe(int64_t, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::TensorView, tvm::ffi::TensorView, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::TensorView, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::TensorView, tvm::ffi::TensorView, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::TensorView, tvm::ffi::TensorView, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, int64_t, int64_t, tvm::ffi::Optional<long int>, tvm::ffi::Optional<long int>, tvm::ffi::Optional<long int>, int64_t, int64_t, int64_t, tvm::ffi::Optional<double>, int64_t, bool, bool, int64_t, tvm::ffi::TensorView, tvm::ffi::Array<long int>, bool, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Array<tvm::ffi::Tensor>, tvm::ffi::Array<tvm::ffi::Tensor>, bool, tvm::ffi::Optional<long int>, tvm::ffi::Optional<long int>, tvm::ffi::Optional<tvm::ffi::TensorView>, bool, int64_t)
+[rank7]:     TVM_FFI_LOG_AND_THROW(NotImplementedError) << "Unsupported hidden state scale shape.";
+
+[rank7]: RuntimeError: Unsupported hidden state scale shape.
+Traceback (most recent call last):
+  File "<unknown>", line 0, in __tvm_ffi_trtllm_fp4_block_scale_moe
+  File "/opt/sglang/lib/python3.12/site-packages/flashinfer/data/csrc/trtllm_fused_moe_kernel_launcher.cu", line 6346, in tvm::ffi::Array<tvm::ffi::Optional<tvm::ffi::Tensor> > flashinfer::trtllm_fp4_block_scale_moe(int64_t, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::TensorView, tvm::ffi::TensorView, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::TensorView, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::TensorView, tvm::ffi::TensorView, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::TensorView, tvm::ffi::TensorView, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, int64_t, int64_t, tvm::ffi::Optional<long int>, tvm::ffi::Optional<long int>, tvm::ffi::Optional<long int>, int64_t, int64_t, int64_t, tvm::ffi::Optional<double>, int64_t, bool, bool, int64_t, tvm::ffi::TensorView, tvm::ffi::Array<long int>, bool, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Array<tvm::ffi::Tensor>, tvm::ffi::Array<tvm::ffi::Tensor>, bool, tvm::ffi::Optional<long int>, tvm::ffi::Optional<long int>, tvm::ffi::Optional<tvm::ffi::TensorView>, bool, int64_t)
+NotImplementedError: Unsupported hidden state scale shape.
+[rank5]: Traceback (most recent call last):
+[rank5]:   File "/tmp/scratch-space/k3-performance/benchmark/b300-runtime-calibration/latent_span_tp8.py", line 110, in <module>
+[rank5]:     verdict,rel,cos,typ,worst=_cross_check(BenchCase(run=lambda:run(args),to_canonical=lambda y:y),expected,'fp8_e4m3')
+[rank5]:                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank5]:   File "/tmp/scratch-space/k3-performance/calibration-worktree/kernel_bench/driver.py", line 1477, in _cross_check
+[rank5]:     produced = trace.run(case.run) if trace is not None else case.run()
+[rank5]:                                                              ^^^^^^^^^^
+[rank5]:   File "/tmp/scratch-space/k3-performance/benchmark/b300-runtime-calibration/latent_span_tp8.py", line 110, in <lambda>
+[rank5]:     verdict,rel,cos,typ,worst=_cross_check(BenchCase(run=lambda:run(args),to_canonical=lambda y:y),expected,'fp8_e4m3')
+[rank5]:                                                                 ^^^^^^^^^
+[rank5]:   File "/tmp/scratch-space/k3-performance/benchmark/b300-runtime-calibration/latent_span_tp8.py", line 86, in run
+[rank5]:     partial=_run_trtllm_prepared_routing_moe(weights,routed.ids,routed.metadata,body,routed.x_q,routed.x_s,out,False)
+[rank5]:             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank5]:   File "/tmp/scratch-space/k3-performance/benchmark/agentx-yyh/sglang-recipe/python/sglang/srt/layers/moe/moe_runner/flashinfer_trtllm.py", line 473, in _run_trtllm_prepared_routing_moe
+[rank5]:     workspace = runner.forward(
+[rank5]:                 ^^^^^^^^^^^^^^^
+[rank5]:   File "/opt/sglang/lib/python3.12/site-packages/flashinfer/fused_moe/backends/trtllm/sm100_runner.py", line 617, in forward
+[rank5]:     result = self.moe_op.trtllm_fp4_block_scale_moe(
+[rank5]:              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank5]:   File "python/tvm_ffi/cython/function.pxi", line 968, in tvm_ffi.core.Function.__call__
+[rank5]:   File "<unknown>", line 0, in __tvm_ffi_trtllm_fp4_block_scale_moe
+[rank5]:   File "/opt/sglang/lib/python3.12/site-packages/flashinfer/data/csrc/trtllm_fused_moe_kernel_launcher.cu", line 6346, in tvm::ffi::Array<tvm::ffi::Optional<tvm::ffi::Tensor> > flashinfer::trtllm_fp4_block_scale_moe(int64_t, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::TensorView, tvm::ffi::TensorView, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::TensorView, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::TensorView, tvm::ffi::TensorView, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::TensorView, tvm::ffi::TensorView, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Optional<tvm::ffi::TensorView>, int64_t, int64_t, tvm::ffi::Optional<long int>, tvm::ffi::Optional<long int>, tvm::ffi::Optional<long int>, int64_t, int64_t, int64_t, tvm::ffi::Optional<double>, int64_t, bool, bool, int64_t, tvm::ffi::TensorView, tvm::ffi::Array<long int>, bool, tvm::ffi::Optional<tvm::ffi::TensorView>, tvm::ffi::Array<tvm::ffi::Tensor>, tvm::ffi::Array<tvm::ffi::Tensor>, bool, tvm::ffi::Optional<long int>, tvm::ffi::Optional<long int>, tvm::ffi::Optional<tvm::ffi::TensorView>, bool, int64_t)
+[rank5]:     TVM_FFI_LOG_AND_THROW(NotImplementedError) << "Unsupported hidden state scale shape.";
+
+[rank5]: RuntimeError: Unsupported hidden state scale shape.
+W1115 14:52:41.283000 441966 torch/distributed/elastic/multiprocessing/api.py:1028] Sending process 441996 closing signal SIGTERM
+W1115 14:52:41.284000 441966 torch/distributed/elastic/multiprocessing/api.py:1028] Sending process 441997 closing signal SIGTERM
+W1115 14:52:41.285000 441966 torch/distributed/elastic/multiprocessing/api.py:1028] Sending process 441998 closing signal SIGTERM
+W1115 14:52:41.286000 441966 torch/distributed/elastic/multiprocessing/api.py:1028] Sending process 442000 closing signal SIGTERM
+W1115 14:52:41.287000 441966 torch/distributed/elastic/multiprocessing/api.py:1028] Sending process 442001 closing signal SIGTERM
+W1115 14:52:41.288000 441966 torch/distributed/elastic/multiprocessing/api.py:1028] Sending process 442002 closing signal SIGTERM
+W1115 14:52:41.289000 441966 torch/distributed/elastic/multiprocessing/api.py:1028] Sending process 442003 closing signal SIGTERM
+E1115 14:52:43.120000 441966 torch/distributed/elastic/multiprocessing/api.py:1002] failed (exitcode: 1) local_rank: 3 (pid: 441999) of binary: /opt/sglang/bin/python
+Traceback (most recent call last):
+  File "/opt/sglang/bin/torchrun", line 10, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/opt/sglang/lib/python3.12/site-packages/torch/distributed/elastic/multiprocessing/errors/__init__.py", line 380, in wrapper
+    return f(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^
+  File "/opt/sglang/lib/python3.12/site-packages/torch/distributed/run.py", line 1138, in main
+    run(args)
+  File "/opt/sglang/lib/python3.12/site-packages/torch/distributed/run.py", line 1129, in run
+    elastic_launch(
+  File "/opt/sglang/lib/python3.12/site-packages/torch/distributed/launcher/api.py", line 197, in __call__
+    return launch_agent(
+           ^^^^^^^^^^^^^
+  File "/opt/sglang/lib/python3.12/site-packages/torch/distributed/launcher/api.py", line 386, in launch_agent
+    raise ChildFailedError(
+torch.distributed.elastic.multiprocessing.errors.ChildFailedError: 
+============================================================
+/tmp/scratch-space/k3-performance/benchmark/b300-runtime-calibration/latent_span_tp8.py FAILED
+------------------------------------------------------------
+Failures:
+[1]:
+  time      : 2026-11-15_14:52:43
+  host      : kar-rsi-test-0.kar-rsi-test.llm-eng-dev.svc.cluster.local
+  rank      : 0 (local_rank: 0)
+  exitcode  : -15 (pid: 441996)  (SIGTERM)
+  error_file: <N/A>
+  traceback : Signal 15 (SIGTERM) received by PID 441996
+[2]:
+  time      : 2026-11-15_14:52:43
+  host      : kar-rsi-test-0.kar-rsi-test.llm-eng-dev.svc.cluster.local
+  rank      : 1 (local_rank: 1)
+  exitcode  : -15 (pid: 441997)  (SIGTERM)
+  error_file: <N/A>
+  traceback : Signal 15 (SIGTERM) received by PID 441997
+[3]:
+  time      : 2026-11-15_14:52:43
+  host      : kar-rsi-test-0.kar-rsi-test.llm-eng-dev.svc.cluster.local
+  rank      : 2 (local_rank: 2)
+  exitcode  : -15 (pid: 441998)  (SIGTERM)
+  error_file: <N/A>
+  traceback : Signal 15 (SIGTERM) received by PID 441998
+[4]:
+  time      : 2026-11-15_14:52:43
+  host      : kar-rsi-test-0.kar-rsi-test.llm-eng-dev.svc.cluster.local
+  rank      : 4 (local_rank: 4)
+  exitcode  : -15 (pid: 442000)  (SIGTERM)
+  error_file: <N/A>
+  traceback : Signal 15 (SIGTERM) received by PID 442000
+[5]:
+  time      : 2026-11-15_14:52:43
+  host      : kar-rsi-test-0.kar-rsi-test.llm-eng-dev.svc.cluster.local
+  rank      : 5 (local_rank: 5)
+  exitcode  : -15 (pid: 442001)  (SIGTERM)
+  error_file: <N/A>
+  traceback : Signal 15 (SIGTERM) received by PID 442001
+[6]:
+  time      : 2026-11-15_14:52:43
+  host      : kar-rsi-test-0.kar-rsi-test.llm-eng-dev.svc.cluster.local
+  rank      : 6 (local_rank: 6)
+  exitcode  : -15 (pid: 442002)  (SIGTERM)
+  error_file: <N/A>
+  traceback : Signal 15 (SIGTERM) received by PID 442002
+[7]:
+  time      : 2026-11-15_14:52:43
+  host      : kar-rsi-test-0.kar-rsi-test.llm-eng-dev.svc.cluster.local
+  rank      : 7 (local_rank: 7)
+  exitcode  : -15 (pid: 442003)  (SIGTERM)
+  error_file: <N/A>
+  traceback : Signal 15 (SIGTERM) received by PID 442003
+------------------------------------------------------------
+Root Cause (first observed failure):
+[0]:
+  time      : 2026-11-15_14:52:41
+  host      : kar-rsi-test-0.kar-rsi-test.llm-eng-dev.svc.cluster.local
+  rank      : 3 (local_rank: 3)
+  exitcode  : 1 (pid: 441999) 
+  error_file: <N/A>
+  traceback : To enable traceback see: https://pytorch.org/docs/stable/elastic/errors.html
+============================================================

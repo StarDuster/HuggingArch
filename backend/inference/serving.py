@@ -27,7 +27,7 @@ from backend.arch.eval.fusion import (
 )
 from backend.arch.eval.layer import Layer, Rewrite
 from backend.arch.eval.access import LeafAccess, routed_launches
-from backend.arch.eval.values import Cost, Shape
+from backend.arch.eval.values import Cost, Shape, product
 from backend.arch.layout.physical import physical_kernel_shapes
 from backend.arch.layout.physical_cost import PhysicalProjection
 from backend.arch.layout.stages import StagePlacement
@@ -188,6 +188,39 @@ def _first(parts: Tuple[Any, ...]) -> Any:
 
 def _sum(parts: Tuple[Any, ...]) -> Any:
     return sum(parts)
+
+
+def _comm_origins(parts: Tuple[Any, ...]) -> Any:
+    """Keep every same-group reduction in a multi-kernel execution span.
+
+    Pricing retains the individual payloads and their latency floors;
+    the aggregate payload is for byte totals, never a synthetic launch.
+    Heterogeneous groups require separate laws rather than silently taking
+    the first communication event.
+    """
+    if len(parts) < 2:
+        return _first(parts)
+    members=[child for p in parts for child in p.get('span_collectives',(p,))]
+    fields=('op','comm_world','comm_base_stride','payload_dtype_bytes')
+    if any(tuple(p.get(k) for k in fields) != tuple(members[0].get(k) for k in fields)
+           for p in members[1:]):
+        raise ValueError('one execution span contains heterogeneous collective groups')
+    if members[0].get('op') != 'all_reduce':
+        raise ValueError('multi-collective execution spans currently require same-group all_reduce')
+    merged=dict(members[0])
+    merged['span_collectives']=tuple(members)
+    merged['tensor_bytes_extent']=sum(p['tensor_bytes_extent'] for p in members)
+    merged['tensor_bytes']=sum(p['tensor_bytes'] for p in members)
+    for key in ('payload','collective_in','collective_out'):
+        merged[key+'_extents']=(sum(product(p[key+'_extents']) for p in members),)
+    # A span has no single wire tensor. Preserve the true shapes in each
+    # member and expose only a flat aggregate for the total-byte columns.
+    for key,extent_key in [('tensor_shape','payload_extents'),
+            ('collective_in_shape','collective_in_extents'),
+            ('collective_out_shape','collective_out_extents')]:
+        merged[key]=[value_of(merged[extent_key][0])]
+    merged['flow_in_shape']=None;merged['flow_out_shape']=None
+    return merged
 
 
 def _ratios(active_share: Layer[Any], program: Any,
@@ -570,7 +603,7 @@ def build_serving_layers(cell: Any, *,
         routed = routed_launches(program, access, analysis.routed)
 
         comm_bytes = materialized.comm_bytes.rebase(rewrite, program, _sum)
-        comm_meta = materialized.comm_meta.rebase(rewrite, program, _first)
+        comm_meta = materialized.comm_meta.rebase(rewrite, program, _comm_origins)
         pre_node_dims = _on_program(analysis.node_dims, pre_program)
         pre_definitions = _on_program(_node_definitions(analysis),
                                       pre_program)

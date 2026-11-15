@@ -1,0 +1,50 @@
+Ignoring incompatible flashinfer-cubin package (cubins will be downloaded on demand to /tmp/scratch-space/k3-performance/cache/sglang/.cache/flashinfer/cubins): flashinfer-cubin version (0.7.2) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+Ignoring incompatible flashinfer-jit-cache package (kernels will be JIT-compiled instead): flashinfer-jit-cache version (0.7.2+cu130) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+[
+  {
+    "batch": 1,
+    "max_rank_p50_us": 44.85599882900715,
+    "numerical_checks": 16,
+    "key": [
+      "kimi_k31_trtllm_moe_span",
+      "{\"B\":1,\"s_query\":1}",
+      "{\"activation\":\"fp8_e4m3\",\"activation_granularity\":\"per-group:32\",\"metadata\":\"ue8m0\",\"output\":\"bf16\",\"weight\":\"bf16\"}",
+      "decode"
+    ],
+    "rank_p50_us": [
+      44.57799904048443,
+      44.5530004799366,
+      44.50300149619579,
+      44.60600018501282,
+      44.64799910783768,
+      44.85599882900715,
+      44.6809995919466,
+      44.7160005569458
+    ],
+    "excludes": [],
+    "fixed_format": "MXFP4 experts, MXFP8 GEMM inputs, BF16 norm weight, FP32 route logits; activation slot denotes internal expert MMA"
+  },
+  {
+    "batch": 8,
+    "max_rank_p50_us": 83.5999995470047,
+    "numerical_checks": 16,
+    "key": [
+      "kimi_k31_trtllm_moe_span",
+      "{\"B\":8,\"s_query\":1}",
+      "{\"activation\":\"fp8_e4m3\",\"activation_granularity\":\"per-group:32\",\"metadata\":\"ue8m0\",\"output\":\"bf16\",\"weight\":\"bf16\"}",
+      "decode"
+    ],
+    "rank_p50_us": [
+      83.4059976041317,
+      83.37900042533875,
+      83.36399868130684,
+      83.34299921989441,
+      83.43999832868576,
+      83.5999995470047,
+      83.38599652051926,
+      83.52700248360634
+    ],
+    "excludes": [],
+    "fixed_format": "MXFP4 experts, MXFP8 GEMM inputs, BF16 norm weight, FP32 route logits; activation slot denotes internal expert MMA"
+  }
+]

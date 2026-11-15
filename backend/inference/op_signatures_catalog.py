@@ -3460,3 +3460,47 @@ register_signature(OpSignature(
     dtype_slots=('activation',),
     doc='Kimi learned-score AttnRes plus output RMSNorm; cached BF16 score-gain/projection product, eps1e-6, no bank write.',
 ))
+
+
+# This deliberately narrow execution-span contract identifies the audited
+# B300 TP8/EP2 recipe. Its fixed bank dimensions must not be reused at EP1/4.
+# The bank's three logical matrices are stored as packed w13 and w2 by the
+# runtime. Bias and norm remain floating point; they are not MXFP4 operands.
+register_signature(OpSignature(
+    name='kimi_k31_trtllm_latent_span',
+    binds_ops=('kimi_k31_trtllm_latent_span',),
+    inputs=(
+        TensorLayout('x', ('B', 's_query', 3584)),
+        TensorLayout('gating', ('B', 's_query', 896)),
+        TensorLayout('bias', (896,), role='metadata'),
+        TensorLayout('norm_weight', (3584,)),
+        TensorLayout('w13', (448, 1536, 3584), role='weight'),
+        TensorLayout('w2', (448, 3584, 768), role='weight'),
+    ),
+    engine_inputs=(
+        (0, TensorLayout('gating', ('B', 's_query', 896))),
+        (1, TensorLayout('bias', (896,), role='metadata')),
+        (2, TensorLayout('x', ('B', 's_query', 3584))),
+    ),
+    dtype_slots=('activation', 'weight'),
+    doc=('B300 K3.1 TP8/EP2 MXFP8/MXFP4 SiTU execution span: sigmoid+bias '
+         'top16/896, input quantization and prepared routing, 448 local '
+         'experts with intermediate768, deferred weighted combine, TP8 '
+         'multicast reduction and latent RMSNorm. Multiple CUDA kernels; '
+         'not an independent grouped-GEMM or standalone all-reduce key.'),
+))
+
+register_signature(OpSignature(
+    name='kimi_k31_trtllm_moe_span',binds_ops=('kimi_k31_trtllm_moe_span',),
+    inputs=(TensorLayout('x',('B','s_query',7168)),
+            TensorLayout('bias',(896,),role='metadata')),
+    engine_inputs=((0,TensorLayout('x',('B','s_query',7168))),
+                   (1,TensorLayout('bias',(896,),role='metadata'))),
+    dtype_slots=('activation','weight'),
+    doc=('Complete B300 K3.1 TP8/EP2 MoE execution span, including merged '
+         'dense front, routed MXFP8/MXFP4 SiTU experts, parallel shared '
+         'expert branch, both collectives, latent norm/up and final add. '
+         'Multiple kernels and streams; fixed 896/top16, local448/I768, '
+         'BF16 external hidden and dense weights, FP32 front, mixed resident '
+         'weights. Activation slot describes internal expert MMA precision.'),
+))

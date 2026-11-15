@@ -29,9 +29,18 @@ def main():
     parser.add_argument('--output-tokens', type=int, default=512)
     parser.add_argument('--batch', type=int, default=1)
     parser.add_argument('--kv-block-size', type=int, default=64)
+    parser.add_argument('--span-scope',choices=('whole','latent'),default='whole',
+                        help='Analysis boundary: complete MoE block, or the narrower latent-path diagnostic.')
     parser.add_argument('--calibration-rows', type=Path,
                         help='Validated Kernel Bench JSON rows; unmatched operations retain theory.')
     args = parser.parse_args()
+    if args.span_scope == 'latent':
+        from dataclasses import replace
+        from backend.inference.framework_bindings import FRAMEWORK_BINDINGS
+        binding=FRAMEWORK_BINDINGS['sglang']
+        FRAMEWORK_BINDINGS['sglang']=replace(binding,op_implementations=tuple(
+            entry for entry in binding.op_implementations
+            if entry[0]!='kimi_k31_trtllm_moe_span'))
     model = 'moonshotai/Kimi-K3.1-Pro'
     snapshot = load_snapshot(model)
     result = estimate_capacity(
@@ -56,6 +65,7 @@ def main():
         'dcp_failed_owners': args.dcp_failed_owners,
         'calibration_rows': str(args.calibration_rows) if args.calibration_rows else None,
         'selection_mode': 'envelope' if args.calibration_rows else 'theoretical_only',
+        'execution_span_scope': args.span_scope,
         'model_id': model,
         'gpu': result['gpu']['sku'],
         'parallel': result['parallel'],

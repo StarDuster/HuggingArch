@@ -1,0 +1,39 @@
+{
+  "final": [
+    {
+      "input_tokens": 16384,
+      "partial_ms": 9.360186025777782,
+      "baseline_ms": 10.081021355912187,
+      "error_pct": -7.150419631951854,
+      "span_calls": 92,
+      "span_ms": 4.126752,
+      "measured_share": 0.7885572123965002,
+      "fully_measured_s": null
+    },
+    {
+      "input_tokens": 2048,
+      "partial_ms": 9.340986025777783,
+      "baseline_ms": 9.944849842898087,
+      "error_pct": -6.0721260417173735,
+      "span_calls": 92,
+      "span_ms": 4.126752,
+      "measured_share": 0.7881226007280122,
+      "fully_measured_s": null
+    }
+  ],
+  "full_moe_timing": [
+    {
+      "batch": 1,
+      "two_streams_us": 44.85599882900715,
+      "serial_us": 57.34599940478802,
+      "saved_pct": 21.780073074701765
+    },
+    {
+      "batch": 8,
+      "two_streams_us": 83.5999995470047,
+      "serial_us": 97.28199988603592,
+      "saved_pct": 14.06426713581077
+    }
+  ],
+  "source_files": 16
+}

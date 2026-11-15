@@ -1644,6 +1644,12 @@ def compute_per_op_timing(
             if "runtime_write_bytes" in law_m:
                 act_out_one = value_of(law_m["runtime_write_bytes"])
             dependency_rounds = value_of(law_m.get("sparse_dcp_dependency_rounds", 1))
+            comm_parts=(tuple((value_of(p['tensor_bytes_extent']),
+                              value_of(p.get('sparse_dcp_dependency_rounds',1)))
+                             for p in law_m['span_collectives'])
+                        if 'span_collectives' in law_m else None)
+            if comm_parts:
+                dependency_rounds=sum(rounds for _,rounds in comm_parts)
             # The row's law, over the workload and the card, built from the
             # walk's laws: the same at every point of the cell, so written
             # once (`ServingLayers.written`).
@@ -1660,7 +1666,8 @@ def compute_per_op_timing(
                 comm_factor=comm_factor(comm_op, comm_world) if is_comm else 0.0,
                 comm_priced=is_comm and comm_world > 1,
                 comm_rungs=len(comm_rungs),
-                comm_dependency_rounds=dependency_rounds), laws.book))
+                comm_dependency_rounds=dependency_rounds,
+                comm_parts=comm_parts), laws.book))
             # This row at the walk's point: its law read there on the card
             # (`LawBook.row_at`), the one reading every re-evaluation of it
             # makes, and published through the one rendering
@@ -1733,9 +1740,9 @@ def compute_per_op_timing(
                 shape_out_val = [int(v) for v in m["tensor_shape"]]
             typed_flow_out = (None if m.get("flow_out_shape") is None
                               else [int(v) for v in m["flow_out_shape"]])
-            if is_comm and typed_flow_out is not None:
+            if is_comm and not isinstance(node, FusedNode) and typed_flow_out is not None:
                 shape_out_val = list(typed_flow_out)
-            elif is_comm and shape_out_val is not None:
+            elif is_comm and not isinstance(node, FusedNode) and shape_out_val is not None:
                 shape_out_val = comm_display_shape(
                     str(node.op or ""), shape_out_val,
                     ([str(expr_of(axis)) for axis in shape.out]
@@ -1753,7 +1760,7 @@ def compute_per_op_timing(
             shape_in_val: Optional[List[Any]] = None
             typed_flow_in = (None if m.get("flow_in_shape") is None
                              else [int(v) for v in m["flow_in_shape"]])
-            if is_comm and typed_flow_in is not None:
+            if is_comm and not isinstance(node, FusedNode) and typed_flow_in is not None:
                 shape_in_val = list(typed_flow_in)
             elif shape is not None:
                 shape_in_val = _inputs(shape)
@@ -1781,7 +1788,7 @@ def compute_per_op_timing(
             # flow (`materializer._int_shape`), laws as well.
             law_full = (law_full_shapes.values.get(uid)
                         if law_full_shapes is not None else None)
-            if is_comm:
+            if is_comm and not isinstance(node, FusedNode):
                 law_ins = ([law_m["flow_in_shape"]]
                            if law_m.get("flow_in_shape") is not None else None)
                 law_out = law_m.get("flow_out_shape")

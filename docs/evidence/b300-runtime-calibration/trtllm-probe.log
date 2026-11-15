@@ -1,0 +1,30 @@
+Ignoring incompatible flashinfer-cubin package (cubins will be downloaded on demand to /tmp/scratch-space/k3-performance/cache/flashinfer/.cache/flashinfer/cubins): flashinfer-cubin version (0.7.2) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+Ignoring incompatible flashinfer-jit-cache package (kernels will be JIT-compiled instead): flashinfer-jit-cache version (0.7.2+cu130) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+Creating full local expert bank
+Permutation shapes (1536,) (3584,)
+Checking 1 17 local assignments 8
+2026-11-15 14:39:31,580 - INFO - autotuner.py:1148 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
+/tmp/scratch-space/k3-performance/benchmark/b300-runtime-calibration/trtllm_moe_probe.py:104: DeprecationWarning: Calling a trtllm-gen block-scale MoE op with a `hidden_states_scale` but without `hidden_states_scale_layout` is deprecated; the layout is being inferred as SfLayout.layout_linear. The layout cannot actually be recovered from the tensor -- a 128x4-swizzled buffer has exactly the linear numel whenever num_tokens % 128 == 0 (see #3455) -- so pass `hidden_states_scale_layout=flashinfer.tllm_enums.SfLayout.layout_linear` explicitly. Both the inference and the parameter's optionality are deprecated: the parameter is scheduled to become required and the inference to be removed in a future release.
+  fn = lambda: trtllm_fp4_block_scale_routed_moe(**kw)
+[AutoTuner]: Tuning flashinfer::trtllm_fp4_block_scale_moe:   0%|          | 0/1 [00:00<?, ?profile/s][AutoTuner]: Tuning flashinfer::trtllm_fp4_block_scale_moe: 100%|██████████| 1/1 [00:05<00:00,  5.68s/profile][AutoTuner]: Tuning flashinfer::trtllm_fp4_block_scale_moe: 100%|██████████| 1/1 [00:05<00:00,  5.68s/profile]
+2026-11-15 14:39:38,025 - INFO - autotuner.py:1173 - flashinfer.jit: [Autotuner]: Autotuning process ends
+/tmp/scratch-space/k3-performance/benchmark/b300-runtime-calibration/trtllm_moe_probe.py:104: DeprecationWarning: Calling a trtllm-gen block-scale MoE op with a `hidden_states_scale` but without `hidden_states_scale_layout` is deprecated; the layout is being inferred as SfLayout.layout_linear. The layout cannot actually be recovered from the tensor -- a 128x4-swizzled buffer has exactly the linear numel whenever num_tokens % 128 == 0 (see #3455) -- so pass `hidden_states_scale_layout=flashinfer.tllm_enums.SfLayout.layout_linear` explicitly. Both the inference and the parameter's optionality are deprecated: the parameter is scheduled to become required and the inference to be removed in a future release.
+  fn = lambda: trtllm_fp4_block_scale_routed_moe(**kw)
+{"batch": 1, "seed": 17, "local_assignments": 8, "cross_check": "passed", "rel": 0.012869352324737146, "cosine": 0.9999982118606567, "typical": 0.0009560757898725569, "worst": 0.003253308590501547, "band": {"typical": 0.11, "worst": 3.1}}
+Timing [('graph-warm-repeat32', 14.69149999320507), ('graph-cold-before-only', 24.607999250292778)]
+Checking 1 43 local assignments 7
+2026-11-15 14:39:40,214 - INFO - autotuner.py:1148 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
+2026-11-15 14:39:40,216 - INFO - autotuner.py:1173 - flashinfer.jit: [Autotuner]: Autotuning process ends
+{"batch": 1, "seed": 43, "local_assignments": 7, "cross_check": "passed", "rel": 0.010689147483478099, "cosine": 0.9999985694885254, "typical": 0.0008085134904831648, "worst": 0.002679960336536169, "band": {"typical": 0.11, "worst": 3.1}}
+Timing [('graph-warm-repeat32', 14.344499912112951), ('graph-cold-before-only', 22.655999287962914)]
+Checking 8 17 local assignments 58
+2026-11-15 14:39:40,254 - INFO - autotuner.py:1148 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
+[AutoTuner]: Tuning flashinfer::trtllm_fp4_block_scale_moe:  25%|██▌       | 1/4 [00:00<?, ?profile/s][AutoTuner]: Tuning flashinfer::trtllm_fp4_block_scale_moe:  50%|█████     | 2/4 [00:03<00:07,  3.84s/profile][AutoTuner]: Tuning flashinfer::trtllm_fp4_block_scale_moe:  75%|███████▌  | 3/4 [00:07<00:03,  3.94s/profile][AutoTuner]: Tuning flashinfer::trtllm_fp4_block_scale_moe: 100%|██████████| 4/4 [00:12<00:00,  4.41s/profile][AutoTuner]: Tuning flashinfer::trtllm_fp4_block_scale_moe: 100%|██████████| 4/4 [00:12<00:00,  4.27s/profile]
+2026-11-15 14:39:53,071 - INFO - autotuner.py:1173 - flashinfer.jit: [Autotuner]: Autotuning process ends
+{"batch": 8, "seed": 17, "local_assignments": 58, "cross_check": "passed", "rel": 0.016213178623205992, "cosine": 0.9999985694885254, "typical": 0.0008181938319467008, "worst": 0.004651145078241825, "band": {"typical": 0.11, "worst": 3.1}}
+Timing [('graph-warm-repeat32', 53.65600064396858), ('graph-cold-before-only', 69.7920024394989)]
+Checking 8 43 local assignments 63
+2026-11-15 14:39:53,199 - INFO - autotuner.py:1148 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
+2026-11-15 14:39:53,200 - INFO - autotuner.py:1173 - flashinfer.jit: [Autotuner]: Autotuning process ends
+{"batch": 8, "seed": 43, "local_assignments": 63, "cross_check": "passed", "rel": 0.018794434496224706, "cosine": 0.9999985694885254, "typical": 0.0008584940806031227, "worst": 0.008023038506507874, "band": {"typical": 0.11, "worst": 3.1}}
+Timing [('graph-warm-repeat32', 56.78750015795231), ('graph-cold-before-only', 75.79200342297554)]

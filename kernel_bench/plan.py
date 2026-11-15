@@ -455,6 +455,14 @@ def _build_jobs_over_points(
         # an all-ones mesh and stamp `tp: 4` on whole-model shapes.
         parallel = (config_for_degree("tp_tp", tp) if tp > 1
                     else ParallelConfig())
+    # The plan and estimate must answer TP-conditioned dispatch alike.
+    # Previously card facts were supplied above but the actual mesh was
+    # omitted, silently disabling every `tensor_parallel: [8]` binding.
+    if binding.deployment.tensor_parallel is None:
+        binding = binding.deployed(replace(
+            binding.deployment, tensor_parallel=int(parallel.tp_attention)))
+    elif binding.deployment.tensor_parallel != int(parallel.tp_attention):
+        raise ValueError('the deployed binding tensor_parallel disagrees with the plan mesh')
     # Run analyze under the SAME phase binding the serving path uses so the
     # per-op shape_in is phase-correct (decode → Q seq collapses to Sq=1,
     # Lq=cache_len). Without this, decode jobs would carry prefill shapes.

@@ -278,6 +278,32 @@ collectives:
       source_anchor: "CustomAllReduceV2's multicast two-shot (python/sglang/srt/distributed/device_communicators/custom_all_reduce_v2.py:343-344), multimem.ld_reduce / multimem.st at python/sglang/kernels/jit/csrc/distributed/custom_all_reduce.cuh:123-127"
 
 op_implementations:
+  kimi_k31_trtllm_moe_span:
+    crosses: component
+    source_anchor: "Complete K3 TP8/EP2 multi-kernel MoE span, alt_stream and join: https://github.com/sgl-project/sglang/blob/5792cf6e5e11aebc62d41cf19828f615a8fa7e0a/python/sglang/srt/models/kimi_k3.py#L1579-L1690; https://github.com/sgl-project/sglang/blob/5792cf6e5e11aebc62d41cf19828f615a8fa7e0a/python/sglang/srt/layers/communication/k3_ar_fusion.py; https://github.com/sgl-project/sglang/blob/5792cf6e5e11aebc62d41cf19828f615a8fa7e0a/python/sglang/srt/layers/moe/moe_runner/flashinfer_trtllm.py#L437-L491"
+    when:
+      phase: [decode]
+      architectures: [KimiK31ForConditionalGeneration]
+      tensor_parallel: [8]
+      activation_dtype: [bf16]
+      device: [cuda]
+      min_compute_capability: "10.3"
+      below_compute_capability: "10.4"
+      dims: { n_experts: [896], n_experts_active: [16], d_moe_latent: [3584], n_verify: [1], n_expert_groups: [1], dp_attention: [1] }
+      world_local: { world: tp_moe_expert, dim: d_ffn_expert, local_in: [768] }
+  kimi_k31_trtllm_latent_span:
+    crosses: component
+    source_anchor: "K3.1 routing through latent norm: https://github.com/sgl-project/sglang/blob/5792cf6e5e11aebc62d41cf19828f615a8fa7e0a/python/sglang/kernels/ops/moe/kimi_k3_fused_routing.py#L81-L148; https://github.com/sgl-project/sglang/blob/5792cf6e5e11aebc62d41cf19828f615a8fa7e0a/python/sglang/srt/layers/moe/moe_runner/flashinfer_trtllm.py#L437-L491; https://github.com/sgl-project/sglang/blob/5792cf6e5e11aebc62d41cf19828f615a8fa7e0a/python/sglang/kernels/ops/communication/all_reduce_residual.py#L269-L299"
+    when:
+      phase: [decode]
+      architectures: [KimiK31ForConditionalGeneration]
+      tensor_parallel: [8]
+      activation_dtype: [bf16]
+      device: [cuda]
+      min_compute_capability: "10.3"
+      below_compute_capability: "10.4"
+      dims: { n_experts: [896], n_experts_active: [16], d_moe_latent: [3584], n_verify: [1], n_expert_groups: [1], dp_attention: [1] }
+      world_local: { world: tp_moe_expert, dim: d_ffn_expert, local_in: [768] }
   kimi_attn_res_rmsnorm:
     source_anchor: "python/sglang/srt/layers/attn_residual.py:_aggregate_fast; python/sglang/kernels/ops/attention/attn_res.py:attn_res_fused_tma (source 5792cf6e5e11)"
     when:

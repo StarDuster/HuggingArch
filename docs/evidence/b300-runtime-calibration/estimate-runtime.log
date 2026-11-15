@@ -1,0 +1,4 @@
+Estimating 16384
+{"input_tokens": 16384, "partial_ms": 10.330345161777787, "baseline_ms": 10.081021355912187, "error_pct": 2.473199858061803, "span_calls": 92, "span_ms": 2.373232, "measured_share": 0.6339409281531685, "fully_measured_s": null}
+Estimating 2048
+{"input_tokens": 2048, "partial_ms": 10.311145161777786, "baseline_ms": 9.944849842898087, "error_pct": 3.6832664611953003, "span_calls": 92, "span_ms": 2.373232, "measured_share": 0.6332593031668855, "fully_measured_s": null}

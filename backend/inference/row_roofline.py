@@ -127,6 +127,7 @@ from .phase_formulas import (_collective_bytes_formula, _t_comm_formula_for_row,
                              _t_compute_formula_for_row,
                              _t_memory_formula_for_row, _t_op_formula_for_row)
 from backend.code_trace.memo import memoize
+from backend.arch.eval.launch import FusedNode
 
 #: The workload a point sets: the batch, the prompt, the output, the cached
 #: prefix and the verify width (`transforms.Workload.symbols`), the symbols
@@ -340,6 +341,12 @@ def weight_demand(program: Any, node: Any, shape: Any, *,
     """
     if active_ratio >= 1.0 or not total:
         return WeightDemand(step_rows, total * active_ratio, total)
+    if isinstance(node, FusedNode) and node.owns_dispatch:
+        # The whole bank's caller supplies original tokens; its combined
+        # cost already states the resident-weight share active per token.
+        # Per-expert rows describe its INTERNAL GEMMs, not this span's input.
+        return WeightDemand(step_rows, total * active_ratio, total,
+                            saturates=True)
     return WeightDemand(kernel_rows(program, node, shape), total, total,
                         saturates=True)
 
@@ -519,7 +526,8 @@ def build_row_exprs(*, count: int, flops: Any, act_in: Any, act_out: Any,
                     weight_total: float, metadata_total: float,
                     comm_payload: Any = 0, comm_factor: float = 0.0,
                     comm_priced: bool = False,
-                    comm_rungs: int = 0, comm_dependency_rounds: Any = 1) -> Dict[str, sp.Expr]:
+                    comm_rungs: int = 0, comm_dependency_rounds: Any = 1,
+                    comm_parts: Optional[Tuple[Tuple[Any, Any], ...]] = None) -> Dict[str, sp.Expr]:
     """One row's law as expressions over the workload and the card symbols
     (the module docstring). `flops`, `act_in`, `act_out`, `convert`,
     `kv_read` and `comm_payload` are one instance's, each the walk's own law
@@ -559,12 +567,15 @@ def build_row_exprs(*, count: int, flops: Any, act_in: Any, act_out: Any,
     t_memory = (weight_read + metadata + act) / PEAK_BW
     t_comm: sp.Expr = sp.Integer(0)
     if comm_priced:
-        t_comm = comm_bytes * COMM_S_PER_BYTE + COMM_LATENCY_S * _exact(comm_dependency_rounds)
-        if comm_rungs:
-            t_comm = sp.Piecewise(*(
-                (comm_bytes * rate + fixed * _exact(comm_dependency_rounds), comm_bytes <= bound)
-                for bound, rate, fixed in map(rung_symbols, range(comm_rungs))),
-                (t_comm, True))
+        for part_payload,part_rounds in (comm_parts or ((comm_bytes,comm_dependency_rounds),)):
+            part_bytes=_exact(part_payload);rounds=_exact(part_rounds)
+            term=part_bytes*COMM_S_PER_BYTE+COMM_LATENCY_S*rounds
+            if comm_rungs:
+                term=sp.Piecewise(*(
+                    (part_bytes*rate+fixed*rounds,part_bytes<=bound)
+                    for bound,rate,fixed in map(rung_symbols,range(comm_rungs))),
+                    (term,True))
+            t_comm+=term
     # A row launches a kernel when it moves anything and is not a
     # collective (whose floor is its latency, priced or not).
     launches = payload == 0 and not (flops_e == 0 and act == 0

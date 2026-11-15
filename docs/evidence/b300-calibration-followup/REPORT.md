@@ -1,3 +1,7 @@
+# Superseded by runtime-aware calibration
+
+See [the newer report](../b300-runtime-calibration/REPORT.md) for corrected TP dispatch, complete TRTLLM MoE spans and source two-stream timing. The results below are historical.
+
 # B300 calibration: validated measurements and remaining error
 
 The calibration dataset and fusion fixes are saved on `codex/b300-calibration` in the user fork. No PR is opened. The original nine rows on `kimi-k31-reports` are unchanged. No AgentX rerun was started after cancellation.

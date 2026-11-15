@@ -1,0 +1,41 @@
+# Complete MULTI-KERNEL MoE execution span, including the source's shared
+# side stream and join. It is measured as a unit; no overlap discount is
+# applied to its member timings. Communication members remain individually
+# represented in the span's theory law.
+fused_op: kimi_k31_trtllm_moe_span
+naive_pattern:
+  nodes:
+    router_linear: { op: linear, inputs: [external.x] }
+    gate_sigmoid: { op: sigmoid, inputs: [router_linear.out] }
+    scores_biased: { op: add, inputs: [gate_sigmoid.out, external.bias] }
+    group_top2_sum: { op: group_top2_sum, inputs: [scores_biased.out] }
+    group_topk: { op: topk, inputs: [group_top2_sum.out] }
+    group_mask: { op: group_mask_apply, inputs: [scores_biased.out, group_topk.out] }
+    topk_indices: { op: topk, inputs: [group_mask.out] }
+    topk_gather: { op: gather, inputs: [gate_sigmoid.out, topk_indices.out] }
+    topk_norm: { op: normalize_sum_one, inputs: [topk_gather.out] }
+    topk_scale: { op: scale_const, inputs: [topk_norm.out] }
+    latent_down: { op: linear, inputs: [external.x] }
+    input_quant: { op: quantise_activation, inputs: [latent_down.out] }
+    permute: { op: permute, inputs: [input_quant.out, topk_scale.out] }
+    gate_proj: { op: linear, inputs: [permute.out] }
+    up_proj: { op: linear, inputs: [permute.out] }
+    act: { op: situ, inputs: [gate_proj.out] }
+    gate_mul: { op: mul, inputs: [act.out, up_proj.out] }
+    intermediate_quant: { op: quantise_activation, inputs: [gate_mul.out] }
+    down_proj: { op: linear, inputs: [intermediate_quant.out] }
+    combine: { op: combine, inputs: [down_proj.out, topk_scale.out] }
+    allreduce: { op: all_reduce, inputs: [combine.out] }
+    norm: { op: rmsnorm, inputs: [allreduce.out] }
+    latent_up: { op: linear, inputs: [norm.out] }
+    shared_gate: { op: linear, inputs: [external.x] }
+    shared_up: { op: linear, inputs: [external.x] }
+    shared_act: { op: situ, inputs: [shared_gate.out] }
+    shared_mul: { op: mul, inputs: [shared_act.out, shared_up.out] }
+    shared_down: { op: linear, inputs: [shared_mul.out] }
+    shared_reduce: { op: all_reduce, inputs: [shared_down.out] }
+    result: { op: add, inputs: [latent_up.out, shared_reduce.out] }
+  io_mapping:
+    x: external.x
+    bias: external.bias
+    output: result.out

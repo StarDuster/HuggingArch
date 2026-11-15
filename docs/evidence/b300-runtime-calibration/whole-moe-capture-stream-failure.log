@@ -1,0 +1,383 @@
+Ignoring incompatible flashinfer-cubin package (cubins will be downloaded on demand to /tmp/scratch-space/k3-performance/cache/flashinfer/.cache/flashinfer/cubins): flashinfer-cubin version (0.7.2) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+Ignoring incompatible flashinfer-jit-cache package (kernels will be JIT-compiled instead): flashinfer-jit-cache version (0.7.2+cu130) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+Ignoring incompatible flashinfer-cubin package (cubins will be downloaded on demand to /tmp/scratch-space/k3-performance/cache/flashinfer/.cache/flashinfer/cubins): flashinfer-cubin version (0.7.2) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+Ignoring incompatible flashinfer-jit-cache package (kernels will be JIT-compiled instead): flashinfer-jit-cache version (0.7.2+cu130) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+Ignoring incompatible flashinfer-cubin package (cubins will be downloaded on demand to /tmp/scratch-space/k3-performance/cache/flashinfer/.cache/flashinfer/cubins): flashinfer-cubin version (0.7.2) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+Ignoring incompatible flashinfer-jit-cache package (kernels will be JIT-compiled instead): flashinfer-jit-cache version (0.7.2+cu130) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+Ignoring incompatible flashinfer-cubin package (cubins will be downloaded on demand to /tmp/scratch-space/k3-performance/cache/flashinfer/.cache/flashinfer/cubins): flashinfer-cubin version (0.7.2) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+Ignoring incompatible flashinfer-jit-cache package (kernels will be JIT-compiled instead): flashinfer-jit-cache version (0.7.2+cu130) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+Ignoring incompatible flashinfer-cubin package (cubins will be downloaded on demand to /tmp/scratch-space/k3-performance/cache/flashinfer/.cache/flashinfer/cubins): flashinfer-cubin version (0.7.2) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+Ignoring incompatible flashinfer-jit-cache package (kernels will be JIT-compiled instead): flashinfer-jit-cache version (0.7.2+cu130) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+Ignoring incompatible flashinfer-cubin package (cubins will be downloaded on demand to /tmp/scratch-space/k3-performance/cache/flashinfer/.cache/flashinfer/cubins): flashinfer-cubin version (0.7.2) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+Ignoring incompatible flashinfer-jit-cache package (kernels will be JIT-compiled instead): flashinfer-jit-cache version (0.7.2+cu130) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+Ignoring incompatible flashinfer-cubin package (cubins will be downloaded on demand to /tmp/scratch-space/k3-performance/cache/flashinfer/.cache/flashinfer/cubins): flashinfer-cubin version (0.7.2) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+Ignoring incompatible flashinfer-jit-cache package (kernels will be JIT-compiled instead): flashinfer-jit-cache version (0.7.2+cu130) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+Ignoring incompatible flashinfer-cubin package (cubins will be downloaded on demand to /tmp/scratch-space/k3-performance/cache/flashinfer/.cache/flashinfer/cubins): flashinfer-cubin version (0.7.2) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+Ignoring incompatible flashinfer-jit-cache package (kernels will be JIT-compiled instead): flashinfer-jit-cache version (0.7.2+cu130) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+rank3: weights and multicast storage ready
+rank5: weights and multicast storage ready
+rank1:rank0:  weights and multicast storage readyweights and multicast storage ready
+
+rank7:rank2: weights and multicast storage ready 
+rank6:weights and multicast storage ready
+ weights and multicast storage ready
+rank4: weights and multicast storage ready
+rank3: numeric 1 rank0:{'seed': 17, 'passed': True, 'rel': 0.034453166836329784, 'cosine': 0.999990701675415, 'typical': 0.0029401795472949743, 'worst': 0.016116082668304443}
+ numeric 1 {'seed': 17, 'passed': True, 'rel': 0.034453166836329784, 'cosine': 0.999990701675415, 'typical': 0.0029401795472949743, 'worst': 0.016116082668304443}
+rank7: numeric 1 {'seed': 17, 'passed': True, 'rel': 0.034453166836329784, 'cosine': 0.999990701675415, 'typical': 0.0029401795472949743, 'worst': 0.016116082668304443}
+rank6: numeric 1 {'seed': 17, 'passed': True, 'rel': 0.034453166836329784, 'cosine': 0.999990701675415, 'typical': 0.0029401795472949743, 'worst': 0.016116082668304443}
+rank4: numeric 1 {'seed': 17, 'passed': True, 'rel': 0.034453166836329784, 'cosine': 0.999990701675415, 'typical': 0.0029401795472949743, 'worst': 0.016116082668304443}
+rank5: numeric 1 {'seed': 17, 'passed': True, 'rel': 0.034453166836329784, 'cosine': 0.999990701675415, 'typical': 0.0029401795472949743, 'worst': 0.016116082668304443}
+rank1: numeric 1 {'seed': 17, 'passed': True, 'rel': 0.034453166836329784, 'cosine': 0.999990701675415, 'typical': 0.0029401795472949743, 'worst': 0.016116082668304443}
+rank2: numeric 1 {'seed': 17, 'passed': True, 'rel': 0.034453166836329784, 'cosine': 0.999990701675415, 'typical': 0.0029401795472949743, 'worst': 0.016116082668304443}
+rank3:rank0: numeric  numeric1  1 {'seed': 43, 'passed': True, 'rel': 0.03460172261520829, 'cosine': 0.9999848008155823, 'typical': 0.0038990876637399197, 'worst': 0.01816844940185547}
+{'seed': 43, 'passed': True, 'rel': 0.03460172261520829, 'cosine': 0.9999848008155823, 'typical': 0.0038990876637399197, 'worst': 0.01816844940185547}rank7:
+rank6: rank5: numeric numeric numeric 1 rank2:1 1   numeric{'seed': 43, 'passed': True, 'rel': 0.03460172261520829, 'cosine': 0.9999848008155823, 'typical': 0.0038990876637399197, 'worst': 0.01816844940185547} {'seed': 43, 'passed': True, 'rel': 0.03460172261520829, 'cosine': 0.9999848008155823, 'typical': 0.0038990876637399197, 'worst': 0.01816844940185547}{'seed': 43, 'passed': True, 'rel': 0.03460172261520829, 'cosine': 0.9999848008155823, 'typical': 0.0038990876637399197, 'worst': 0.01816844940185547}
+1
+
+ rank4:{'seed': 43, 'passed': True, 'rel': 0.03460172261520829, 'cosine': 0.9999848008155823, 'typical': 0.0038990876637399197, 'worst': 0.01816844940185547}
+ numeric 1rank1:  numeric {'seed': 43, 'passed': True, 'rel': 0.03460172261520829, 'cosine': 0.9999848008155823, 'typical': 0.0038990876637399197, 'worst': 0.01816844940185547}1
+ {'seed': 43, 'passed': True, 'rel': 0.03460172261520829, 'cosine': 0.9999848008155823, 'typical': 0.0038990876637399197, 'worst': 0.01816844940185547}
+[rank3]: Traceback (most recent call last):
+[rank3]:   File "/tmp/scratch-space/k3-performance/benchmark/b300-runtime-calibration/whole_moe_tp8.py", line 134, in <module>
+[rank3]:     for case in cases:run(case)
+[rank3]:                       ^^^^^^^^^
+[rank3]:   File "/tmp/scratch-space/k3-performance/benchmark/b300-runtime-calibration/whole_moe_tp8.py", line 92, in run
+[rank3]:     activated=situ_and_mul(gate_up,None,4.,25.)
+[rank3]:               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank3]:   File "/tmp/scratch-space/k3-performance/benchmark/agentx-yyh/sglang-recipe/python/sglang/kernels/ops/activation/__init__.py", line 117, in situ_and_mul
+[rank3]:     return impl(input, out, beta, linear_beta)
+[rank3]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank3]:   File "/tmp/scratch-space/k3-performance/benchmark/agentx-yyh/sglang-recipe/python/sglang/kernels/ops/activation/kimi_k3_situ_and_mul.py", line 59, in situ_and_mul
+[rank3]:     out = input.new_empty(*input.shape[:-1], hidden_size, dtype=out_dtype)
+[rank3]:           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank3]: torch.AcceleratorError: CUDA error: operation not permitted when stream is capturing
+[rank3]: Search for `cudaErrorStreamCaptureUnsupported' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+
+
+[rank3]: During handling of the above exception, another exception occurred:
+
+[rank3]: Traceback (most recent call last):
+[rank3]:   File "/tmp/scratch-space/k3-performance/benchmark/b300-runtime-calibration/whole_moe_tp8.py", line 133, in <module>
+[rank3]:     with torch.cuda.graph(graph):
+[rank3]:          ^^^^^^^^^^^^^^^^^^^^^^^
+[rank3]:   File "/opt/sglang/lib/python3.12/site-packages/torch/cuda/graphs.py", line 1210, in __exit__
+[rank3]:     self.cuda_graph.capture_end()
+[rank3]:   File "/opt/sglang/lib/python3.12/site-packages/torch/cuda/graphs.py", line 649, in capture_end
+[rank3]:     self.capture_end_pre()
+[rank3]:   File "/opt/sglang/lib/python3.12/site-packages/torch/cuda/graphs.py", line 630, in capture_end_pre
+[rank3]:     super().capture_end_pre()
+[rank3]: torch.AcceleratorError: CUDA error: operation failed due to a previous error during capture
+[rank3]: Search for `cudaErrorStreamCaptureInvalidated' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+
+[rank0]: Traceback (most recent call last):
+[rank0]:   File "/tmp/scratch-space/k3-performance/benchmark/b300-runtime-calibration/whole_moe_tp8.py", line 134, in <module>
+[rank0]:     for case in cases:run(case)
+[rank0]:                       ^^^^^^^^^
+[rank0]:   File "/tmp/scratch-space/k3-performance/benchmark/b300-runtime-calibration/whole_moe_tp8.py", line 92, in run
+[rank0]:     activated=situ_and_mul(gate_up,None,4.,25.)
+[rank0]:               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/tmp/scratch-space/k3-performance/benchmark/agentx-yyh/sglang-recipe/python/sglang/kernels/ops/activation/__init__.py", line 117, in situ_and_mul
+[rank0]:     return impl(input, out, beta, linear_beta)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/tmp/scratch-space/k3-performance/benchmark/agentx-yyh/sglang-recipe/python/sglang/kernels/ops/activation/kimi_k3_situ_and_mul.py", line 59, in situ_and_mul
+[rank0]:     out = input.new_empty(*input.shape[:-1], hidden_size, dtype=out_dtype)
+[rank0]:           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]: torch.AcceleratorError: CUDA error: operation not permitted when stream is capturing
+[rank0]: Search for `cudaErrorStreamCaptureUnsupported' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+
+
+[rank0]: During handling of the above exception, another exception occurred:
+
+[rank0]: Traceback (most recent call last):
+[rank0]:   File "/tmp/scratch-space/k3-performance/benchmark/b300-runtime-calibration/whole_moe_tp8.py", line 133, in <module>
+[rank0]:     with torch.cuda.graph(graph):
+[rank0]:          ^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/opt/sglang/lib/python3.12/site-packages/torch/cuda/graphs.py", line 1210, in __exit__
+[rank0]:     self.cuda_graph.capture_end()
+[rank0]:   File "/opt/sglang/lib/python3.12/site-packages/torch/cuda/graphs.py", line 649, in capture_end
+[rank0]:     self.capture_end_pre()
+[rank0]:   File "/opt/sglang/lib/python3.12/site-packages/torch/cuda/graphs.py", line 630, in capture_end_pre
+[rank0]:     super().capture_end_pre()
+[rank0]: torch.AcceleratorError: CUDA error: operation failed due to a previous error during capture
+[rank0]: Search for `cudaErrorStreamCaptureInvalidated' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+
+[rank7]: Traceback (most recent call last):
+[rank7]:   File "/tmp/scratch-space/k3-performance/benchmark/b300-runtime-calibration/whole_moe_tp8.py", line 134, in <module>
+[rank7]:     for case in cases:run(case)
+[rank7]:                       ^^^^^^^^^
+[rank7]:   File "/tmp/scratch-space/k3-performance/benchmark/b300-runtime-calibration/whole_moe_tp8.py", line 92, in run
+[rank7]:     activated=situ_and_mul(gate_up,None,4.,25.)
+[rank7]:               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank7]:   File "/tmp/scratch-space/k3-performance/benchmark/agentx-yyh/sglang-recipe/python/sglang/kernels/ops/activation/__init__.py", line 117, in situ_and_mul
+[rank7]:     return impl(input, out, beta, linear_beta)
+[rank7]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank7]:   File "/tmp/scratch-space/k3-performance/benchmark/agentx-yyh/sglang-recipe/python/sglang/kernels/ops/activation/kimi_k3_situ_and_mul.py", line 59, in situ_and_mul
+[rank7]:     out = input.new_empty(*input.shape[:-1], hidden_size, dtype=out_dtype)
+[rank7]:           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank7]: torch.AcceleratorError: CUDA error: operation not permitted when stream is capturing
+[rank7]: Search for `cudaErrorStreamCaptureUnsupported' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+
+
+[rank7]: During handling of the above exception, another exception occurred:
+
+[rank7]: Traceback (most recent call last):
+[rank7]:   File "/tmp/scratch-space/k3-performance/benchmark/b300-runtime-calibration/whole_moe_tp8.py", line 133, in <module>
+[rank7]:     with torch.cuda.graph(graph):
+[rank7]:          ^^^^^^^^^^^^^^^^^^^^^^^
+[rank7]:   File "/opt/sglang/lib/python3.12/site-packages/torch/cuda/graphs.py", line 1210, in __exit__
+[rank7]:     self.cuda_graph.capture_end()
+[rank7]:   File "/opt/sglang/lib/python3.12/site-packages/torch/cuda/graphs.py", line 649, in capture_end
+[rank7]:     self.capture_end_pre()
+[rank7]:   File "/opt/sglang/lib/python3.12/site-packages/torch/cuda/graphs.py", line 630, in capture_end_pre
+[rank7]:     super().capture_end_pre()
+[rank7]: torch.AcceleratorError: CUDA error: operation failed due to a previous error during capture
+[rank7]: Search for `cudaErrorStreamCaptureInvalidated' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+
+[rank6]: Traceback (most recent call last):
+[rank6]:   File "/tmp/scratch-space/k3-performance/benchmark/b300-runtime-calibration/whole_moe_tp8.py", line 134, in <module>
+[rank6]:     for case in cases:run(case)
+[rank6]:                       ^^^^^^^^^
+[rank6]:   File "/tmp/scratch-space/k3-performance/benchmark/b300-runtime-calibration/whole_moe_tp8.py", line 92, in run
+[rank6]:     activated=situ_and_mul(gate_up,None,4.,25.)
+[rank6]:               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank6]:   File "/tmp/scratch-space/k3-performance/benchmark/agentx-yyh/sglang-recipe/python/sglang/kernels/ops/activation/__init__.py", line 117, in situ_and_mul
+[rank6]:     return impl(input, out, beta, linear_beta)
+[rank6]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank6]:   File "/tmp/scratch-space/k3-performance/benchmark/agentx-yyh/sglang-recipe/python/sglang/kernels/ops/activation/kimi_k3_situ_and_mul.py", line 59, in situ_and_mul
+[rank6]:     out = input.new_empty(*input.shape[:-1], hidden_size, dtype=out_dtype)
+[rank6]:           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank6]: torch.AcceleratorError: CUDA error: operation not permitted when stream is capturing
+[rank6]: Search for `cudaErrorStreamCaptureUnsupported' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+
+
+[rank6]: During handling of the above exception, another exception occurred:
+
+[rank6]: Traceback (most recent call last):
+[rank6]:   File "/tmp/scratch-space/k3-performance/benchmark/b300-runtime-calibration/whole_moe_tp8.py", line 133, in <module>
+[rank6]:     with torch.cuda.graph(graph):
+[rank6]:          ^^^^^^^^^^^^^^^^^^^^^^^
+[rank6]:   File "/opt/sglang/lib/python3.12/site-packages/torch/cuda/graphs.py", line 1210, in __exit__
+[rank6]:     self.cuda_graph.capture_end()
+[rank6]:   File "/opt/sglang/lib/python3.12/site-packages/torch/cuda/graphs.py", line 649, in capture_end
+[rank6]:     self.capture_end_pre()
+[rank6]:   File "/opt/sglang/lib/python3.12/site-packages/torch/cuda/graphs.py", line 630, in capture_end_pre
+[rank6]:     super().capture_end_pre()
+[rank6]: torch.AcceleratorError: CUDA error: operation failed due to a previous error during capture
+[rank6]: Search for `cudaErrorStreamCaptureInvalidated' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+
+[rank1]: Traceback (most recent call last):
+[rank1]:   File "/tmp/scratch-space/k3-performance/benchmark/b300-runtime-calibration/whole_moe_tp8.py", line 134, in <module>
+[rank1]:     for case in cases:run(case)
+[rank1]:                       ^^^^^^^^^
+[rank1]:   File "/tmp/scratch-space/k3-performance/benchmark/b300-runtime-calibration/whole_moe_tp8.py", line 92, in run
+[rank1]:     activated=situ_and_mul(gate_up,None,4.,25.)
+[rank1]:               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank1]:   File "/tmp/scratch-space/k3-performance/benchmark/agentx-yyh/sglang-recipe/python/sglang/kernels/ops/activation/__init__.py", line 117, in situ_and_mul
+[rank1]:     return impl(input, out, beta, linear_beta)
+[rank1]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank1]:   File "/tmp/scratch-space/k3-performance/benchmark/agentx-yyh/sglang-recipe/python/sglang/kernels/ops/activation/kimi_k3_situ_and_mul.py", line 59, in situ_and_mul
+[rank1]:     out = input.new_empty(*input.shape[:-1], hidden_size, dtype=out_dtype)
+[rank1]:           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank1]: torch.AcceleratorError: CUDA error: operation not permitted when stream is capturing
+[rank1]: Search for `cudaErrorStreamCaptureUnsupported' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+
+
+[rank1]: During handling of the above exception, another exception occurred:
+
+[rank1]: Traceback (most recent call last):
+[rank1]:   File "/tmp/scratch-space/k3-performance/benchmark/b300-runtime-calibration/whole_moe_tp8.py", line 133, in <module>
+[rank1]:     with torch.cuda.graph(graph):
+[rank1]:          ^^^^^^^^^^^^^^^^^^^^^^^
+[rank1]:   File "/opt/sglang/lib/python3.12/site-packages/torch/cuda/graphs.py", line 1210, in __exit__
+[rank1]:     self.cuda_graph.capture_end()
+[rank1]:   File "/opt/sglang/lib/python3.12/site-packages/torch/cuda/graphs.py", line 649, in capture_end
+[rank1]:     self.capture_end_pre()
+[rank1]:   File "/opt/sglang/lib/python3.12/site-packages/torch/cuda/graphs.py", line 630, in capture_end_pre
+[rank1]:     super().capture_end_pre()
+[rank1]: torch.AcceleratorError: CUDA error: operation failed due to a previous error during capture
+[rank1]: Search for `cudaErrorStreamCaptureInvalidated' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+
+[rank4]: Traceback (most recent call last):
+[rank4]:   File "/tmp/scratch-space/k3-performance/benchmark/b300-runtime-calibration/whole_moe_tp8.py", line 134, in <module>
+[rank4]:     for case in cases:run(case)
+[rank4]:                       ^^^^^^^^^
+[rank4]:   File "/tmp/scratch-space/k3-performance/benchmark/b300-runtime-calibration/whole_moe_tp8.py", line 92, in run
+[rank4]:     activated=situ_and_mul(gate_up,None,4.,25.)
+[rank4]:               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank4]:   File "/tmp/scratch-space/k3-performance/benchmark/agentx-yyh/sglang-recipe/python/sglang/kernels/ops/activation/__init__.py", line 117, in situ_and_mul
+[rank4]:     return impl(input, out, beta, linear_beta)
+[rank4]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank4]:   File "/tmp/scratch-space/k3-performance/benchmark/agentx-yyh/sglang-recipe/python/sglang/kernels/ops/activation/kimi_k3_situ_and_mul.py", line 59, in situ_and_mul
+[rank4]:     out = input.new_empty(*input.shape[:-1], hidden_size, dtype=out_dtype)
+[rank4]:           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank4]: torch.AcceleratorError: CUDA error: operation not permitted when stream is capturing
+[rank4]: Search for `cudaErrorStreamCaptureUnsupported' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+
+
+[rank4]: During handling of the above exception, another exception occurred:
+
+[rank4]: Traceback (most recent call last):
+[rank4]:   File "/tmp/scratch-space/k3-performance/benchmark/b300-runtime-calibration/whole_moe_tp8.py", line 133, in <module>
+[rank4]:     with torch.cuda.graph(graph):
+[rank4]:          ^^^^^^^^^^^^^^^^^^^^^^^
+[rank4]:   File "/opt/sglang/lib/python3.12/site-packages/torch/cuda/graphs.py", line 1210, in __exit__
+[rank4]:     self.cuda_graph.capture_end()
+[rank4]:   File "/opt/sglang/lib/python3.12/site-packages/torch/cuda/graphs.py", line 649, in capture_end
+[rank4]:     self.capture_end_pre()
+[rank4]:   File "/opt/sglang/lib/python3.12/site-packages/torch/cuda/graphs.py", line 630, in capture_end_pre
+[rank4]:     super().capture_end_pre()
+[rank4]: torch.AcceleratorError: CUDA error: operation failed due to a previous error during capture
+[rank4]: Search for `cudaErrorStreamCaptureInvalidated' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+
+[rank5]: Traceback (most recent call last):
+[rank5]:   File "/tmp/scratch-space/k3-performance/benchmark/b300-runtime-calibration/whole_moe_tp8.py", line 134, in <module>
+[rank5]:     for case in cases:run(case)
+[rank5]:                       ^^^^^^^^^
+[rank5]:   File "/tmp/scratch-space/k3-performance/benchmark/b300-runtime-calibration/whole_moe_tp8.py", line 92, in run
+[rank5]:     activated=situ_and_mul(gate_up,None,4.,25.)
+[rank5]:               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank5]:   File "/tmp/scratch-space/k3-performance/benchmark/agentx-yyh/sglang-recipe/python/sglang/kernels/ops/activation/__init__.py", line 117, in situ_and_mul
+[rank5]:     return impl(input, out, beta, linear_beta)
+[rank5]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank5]:   File "/tmp/scratch-space/k3-performance/benchmark/agentx-yyh/sglang-recipe/python/sglang/kernels/ops/activation/kimi_k3_situ_and_mul.py", line 59, in situ_and_mul
+[rank5]:     out = input.new_empty(*input.shape[:-1], hidden_size, dtype=out_dtype)
+[rank5]:           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank5]: torch.AcceleratorError: CUDA error: operation not permitted when stream is capturing
+[rank5]: Search for `cudaErrorStreamCaptureUnsupported' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+
+
+[rank5]: During handling of the above exception, another exception occurred:
+
+[rank5]: Traceback (most recent call last):
+[rank5]:   File "/tmp/scratch-space/k3-performance/benchmark/b300-runtime-calibration/whole_moe_tp8.py", line 133, in <module>
+[rank5]:     with torch.cuda.graph(graph):
+[rank5]:          ^^^^^^^^^^^^^^^^^^^^^^^
+[rank5]:   File "/opt/sglang/lib/python3.12/site-packages/torch/cuda/graphs.py", line 1210, in __exit__
+[rank5]:     self.cuda_graph.capture_end()
+[rank5]:   File "/opt/sglang/lib/python3.12/site-packages/torch/cuda/graphs.py", line 649, in capture_end
+[rank5]:     self.capture_end_pre()
+[rank5]:   File "/opt/sglang/lib/python3.12/site-packages/torch/cuda/graphs.py", line 630, in capture_end_pre
+[rank5]:     super().capture_end_pre()
+[rank5]: torch.AcceleratorError: CUDA error: operation failed due to a previous error during capture
+[rank5]: Search for `cudaErrorStreamCaptureInvalidated' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+
+[rank2]: Traceback (most recent call last):
+[rank2]:   File "/tmp/scratch-space/k3-performance/benchmark/b300-runtime-calibration/whole_moe_tp8.py", line 134, in <module>
+[rank2]:     for case in cases:run(case)
+[rank2]:                       ^^^^^^^^^
+[rank2]:   File "/tmp/scratch-space/k3-performance/benchmark/b300-runtime-calibration/whole_moe_tp8.py", line 92, in run
+[rank2]:     activated=situ_and_mul(gate_up,None,4.,25.)
+[rank2]:               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank2]:   File "/tmp/scratch-space/k3-performance/benchmark/agentx-yyh/sglang-recipe/python/sglang/kernels/ops/activation/__init__.py", line 117, in situ_and_mul
+[rank2]:     return impl(input, out, beta, linear_beta)
+[rank2]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank2]:   File "/tmp/scratch-space/k3-performance/benchmark/agentx-yyh/sglang-recipe/python/sglang/kernels/ops/activation/kimi_k3_situ_and_mul.py", line 59, in situ_and_mul
+[rank2]:     out = input.new_empty(*input.shape[:-1], hidden_size, dtype=out_dtype)
+[rank2]:           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank2]: torch.AcceleratorError: CUDA error: operation not permitted when stream is capturing
+[rank2]: Search for `cudaErrorStreamCaptureUnsupported' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+
+
+[rank2]: During handling of the above exception, another exception occurred:
+
+[rank2]: Traceback (most recent call last):
+[rank2]:   File "/tmp/scratch-space/k3-performance/benchmark/b300-runtime-calibration/whole_moe_tp8.py", line 133, in <module>
+[rank2]:     with torch.cuda.graph(graph):
+[rank2]:          ^^^^^^^^^^^^^^^^^^^^^^^
+[rank2]:   File "/opt/sglang/lib/python3.12/site-packages/torch/cuda/graphs.py", line 1210, in __exit__
+[rank2]:     self.cuda_graph.capture_end()
+[rank2]:   File "/opt/sglang/lib/python3.12/site-packages/torch/cuda/graphs.py", line 649, in capture_end
+[rank2]:     self.capture_end_pre()
+[rank2]:   File "/opt/sglang/lib/python3.12/site-packages/torch/cuda/graphs.py", line 630, in capture_end_pre
+[rank2]:     super().capture_end_pre()
+[rank2]: torch.AcceleratorError: CUDA error: operation failed due to a previous error during capture
+[rank2]: Search for `cudaErrorStreamCaptureInvalidated' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+
+W1115 15:16:26.009000 447985 torch/distributed/elastic/multiprocessing/api.py:1028] Sending process 448010 closing signal SIGTERM
+W1115 15:16:26.010000 447985 torch/distributed/elastic/multiprocessing/api.py:1028] Sending process 448011 closing signal SIGTERM
+W1115 15:16:26.010000 447985 torch/distributed/elastic/multiprocessing/api.py:1028] Sending process 448012 closing signal SIGTERM
+W1115 15:16:26.010000 447985 torch/distributed/elastic/multiprocessing/api.py:1028] Sending process 448014 closing signal SIGTERM
+W1115 15:16:26.010000 447985 torch/distributed/elastic/multiprocessing/api.py:1028] Sending process 448016 closing signal SIGTERM
+W1115 15:16:26.010000 447985 torch/distributed/elastic/multiprocessing/api.py:1028] Sending process 448017 closing signal SIGTERM
+E1115 15:16:27.490000 447985 torch/distributed/elastic/multiprocessing/api.py:1002] failed (exitcode: 1) local_rank: 3 (pid: 448013) of binary: /opt/sglang/bin/python
+Traceback (most recent call last):
+  File "/opt/sglang/bin/torchrun", line 10, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/opt/sglang/lib/python3.12/site-packages/torch/distributed/elastic/multiprocessing/errors/__init__.py", line 380, in wrapper
+    return f(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^
+  File "/opt/sglang/lib/python3.12/site-packages/torch/distributed/run.py", line 1138, in main
+    run(args)
+  File "/opt/sglang/lib/python3.12/site-packages/torch/distributed/run.py", line 1129, in run
+    elastic_launch(
+  File "/opt/sglang/lib/python3.12/site-packages/torch/distributed/launcher/api.py", line 197, in __call__
+    return launch_agent(
+           ^^^^^^^^^^^^^
+  File "/opt/sglang/lib/python3.12/site-packages/torch/distributed/launcher/api.py", line 386, in launch_agent
+    raise ChildFailedError(
+torch.distributed.elastic.multiprocessing.errors.ChildFailedError: 
+============================================================
+/tmp/scratch-space/k3-performance/benchmark/b300-runtime-calibration/whole_moe_tp8.py FAILED
+------------------------------------------------------------
+Failures:
+[1]:
+  time      : 2026-11-15_15:16:26
+  host      : kar-rsi-test-0.kar-rsi-test.llm-eng-dev.svc.cluster.local
+  rank      : 5 (local_rank: 5)
+  exitcode  : 1 (pid: 448015) 
+  error_file: <N/A>
+  traceback : To enable traceback see: https://pytorch.org/docs/stable/elastic/errors.html
+[2]:
+  time      : 2026-11-15_15:16:27
+  host      : kar-rsi-test-0.kar-rsi-test.llm-eng-dev.svc.cluster.local
+  rank      : 0 (local_rank: 0)
+  exitcode  : 1 (pid: 448010) 
+  error_file: <N/A>
+  traceback : To enable traceback see: https://pytorch.org/docs/stable/elastic/errors.html
+[3]:
+  time      : 2026-11-15_15:16:27
+  host      : kar-rsi-test-0.kar-rsi-test.llm-eng-dev.svc.cluster.local
+  rank      : 1 (local_rank: 1)
+  exitcode  : 1 (pid: 448011) 
+  error_file: <N/A>
+  traceback : To enable traceback see: https://pytorch.org/docs/stable/elastic/errors.html
+[4]:
+  time      : 2026-11-15_15:16:27
+  host      : kar-rsi-test-0.kar-rsi-test.llm-eng-dev.svc.cluster.local
+  rank      : 2 (local_rank: 2)
+  exitcode  : 1 (pid: 448012) 
+  error_file: <N/A>
+  traceback : To enable traceback see: https://pytorch.org/docs/stable/elastic/errors.html
+[5]:
+  time      : 2026-11-15_15:16:27
+  host      : kar-rsi-test-0.kar-rsi-test.llm-eng-dev.svc.cluster.local
+  rank      : 4 (local_rank: 4)
+  exitcode  : 1 (pid: 448014) 
+  error_file: <N/A>
+  traceback : To enable traceback see: https://pytorch.org/docs/stable/elastic/errors.html
+[6]:
+  time      : 2026-11-15_15:16:27
+  host      : kar-rsi-test-0.kar-rsi-test.llm-eng-dev.svc.cluster.local
+  rank      : 6 (local_rank: 6)
+  exitcode  : 1 (pid: 448016) 
+  error_file: <N/A>
+  traceback : To enable traceback see: https://pytorch.org/docs/stable/elastic/errors.html
+[7]:
+  time      : 2026-11-15_15:16:27
+  host      : kar-rsi-test-0.kar-rsi-test.llm-eng-dev.svc.cluster.local
+  rank      : 7 (local_rank: 7)
+  exitcode  : 1 (pid: 448017) 
+  error_file: <N/A>
+  traceback : To enable traceback see: https://pytorch.org/docs/stable/elastic/errors.html
+------------------------------------------------------------
+Root Cause (first observed failure):
+[0]:
+  time      : 2026-11-15_15:16:26
+  host      : kar-rsi-test-0.kar-rsi-test.llm-eng-dev.svc.cluster.local
+  rank      : 3 (local_rank: 3)
+  exitcode  : 1 (pid: 448013) 
+  error_file: <N/A>
+  traceback : To enable traceback see: https://pytorch.org/docs/stable/elastic/errors.html
+============================================================

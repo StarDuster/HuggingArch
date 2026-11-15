@@ -1,0 +1,7 @@
+batch 1 span jobs 23
+unplaced span []
+['kimi_k31_trtllm_moe_span', '{"B":1,"s_query":1}', '{"activation":"fp8_e4m3","activation_granularity":"per-group:32","metadata":"ue8m0","output":"bf16","weight":"bf16"}', 'decode'] {'B': 1, 's_query': 1}
+batch 8 span jobs 23
+unplaced span []
+['kimi_k31_trtllm_moe_span', '{"B":1,"s_query":1}', '{"activation":"fp8_e4m3","activation_granularity":"per-group:32","metadata":"ue8m0","output":"bf16","weight":"bf16"}', 'decode'] {'B': 1, 's_query': 1}
+['kimi_k31_trtllm_moe_span', '{"B":8,"s_query":1}', '{"activation":"fp8_e4m3","activation_granularity":"per-group:32","metadata":"ue8m0","output":"bf16","weight":"bf16"}', 'decode'] {'B': 8, 's_query': 1}

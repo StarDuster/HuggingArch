@@ -119,6 +119,8 @@ class TestShippedSchemesLoad(unittest.TestCase):
                 "indexer_block_score",
                 "indexer_logits",
                 "kimi_attn_res_rmsnorm",
+                "kimi_k31_trtllm_latent_span",
+                "kimi_k31_trtllm_moe_span",
                 "mamba2_rmsnorm_gated",
                 "merged_column_parallel_linear",
                 "merged_column_parallel_linear_wide",

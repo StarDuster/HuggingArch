@@ -1,0 +1,139 @@
+{
+  "time_utc": "2026-11-15T15:42:27.778517+00:00",
+  "huggingarch_base": "5e483862321460a0d747d5d412f9cfaedc096007",
+  "huggingarch_source_sha256": {
+    "backend/arch/eval/fusion.py": "615912506682615b6301ecf740dcbd229effd9e536e1382161a1e1f4ac8a5386",
+    "backend/arch/eval/launch.py": "8e3b3d4f3848bdd2fd8a08695aede00aed2da87702b764a2bcc7c0ced1de1805",
+    "backend/inference/capacity.py": "5189a2f6a4b77fd2357608a107da6961e9092f4bfdcbed1ec4835ee809c4e301",
+    "backend/inference/framework_bindings/sglang.yaml": "dce201fb653a8e5fcc3ed61176cb196fd16d2bd28063b0a9557938755f088527",
+    "backend/inference/op_signatures_catalog.py": "c02765119a260d0717aca64d8428207aa0d8ad48f84e474b1ddd195c225a9001",
+    "backend/inference/phases.py": "ce79bdbd86e4661bd5d5661ab51870c97564e763dad6316b8ffb2e7645c05d2e",
+    "backend/inference/row_roofline.py": "a557317bb2cd343c39c57e21f620c0f2b66923665723ce96da0816a15ae230b1",
+    "backend/inference/serving.py": "039533f65f6a19c82a973421a36b2687429d561737277f0564e283d302ab582c",
+    "kernel_bench/plan.py": "8e17087471731b9503ad2028c9f517997982024c1d62477bf1968e81e963a6c7",
+    "scripts/estimate_kimi_k31_sglang.py": "3ec57e340e3bea5448b24a38a37c169bd4e1dd7c4900616c8ec804d4b6533608",
+    "backend/inference/fusion_plans/kimi_k31_trtllm_latent_span.yaml": "b93521b8882be2119e698cb3093700e4f91af829028c1dcfb4de7550f0b73a08",
+    "backend/inference/fusion_plans/kimi_k31_trtllm_moe_span.yaml": "1e04b6b2486ace64422e5a6abfd670af2095f919368a328cdc7d209d1e06ea05",
+    "tests/backend/arch/eval/test_moe_execution_span.py": "543b1efda73c4b95b61d1da8115e2a4de8064e13c67f698c3b408122c1d486e6",
+    "tests/backend/inference/test_k31_runtime_span.py": "7e37bf3d97feaa169b1a98cbc27fa6c6735e1393686e0153eb39b1df10f19f78",
+    "tests/backend/inference/test_fusion_registry.py": "b084237e4fcd6d1f02ebab1145c28ed6ab2ea069a40014f45d5d5a92d94a32dc",
+    "tests/kernel_bench/test_plan_points.py": "9f0c153601e30e006ae575a34554a05fb5717d2406b738b19980d4fd57655e54"
+  },
+  "sglang_moe_source_comparison": [
+    {
+      "path": "srt/models/kimi_k3.py",
+      "historical_sha256": "f7d6c6c067ebce2b10fb642df8c3ba105d823f54220df5181121f447da6282fc",
+      "current_sha256": "f7d6c6c067ebce2b10fb642df8c3ba105d823f54220df5181121f447da6282fc",
+      "identical": true
+    },
+    {
+      "path": "srt/layers/moe/moe_runner/flashinfer_trtllm.py",
+      "historical_sha256": "1eb6d0e380f89168c21e72971c835ad5f4a99821b4833ad2210a7d38ce10d7ad",
+      "current_sha256": "1eb6d0e380f89168c21e72971c835ad5f4a99821b4833ad2210a7d38ce10d7ad",
+      "identical": true
+    },
+    {
+      "path": "kernels/ops/moe/kimi_k3_fused_routing.py",
+      "historical_sha256": "ae9379317266862a7c9b724efa6e356f8e9cb787e5a0101d7a2dbea08b159db9",
+      "current_sha256": "ae9379317266862a7c9b724efa6e356f8e9cb787e5a0101d7a2dbea08b159db9",
+      "identical": true
+    },
+    {
+      "path": "kernels/ops/communication/all_reduce_residual.py",
+      "historical_sha256": "24b1e55466652fb9ccd6edde5498dd6cbd75b94673aea765a8a391302e137480",
+      "current_sha256": "24b1e55466652fb9ccd6edde5498dd6cbd75b94673aea765a8a391302e137480",
+      "identical": true
+    },
+    {
+      "path": "kernels/ops/communication/gemm_ag.py",
+      "historical_sha256": "a3e1ff28654db339a3cffb70f15ecf91e234649beb02aec8c42a45bc27a145ef",
+      "current_sha256": "a3e1ff28654db339a3cffb70f15ecf91e234649beb02aec8c42a45bc27a145ef",
+      "identical": true
+    },
+    {
+      "path": "kernels/ops/gemm/cutedsl_bf16_gemm.py",
+      "historical_sha256": "6522460849fc293f697dab88fecb2f73507d1e4b80be4ca5d42cad38aa140124",
+      "current_sha256": "6522460849fc293f697dab88fecb2f73507d1e4b80be4ca5d42cad38aa140124",
+      "identical": true
+    },
+    {
+      "path": "srt/layers/communication/k3_ar_fusion.py",
+      "historical_sha256": "33f9d2428d2193220e841e6b4eb861fb5aac67f03d80525b555eb66d005bace5",
+      "current_sha256": "33f9d2428d2193220e841e6b4eb861fb5aac67f03d80525b555eb66d005bace5",
+      "identical": true
+    }
+  ],
+  "source_revision": "5792cf6e5e11aebc62d41cf19828f615a8fa7e0a",
+  "historical_source_revision": "1b2870d33de7b5f31844fd74e97eea6d7896c53a",
+  "final_comparison": [
+    {
+      "input_tokens": 16384,
+      "partial_ms": 9.360186025777782,
+      "baseline_ms": 10.081021355912187,
+      "error_pct": -7.150419631951854,
+      "span_calls": 92,
+      "span_ms": 4.126752,
+      "measured_share": 0.7885572123965002,
+      "fully_measured_s": null
+    },
+    {
+      "input_tokens": 2048,
+      "partial_ms": 9.340986025777783,
+      "baseline_ms": 9.944849842898087,
+      "error_pct": -6.0721260417173735,
+      "span_calls": 92,
+      "span_ms": 4.126752,
+      "measured_share": 0.7881226007280122,
+      "fully_measured_s": null
+    }
+  ],
+  "intermediate_latent_only_comparison": [
+    {
+      "input_tokens": 16384,
+      "partial_ms": 10.330345161777787,
+      "baseline_ms": 10.081021355912187,
+      "error_pct": 2.473199858061803,
+      "span_calls": 92,
+      "span_ms": 2.373232,
+      "measured_share": 0.6339409281531685,
+      "fully_measured_s": null
+    },
+    {
+      "input_tokens": 2048,
+      "partial_ms": 10.311145161777786,
+      "baseline_ms": 9.944849842898087,
+      "error_pct": 3.6832664611953003,
+      "span_calls": 92,
+      "span_ms": 2.373232,
+      "measured_share": 0.6332593031668855,
+      "fully_measured_s": null
+    }
+  ],
+  "full_moe_timing": [
+    {
+      "batch": 1,
+      "two_streams_us": 44.85599882900715,
+      "serial_us": 57.34599940478802,
+      "saved_pct": 21.780073074701765
+    },
+    {
+      "batch": 8,
+      "two_streams_us": 83.5999995470047,
+      "serial_us": 97.28199988603592,
+      "saved_pct": 14.06426713581077
+    }
+  ],
+  "numerical_checks": 32,
+  "numerical_typical_max": 0.0043815141543745995,
+  "numerical_worst_max": 0.04409894347190857,
+  "original_nine_rows_modified": false,
+  "fitted_global_latency_factor": false,
+  "pr_created": false,
+  "private_results_release": "https://github.com/StarDuster/k3-performance-results/releases/tag/b300-runtime-calibration-20261115",
+  "limitations": [
+    "Historical B1 target-only serving baseline; no fresh AgentX test",
+    "Batch8 validated at execution-span level, not end-to-end",
+    "Synthetic weights/routes with fixed audited shapes; route skew and cache regime remain workload inputs",
+    "About21% of final predicted time remains theoretical; fully measured latency is null"
+  ]
+}

@@ -1,0 +1,33 @@
+analyze
+{'uid': 159, 'op': 'linear', 'path': 'block_dsa_moe[Sar=1]|block_sparse_moe.gate.linear', 'inputs': [{'uid': 156, 'port': '', 'external': ''}], 'scope': ()}
+{'uid': 160, 'op': 'sigmoid', 'path': 'block_dsa_moe[Sar=1]|block_sparse_moe.gate.sigmoid__router_noaux_tc', 'inputs': [{'uid': 159, 'port': '', 'external': ''}], 'scope': ()}
+{'uid': 161, 'op': 'parameter_vector', 'path': 'block_dsa_moe[Sar=1]|block_sparse_moe.gate.e_score_correction_bias', 'inputs': [], 'scope': ()}
+{'uid': 162, 'op': 'add', 'path': 'block_dsa_moe[Sar=1]|block_sparse_moe.gate.scores_biased__router_noaux_tc', 'inputs': [{'uid': 160, 'port': '', 'external': ''}, {'uid': 161, 'port': '', 'external': ''}], 'scope': ()}
+{'uid': 163, 'op': 'group_top2_sum', 'path': 'block_dsa_moe[Sar=1]|block_sparse_moe.gate.group_top2_sum__router_noaux_tc', 'inputs': [{'uid': 162, 'port': '', 'external': ''}], 'scope': ()}
+{'uid': 164, 'op': 'topk', 'path': 'block_dsa_moe[Sar=1]|block_sparse_moe.gate.group_topk__router_noaux_tc', 'inputs': [{'uid': 163, 'port': '', 'external': ''}], 'scope': ()}
+{'uid': 165, 'op': 'group_mask_apply', 'path': 'block_dsa_moe[Sar=1]|block_sparse_moe.gate.group_mask__router_noaux_tc', 'inputs': [{'uid': 162, 'port': '', 'external': ''}, {'uid': 164, 'port': '', 'external': ''}], 'scope': ()}
+{'uid': 166, 'op': 'topk', 'path': 'block_dsa_moe[Sar=1]|block_sparse_moe.gate.topk_indices__router_noaux_tc', 'inputs': [{'uid': 165, 'port': '', 'external': ''}], 'scope': ()}
+{'uid': 167, 'op': 'gather', 'path': 'block_dsa_moe[Sar=1]|block_sparse_moe.gate.topk_gather__router_noaux_tc', 'inputs': [{'uid': 160, 'port': '', 'external': ''}, {'uid': 166, 'port': '', 'external': ''}], 'scope': ()}
+{'uid': 168, 'op': 'normalize_sum_one', 'path': 'block_dsa_moe[Sar=1]|block_sparse_moe.gate.topk_norm__router_noaux_tc', 'inputs': [{'uid': 167, 'port': '', 'external': ''}], 'scope': ()}
+{'uid': 169, 'op': 'scale_const', 'path': 'block_dsa_moe[Sar=1]|block_sparse_moe.gate.topk_scale__router_noaux_tc', 'inputs': [{'uid': 168, 'port': '', 'external': ''}], 'scope': ()}
+{'uid': 170, 'op': 'linear', 'path': 'block_dsa_moe[Sar=1]|block_sparse_moe.routed_expert_down_proj', 'inputs': [{'uid': 156, 'port': '', 'external': ''}], 'scope': ()}
+{'uid': 2136, 'op': 'quantise_activation', 'path': 'block_dsa_moe[Sar=1]|block_sparse_moe.gate_proj__cast', 'inputs': [{'uid': 170, 'port': '', 'external': ''}], 'scope': ()}
+{'uid': 171, 'op': 'permute', 'path': 'block_dsa_moe[Sar=1]|block_sparse_moe.permute__kimi_k3_latent_moe', 'inputs': [{'uid': 2136, 'port': '', 'external': ''}, {'uid': 158, 'port': '', 'external': ''}], 'scope': ()}
+{'uid': 173, 'op': 'linear', 'path': 'block_dsa_moe[Sar=1]|block_sparse_moe.experts.gate_proj', 'inputs': [{'uid': 171, 'port': '', 'external': ''}], 'scope': ()}
+{'uid': 174, 'op': 'linear', 'path': 'block_dsa_moe[Sar=1]|block_sparse_moe.experts.up_proj', 'inputs': [{'uid': 171, 'port': '', 'external': ''}], 'scope': ()}
+{'uid': 175, 'op': 'situ', 'path': 'block_dsa_moe[Sar=1]|block_sparse_moe.experts.act__gated_experts', 'inputs': [{'uid': 173, 'port': '', 'external': ''}], 'scope': ()}
+{'uid': 176, 'op': 'mul', 'path': 'block_dsa_moe[Sar=1]|block_sparse_moe.experts.gate_mul__gated_experts', 'inputs': [{'uid': 175, 'port': '', 'external': ''}, {'uid': 174, 'port': '', 'external': ''}], 'scope': ()}
+{'uid': 2137, 'op': 'quantise_activation', 'path': 'block_dsa_moe[Sar=1]|block_sparse_moe.experts.down_proj__cast', 'inputs': [{'uid': 176, 'port': '', 'external': ''}], 'scope': ()}
+{'uid': 177, 'op': 'linear', 'path': 'block_dsa_moe[Sar=1]|block_sparse_moe.experts.down_proj', 'inputs': [{'uid': 2137, 'port': '', 'external': ''}], 'scope': ()}
+{'uid': 178, 'op': 'combine', 'path': 'block_dsa_moe[Sar=1]|block_sparse_moe.combine__kimi_k3_latent_moe', 'inputs': [{'uid': 172, 'port': '', 'external': ''}, {'uid': 158, 'port': '', 'external': ''}], 'scope': ()}
+{'uid': 2031, 'op': 'all_reduce', 'path': 'block_dsa_moe[Sar=1]|block_sparse_moe.comm10__all_reduce__on__routed_expert_norm', 'inputs': [{'uid': 178, 'port': '', 'external': ''}], 'scope': ()}
+{'uid': 179, 'op': 'rmsnorm', 'path': 'block_dsa_moe[Sar=1]|block_sparse_moe.routed_expert_norm', 'inputs': [{'uid': 2031, 'port': '', 'external': ''}], 'scope': ()}
+{'uid': 180, 'op': 'linear', 'path': 'block_dsa_moe[Sar=1]|block_sparse_moe.routed_expert_up_proj', 'inputs': [{'uid': 179, 'port': '', 'external': ''}], 'scope': ()}
+{'uid': 182, 'op': 'linear', 'path': 'block_dsa_moe[Sar=1]|block_sparse_moe.shared_experts.gate_proj', 'inputs': [{'uid': 156, 'port': '', 'external': ''}], 'scope': ()}
+{'uid': 183, 'op': 'linear', 'path': 'block_dsa_moe[Sar=1]|block_sparse_moe.shared_experts.up_proj', 'inputs': [{'uid': 156, 'port': '', 'external': ''}], 'scope': ()}
+{'uid': 184, 'op': 'situ', 'path': 'block_dsa_moe[Sar=1]|block_sparse_moe.shared_experts.act__gated_ffn', 'inputs': [{'uid': 182, 'port': '', 'external': ''}], 'scope': ()}
+{'uid': 185, 'op': 'mul', 'path': 'block_dsa_moe[Sar=1]|block_sparse_moe.shared_experts.gate_mul__gated_ffn', 'inputs': [{'uid': 184, 'port': '', 'external': ''}, {'uid': 183, 'port': '', 'external': ''}], 'scope': ()}
+{'uid': 186, 'op': 'linear', 'path': 'block_dsa_moe[Sar=1]|block_sparse_moe.shared_experts.down_proj', 'inputs': [{'uid': 185, 'port': '', 'external': ''}], 'scope': ()}
+{'uid': 2032, 'op': 'all_reduce', 'path': 'block_dsa_moe[Sar=1]|block_sparse_moe.comm11__all_reduce__on__moe_out', 'inputs': [{'uid': 181, 'port': '', 'external': ''}], 'scope': ()}
+{'uid': 187, 'op': 'add', 'path': 'block_dsa_moe[Sar=1]|block_sparse_moe.moe_out__kimi_k3_latent_moe', 'inputs': [{'uid': 180, 'port': '', 'external': ''}, {'uid': 2032, 'port': '', 'external': ''}], 'scope': ()}
+fusion matches 196

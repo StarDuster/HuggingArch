@@ -1,0 +1,72 @@
+Ignoring incompatible flashinfer-cubin package (cubins will be downloaded on demand to /tmp/scratch-space/k3-performance/cache/flashinfer/.cache/flashinfer/cubins): flashinfer-cubin version (0.7.2) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+Ignoring incompatible flashinfer-jit-cache package (kernels will be JIT-compiled instead): flashinfer-jit-cache version (0.7.2+cu130) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+Ignoring incompatible flashinfer-cubin package (cubins will be downloaded on demand to /tmp/scratch-space/k3-performance/cache/flashinfer/.cache/flashinfer/cubins): flashinfer-cubin version (0.7.2) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+Ignoring incompatible flashinfer-jit-cache package (kernels will be JIT-compiled instead): flashinfer-jit-cache version (0.7.2+cu130) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+Ignoring incompatible flashinfer-cubin package (cubins will be downloaded on demand to /tmp/scratch-space/k3-performance/cache/flashinfer/.cache/flashinfer/cubins): flashinfer-cubin version (0.7.2) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+Ignoring incompatible flashinfer-jit-cache package (kernels will be JIT-compiled instead): flashinfer-jit-cache version (0.7.2+cu130) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+Ignoring incompatible flashinfer-cubin package (cubins will be downloaded on demand to /tmp/scratch-space/k3-performance/cache/flashinfer/.cache/flashinfer/cubins): flashinfer-cubin version (0.7.2) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+Ignoring incompatible flashinfer-jit-cache package (kernels will be JIT-compiled instead): flashinfer-jit-cache version (0.7.2+cu130) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+Ignoring incompatible flashinfer-cubin package (cubins will be downloaded on demand to /tmp/scratch-space/k3-performance/cache/flashinfer/.cache/flashinfer/cubins): flashinfer-cubin version (0.7.2) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+Ignoring incompatible flashinfer-jit-cache package (kernels will be JIT-compiled instead): flashinfer-jit-cache version (0.7.2+cu130) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+Ignoring incompatible flashinfer-cubin package (cubins will be downloaded on demand to /tmp/scratch-space/k3-performance/cache/flashinfer/.cache/flashinfer/cubins): flashinfer-cubin version (0.7.2) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+Ignoring incompatible flashinfer-cubin package (cubins will be downloaded on demand to /tmp/scratch-space/k3-performance/cache/flashinfer/.cache/flashinfer/cubins): flashinfer-cubin version (0.7.2) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+Ignoring incompatible flashinfer-jit-cache package (kernels will be JIT-compiled instead): flashinfer-jit-cache version (0.7.2+cu130) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+Ignoring incompatible flashinfer-jit-cache package (kernels will be JIT-compiled instead): flashinfer-jit-cache version (0.7.2+cu130) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+Ignoring incompatible flashinfer-cubin package (cubins will be downloaded on demand to /tmp/scratch-space/k3-performance/cache/flashinfer/.cache/flashinfer/cubins): flashinfer-cubin version (0.7.2) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+Ignoring incompatible flashinfer-jit-cache package (kernels will be JIT-compiled instead): flashinfer-jit-cache version (0.7.2+cu130) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+rank2: weights and multicast storage ready
+rank5: weights and multicast storage ready
+rank1: weights and multicast storage ready
+rank4: weights and multicast storage ready
+rank3: rank6:weights and multicast storage ready
+ weights and multicast storage ready
+rank0: weights and multicast storage ready
+rank7: weights and multicast storage ready
+rank4: numeric 1 {'seed': 17, 'passed': True, 'rel': 0.034453166836329784, 'cosine': 0.999990701675415, 'typical': 0.0029401795472949743, 'worst': 0.016116082668304443}
+rank5:rank0: rank7:numeric   numeric1numeric   11  {'seed': 17, 'passed': True, 'rel': 0.034453166836329784, 'cosine': 0.999990701675415, 'typical': 0.0029401795472949743, 'worst': 0.016116082668304443}
+rank1:{'seed': 17, 'passed': True, 'rel': 0.034453166836329784, 'cosine': 0.999990701675415, 'typical': 0.0029401795472949743, 'worst': 0.016116082668304443}{'seed': 17, 'passed': True, 'rel': 0.034453166836329784, 'cosine': 0.999990701675415, 'typical': 0.0029401795472949743, 'worst': 0.016116082668304443}
+ 
+numeric 1 {'seed': 17, 'passed': True, 'rel': 0.034453166836329784, 'cosine': 0.999990701675415, 'typical': 0.0029401795472949743, 'worst': 0.016116082668304443}
+rank3:rank6: numeric rank2: numeric1   numeric1  1{'seed': 17, 'passed': True, 'rel': 0.034453166836329784, 'cosine': 0.999990701675415, 'typical': 0.0029401795472949743, 'worst': 0.016116082668304443} 
+{'seed': 17, 'passed': True, 'rel': 0.034453166836329784, 'cosine': 0.999990701675415, 'typical': 0.0029401795472949743, 'worst': 0.016116082668304443}
+{'seed': 17, 'passed': True, 'rel': 0.034453166836329784, 'cosine': 0.999990701675415, 'typical': 0.0029401795472949743, 'worst': 0.016116082668304443}
+rank4:rank5:rank0:rank6:rank1:rank3: rank7:    numeric numeric numericnumericnumeric numeric numeric   1 1 111 1 1     {'seed': 43, 'passed': True, 'rel': 0.03460172261520829, 'cosine': 0.9999848008155823, 'typical': 0.0038990876637399197, 'worst': 0.01816844940185547}rank2:{'seed': 43, 'passed': True, 'rel': 0.03460172261520829, 'cosine': 0.9999848008155823, 'typical': 0.0038990876637399197, 'worst': 0.01816844940185547}{'seed': 43, 'passed': True, 'rel': 0.03460172261520829, 'cosine': 0.9999848008155823, 'typical': 0.0038990876637399197, 'worst': 0.01816844940185547}{'seed': 43, 'passed': True, 'rel': 0.03460172261520829, 'cosine': 0.9999848008155823, 'typical': 0.0038990876637399197, 'worst': 0.01816844940185547}{'seed': 43, 'passed': True, 'rel': 0.03460172261520829, 'cosine': 0.9999848008155823, 'typical': 0.0038990876637399197, 'worst': 0.01816844940185547}
+{'seed': 43, 'passed': True, 'rel': 0.03460172261520829, 'cosine': 0.9999848008155823, 'typical': 0.0038990876637399197, 'worst': 0.01816844940185547}{'seed': 43, 'passed': True, 'rel': 0.03460172261520829, 'cosine': 0.9999848008155823, 'typical': 0.0038990876637399197, 'worst': 0.01816844940185547} 
+
+
+
+
+
+numeric 1 {'seed': 43, 'passed': True, 'rel': 0.03460172261520829, 'cosine': 0.9999848008155823, 'typical': 0.0038990876637399197, 'worst': 0.01816844940185547}
+rank3: whole MoE measured 1 44.60600018501282
+rank0: whole MoE measured 1 44.57799904048443
+rank4: whole MoE measured 1 44.64799910783768
+rank5: whole MoE measured 1 44.85599882900715
+rank7: whole MoE measured 1 44.7160005569458
+rank1: whole MoE measured 1 44.5530004799366
+rank6: whole MoE measured 1 44.6809995919466
+rank2: whole MoE measured 1 44.50300149619579
+rank4:rank5:rank0:rank7:rank1:rank6:  rank2:  rank3: numeric numericnumeric numericnumeric  numeric  numeric  numeric8 88 88  8  8  {'seed': 17, 'passed': True, 'rel': 0.034129929228412896, 'cosine': 0.9999897480010986, 'typical': 0.003068150719627738, 'worst': 0.02287868969142437}8 {'seed': 17, 'passed': True, 'rel': 0.034129929228412896, 'cosine': 0.9999897480010986, 'typical': 0.003068150719627738, 'worst': 0.02287868969142437} {'seed': 17, 'passed': True, 'rel': 0.034129929228412896, 'cosine': 0.9999897480010986, 'typical': 0.003068150719627738, 'worst': 0.02287868969142437}
+ {'seed': 17, 'passed': True, 'rel': 0.034129929228412896, 'cosine': 0.9999897480010986, 'typical': 0.003068150719627738, 'worst': 0.02287868969142437}{'seed': 17, 'passed': True, 'rel': 0.034129929228412896, 'cosine': 0.9999897480010986, 'typical': 0.003068150719627738, 'worst': 0.02287868969142437}
+
+{'seed': 17, 'passed': True, 'rel': 0.034129929228412896, 'cosine': 0.9999897480010986, 'typical': 0.003068150719627738, 'worst': 0.02287868969142437}{'seed': 17, 'passed': True, 'rel': 0.034129929228412896, 'cosine': 0.9999897480010986, 'typical': 0.003068150719627738, 'worst': 0.02287868969142437}{'seed': 17, 'passed': True, 'rel': 0.034129929228412896, 'cosine': 0.9999897480010986, 'typical': 0.003068150719627738, 'worst': 0.02287868969142437}
+
+
+
+
+rank5:rank4:rank1:rank0: rank7:rank6: rank2: rank3:numeric  numeric numeric   numericnumeric numeric numeric8numeric  8 8   88 8 88  {'seed': 43, 'passed': True, 'rel': 0.06824800510277138, 'cosine': 0.9999810457229614, 'typical': 0.0043815141543745995, 'worst': 0.04409894347190857}  {'seed': 43, 'passed': True, 'rel': 0.06824800510277138, 'cosine': 0.9999810457229614, 'typical': 0.0043815141543745995, 'worst': 0.04409894347190857} {'seed': 43, 'passed': True, 'rel': 0.06824800510277138, 'cosine': 0.9999810457229614, 'typical': 0.0043815141543745995, 'worst': 0.04409894347190857}
+{'seed': 43, 'passed': True, 'rel': 0.06824800510277138, 'cosine': 0.9999810457229614, 'typical': 0.0043815141543745995, 'worst': 0.04409894347190857}{'seed': 43, 'passed': True, 'rel': 0.06824800510277138, 'cosine': 0.9999810457229614, 'typical': 0.0043815141543745995, 'worst': 0.04409894347190857}
+{'seed': 43, 'passed': True, 'rel': 0.06824800510277138, 'cosine': 0.9999810457229614, 'typical': 0.0043815141543745995, 'worst': 0.04409894347190857}
+{'seed': 43, 'passed': True, 'rel': 0.06824800510277138, 'cosine': 0.9999810457229614, 'typical': 0.0043815141543745995, 'worst': 0.04409894347190857}
+{'seed': 43, 'passed': True, 'rel': 0.06824800510277138, 'cosine': 0.9999810457229614, 'typical': 0.0043815141543745995, 'worst': 0.04409894347190857}
+
+
+
+rank4:rank6:rank1:rank7: rank2:rank3: rank0:rank5:  whole MoE measured  whole MoE measured  whole MoE measuredwhole MoE measured whole MoE measuredwhole MoE measured whole MoE measuredwhole MoE measured  8  8  88 88 883.385996520519268  83.43999832868576   
+ 83.3790004253387583.52700248360634
+83.3639986813068483.3429992198944183.405997604131783.5999995470047
+
+
+
+
+
