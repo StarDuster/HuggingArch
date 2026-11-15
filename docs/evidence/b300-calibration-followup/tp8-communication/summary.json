@@ -1,0 +1,78 @@
+[
+  {
+    "n_comm_elems": 3584,
+    "n_comm_ranks": 8,
+    "dtype": "bf16",
+    "rank_p50_us": [
+      3.2131250482052565,
+      3.2043749233707786,
+      3.1631250167265534,
+      3.202749998308718,
+      3.2138749957084656,
+      3.208375070244074,
+      3.181500011123717,
+      3.185250097885728
+    ],
+    "max_rank_p50_us": 3.2138749957084656,
+    "cross_check": "passed",
+    "timing_method": "warm_l2",
+    "scope": "SGLang multicast all_reduce_push_res with residual=None; not a fused AR+norm measurement"
+  },
+  {
+    "n_comm_elems": 7168,
+    "n_comm_ranks": 8,
+    "dtype": "bf16",
+    "rank_p50_us": [
+      3.2755000283941627,
+      3.2928750151768327,
+      3.326249890960753,
+      3.2987500308081508,
+      3.2775000436231494,
+      3.29799996688962,
+      3.3140000887215137,
+      3.304749960079789
+    ],
+    "max_rank_p50_us": 3.326249890960753,
+    "cross_check": "passed",
+    "timing_method": "warm_l2",
+    "scope": "SGLang multicast all_reduce_push_res with residual=None; not a fused AR+norm measurement"
+  },
+  {
+    "n_comm_elems": 28672,
+    "n_comm_ranks": 8,
+    "dtype": "bf16",
+    "rank_p50_us": [
+      3.531250054948032,
+      3.5340000176802278,
+      3.5455001052469015,
+      3.492124960757792,
+      3.5512499744072556,
+      3.5374999279156327,
+      3.5422499058768153,
+      3.515999997034669
+    ],
+    "max_rank_p50_us": 3.5512499744072556,
+    "cross_check": "passed",
+    "timing_method": "warm_l2",
+    "scope": "SGLang multicast all_reduce_push_res with residual=None; not a fused AR+norm measurement"
+  },
+  {
+    "n_comm_elems": 57344,
+    "n_comm_ranks": 8,
+    "dtype": "bf16",
+    "rank_p50_us": [
+      4.126125015318394,
+      4.129250068217516,
+      4.162749974057078,
+      4.096249816939235,
+      4.138750024139881,
+      4.147124942392111,
+      4.135375143960118,
+      4.118124954402447
+    ],
+    "max_rank_p50_us": 4.162749974057078,
+    "cross_check": "passed",
+    "timing_method": "warm_l2",
+    "scope": "SGLang multicast all_reduce_push_res with residual=None; not a fused AR+norm measurement"
+  }
+]

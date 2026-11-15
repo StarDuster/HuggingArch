@@ -1,0 +1,1 @@
+Attempt 1 failed at 2026-11-15 10:08 UTC before measurement. GpuLock mapped every worker to the first visible CUDA device and refused concurrent ownership. No latency rows were emitted. The correction gives each worker a single-device CUDA namespace before torch import; the per-device lock remains enabled.

@@ -1,8 +1,9 @@
 from pathlib import Path
 import subprocess,os,shutil,json,hashlib
 R=Path(__file__).resolve().parent;W=R.parents[1];REPO=W/'calibration-worktree';DEST=REPO/'docs/evidence/b300-calibration-followup'
-files=['README.md','REPORT.md','summary.json','calibration_rows.json','new_calibration_rows.json','existing-calibration-rows.json','deduplication.json','plan-notes.json','jobs.jsonl','all-jobs.jsonl','check.log','coverage.log','estimate-impact.json','source-head.txt','source-status.txt','gpu.txt','packages.txt','branch-tests.log','source-version-diagnosis.md','measure-sglang-source-kda.log','measure-sglang-source-followup.log','source-version-tests.log','library_kernel_calibration_rows.json','overlay-audit.json','audited-comparison.json','CALIBRATION_AUDIT.md','measure-sglang-source-router.log','ENVELOPE_DIAGNOSTIC_REPORT.md']
+files=['README.md','REPORT.md','summary.json','calibration_rows.json','new_calibration_rows.json','existing-calibration-rows.json','deduplication.json','plan-notes.json','jobs.jsonl','all-jobs.jsonl','check.log','coverage.log','estimate-impact.json','source-head.txt','source-status.txt','gpu.txt','packages.txt','branch-tests.log','source-version-diagnosis.md','measure-sglang-source-kda.log','measure-sglang-source-followup.log','source-version-tests.log','library_kernel_calibration_rows.json','overlay-audit.json','audited-comparison.json','CALIBRATION_AUDIT.md','measure-sglang-source-router.log','ENVELOPE_DIAGNOSTIC_REPORT.md','library_plus_tp8_calibration_rows.json']
 files += [str(p.relative_to(R)) for p in (R/'results').glob('*.csv')]
+files += [str(p.relative_to(R)) for p in (R/'tp8-communication').glob('*') if p.is_file()]
 files += [str(p.relative_to(R)) for p in (R/'estimates').glob('*.summary.json')]
 files += [str(p.relative_to(R)) for p in R.glob('*.py')]+['launch.sh']
 manifest=[]

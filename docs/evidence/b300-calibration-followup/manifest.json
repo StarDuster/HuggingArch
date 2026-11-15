@@ -140,6 +140,11 @@
     "sha256": "030d45d7c52ccc57056605b12f9682dce1c088a3f97e9a7aa9df11c4a009217d"
   },
   {
+    "path": "library_plus_tp8_calibration_rows.json",
+    "bytes": 77901,
+    "sha256": "d9d238b78a622d200f590cd7f6368fd804a01d21914eb65447dd9be0f3fa9be2"
+  },
+  {
     "path": "results/reused.csv",
     "bytes": 8606,
     "sha256": "4e822b2d2a02612701e85e8817603a89a8f2833fa5dff39443819d8ed0a01283"
@@ -178,6 +183,111 @@
     "path": "results/sglang-source-router.csv",
     "bytes": 1978,
     "sha256": "5f7bde86d3b33b1344ab5281420eb8f1fb08189971e3acac015d2d746387158b"
+  },
+  {
+    "path": "results/flashinfer-group32-mxfp4.csv",
+    "bytes": 524,
+    "sha256": "7ee37c26d3e068e137ba80e0f8315dac2b6943443d3e477917c5fd141dae8dd7"
+  },
+  {
+    "path": "tp8-communication/run.py",
+    "bytes": 4407,
+    "sha256": "2b05e73728b0303e5e5c4f2ed00d178bc0f508f2e46db9c6fcb76a9e159be298"
+  },
+  {
+    "path": "tp8-communication/run.log",
+    "bytes": 9126,
+    "sha256": "0e1fa7d84ff826d0170bab76a563b7272baca2b774520fb8babb839d0bc81e98"
+  },
+  {
+    "path": "tp8-communication/attempt1-failure.txt",
+    "bytes": 308,
+    "sha256": "a9b45fe0605d8df49966420176dc5c2f8233a7ea04b8fff64952cffdfaebabd9"
+  },
+  {
+    "path": "tp8-communication/attempt2-failure.log",
+    "bytes": 26952,
+    "sha256": "72d5694873b7dae098224b88d7d97e1af3dccabad188038678fbd129a0815258"
+  },
+  {
+    "path": "tp8-communication/rank5.json",
+    "bytes": 4980,
+    "sha256": "9bdc914a352bfd50e297a26f481dbcd3241f38d5e4d1b720a6b9498126b7a9a3"
+  },
+  {
+    "path": "tp8-communication/rank4.json",
+    "bytes": 4985,
+    "sha256": "1bb4de8d0bddf5987fc4bbe34a23ee8d2cfb206b039452b625a45b958e4a19e0"
+  },
+  {
+    "path": "tp8-communication/rank6.json",
+    "bytes": 4986,
+    "sha256": "f28e33e77a1aeadfe2c38e310c41054b7eda8af4607c6276c2fff8bd3a33fc8f"
+  },
+  {
+    "path": "tp8-communication/rank7.json",
+    "bytes": 4976,
+    "sha256": "31ee653027fe96c413cee27cc04acd540741a20b5f4ab6b03d4ebee22ad9cb44"
+  },
+  {
+    "path": "tp8-communication/rank2.json",
+    "bytes": 4985,
+    "sha256": "783f15bceabc04f0aa76912df5611e21611da2fb19a9b1be4245720a02e8dfb2"
+  },
+  {
+    "path": "tp8-communication/rank3.json",
+    "bytes": 4983,
+    "sha256": "b03274192ff322a5b1712a73ad5b81fc7c79f7d7faae56cc24eb412e3de4d205"
+  },
+  {
+    "path": "tp8-communication/rank1.json",
+    "bytes": 4991,
+    "sha256": "9b958a6594af870eba045bd0d86779d7657e5b8719164ee5592d055816e164ca"
+  },
+  {
+    "path": "tp8-communication/rank0.json",
+    "bytes": 4982,
+    "sha256": "44558acc8d03228cc421881330cab33cd7afaccd6defb7a1f6f5a658832c8a26"
+  },
+  {
+    "path": "tp8-communication/summary.json",
+    "bytes": 2072,
+    "sha256": "8df0d84abf616e5a50a5991fce9e0bb3f80c883b70a70acff28840480bc5d42d"
+  },
+  {
+    "path": "tp8-communication/export.py",
+    "bytes": 3260,
+    "sha256": "5ebcacbf1969500e415f3bdf49586b6af9fcd4454ff238cdd957a00ae0dfcc33"
+  },
+  {
+    "path": "tp8-communication/export.log",
+    "bytes": 840,
+    "sha256": "2d59a9d405829853e84fd275de418a59219a3173be411ece5c0dc79fe6705909"
+  },
+  {
+    "path": "tp8-communication/export-environment.json",
+    "bytes": 2898,
+    "sha256": "6e4ba848a3405d656d97b461004b32daf5d2e5fc4fcc15a4ab9b11e843407e14"
+  },
+  {
+    "path": "tp8-communication/calibration_rows.json",
+    "bytes": 7091,
+    "sha256": "48c2d3a6a118bd9ae1dbb3e842b1a4648ea7ab8c02a9b74e30512d43840fa4ec"
+  },
+  {
+    "path": "tp8-communication/measurements.csv",
+    "bytes": 3812,
+    "sha256": "d6183a9933597b80c8818c973470914df24584c6b0408ae44ff5719a8bf06a90"
+  },
+  {
+    "path": "tp8-communication/estimate.log",
+    "bytes": 156,
+    "sha256": "f2d4d19e6cfdd72a3fd0810e36fb6816fadf0907ccf77d50dc8631edab82f4c4"
+  },
+  {
+    "path": "tp8-communication/README.md",
+    "bytes": 1627,
+    "sha256": "853208f48632445e4472e22476e742100a34a60e9d0f012fbaa3b0126305835c"
   },
   {
     "path": "estimates/2048-theory.summary.json",
@@ -220,6 +330,11 @@
     "sha256": "da8d197abcedc04f3d206dfa83c703aa936389472111c2f68a54fde9596cef92"
   },
   {
+    "path": "estimates/16384-library-plus-tp8.summary.json",
+    "bytes": 6101,
+    "sha256": "4c2d659abff4fd639fbbea017a8dc87a1b7390feb7c66eb835e9f62a5bfe70e0"
+  },
+  {
     "path": "prepare.py",
     "bytes": 2749,
     "sha256": "c1b4b397228579253e0f6bb85ebea57a52a156410bf0ccca8d0e46e5edfcfdd1"
@@ -246,8 +361,8 @@
   },
   {
     "path": "save_branch.py",
-    "bytes": 2475,
-    "sha256": "ba3c2fe48553b4f83b73ebdef68a36de0a7d8cc6484373dd340e8e49585e71c3"
+    "bytes": 2607,
+    "sha256": "caa00f2626b64c3f0f3a5f5fcae3863ff3f928c661f5de440b0af7b83fb49249"
   },
   {
     "path": "post_source_followup.py",

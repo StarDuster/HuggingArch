@@ -1,0 +1,57 @@
+Ignoring incompatible flashinfer-cubin package (cubins will be downloaded on demand to /tmp/scratch-space/k3-performance/cache/sglang/.cache/flashinfer/cubins): flashinfer-cubin version (0.7.2) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+Ignoring incompatible flashinfer-cubin package (cubins will be downloaded on demand to /tmp/scratch-space/k3-performance/cache/sglang/.cache/flashinfer/cubins): flashinfer-cubin version (0.7.2) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+Ignoring incompatible flashinfer-cubin package (cubins will be downloaded on demand to /tmp/scratch-space/k3-performance/cache/sglang/.cache/flashinfer/cubins): flashinfer-cubin version (0.7.2) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+Ignoring incompatible flashinfer-cubin package (cubins will be downloaded on demand to /tmp/scratch-space/k3-performance/cache/sglang/.cache/flashinfer/cubins): flashinfer-cubin version (0.7.2) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+Ignoring incompatible flashinfer-cubin package (cubins will be downloaded on demand to /tmp/scratch-space/k3-performance/cache/sglang/.cache/flashinfer/cubins): flashinfer-cubin version (0.7.2) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+Ignoring incompatible flashinfer-cubin package (cubins will be downloaded on demand to /tmp/scratch-space/k3-performance/cache/sglang/.cache/flashinfer/cubins): flashinfer-cubin version (0.7.2) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+Ignoring incompatible flashinfer-cubin package (cubins will be downloaded on demand to /tmp/scratch-space/k3-performance/cache/sglang/.cache/flashinfer/cubins): flashinfer-cubin version (0.7.2) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+Ignoring incompatible flashinfer-jit-cache package (kernels will be JIT-compiled instead): flashinfer-jit-cache version (0.7.2+cu130) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+Ignoring incompatible flashinfer-cubin package (cubins will be downloaded on demand to /tmp/scratch-space/k3-performance/cache/sglang/.cache/flashinfer/cubins): flashinfer-cubin version (0.7.2) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+Ignoring incompatible flashinfer-jit-cache package (kernels will be JIT-compiled instead): flashinfer-jit-cache version (0.7.2+cu130) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+Ignoring incompatible flashinfer-jit-cache package (kernels will be JIT-compiled instead): flashinfer-jit-cache version (0.7.2+cu130) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+Ignoring incompatible flashinfer-jit-cache package (kernels will be JIT-compiled instead): flashinfer-jit-cache version (0.7.2+cu130) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+Ignoring incompatible flashinfer-jit-cache package (kernels will be JIT-compiled instead): flashinfer-jit-cache version (0.7.2+cu130) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+Ignoring incompatible flashinfer-jit-cache package (kernels will be JIT-compiled instead): flashinfer-jit-cache version (0.7.2+cu130) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+Ignoring incompatible flashinfer-jit-cache package (kernels will be JIT-compiled instead): flashinfer-jit-cache version (0.7.2+cu130) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+Ignoring incompatible flashinfer-jit-cache package (kernels will be JIT-compiled instead): flashinfer-jit-cache version (0.7.2+cu130) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+rank4: multicast communicator ready
+rank5: multicast communicator ready
+rank3: multicast communicator readyrank7: multicast communicator readyrank6: multicast communicator ready
+
+rank1: multicast communicator ready
+rank2: multicast communicator readyrank0: multicast communicator ready
+
+
+rank4: n=3584 p50=3.214us exact-check passed
+rank5: n=3584 p50=3.208us exact-check passed
+rank7: n=3584 p50=3.185us exact-check passed
+rank2: n=3584 p50=3.163us exact-check passed
+rank6: n=3584 p50=3.182us exact-check passed
+rank3: n=3584 p50=3.203us exact-check passed
+rank1: n=3584 p50=3.204us exact-check passed
+rank0: n=3584 p50=3.213us exact-check passed
+rank4: n=7168 p50=3.278us exact-check passedrank5: n=7168 p50=3.298us exact-check passed
+
+rank6: n=7168 p50=3.314us exact-check passed
+rank2: n=7168 p50=3.326us exact-check passed
+rank1: n=7168 p50=3.293us exact-check passed
+rank0: n=7168 p50=3.276us exact-check passed
+rank3: n=7168 p50=3.299us exact-check passed
+rank7: n=7168 p50=3.305us exact-check passed
+rank5: n=28672 p50=3.537us exact-check passed
+rank6: n=28672 p50=3.542us exact-check passed
+rank1: n=28672 p50=3.534us exact-check passed
+rank2: n=28672 p50=3.546us exact-check passed
+rank4: n=28672 p50=3.551us exact-check passed
+rank7: n=28672 p50=3.516us exact-check passed
+rank3: n=28672 p50=3.492us exact-check passed
+rank0: n=28672 p50=3.531us exact-check passed
+rank5: n=57344 p50=4.147us exact-check passed
+rank4: n=57344 p50=4.139us exact-check passed
+rank6: n=57344 p50=4.135us exact-check passed
+rank7: n=57344 p50=4.118us exact-check passed
+rank3: n=57344 p50=4.096us exact-check passed
+rank2: n=57344 p50=4.163us exact-check passed
+rank1: n=57344 p50=4.129us exact-check passed
+rank0: n=57344 p50=4.126us exact-check passed
+[{"n_comm_elems": 3584, "n_comm_ranks": 8, "dtype": "bf16", "rank_p50_us": [3.2131250482052565, 3.2043749233707786, 3.1631250167265534, 3.202749998308718, 3.2138749957084656, 3.208375070244074, 3.181500011123717, 3.185250097885728], "max_rank_p50_us": 3.2138749957084656, "cross_check": "passed", "timing_method": "warm_l2", "scope": "SGLang multicast all_reduce_push_res with residual=None; not a fused AR+norm measurement"}, {"n_comm_elems": 7168, "n_comm_ranks": 8, "dtype": "bf16", "rank_p50_us": [3.2755000283941627, 3.2928750151768327, 3.326249890960753, 3.2987500308081508, 3.2775000436231494, 3.29799996688962, 3.3140000887215137, 3.304749960079789], "max_rank_p50_us": 3.326249890960753, "cross_check": "passed", "timing_method": "warm_l2", "scope": "SGLang multicast all_reduce_push_res with residual=None; not a fused AR+norm measurement"}, {"n_comm_elems": 28672, "n_comm_ranks": 8, "dtype": "bf16", "rank_p50_us": [3.531250054948032, 3.5340000176802278, 3.5455001052469015, 3.492124960757792, 3.5512499744072556, 3.5374999279156327, 3.5422499058768153, 3.515999997034669], "max_rank_p50_us": 3.5512499744072556, "cross_check": "passed", "timing_method": "warm_l2", "scope": "SGLang multicast all_reduce_push_res with residual=None; not a fused AR+norm measurement"}, {"n_comm_elems": 57344, "n_comm_ranks": 8, "dtype": "bf16", "rank_p50_us": [4.126125015318394, 4.129250068217516, 4.162749974057078, 4.096249816939235, 4.138750024139881, 4.147124942392111, 4.135375143960118, 4.118124954402447], "max_rank_p50_us": 4.162749974057078, "cross_check": "passed", "timing_method": "warm_l2", "scope": "SGLang multicast all_reduce_push_res with residual=None; not a fused AR+norm measurement"}]

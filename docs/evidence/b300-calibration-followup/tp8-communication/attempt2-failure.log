@@ -1,0 +1,264 @@
+Ignoring incompatible flashinfer-cubin package (cubins will be downloaded on demand to /tmp/scratch-space/k3-performance/cache/sglang/.cache/flashinfer/cubins): flashinfer-cubin version (0.7.2) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+Ignoring incompatible flashinfer-jit-cache package (kernels will be JIT-compiled instead): flashinfer-jit-cache version (0.7.2+cu130) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+Ignoring incompatible flashinfer-cubin package (cubins will be downloaded on demand to /tmp/scratch-space/k3-performance/cache/sglang/.cache/flashinfer/cubins): flashinfer-cubin version (0.7.2) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+Ignoring incompatible flashinfer-cubin package (cubins will be downloaded on demand to /tmp/scratch-space/k3-performance/cache/sglang/.cache/flashinfer/cubins): flashinfer-cubin version (0.7.2) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+Ignoring incompatible flashinfer-cubin package (cubins will be downloaded on demand to /tmp/scratch-space/k3-performance/cache/sglang/.cache/flashinfer/cubins): flashinfer-cubin version (0.7.2) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+Ignoring incompatible flashinfer-cubin package (cubins will be downloaded on demand to /tmp/scratch-space/k3-performance/cache/sglang/.cache/flashinfer/cubins): flashinfer-cubin version (0.7.2) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+Ignoring incompatible flashinfer-cubin package (cubins will be downloaded on demand to /tmp/scratch-space/k3-performance/cache/sglang/.cache/flashinfer/cubins): flashinfer-cubin version (0.7.2) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+Ignoring incompatible flashinfer-cubin package (cubins will be downloaded on demand to /tmp/scratch-space/k3-performance/cache/sglang/.cache/flashinfer/cubins): flashinfer-cubin version (0.7.2) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+Ignoring incompatible flashinfer-cubin package (cubins will be downloaded on demand to /tmp/scratch-space/k3-performance/cache/sglang/.cache/flashinfer/cubins): flashinfer-cubin version (0.7.2) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+Ignoring incompatible flashinfer-jit-cache package (kernels will be JIT-compiled instead): flashinfer-jit-cache version (0.7.2+cu130) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+Ignoring incompatible flashinfer-jit-cache package (kernels will be JIT-compiled instead): flashinfer-jit-cache version (0.7.2+cu130) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+Ignoring incompatible flashinfer-jit-cache package (kernels will be JIT-compiled instead): flashinfer-jit-cache version (0.7.2+cu130) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+Ignoring incompatible flashinfer-jit-cache package (kernels will be JIT-compiled instead): flashinfer-jit-cache version (0.7.2+cu130) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+Ignoring incompatible flashinfer-jit-cache package (kernels will be JIT-compiled instead): flashinfer-jit-cache version (0.7.2+cu130) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+Ignoring incompatible flashinfer-jit-cache package (kernels will be JIT-compiled instead): flashinfer-jit-cache version (0.7.2+cu130) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+Ignoring incompatible flashinfer-jit-cache package (kernels will be JIT-compiled instead): flashinfer-jit-cache version (0.7.2+cu130) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+[rank7]: Traceback (most recent call last):
+[rank7]:   File "/tmp/scratch-space/k3-performance/benchmark/b300-calibration-followup/tp8-communication/run.py", line 34, in <module>
+[rank7]:     comm=CustomAllReduceV2(coord.cpu_group,torch.device('cuda',local),max_pull_size=4*1024**2,max_push_size=4*1024**2)
+[rank7]:          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank7]:   File "/tmp/scratch-space/k3-performance/benchmark/agentx-yyh/sglang-recipe/python/sglang/srt/distributed/device_communicators/custom_all_reduce_v2.py", line 168, in __init__
+[rank7]:     if not can_use_custom_all_reduce_v2(group=group, device=device):
+[rank7]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank7]:   File "/tmp/scratch-space/k3-performance/benchmark/agentx-yyh/sglang-recipe/python/sglang/srt/distributed/device_communicators/custom_all_reduce_v2.py", line 713, in can_use_custom_all_reduce_v2
+[rank7]:     full_nvlink = can_use_custom_all_reduce_with_nvlink(
+[rank7]:                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank7]:   File "/tmp/scratch-space/k3-performance/benchmark/agentx-yyh/sglang-recipe/python/sglang/srt/distributed/device_communicators/custom_all_reduce_utils.py", line 529, in can_use_custom_all_reduce_with_nvlink
+[rank7]:     if not _is_hip and not can_p2p(rank, world_size):
+[rank7]:                            ^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank7]:   File "/tmp/scratch-space/k3-performance/benchmark/agentx-yyh/sglang-recipe/python/sglang/srt/distributed/device_communicators/custom_all_reduce_utils.py", line 441, in can_p2p
+[rank7]:     if not gpu_p2p_access_check(rank, i):
+[rank7]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank7]:   File "/tmp/scratch-space/k3-performance/benchmark/agentx-yyh/sglang-recipe/python/sglang/srt/distributed/device_communicators/custom_all_reduce_utils.py", line 332, in gpu_p2p_access_check
+[rank7]:     return _gpu_p2p_access_cache[f"{src}->{tgt}"]
+[rank7]:            ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+[rank7]: KeyError: '7->0'
+[rank3]: Traceback (most recent call last):
+[rank3]:   File "/tmp/scratch-space/k3-performance/benchmark/b300-calibration-followup/tp8-communication/run.py", line 34, in <module>
+[rank3]:     comm=CustomAllReduceV2(coord.cpu_group,torch.device('cuda',local),max_pull_size=4*1024**2,max_push_size=4*1024**2)
+[rank3]:          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank3]:   File "/tmp/scratch-space/k3-performance/benchmark/agentx-yyh/sglang-recipe/python/sglang/srt/distributed/device_communicators/custom_all_reduce_v2.py", line 168, in __init__
+[rank3]:     if not can_use_custom_all_reduce_v2(group=group, device=device):
+[rank3]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank3]:   File "/tmp/scratch-space/k3-performance/benchmark/agentx-yyh/sglang-recipe/python/sglang/srt/distributed/device_communicators/custom_all_reduce_v2.py", line 713, in can_use_custom_all_reduce_v2
+[rank3]:     full_nvlink = can_use_custom_all_reduce_with_nvlink(
+[rank3]:                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank3]:   File "/tmp/scratch-space/k3-performance/benchmark/agentx-yyh/sglang-recipe/python/sglang/srt/distributed/device_communicators/custom_all_reduce_utils.py", line 529, in can_use_custom_all_reduce_with_nvlink
+[rank3]:     if not _is_hip and not can_p2p(rank, world_size):
+[rank3]:                            ^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank3]:   File "/tmp/scratch-space/k3-performance/benchmark/agentx-yyh/sglang-recipe/python/sglang/srt/distributed/device_communicators/custom_all_reduce_utils.py", line 441, in can_p2p
+[rank3]:     if not gpu_p2p_access_check(rank, i):
+[rank3]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank3]:   File "/tmp/scratch-space/k3-performance/benchmark/agentx-yyh/sglang-recipe/python/sglang/srt/distributed/device_communicators/custom_all_reduce_utils.py", line 332, in gpu_p2p_access_check
+[rank3]:     return _gpu_p2p_access_cache[f"{src}->{tgt}"]
+[rank3]:            ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+[rank3]: KeyError: '3->0'
+[rank5]: Traceback (most recent call last):
+[rank5]:   File "/tmp/scratch-space/k3-performance/benchmark/b300-calibration-followup/tp8-communication/run.py", line 34, in <module>
+[rank5]:     comm=CustomAllReduceV2(coord.cpu_group,torch.device('cuda',local),max_pull_size=4*1024**2,max_push_size=4*1024**2)
+[rank5]:          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank5]:   File "/tmp/scratch-space/k3-performance/benchmark/agentx-yyh/sglang-recipe/python/sglang/srt/distributed/device_communicators/custom_all_reduce_v2.py", line 168, in __init__
+[rank5]:     if not can_use_custom_all_reduce_v2(group=group, device=device):
+[rank5]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank5]:   File "/tmp/scratch-space/k3-performance/benchmark/agentx-yyh/sglang-recipe/python/sglang/srt/distributed/device_communicators/custom_all_reduce_v2.py", line 713, in can_use_custom_all_reduce_v2
+[rank5]:     full_nvlink = can_use_custom_all_reduce_with_nvlink(
+[rank5]:                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank5]:   File "/tmp/scratch-space/k3-performance/benchmark/agentx-yyh/sglang-recipe/python/sglang/srt/distributed/device_communicators/custom_all_reduce_utils.py", line 529, in can_use_custom_all_reduce_with_nvlink
+[rank5]:     if not _is_hip and not can_p2p(rank, world_size):
+[rank5]:                            ^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank5]:   File "/tmp/scratch-space/k3-performance/benchmark/agentx-yyh/sglang-recipe/python/sglang/srt/distributed/device_communicators/custom_all_reduce_utils.py", line 441, in can_p2p
+[rank5]:     if not gpu_p2p_access_check(rank, i):
+[rank5]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank5]:   File "/tmp/scratch-space/k3-performance/benchmark/agentx-yyh/sglang-recipe/python/sglang/srt/distributed/device_communicators/custom_all_reduce_utils.py", line 332, in gpu_p2p_access_check
+[rank5]:     return _gpu_p2p_access_cache[f"{src}->{tgt}"]
+[rank5]:            ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+[rank5]: KeyError: '5->0'
+[rank0]: Traceback (most recent call last):
+[rank0]:   File "/tmp/scratch-space/k3-performance/benchmark/b300-calibration-followup/tp8-communication/run.py", line 34, in <module>
+[rank0]:     comm=CustomAllReduceV2(coord.cpu_group,torch.device('cuda',local),max_pull_size=4*1024**2,max_push_size=4*1024**2)
+[rank0]:          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/tmp/scratch-space/k3-performance/benchmark/agentx-yyh/sglang-recipe/python/sglang/srt/distributed/device_communicators/custom_all_reduce_v2.py", line 168, in __init__
+[rank0]:     if not can_use_custom_all_reduce_v2(group=group, device=device):
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/tmp/scratch-space/k3-performance/benchmark/agentx-yyh/sglang-recipe/python/sglang/srt/distributed/device_communicators/custom_all_reduce_v2.py", line 713, in can_use_custom_all_reduce_v2
+[rank0]:     full_nvlink = can_use_custom_all_reduce_with_nvlink(
+[rank0]:                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/tmp/scratch-space/k3-performance/benchmark/agentx-yyh/sglang-recipe/python/sglang/srt/distributed/device_communicators/custom_all_reduce_utils.py", line 529, in can_use_custom_all_reduce_with_nvlink
+[rank0]:     if not _is_hip and not can_p2p(rank, world_size):
+[rank0]:                            ^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/tmp/scratch-space/k3-performance/benchmark/agentx-yyh/sglang-recipe/python/sglang/srt/distributed/device_communicators/custom_all_reduce_utils.py", line 441, in can_p2p
+[rank0]:     if not gpu_p2p_access_check(rank, i):
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/tmp/scratch-space/k3-performance/benchmark/agentx-yyh/sglang-recipe/python/sglang/srt/distributed/device_communicators/custom_all_reduce_utils.py", line 332, in gpu_p2p_access_check
+[rank0]:     return _gpu_p2p_access_cache[f"{src}->{tgt}"]
+[rank0]:            ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+[rank0]: KeyError: '0->1'
+[rank6]: Traceback (most recent call last):
+[rank6]:   File "/tmp/scratch-space/k3-performance/benchmark/b300-calibration-followup/tp8-communication/run.py", line 34, in <module>
+[rank6]:     comm=CustomAllReduceV2(coord.cpu_group,torch.device('cuda',local),max_pull_size=4*1024**2,max_push_size=4*1024**2)
+[rank6]:          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank6]:   File "/tmp/scratch-space/k3-performance/benchmark/agentx-yyh/sglang-recipe/python/sglang/srt/distributed/device_communicators/custom_all_reduce_v2.py", line 168, in __init__
+[rank6]:     if not can_use_custom_all_reduce_v2(group=group, device=device):
+[rank6]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank6]:   File "/tmp/scratch-space/k3-performance/benchmark/agentx-yyh/sglang-recipe/python/sglang/srt/distributed/device_communicators/custom_all_reduce_v2.py", line 713, in can_use_custom_all_reduce_v2
+[rank6]:     full_nvlink = can_use_custom_all_reduce_with_nvlink(
+[rank6]:                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank6]:   File "/tmp/scratch-space/k3-performance/benchmark/agentx-yyh/sglang-recipe/python/sglang/srt/distributed/device_communicators/custom_all_reduce_utils.py", line 529, in can_use_custom_all_reduce_with_nvlink
+[rank6]:     if not _is_hip and not can_p2p(rank, world_size):
+[rank6]:                            ^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank6]:   File "/tmp/scratch-space/k3-performance/benchmark/agentx-yyh/sglang-recipe/python/sglang/srt/distributed/device_communicators/custom_all_reduce_utils.py", line 441, in can_p2p
+[rank6]:     if not gpu_p2p_access_check(rank, i):
+[rank6]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank6]:   File "/tmp/scratch-space/k3-performance/benchmark/agentx-yyh/sglang-recipe/python/sglang/srt/distributed/device_communicators/custom_all_reduce_utils.py", line 332, in gpu_p2p_access_check
+[rank6]:     return _gpu_p2p_access_cache[f"{src}->{tgt}"]
+[rank6]:            ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+[rank6]: KeyError: '6->0'
+[rank2]: Traceback (most recent call last):
+[rank2]:   File "/tmp/scratch-space/k3-performance/benchmark/b300-calibration-followup/tp8-communication/run.py", line 34, in <module>
+[rank2]:     comm=CustomAllReduceV2(coord.cpu_group,torch.device('cuda',local),max_pull_size=4*1024**2,max_push_size=4*1024**2)
+[rank2]:          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank2]:   File "/tmp/scratch-space/k3-performance/benchmark/agentx-yyh/sglang-recipe/python/sglang/srt/distributed/device_communicators/custom_all_reduce_v2.py", line 168, in __init__
+[rank2]:     if not can_use_custom_all_reduce_v2(group=group, device=device):
+[rank2]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank2]:   File "/tmp/scratch-space/k3-performance/benchmark/agentx-yyh/sglang-recipe/python/sglang/srt/distributed/device_communicators/custom_all_reduce_v2.py", line 713, in can_use_custom_all_reduce_v2
+[rank2]:     full_nvlink = can_use_custom_all_reduce_with_nvlink(
+[rank2]:                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank2]:   File "/tmp/scratch-space/k3-performance/benchmark/agentx-yyh/sglang-recipe/python/sglang/srt/distributed/device_communicators/custom_all_reduce_utils.py", line 529, in can_use_custom_all_reduce_with_nvlink
+[rank2]:     if not _is_hip and not can_p2p(rank, world_size):
+[rank2]:                            ^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank2]:   File "/tmp/scratch-space/k3-performance/benchmark/agentx-yyh/sglang-recipe/python/sglang/srt/distributed/device_communicators/custom_all_reduce_utils.py", line 441, in can_p2p
+[rank2]:     if not gpu_p2p_access_check(rank, i):
+[rank2]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank2]:   File "/tmp/scratch-space/k3-performance/benchmark/agentx-yyh/sglang-recipe/python/sglang/srt/distributed/device_communicators/custom_all_reduce_utils.py", line 332, in gpu_p2p_access_check
+[rank2]:     return _gpu_p2p_access_cache[f"{src}->{tgt}"]
+[rank2]:            ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+[rank2]: KeyError: '2->0'
+[rank4]: Traceback (most recent call last):
+[rank4]:   File "/tmp/scratch-space/k3-performance/benchmark/b300-calibration-followup/tp8-communication/run.py", line 34, in <module>
+[rank4]:     comm=CustomAllReduceV2(coord.cpu_group,torch.device('cuda',local),max_pull_size=4*1024**2,max_push_size=4*1024**2)
+[rank4]:          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank4]:   File "/tmp/scratch-space/k3-performance/benchmark/agentx-yyh/sglang-recipe/python/sglang/srt/distributed/device_communicators/custom_all_reduce_v2.py", line 168, in __init__
+[rank4]:     if not can_use_custom_all_reduce_v2(group=group, device=device):
+[rank4]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank4]:   File "/tmp/scratch-space/k3-performance/benchmark/agentx-yyh/sglang-recipe/python/sglang/srt/distributed/device_communicators/custom_all_reduce_v2.py", line 713, in can_use_custom_all_reduce_v2
+[rank4]:     full_nvlink = can_use_custom_all_reduce_with_nvlink(
+[rank4]:                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank4]:   File "/tmp/scratch-space/k3-performance/benchmark/agentx-yyh/sglang-recipe/python/sglang/srt/distributed/device_communicators/custom_all_reduce_utils.py", line 529, in can_use_custom_all_reduce_with_nvlink
+[rank4]:     if not _is_hip and not can_p2p(rank, world_size):
+[rank4]:                            ^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank4]:   File "/tmp/scratch-space/k3-performance/benchmark/agentx-yyh/sglang-recipe/python/sglang/srt/distributed/device_communicators/custom_all_reduce_utils.py", line 441, in can_p2p
+[rank4]:     if not gpu_p2p_access_check(rank, i):
+[rank4]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank4]:   File "/tmp/scratch-space/k3-performance/benchmark/agentx-yyh/sglang-recipe/python/sglang/srt/distributed/device_communicators/custom_all_reduce_utils.py", line 332, in gpu_p2p_access_check
+[rank4]:     return _gpu_p2p_access_cache[f"{src}->{tgt}"]
+[rank4]:            ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+[rank4]: KeyError: '4->0'
+[rank1]: Traceback (most recent call last):
+[rank1]:   File "/tmp/scratch-space/k3-performance/benchmark/b300-calibration-followup/tp8-communication/run.py", line 34, in <module>
+[rank1]:     comm=CustomAllReduceV2(coord.cpu_group,torch.device('cuda',local),max_pull_size=4*1024**2,max_push_size=4*1024**2)
+[rank1]:          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank1]:   File "/tmp/scratch-space/k3-performance/benchmark/agentx-yyh/sglang-recipe/python/sglang/srt/distributed/device_communicators/custom_all_reduce_v2.py", line 168, in __init__
+[rank1]:     if not can_use_custom_all_reduce_v2(group=group, device=device):
+[rank1]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank1]:   File "/tmp/scratch-space/k3-performance/benchmark/agentx-yyh/sglang-recipe/python/sglang/srt/distributed/device_communicators/custom_all_reduce_v2.py", line 713, in can_use_custom_all_reduce_v2
+[rank1]:     full_nvlink = can_use_custom_all_reduce_with_nvlink(
+[rank1]:                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank1]:   File "/tmp/scratch-space/k3-performance/benchmark/agentx-yyh/sglang-recipe/python/sglang/srt/distributed/device_communicators/custom_all_reduce_utils.py", line 529, in can_use_custom_all_reduce_with_nvlink
+[rank1]:     if not _is_hip and not can_p2p(rank, world_size):
+[rank1]:                            ^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank1]:   File "/tmp/scratch-space/k3-performance/benchmark/agentx-yyh/sglang-recipe/python/sglang/srt/distributed/device_communicators/custom_all_reduce_utils.py", line 441, in can_p2p
+[rank1]:     if not gpu_p2p_access_check(rank, i):
+[rank1]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank1]:   File "/tmp/scratch-space/k3-performance/benchmark/agentx-yyh/sglang-recipe/python/sglang/srt/distributed/device_communicators/custom_all_reduce_utils.py", line 332, in gpu_p2p_access_check
+[rank1]:     return _gpu_p2p_access_cache[f"{src}->{tgt}"]
+[rank1]:            ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+[rank1]: KeyError: '1->0'
+W1115 10:10:07.537000 404471 torch/distributed/elastic/multiprocessing/api.py:1028] Sending process 404483 closing signal SIGTERM
+W1115 10:10:07.538000 404471 torch/distributed/elastic/multiprocessing/api.py:1028] Sending process 404484 closing signal SIGTERM
+W1115 10:10:07.539000 404471 torch/distributed/elastic/multiprocessing/api.py:1028] Sending process 404485 closing signal SIGTERM
+W1115 10:10:07.539000 404471 torch/distributed/elastic/multiprocessing/api.py:1028] Sending process 404486 closing signal SIGTERM
+W1115 10:10:07.539000 404471 torch/distributed/elastic/multiprocessing/api.py:1028] Sending process 404487 closing signal SIGTERM
+W1115 10:10:07.539000 404471 torch/distributed/elastic/multiprocessing/api.py:1028] Sending process 404488 closing signal SIGTERM
+W1115 10:10:07.539000 404471 torch/distributed/elastic/multiprocessing/api.py:1028] Sending process 404489 closing signal SIGTERM
+E1115 10:10:09.333000 404471 torch/distributed/elastic/multiprocessing/api.py:1002] failed (exitcode: 1) local_rank: 7 (pid: 404490) of binary: /opt/sglang/bin/python
+Traceback (most recent call last):
+  File "/opt/sglang/bin/torchrun", line 10, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/opt/sglang/lib/python3.12/site-packages/torch/distributed/elastic/multiprocessing/errors/__init__.py", line 380, in wrapper
+    return f(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^
+  File "/opt/sglang/lib/python3.12/site-packages/torch/distributed/run.py", line 1138, in main
+    run(args)
+  File "/opt/sglang/lib/python3.12/site-packages/torch/distributed/run.py", line 1129, in run
+    elastic_launch(
+  File "/opt/sglang/lib/python3.12/site-packages/torch/distributed/launcher/api.py", line 197, in __call__
+    return launch_agent(
+           ^^^^^^^^^^^^^
+  File "/opt/sglang/lib/python3.12/site-packages/torch/distributed/launcher/api.py", line 386, in launch_agent
+    raise ChildFailedError(
+torch.distributed.elastic.multiprocessing.errors.ChildFailedError: 
+============================================================
+benchmark/b300-calibration-followup/tp8-communication/run.py FAILED
+------------------------------------------------------------
+Failures:
+[1]:
+  time      : 2026-11-15_10:10:09
+  host      : kar-rsi-test-0.kar-rsi-test.llm-eng-dev.svc.cluster.local
+  rank      : 0 (local_rank: 0)
+  exitcode  : 1 (pid: 404483) 
+  error_file: <N/A>
+  traceback : To enable traceback see: https://pytorch.org/docs/stable/elastic/errors.html
+[2]:
+  time      : 2026-11-15_10:10:09
+  host      : kar-rsi-test-0.kar-rsi-test.llm-eng-dev.svc.cluster.local
+  rank      : 1 (local_rank: 1)
+  exitcode  : -15 (pid: 404484)  (SIGTERM)
+  error_file: <N/A>
+  traceback : Signal 15 (SIGTERM) received by PID 404484
+[3]:
+  time      : 2026-11-15_10:10:09
+  host      : kar-rsi-test-0.kar-rsi-test.llm-eng-dev.svc.cluster.local
+  rank      : 2 (local_rank: 2)
+  exitcode  : 1 (pid: 404485) 
+  error_file: <N/A>
+  traceback : To enable traceback see: https://pytorch.org/docs/stable/elastic/errors.html
+[4]:
+  time      : 2026-11-15_10:10:09
+  host      : kar-rsi-test-0.kar-rsi-test.llm-eng-dev.svc.cluster.local
+  rank      : 3 (local_rank: 3)
+  exitcode  : 1 (pid: 404486) 
+  error_file: <N/A>
+  traceback : To enable traceback see: https://pytorch.org/docs/stable/elastic/errors.html
+[5]:
+  time      : 2026-11-15_10:10:09
+  host      : kar-rsi-test-0.kar-rsi-test.llm-eng-dev.svc.cluster.local
+  rank      : 4 (local_rank: 4)
+  exitcode  : 1 (pid: 404487) 
+  error_file: <N/A>
+  traceback : To enable traceback see: https://pytorch.org/docs/stable/elastic/errors.html
+[6]:
+  time      : 2026-11-15_10:10:09
+  host      : kar-rsi-test-0.kar-rsi-test.llm-eng-dev.svc.cluster.local
+  rank      : 5 (local_rank: 5)
+  exitcode  : 1 (pid: 404488) 
+  error_file: <N/A>
+  traceback : To enable traceback see: https://pytorch.org/docs/stable/elastic/errors.html
+[7]:
+  time      : 2026-11-15_10:10:09
+  host      : kar-rsi-test-0.kar-rsi-test.llm-eng-dev.svc.cluster.local
+  rank      : 6 (local_rank: 6)
+  exitcode  : -15 (pid: 404489)  (SIGTERM)
+  error_file: <N/A>
+  traceback : Signal 15 (SIGTERM) received by PID 404489
+------------------------------------------------------------
+Root Cause (first observed failure):
+[0]:
+  time      : 2026-11-15_10:10:07
+  host      : kar-rsi-test-0.kar-rsi-test.llm-eng-dev.svc.cluster.local
+  rank      : 7 (local_rank: 7)
+  exitcode  : 1 (pid: 404490) 
+  error_file: <N/A>
+  traceback : To enable traceback see: https://pytorch.org/docs/stable/elastic/errors.html
+============================================================
