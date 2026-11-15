@@ -1,6 +1,6 @@
 {
   "reused_rows": 9,
-  "combined_measured_rows": 124,
+  "combined_measured_rows": 126,
   "deduplication": {
     "existing_branch": "StarDuster/HuggingArch:kimi-k31-reports",
     "revision": "4b6c287b07abdf4505d8a77d1e7ee6ff656cc52f",
@@ -295,17 +295,17 @@
       }
     ]
   },
-  "total_rows": 116,
-  "passed_measured_rows": 115,
+  "total_rows": 118,
+  "passed_measured_rows": 117,
   "csv_validation_failures": [],
   "outcomes": {
-    "measured": 115,
+    "measured": 117,
     "error": 1
   },
   "measured_by_library": {
     "deepgemm": 2,
     "flashinfer": 6,
-    "sglang": 22,
+    "sglang": 24,
     "torch": 85
   },
   "measured_by_op": {
@@ -315,6 +315,7 @@
     "sigmoid_gate_mul": 4,
     "situ_and_mul": 8,
     "fused_kda_decode": 4,
+    "moe_fused_gate": 4,
     "embedding": 2,
     "merged_column_parallel_linear": 4,
     "linear": 25,
@@ -325,7 +326,6 @@
     "mul": 2,
     "combine": 2,
     "qkv_parallel_linear": 2,
-    "moe_fused_gate": 2,
     "per_head_linear": 4
   },
   "scope": "Kimi K3.1 target-only decode, TP8/DCP8/EP2, batch1/8, input2K/16K, output512, page64; native providers, not full AgentX or DFLASH model",

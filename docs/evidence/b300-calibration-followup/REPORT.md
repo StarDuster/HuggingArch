@@ -1,5 +1,9 @@
 # B300 kernel calibration follow-up
 
+## Audit follow-up
+
+See [CALIBRATION_AUDIT.md](CALIBRATION_AUDIT.md) for the implementation audit and latest library-kernel-only partial estimate. The cross-library eager reference numbers below are diagnostic, not a production SGLang prediction. The newer source router measurements are recorded separately and included in the library-only overlay.
+
 Reused 9 existing measurements; added 115 validated positive-latency measurements. Physical-key deduplication is recorded in deduplication.json. Native failures/refusals are retained in results/ and coverage.log.
 
 | Input | Calibration | Predicted ms | Historical TPOT ms | Relative error | Measured share |

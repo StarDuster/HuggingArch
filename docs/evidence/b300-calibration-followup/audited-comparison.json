@@ -1,0 +1,18 @@
+[
+  {
+    "input_tokens": 2048,
+    "partial_ms": 12.118566627555543,
+    "historical_tpot_ms": 9.944849842898087,
+    "error_pct": 21.85771347980454,
+    "partial_measured_share": 0.5608029570549009,
+    "fully_measured_s": null
+  },
+  {
+    "input_tokens": 16384,
+    "partial_ms": 12.137766627555546,
+    "historical_tpot_ms": 10.081021355912187,
+    "error_pct": 20.402151716870897,
+    "partial_measured_share": 0.5614976963329987,
+    "fully_measured_s": null
+  }
+]
