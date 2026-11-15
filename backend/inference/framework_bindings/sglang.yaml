@@ -442,7 +442,7 @@ op_implementations:
     source_anchor: "sglang.kernels.ops.attention.kda_fused_decode.kda_fused_decode (python/sglang/kernels/ops/attention/kda_fused_decode.py:112), from python/sglang/srt/layers/attention/linear/kda_backend.py:891"
     when:
       phase: [decode]
-      architectures: [KimiK3ForConditionalGeneration]
+      architectures: [KimiK3ForConditionalGeneration, KimiK31ForConditionalGeneration]
       device: [cuda]
       activation_dtype: [bf16]
       dims: { n_verify: [1], d_lin_k_head: [128], s_conv_kernel: [4] }
@@ -451,7 +451,7 @@ op_implementations:
     source_anchor: "sglang.kernels.ops.attention.fla.fused_sigmoid_gating_recurrent.fused_sigmoid_gating_delta_rule_update(is_kda=True), from python/sglang/srt/layers/attention/linear/kda_backend.py:981 via python/sglang/srt/layers/attention/linear/kernels/kda_triton.py:141"
     when:
       phase: [decode]
-      architectures: [KimiK3ForConditionalGeneration]
+      architectures: [KimiK3ForConditionalGeneration, KimiK31ForConditionalGeneration]
       dims: { n_verify: [1] }
   # The three KDA short convs as one causal-conv launch over the packed
   # q|k|v row. sglang's KDA backend takes the layer's one packed filter
@@ -592,7 +592,7 @@ op_implementations:
   sigmoid_gate_mul:
     source_anchor: "sglang.kernels.ops.moe.triton_sigmoid_gate_mul.sigmoid_gate_mul (python/sglang/kernels/ops/moe/triton_sigmoid_gate_mul.py:38), from python/sglang/srt/models/hunyuan_v4.py:505; sglang.kernels.ops.elementwise.elementwise.fused_sigmoid_mul (python/sglang/kernels/ops/elementwise/elementwise.py:419), from python/sglang/srt/models/qwen3_5.py:1582 / python/sglang/srt/models/qwen4_exp.py:1879; sglang.kernels.ops.attention.mla_output_gate.kimi_k3_mla_output_gate (python/sglang/kernels/ops/attention/mla_output_gate.py:48), from python/sglang/srt/models/kimi_k3.py:2293"
     when:
-      architectures: [HYV4ForCausalLM, Qwen3_5ForCausalLM, Qwen3_5MoeForCausalLM, Qwen3_5ForConditionalGeneration, Qwen3_5MoeForConditionalGeneration, Qwen4ExpForConditionalGeneration, KimiK3ForConditionalGeneration]
+      architectures: [HYV4ForCausalLM, Qwen3_5ForCausalLM, Qwen3_5MoeForCausalLM, Qwen3_5ForConditionalGeneration, Qwen3_5MoeForConditionalGeneration, Qwen4ExpForConditionalGeneration, KimiK3ForConditionalGeneration, KimiK31ForConditionalGeneration]
       device: [cuda]
       roles: { gated: [attention] }
   merged_column_parallel_linear:

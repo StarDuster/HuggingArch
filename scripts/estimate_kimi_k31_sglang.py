@@ -28,6 +28,7 @@ def main():
     parser.add_argument('--input-tokens', type=int, default=16384)
     parser.add_argument('--output-tokens', type=int, default=512)
     parser.add_argument('--batch', type=int, default=1)
+    parser.add_argument('--kv-block-size', type=int, default=64)
     parser.add_argument('--calibration-rows', type=Path,
                         help='Validated Kernel Bench JSON rows; unmatched operations retain theory.')
     args = parser.parse_args()
@@ -45,7 +46,7 @@ def main():
         avg_input_tokens=args.input_tokens,
         avg_output_tokens=args.output_tokens,
         prefill_batch_size=args.batch, decode_batch_size=args.batch,
-        prefill_chunk_size=16384,
+        prefill_chunk_size=16384, kv_block_size=args.kv_block_size,
     )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(_law_to_json(result), indent=2, default=str) + '\n')
