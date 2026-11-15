@@ -1,0 +1,294 @@
+{
+  "existing_branch": "StarDuster/HuggingArch:kimi-k31-reports",
+  "revision": "4b6c287b07abdf4505d8a77d1e7ee6ff656cc52f",
+  "existing_rows": 9,
+  "planned_keys": 110,
+  "reused_plan_keys": 5,
+  "new_plan_keys": 105,
+  "reused_jobs": [
+    {
+      "signature": "gemm",
+      "op": "linear",
+      "variant": {},
+      "dims": {
+        "B": 1,
+        "d_out": 18432,
+        "d_reduce": 1536,
+        "s_query": 1
+      },
+      "shape_in": [
+        1,
+        1,
+        1536
+      ],
+      "shape_out": [
+        1,
+        1,
+        18432
+      ],
+      "shape_weight": [
+        18432,
+        1536
+      ],
+      "dtype_env": {
+        "activation": "bf16",
+        "output": "bf16",
+        "weight": "bf16"
+      },
+      "physical_key": [
+        "gemm",
+        "{\"B\":1,\"d_out\":18432,\"d_reduce\":1536,\"s_query\":1}",
+        "{\"activation\":\"bf16\",\"output\":\"bf16\",\"weight\":\"bf16\"}",
+        "decode"
+      ],
+      "phase": "decode",
+      "tp": 8,
+      "kernel_params": {},
+      "flops_per_rank": 56623104.0,
+      "access_bytes_per_rank": 56663040.0,
+      "launch_rows": 1,
+      "launch_rows_exact": "1",
+      "routed": null,
+      "model": "moonshotai/Kimi-K3.1-Pro",
+      "spec_hash": "67e5f3cbb3888528",
+      "node_spec_id": "block_dsa_moe[Sar=1]|self_attn.q_b_proj",
+      "parallel": "ep_moe=2,tp_attention=8,tp_dense_ffn=8,tp_moe_expert=4",
+      "count_per_step": 3,
+      "moe_block_member": false
+    },
+    {
+      "signature": "per_head_gemm",
+      "op": "per_head_linear",
+      "variant": {},
+      "dims": {
+        "B": 1,
+        "d_out": 512,
+        "d_reduce": 128,
+        "n_heads": 96,
+        "s_query": 1
+      },
+      "shape_in": [
+        1,
+        96,
+        1,
+        128
+      ],
+      "shape_out": [
+        1,
+        96,
+        1,
+        512
+      ],
+      "shape_weight": [
+        96,
+        512,
+        128
+      ],
+      "dtype_env": {
+        "activation": "bf16",
+        "output": "bf16",
+        "weight": "bf16"
+      },
+      "physical_key": [
+        "per_head_gemm",
+        "{\"B\":1,\"d_out\":512,\"d_reduce\":128,\"n_heads\":96,\"s_query\":1}",
+        "{\"activation\":\"bf16\",\"output\":\"bf16\",\"weight\":\"bf16\"}",
+        "decode"
+      ],
+      "phase": "decode",
+      "tp": 8,
+      "kernel_params": {},
+      "flops_per_rank": 12582912.0,
+      "access_bytes_per_rank": 12705792.0,
+      "launch_rows": 96,
+      "launch_rows_exact": "96",
+      "routed": null,
+      "model": "moonshotai/Kimi-K3.1-Pro",
+      "spec_hash": "67e5f3cbb3888528",
+      "node_spec_id": "block_dsa_moe[Sar=1]|self_attn.q_absorbed_nope",
+      "parallel": "ep_moe=2,tp_attention=8,tp_dense_ffn=8,tp_moe_expert=4",
+      "count_per_step": 3,
+      "moe_block_member": false
+    },
+    {
+      "signature": "indexer_logits",
+      "op": "indexer_logits",
+      "variant": {},
+      "dims": {
+        "B": 1,
+        "d_indexer_head": 128,
+        "kv_block_size": 64,
+        "n_indexer_heads": 32,
+        "s_kv": 288,
+        "s_query": 1
+      },
+      "shape_in": [
+        [
+          1,
+          32,
+          1,
+          128
+        ],
+        [
+          1,
+          288,
+          128
+        ],
+        [
+          1,
+          1,
+          32
+        ]
+      ],
+      "shape_out": [
+        1,
+        1,
+        288
+      ],
+      "shape_weight": null,
+      "dtype_env": {
+        "activation": "fp8_e4m3",
+        "kv": "fp8_e4m3",
+        "kv_format": "fp8_group128",
+        "output": "fp32"
+      },
+      "physical_key": [
+        "indexer_logits",
+        "{\"B\":1,\"d_indexer_head\":128,\"kv_block_size\":64,\"n_indexer_heads\":32,\"s_kv\":288,\"s_query\":1}",
+        "{\"activation\":\"fp8_e4m3\",\"kv\":\"fp8_e4m3\",\"kv_format\":\"fp8_group128\",\"output\":\"fp32\"}",
+        "decode"
+      ],
+      "phase": "decode",
+      "tp": 8,
+      "kernel_params": {},
+      "flops_per_rank": 2386944.0,
+      "access_bytes_per_rank": 43456.0,
+      "launch_rows": 288,
+      "launch_rows_exact": "288",
+      "routed": null,
+      "model": "moonshotai/Kimi-K3.1-Pro",
+      "spec_hash": "67e5f3cbb3888528",
+      "node_spec_id": "block_dsa_moe[Sar=1]|self_attn.indexer.logits__kimi_k31_indexer",
+      "parallel": "ep_moe=2,tp_attention=8,tp_dense_ffn=8,tp_moe_expert=4",
+      "count_per_step": 3,
+      "moe_block_member": false
+    },
+    {
+      "signature": "per_head_gemm",
+      "op": "per_head_linear",
+      "variant": {},
+      "dims": {
+        "B": 1,
+        "d_out": 128,
+        "d_reduce": 512,
+        "n_heads": 96,
+        "s_query": 1
+      },
+      "shape_in": [
+        1,
+        96,
+        1,
+        512
+      ],
+      "shape_out": [
+        1,
+        96,
+        1,
+        128
+      ],
+      "shape_weight": [
+        96,
+        128,
+        512
+      ],
+      "dtype_env": {
+        "activation": "bf16",
+        "output": "bf16",
+        "weight": "bf16"
+      },
+      "physical_key": [
+        "per_head_gemm",
+        "{\"B\":1,\"d_out\":128,\"d_reduce\":512,\"n_heads\":96,\"s_query\":1}",
+        "{\"activation\":\"bf16\",\"output\":\"bf16\",\"weight\":\"bf16\"}",
+        "decode"
+      ],
+      "phase": "decode",
+      "tp": 8,
+      "kernel_params": {},
+      "flops_per_rank": 12582912.0,
+      "access_bytes_per_rank": 12705792.0,
+      "launch_rows": 96,
+      "launch_rows_exact": "96",
+      "routed": null,
+      "model": "moonshotai/Kimi-K3.1-Pro",
+      "spec_hash": "67e5f3cbb3888528",
+      "node_spec_id": "block_dsa_moe[Sar=1]|self_attn.v_absorbed",
+      "parallel": "ep_moe=2,tp_attention=8,tp_dense_ffn=8,tp_moe_expert=4",
+      "count_per_step": 3,
+      "moe_block_member": false
+    },
+    {
+      "signature": "indexer_logits",
+      "op": "indexer_logits",
+      "variant": {},
+      "dims": {
+        "B": 1,
+        "d_indexer_head": 128,
+        "kv_block_size": 64,
+        "n_indexer_heads": 32,
+        "s_kv": 2080,
+        "s_query": 1
+      },
+      "shape_in": [
+        [
+          1,
+          32,
+          1,
+          128
+        ],
+        [
+          1,
+          2080,
+          128
+        ],
+        [
+          1,
+          1,
+          32
+        ]
+      ],
+      "shape_out": [
+        1,
+        1,
+        2080
+      ],
+      "shape_weight": null,
+      "dtype_env": {
+        "activation": "fp8_e4m3",
+        "kv": "fp8_e4m3",
+        "kv_format": "fp8_group128",
+        "output": "fp32"
+      },
+      "physical_key": [
+        "indexer_logits",
+        "{\"B\":1,\"d_indexer_head\":128,\"kv_block_size\":64,\"n_indexer_heads\":32,\"s_kv\":2080,\"s_query\":1}",
+        "{\"activation\":\"fp8_e4m3\",\"kv\":\"fp8_e4m3\",\"kv_format\":\"fp8_group128\",\"output\":\"fp32\"}",
+        "decode"
+      ],
+      "phase": "decode",
+      "tp": 8,
+      "kernel_params": {},
+      "flops_per_rank": 17239040.0,
+      "access_bytes_per_rank": 287168.0,
+      "launch_rows": 2080,
+      "launch_rows_exact": "2080",
+      "routed": null,
+      "model": "moonshotai/Kimi-K3.1-Pro",
+      "spec_hash": "67e5f3cbb3888528",
+      "node_spec_id": "block_dsa_moe[Sar=1]|self_attn.indexer.logits__kimi_k31_indexer",
+      "parallel": "ep_moe=2,tp_attention=8,tp_dense_ffn=8,tp_moe_expert=4",
+      "count_per_step": 3,
+      "moe_block_member": false
+    }
+  ]
+}
