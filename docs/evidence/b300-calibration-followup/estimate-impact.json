@@ -1,0 +1,80 @@
+[
+  {
+    "input_tokens": 2048,
+    "stage": "theory",
+    "predicted_ms": 6.3816624995555555,
+    "historical_tpot_ms": 9.944849842898087,
+    "error_pct": -35.8294735429023,
+    "t_sol_ms": 6.3816624995555555,
+    "t_partial_ms": null,
+    "t_measured_s": null,
+    "partial_measured_share": null,
+    "measured_rows": 0,
+    "total_rows": 1225
+  },
+  {
+    "input_tokens": 2048,
+    "stage": "existing",
+    "predicted_ms": 7.178958627555556,
+    "historical_tpot_ms": 9.944849842898087,
+    "error_pct": -27.812297410581177,
+    "t_sol_ms": 6.3816624995555555,
+    "t_partial_ms": 7.178958627555556,
+    "t_measured_s": null,
+    "partial_measured_share": 0.14870123305940988,
+    "measured_rows": 338,
+    "total_rows": 1225
+  },
+  {
+    "input_tokens": 2048,
+    "stage": "expanded",
+    "predicted_ms": 74.3190233635555,
+    "historical_tpot_ms": 9.944849842898087,
+    "error_pct": 647.3116692317776,
+    "t_sol_ms": 6.3816624995555555,
+    "t_partial_ms": 74.3190233635555,
+    "t_measured_s": null,
+    "partial_measured_share": 0.9825963352985907,
+    "measured_rows": 1017,
+    "total_rows": 1225
+  },
+  {
+    "input_tokens": 16384,
+    "stage": "theory",
+    "predicted_ms": 6.3816624995555555,
+    "historical_tpot_ms": 10.081021355912187,
+    "error_pct": -36.69627040505256,
+    "t_sol_ms": 6.3816624995555555,
+    "t_partial_ms": null,
+    "t_measured_s": null,
+    "partial_measured_share": null,
+    "measured_rows": 0,
+    "total_rows": 1225
+  },
+  {
+    "input_tokens": 16384,
+    "stage": "existing",
+    "predicted_ms": 7.198158627555555,
+    "historical_tpot_ms": 10.081021355912187,
+    "error_pct": -28.596931070540066,
+    "t_sol_ms": 6.3816624995555555,
+    "t_partial_ms": 7.198158627555555,
+    "t_measured_s": null,
+    "partial_measured_share": 0.15097194383017407,
+    "measured_rows": 338,
+    "total_rows": 1225
+  },
+  {
+    "input_tokens": 16384,
+    "stage": "expanded",
+    "predicted_ms": 74.3382233635555,
+    "historical_tpot_ms": 10.081021355912187,
+    "error_pct": 637.4076568140448,
+    "t_sol_ms": 6.3816624995555555,
+    "t_partial_ms": 74.3382233635555,
+    "t_measured_s": null,
+    "partial_measured_share": 0.9826008302992397,
+    "measured_rows": 1017,
+    "total_rows": 1225
+  }
+]

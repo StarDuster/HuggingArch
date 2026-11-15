@@ -1,0 +1,65 @@
+report: 1562 cells on B300 (/tmp/scratch-space/k3-performance/benchmark/b300-calibration-followup/all-jobs.jsonl vs corpus + /tmp/scratch-space/k3-performance/benchmark/b300-calibration-followup/results)
+  covered 66 | partial 24 | pending 6 | no provider 14 | structural 1452
+  582 cell × implementation: passed 104 | unverified 0 | oom 0 | mismatch 0 | error 1 | crash 0 | timeout 0 | not_supported 426 | pending 51
+
+envelope (winning impl per measured cell):
+  add: torch:torch_add×2
+  attn_res_combine: torch:torch_attn_res_combine×16
+  embedding: torch:torch_embedding×2
+  fused_kda_decode: torch:torch_fused_kda_decode×2
+  gemm: torch:torch_cublas_linear×32
+  indexer_logits: deepgemm:deepgemm_fp8_paged_mqa_logits×4
+  moe_combine: torch:torch_weighted_combine×2
+  moe_gate: torch:torch_grouped_topk×2
+  moe_permute: torch:torch_index_permute_quantised×2
+  mul: torch:torch_mul×2
+  per_head_gemm: torch:torch_per_head_einsum×2, torch:torch_sglang_mla_absorb_q_bmm×1, torch:torch_sglang_mla_absorb_v_bmm×1
+  quantise_activation: torch:torch_activation_quantise×6
+  rmsnorm: sglang:sgl_rmsnorm×4, flashinfer:flashinfer_rmsnorm×2
+  sigmoid_gate_mul: torch:torch_sigmoid_gate_mul×2
+  situ: torch:torch_situ×2
+  situ_and_mul: torch:torch_situ_and_mul×4
+
+no serving provider:
+  grouped_gemm: 4 cell(s)
+  all_reduce: 4 cell(s)
+  rmsnorm: 2 cell(s)
+  layernorm: 2 cell(s)
+  all_gather: 2 cell(s)
+
+structural rows (/tmp/scratch-space/k3-performance/benchmark/b300-calibration-followup/all-jobs.unplaced):
+  zero_launch: 1224 row(s) (measured@0, no GPU launch) — parameter_vector [block_kda_dense_first|self_attention_res_norm.weight]; parameter_tensor [block_kda_dense_first|self_attention_res_proj.weight]; parameter_vector [block_kda_dense_first|self_attn.dt_bias]
+  missing_signature: 164 row(s) (no measurement signature binds the op) — scatter_rows_replace [language_model.model.embed_merge]; stack_init [block_kda_dense_first|block_residual_init__block_kda_dense_first]; stack_append [block_kda_moe_start[Sar=1]|block_residual_append__block_kda_moe_start]
+  missing_projection: 64 row(s) (the signature has no stated projection) — all_gather [block_dsa_moe[Sar=1]|self_attn.indexer.comm4__all_gather__on__topk]: no shape projection for signature 'all_gather' (shape_in=[1, 1, 2048]) — would fabricate model-wide dims; all_to_all [block_dsa_moe[Sar=1]|self_attn.comm8__all_to_all__on__o_merge_heads]: no shape projection for signature 'all_to_all' (shape_in=[1, 96, 1, 128]) — would fabricate model-wide dims; all_gather [block_dsa_moe[Sar=2]|self_attn.indexer.comm12__all_gather__on__topk]: no shape projection for signature 'all_gather' (shape_in=[1, 1, 2048]) — would fabricate model-wide dims
+
+pending (up to 10 per signature):
+  dsa_topk_mask {'B': 1, 'n_topk_keys': 2048, 's_kv': 288, 's_query': 1} → torch_dsa_topk
+  dsa_topk_mask {'B': 1, 'n_topk_keys': 2048, 's_kv': 2080, 's_query': 1} → torch_dsa_topk
+  dsa_topk_mask {'B': 8, 'n_topk_keys': 2048, 's_kv': 288, 's_query': 1} → torch_dsa_topk
+  dsa_topk_mask {'B': 8, 'n_topk_keys': 2048, 's_kv': 2080, 's_query': 1} → torch_dsa_topk
+  fused_kda_decode {'B': 1, 'd_lin_k_head': 128, 'd_lin_v_head': 128, 'n_lin_k_heads': 12, 'n_lin_v_heads': 12, 's_conv_kernel': 4, 's_query': 1} → sglang_kda_fused_decode, vllm_c_fused_kda_decode
+  fused_kda_decode {'B': 8, 'd_lin_k_head': 128, 'd_lin_v_head': 128, 'n_lin_k_heads': 12, 'n_lin_v_heads': 12, 's_conv_kernel': 4, 's_query': 1} → sglang_kda_fused_decode, vllm_c_fused_kda_decode
+  mla_sparse_attention {'B': 1, 'd_head': 576, 'd_v_head': 512, 'kv_block_size': 64, 'n_heads': 96, 'n_topk_keys': 256, 's_kv': 256, 's_query': 1} → flashmla_sparse_fp8
+  mla_sparse_attention {'B': 8, 'd_head': 576, 'd_v_head': 512, 'kv_block_size': 64, 'n_heads': 96, 'n_topk_keys': 256, 's_kv': 256, 's_query': 1} → flashmla_sparse_fp8
+  moe_gate {'B': 1, 'n_experts': 896, 'n_experts_active': 16, 's_query': 1} → vllm_moe_c_grouped_topk
+  moe_gate {'B': 8, 'n_experts': 896, 'n_experts_active': 16, 's_query': 1} → vllm_moe_c_grouped_topk
+  per_head_gemm {'B': 1, 'd_out': 512, 'd_reduce': 128, 'n_heads': 96, 's_query': 1} → torch_per_head_einsum
+  per_head_gemm {'B': 1, 'd_out': 128, 'd_reduce': 512, 'n_heads': 96, 's_query': 1} → torch_per_head_einsum
+  quantise_activation {'B': 1, 'd_model': 128, 's_query': 32} → sglang_per_token_group_quant_fp8, sglang_per_token_quant_fp8, vllm_dynamic_per_token_scaled_fp8_quant, vllm_per_token_group_quant_fp8
+  quantise_activation {'B': 1, 'd_model': 3584, 's_query': 1} → sglang_per_token_group_quant_fp8_ue8m0, vllm_per_token_group_quant_fp8_packed_for_deepgemm, vllm_per_token_group_quant_fp8_ue8m0
+  quantise_activation {'B': 8, 'd_model': 768, 's_query': 1} → sglang_per_token_group_quant_fp8_ue8m0, vllm_per_token_group_quant_fp8_packed_for_deepgemm, vllm_per_token_group_quant_fp8_ue8m0
+  quantise_activation {'B': 8, 'd_model': 128, 's_query': 32} → sglang_per_token_group_quant_fp8, sglang_per_token_quant_fp8, vllm_dynamic_per_token_scaled_fp8_quant, vllm_per_token_group_quant_fp8
+  quantise_activation {'B': 8, 'd_model': 3584, 's_query': 1} → sglang_per_token_group_quant_fp8_ue8m0, vllm_per_token_group_quant_fp8_packed_for_deepgemm, vllm_per_token_group_quant_fp8_ue8m0
+  quantise_activation {'B': 64, 'd_model': 768, 's_query': 1} → sglang_per_token_group_quant_fp8_ue8m0, vllm_per_token_group_quant_fp8_packed_for_deepgemm, vllm_per_token_group_quant_fp8_ue8m0
+  rmsnorm {'B': 1, 'd_model': 7168, 's_query': 1} → vllm_rms_norm
+  rmsnorm {'B': 1, 'd_model': 3584, 's_query': 1} → vllm_rms_norm
+  rmsnorm {'B': 1, 'd_model': 1536, 's_query': 1} → vllm_rms_norm
+  rmsnorm {'B': 8, 'd_model': 7168, 's_query': 1} → vllm_rms_norm
+  rmsnorm {'B': 8, 'd_model': 3584, 's_query': 1} → vllm_rms_norm
+  rmsnorm {'B': 8, 'd_model': 1536, 's_query': 1} → vllm_rms_norm
+  sigmoid_gate_mul {'B': 1, 'd_model': 1536, 's_query': 1} → sglang_fused_sigmoid_mul, sglang_sigmoid_gate_mul
+  sigmoid_gate_mul {'B': 8, 'd_model': 1536, 's_query': 1} → sglang_fused_sigmoid_mul, sglang_sigmoid_gate_mul
+  situ_and_mul {'B': 1, 'd_ffn': 4224, 's_query': 1} → sglang_situ_and_mul, vllm_situ_and_mul
+  situ_and_mul {'B': 1, 'd_ffn': 768, 's_query': 1} → sglang_situ_and_mul, vllm_situ_and_mul
+  situ_and_mul {'B': 8, 'd_ffn': 4224, 's_query': 1} → sglang_situ_and_mul, vllm_situ_and_mul
+  situ_and_mul {'B': 8, 'd_ffn': 768, 's_query': 1} → sglang_situ_and_mul, vllm_situ_and_mul

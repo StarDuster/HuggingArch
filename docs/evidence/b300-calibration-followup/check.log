@@ -1,0 +1,5 @@
+check: 109 rows in 5 file(s)
+  mfu: p50=0% p99=2%  (n=108 with a peak)
+  mbu: p50=0% p99=67%  (n=108 with a peak)
+  allclose: passed=108
+  ok

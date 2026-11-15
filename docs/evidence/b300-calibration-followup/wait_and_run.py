@@ -7,8 +7,9 @@ idle=None
 while True:
  try:
   s=json.loads(P.read_text()) if P.exists() else {}
-  if s.get('state')=='failed':state('blocked_agentx_failed',error=s.get('error'));break
-  if s.get('state')!='complete' or sorted(s.get('completed',[]))!=[4,8,16,32,64] or not s.get('resources_released'):
+  cancelled=(P.parent/'cancelled-by-user.json').exists()
+  if s.get('state')=='failed' and not cancelled:state('blocked_agentx_failed',error=s.get('error'));break
+  if not cancelled and (s.get('state')!='complete' or sorted(s.get('completed',[]))!=[4,8,16,32,64] or not s.get('resources_released')):
    state('waiting_for_agentx_completion',completed=s.get('completed',[]));idle=None;time.sleep(30);continue
   p=subprocess.run(['nvidia-smi','--query-gpu=memory.used,utilization.gpu','--format=csv,noheader,nounits'],capture_output=True,text=True,timeout=15)
   rows=[list(map(int,line.split(','))) for line in p.stdout.splitlines()] if p.returncode==0 else []
