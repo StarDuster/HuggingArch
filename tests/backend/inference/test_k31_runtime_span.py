@@ -100,3 +100,20 @@ def test_complete_moe_span_owns_both_streams_and_both_collectives():
         assert row['comm_world']==8
         assert row['roofline_expr']['comm_dependency_rounds']==2
         assert len(result.laws.comm_meta.values[row['uid']]['span_collectives'])==2
+
+
+def test_kda_projection_span_preserves_all_six_outputs(k31_span_analysis):
+    result=k31_span_analysis
+    rows=[r for r in result.per_op_timing if r['op']=='kimi_k31_kda_projection_span']
+    assert sum(r['count_per_step'] for r in rows)==69
+    nodes=[n for n in result.program.nodes() if n.op=='kimi_k31_kda_projection_span']
+    for n in nodes:
+        assert len(n.origins)==7
+        assert set(n.output_ports.values())=={'','q_out','k_out','v_out','g_out','b_out'}
+    assert not any(r['op']=='linear' and 'self_attn' in r['aggregation_id']
+                   and any(r['aggregation_id'].endswith('.'+name) for name in (
+                       'q_proj','k_proj','v_proj','g_proj','f_a_proj','f_b_proj','b_proj'))
+                   and 'kda' in r['aggregation_id'] for r in result.per_op_timing)
+    # The recurrence remains outside the measured projection contract.
+    assert sum(r['count_per_step'] for r in result.per_op_timing
+               if r['op']=='fused_kda_decode')==69

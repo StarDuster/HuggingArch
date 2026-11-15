@@ -3491,6 +3491,20 @@ register_signature(OpSignature(
 ))
 
 register_signature(OpSignature(
+    name='kimi_k31_kda_projection_span',
+    binds_ops=('kimi_k31_kda_projection_span',),
+    inputs=(TensorLayout('x', ('B', 's_query', 7168)),),
+    engine_inputs=((0, TensorLayout('x', ('B', 's_query', 7168))),),
+    dtype_slots=('activation', 'weight'),
+    doc=('B300 K3.1 TP8 KDA projection span: BF16 merged QKVG6144x7168 '
+         'on the main stream, padded FA/B144x7168 and FB1536x128 tiny '
+         'GEMMs on a side stream, then join for small graphed batches; '
+         'the source falls back to serial projections at larger batches. '
+         'Calibration currently measures CUDA graph B1/B8 only; '
+         'all six outputs survive; recurrence and output projection excluded.'),
+))
+
+register_signature(OpSignature(
     name='kimi_k31_trtllm_moe_span',binds_ops=('kimi_k31_trtllm_moe_span',),
     inputs=(TensorLayout('x',('B','s_query',7168)),
             TensorLayout('bias',(896,),role='metadata')),

@@ -278,6 +278,18 @@ collectives:
       source_anchor: "CustomAllReduceV2's multicast two-shot (python/sglang/srt/distributed/device_communicators/custom_all_reduce_v2.py:343-344), multimem.ld_reduce / multimem.st at python/sglang/kernels/jit/csrc/distributed/custom_all_reduce.cuh:123-127"
 
 op_implementations:
+  kimi_k31_kda_projection_span:
+    source_anchor: "K3 CUDA KDA projection fork/join: https://github.com/sgl-project/sglang/blob/5792cf6e5e11aebc62d41cf19828f615a8fa7e0a/python/sglang/srt/models/kimi_k3.py#L2374-L2446; tiny GEMM dispatch: https://github.com/sgl-project/sglang/blob/5792cf6e5e11aebc62d41cf19828f615a8fa7e0a/python/sglang/kernels/ops/gemm/kimi_k3.py"
+    when:
+      phase: [decode]
+      architectures: [KimiK31ForConditionalGeneration]
+      tensor_parallel: [8]
+      activation_dtype: [bf16]
+      device: [cuda]
+      min_compute_capability: "10.3"
+      below_compute_capability: "10.4"
+      dims: { d_model: [7168], n_verify: [1], d_gate_lowrank: [128], d_lin_k_head: [128], d_lin_v_head: [128] }
+      world_local: { world: tp_attention, dim: n_lin_v_heads, local_in: [12] }
   kimi_k31_trtllm_moe_span:
     crosses: component
     source_anchor: "Complete K3 TP8/EP2 multi-kernel MoE span, alt_stream and join: https://github.com/sgl-project/sglang/blob/5792cf6e5e11aebc62d41cf19828f615a8fa7e0a/python/sglang/srt/models/kimi_k3.py#L1579-L1690; https://github.com/sgl-project/sglang/blob/5792cf6e5e11aebc62d41cf19828f615a8fa7e0a/python/sglang/srt/layers/communication/k3_ar_fusion.py; https://github.com/sgl-project/sglang/blob/5792cf6e5e11aebc62d41cf19828f615a8fa7e0a/python/sglang/srt/layers/moe/moe_runner/flashinfer_trtllm.py#L437-L491"

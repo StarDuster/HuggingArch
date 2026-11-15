@@ -1,5 +1,5 @@
 {
-  "state": "runtime-calibration-validated",
+  "state": "source-repaired-new-data-private",
   "time_utc": "2026-11-15T09:12:17.883807+00:00",
   "pid": 443147,
   "steps": [
@@ -54,7 +54,7 @@
   "source_version_regression": "passed",
   "updated_at": 1794738015.197969,
   "accuracy_validated": true,
-  "report": "../b300-runtime-calibration/REPORT.md",
+  "report": "https://github.com/StarDuster/k3-performance-results/releases/tag/b300-non-moe-calibration-20261115",
   "active_work": false,
   "validated_library_rows": 41,
   "full_cross_library_rows": 146,
@@ -64,7 +64,7 @@
     "serving cache/PDL overlap versus isolated measurements"
   ],
   "tp8_communication_keys_measured": 4,
-  "updated_at_utc": "2026-11-15T15:44:52.136671+00:00",
+  "updated_at_utc": "2026-11-15T16:17:39.606633+00:00",
   "retired_invalid_rows": 16,
   "distributed_tp8_rows": 4,
   "background_jobs": [],
@@ -74,27 +74,5 @@
     "8": 63.31399828195572
   },
   "accuracy_scope": "Historical target-only B1, 2K/16K, absolute error below8%; partial model, not AgentX",
-  "fully_measured": false,
-  "final_results": [
-    {
-      "input_tokens": 16384,
-      "partial_ms": 9.360186025777782,
-      "baseline_ms": 10.081021355912187,
-      "error_pct": -7.150419631951854,
-      "span_calls": 92,
-      "span_ms": 4.126752,
-      "measured_share": 0.7885572123965002,
-      "fully_measured_s": null
-    },
-    {
-      "input_tokens": 2048,
-      "partial_ms": 9.340986025777783,
-      "baseline_ms": 9.944849842898087,
-      "error_pct": -6.0721260417173735,
-      "span_calls": 92,
-      "span_ms": 4.126752,
-      "measured_share": 0.7881226007280122,
-      "fully_measured_s": null
-    }
-  ]
+  "fully_measured": false
 }

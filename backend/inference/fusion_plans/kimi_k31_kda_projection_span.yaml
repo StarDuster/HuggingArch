@@ -1,0 +1,22 @@
+# CUDA K3 KDA: merged q/k/v/g GEMM on the main stream, merged
+# padded f_a/b and f_b tiny GEMMs on the side stream, followed by a join.
+# This spans three GEMM calls, not one concatenated GEMM. A GEMM's
+# selected backend may itself launch more than one CUDA kernel.
+fused_op: kimi_k31_kda_projection_span
+naive_pattern:
+  nodes:
+    q: { op: linear, inputs: [external.x], feeds: q }
+    k: { op: linear, inputs: [external.x], feeds: k }
+    v: { op: linear, inputs: [external.x], feeds: v }
+    g: { op: linear, inputs: [external.x] }
+    fa: { op: linear, inputs: [external.x] }
+    b: { op: linear, inputs: [external.x], feeds: write }
+    fb: { op: linear, inputs: [fa.out] }
+  io_mapping:
+    x: external.x
+    q_out: q.out
+    k_out: k.out
+    v_out: v.out
+    g_out: g.out
+    b_out: b.out
+    output: fb.out
