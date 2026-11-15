@@ -191,7 +191,7 @@ def _sum(parts: Tuple[Any, ...]) -> Any:
 
 
 def _comm_origins(parts: Tuple[Any, ...]) -> Any:
-    """Keep every same-group reduction in a multi-kernel execution span.
+    """Keep every communication event in a multi-kernel execution span.
 
     Pricing retains the individual payloads and their latency floors;
     the aggregate payload is for byte totals, never a synthetic launch.
@@ -200,19 +200,49 @@ def _comm_origins(parts: Tuple[Any, ...]) -> Any:
     """
     if len(parts) < 2:
         return _first(parts)
-    members=[child for p in parts for child in p.get('span_collectives',(p,))]
-    fields=('op','comm_world','comm_base_stride','payload_dtype_bytes')
+    members=[child for p in parts if p
+             for child in p.get('span_collectives',(p,)) if child]
+    runtime_stages=tuple(p for p in members if p.get('op')=='runtime_stage')
+    annotations=tuple(p for p in members if not p.get('op') and not p.get('comm_world'))
+    members=[p for p in members if p.get('op')!='runtime_stage'
+             and (p.get('op') or p.get('comm_world'))]
+    if not members:
+        return {'span_runtime_stages':runtime_stages,'span_annotations':annotations}
+    # DCP's explicitly lowered candidate exchange and projected push have
+    # different element widths, but the same direct NVLink byte rate and
+    # one-hop latency at the same world/stride. Preserve both byte payloads
+    # and dependency counts; never reinterpret their sum as one wire tensor.
+    direct_dcp=(all(p.get('sparse_dcp_protocol') in (
+        'candidate_multicast','projected_push_or_fi_a2a') for p in members)
+        and all(p.get('op') in ('all_gather','all_to_all') for p in members))
+    fields=(('comm_world','comm_base_stride') if direct_dcp else
+            ('op','comm_world','comm_base_stride','payload_dtype_bytes'))
     if any(tuple(p.get(k) for k in fields) != tuple(members[0].get(k) for k in fields)
            for p in members[1:]):
-        raise ValueError('one execution span contains heterogeneous collective groups')
-    if members[0].get('op') != 'all_reduce':
+        raise ValueError('one execution span contains heterogeneous collective groups: '+
+                         repr([{k:p.get(k) for k in ('op','comm_world','comm_base_stride',
+                               'payload_dtype_bytes','sparse_dcp_protocol')} for p in members]))
+    if not direct_dcp and members[0].get('op') != 'all_reduce':
         raise ValueError('multi-collective execution spans currently require same-group all_reduce')
     merged=dict(members[0])
     merged['span_collectives']=tuple(members)
+    if runtime_stages:
+        merged['span_runtime_stages']=runtime_stages
+    if annotations:
+        merged['span_annotations']=annotations
     merged['tensor_bytes_extent']=sum(p['tensor_bytes_extent'] for p in members)
     merged['tensor_bytes']=sum(p['tensor_bytes'] for p in members)
+    if direct_dcp:
+        merged['span_heterogeneous_payloads']=True
+        merged['payload_dtype_bytes']=1
+        # These aggregate columns are byte counts. The member records retain
+        # their I32/BF16 payload geometry and actual protocol identities.
+        for key in ('payload','collective_in','collective_out'):
+            merged[key+'_extents']=(sum(product(p[key+'_extents'])*p['payload_dtype_bytes']
+                                      for p in members),)
     for key in ('payload','collective_in','collective_out'):
-        merged[key+'_extents']=(sum(product(p[key+'_extents']) for p in members),)
+        if not direct_dcp:
+            merged[key+'_extents']=(sum(product(p[key+'_extents']) for p in members),)
     # A span has no single wire tensor. Preserve the true shapes in each
     # member and expose only a flat aggregate for the total-byte columns.
     for key,extent_key in [('tensor_shape','payload_extents'),

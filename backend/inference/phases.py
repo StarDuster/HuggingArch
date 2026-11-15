@@ -1533,7 +1533,8 @@ def compute_per_op_timing(
             # nothing about the instruction.
             local_comm_meta = ((comm_meta.values.get(uid) or {})
                                if comm_meta is not None else {})
-            local_compute_dtype = local_comm_meta.get("runtime_compute_dtype") or local_comm_meta.get("sparse_dcp_local_compute_dtype")
+            local_compute_dtype = (None if isinstance(node,FusedNode) else
+                local_comm_meta.get("runtime_compute_dtype") or local_comm_meta.get("sparse_dcp_local_compute_dtype"))
             adt_name = ab.act_dtype if ab is not None else None
             converts = True
             op_peak: Optional[float] = None
@@ -1634,14 +1635,14 @@ def compute_per_op_timing(
                      if law_comm_meta is not None else {})
             comm_payload_one = (value_of(law_m["tensor_bytes_extent"])
                                 if is_comm and m else 0)
-            if "sparse_dcp_local_read_bytes" in law_m:
+            if not isinstance(node,FusedNode) and "sparse_dcp_local_read_bytes" in law_m:
                 # The source contract's complete local memory floor replaces
                 # generic copy-flow traffic, so operands are not double read.
                 act_in_one = value_of(law_m["sparse_dcp_local_read_bytes"])
                 act_out_one = value_of(law_m["sparse_dcp_local_write_bytes"])
-            if "runtime_read_bytes" in law_m:
+            if not isinstance(node,FusedNode) and "runtime_read_bytes" in law_m:
                 act_in_one = value_of(law_m["runtime_read_bytes"])
-            if "runtime_write_bytes" in law_m:
+            if not isinstance(node,FusedNode) and "runtime_write_bytes" in law_m:
                 act_out_one = value_of(law_m["runtime_write_bytes"])
             dependency_rounds = value_of(law_m.get("sparse_dcp_dependency_rounds", 1))
             comm_parts=(tuple((value_of(p['tensor_bytes_extent']),

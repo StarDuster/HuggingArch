@@ -3518,3 +3518,29 @@ register_signature(OpSignature(
          'BF16 external hidden and dense weights, FP32 front, mixed resident '
          'weights. Activation slot describes internal expert MMA precision.'),
 ))
+
+# Output projection/collective boundaries: the residual variant owns the add.
+for _name, _residual in [('kimi_k31_attention_output_span',False),
+                         ('kimi_k31_attention_output_residual_span',True)]:
+    _inputs=(TensorLayout('x',('B','s_query',1536)),)
+    if _residual:
+        _inputs+=(TensorLayout('prefix',('B','s_query',7168)),)
+    register_signature(OpSignature(name=_name,binds_ops=(_name,),inputs=_inputs,
+        engine_inputs=tuple(enumerate(_inputs)),dtype_slots=('activation','weight'),
+        doc='B300 K3.1 TP8 BF16 output GEMM7168x1536 and multicast all-reduce; optional residual is fused into the collective.'))
+register_signature(OpSignature(name='kimi_k31_trtllm_moe_residual_span',
+    binds_ops=('kimi_k31_trtllm_moe_residual_span',),
+    inputs=(TensorLayout('x',('B','s_query',7168)),TensorLayout('bias',(896,),role='metadata'),TensorLayout('prefix',('B','s_query',7168))),
+    engine_inputs=((0,TensorLayout('x',('B','s_query',7168))),
+                   (1,TensorLayout('bias',(896,),role='metadata')),
+                   (2,TensorLayout('prefix',('B','s_query',7168)))),
+    dtype_slots=('activation','weight'),
+    doc='Complete B300 K3.1 TP8/EP2 MoE span including prefix addition inside gemm_ag; BF16 external tensors and mixed internal MXFP8/MXFP4.'))
+
+register_signature(OpSignature(name='kimi_k31_dsa_span',binds_ops=('kimi_k31_dsa_span',),
+    calibration_workload=(('rho_dcp',1),('dcp_failed_owners',0)),
+    inputs=(TensorLayout('x',('B','s_query',7168)),
+            TensorLayout('cache',('B','s_kv',576),role='kv')),
+    engine_inputs=((0,TensorLayout('x',('B','s_query',7168))),),
+    dtype_slots=('activation','weight','kv'),structural_axes=('n_heads',),
+    doc='B300 K3.1 TP8/DCP8 FP8 V32 KV64 DSA through output gate: prepare, indexer, exact global topk, FlashMLA, V preprojection and push-combine, overlapping gate. Cache is implicit state; output projection/residual excluded.'))

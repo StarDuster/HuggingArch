@@ -59,14 +59,17 @@ def test_each_point_of_the_one_walk_plans_what_a_walk_there_does(phase, points):
     from backend.arch.precision_profile import AS_SHIPPED
     from backend.inference.walk_registry import WALK_CELLS, shared_walk_cells
 
-    resolved = resolve_snapshot(MODEL)
-    kw = dict(model_id=MODEL, phase=phase, avg_output_tokens=256,
+    # The decode case varies speculative verification width and therefore
+    # needs an actual draft stack. Qwen3-8B has none.
+    model = 'XiaomiMiMo/MiMo-7B-RL' if phase == 'decode' else MODEL
+    resolved = resolve_snapshot(model)
+    kw = dict(model_id=model, phase=phase, avg_output_tokens=256,
               parallel=TP2, resolved=resolved)
     WALK_CELLS.clear()
-    family = shared_walk_cells(resolved, TP2, AS_SHIPPED, model_id=MODEL)
+    family = shared_walk_cells(resolved, TP2, AS_SHIPPED, model_id=model)
     swept = build_jobs_over_points(points=points, **kw)
     assert shared_walk_cells(resolved, TP2, AS_SHIPPED,
-                             model_id=MODEL) is family
+                             model_id=model) is family
     for point in points:
         want = _keyed(build_jobs(
             batch_size=point.batch, seq_len=point.seq_len,
@@ -190,3 +193,17 @@ def test_the_anchor_is_canonical_not_caller_order(monkeypatch):
     assert walked == [anchor]
     assert out[anchor][0] == [{"rows": ()}]
     assert out[high][0] == [{"rows": {"counts": high.counts("prefill")}}]
+
+
+def test_box_plan_supplies_single_page_before_framework_fusion(monkeypatch):
+    from backend.inference import pipeline
+    seen=[]
+    def capture(*args,**kwargs):
+        seen.append(kwargs['framework_binding'].deployment.kv_block_size)
+        raise RuntimeError('page captured before graph walk')
+    monkeypatch.setattr(pipeline,'analyze',capture)
+    with pytest.raises(RuntimeError,match='page captured'):
+        build_jobs(model_id=MODEL,batch_size=1,seq_len=128,phase='decode',
+            avg_output_tokens=16,parallel=TP2,resolved=resolve_snapshot(MODEL),
+            gpu='H100-SXM',kv_block_sizes=[64])
+    assert seen==[64]

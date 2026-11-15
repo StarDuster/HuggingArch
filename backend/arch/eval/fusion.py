@@ -1067,7 +1067,7 @@ class GraphCondition:
     #: of them: a caller with no match to ask (a primitive row's provider
     #: dispatch, `FrameworkBinding.dispatch_for`) may state only these.
     PROGRAM_FIELDS: ClassVar[Tuple[str, ...]] = (
-        "architectures", "excluded_architectures", "phase")
+        "architectures", "excluded_architectures", "phase", "world_sizes")
 
     architectures: Tuple[str, ...] = ()
     excluded_architectures: Tuple[str, ...] = ()
@@ -1079,6 +1079,9 @@ class GraphCondition:
     readers_eat: Optional[str] = None
     roles: Tuple[Tuple[str, Tuple[str, ...]], ...] = ()
     routed: Optional[bool] = None
+    # A protocol may require a rank-group width without sharding any model
+    # dimension by that group (DCP splits keys, never query heads).
+    world_sizes: Tuple[Tuple[str, Tuple[int, ...]], ...] = ()
 
     def admits_program(self, program: Any, analysis: Any) -> bool:
         """The questions the whole walk answers: the model class, and the
@@ -1089,7 +1092,9 @@ class GraphCondition:
         return ((not self.architectures
                  or bool(set(self.architectures) & classes))
                 and not set(self.excluded_architectures) & classes
-                and (not self.phase or analysis.rule.phase in self.phase))
+                and (not self.phase or analysis.rule.phase in self.phase)
+                and all(analysis.rule.world_degree(world) in sizes
+                        for world,sizes in self.world_sizes))
 
     def asks_program(self) -> bool:
         """Whether any of `PROGRAM_FIELDS` is stated."""

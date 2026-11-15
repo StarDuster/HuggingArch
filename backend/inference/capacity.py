@@ -1516,6 +1516,7 @@ def _capacity_preparation(
             gpu_sku=gpu_sku,
             activation_dtype=resolved_precision.model_dtype,
             tensor_parallel=int(parallel.tp_attention),
+            kv_block_size=knobs.kv_block_size,
             server_flags=knobs.framework_options),
     )
 

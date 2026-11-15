@@ -16,7 +16,7 @@ def k31_span_analysis():
     # Keep the narrower span independently testable after the complete
     # two-stream block is bound at higher specificity.
     binding=replace(binding,op_implementations=tuple(
-        entry for entry in binding.op_implementations if entry[0]!='kimi_k31_trtllm_moe_span'))
+        entry for entry in binding.op_implementations if entry[0] not in ('kimi_k31_trtllm_moe_span','kimi_k31_trtllm_moe_residual_span')))
     return analyze(resolve_snapshot(model),parallel=ParallelConfig(
         tp_attention=8,tp_dense_ffn=8,tp_moe_expert=4,ep_moe=2,dcp=8),
         framework_binding=binding,phase='decode',batch_size=1,
@@ -92,9 +92,13 @@ def test_complete_moe_span_owns_both_streams_and_both_collectives():
         framework_binding=binding,phase='decode',batch_size=1,
         avg_input_tokens=2048,avg_output_tokens=512,gpu=get_gpu('B300'),breakdown=False)
     rows=[r for r in result.per_op_timing if r['op']=='kimi_k31_trtllm_moe_span']
-    assert sum(r['count_per_step'] for r in rows)==92
-    for row in rows:
-        assert row['shape_in']==[[1,1,7168],[896]]
+    assert sum(r['count_per_step'] for r in rows)==7
+    with_residual=[r for r in result.per_op_timing if r['op']=='kimi_k31_trtllm_moe_residual_span']
+    assert sum(r['count_per_step'] for r in with_residual)==85
+    for row in with_residual:
+        assert row['shape_in']==[[1,1,7168],[896],[1,1,7168]]
+    for row in rows+with_residual:
+        assert row['shape_in'][:2]==[[1,1,7168],[896]]
         assert row['shape_out']==[1,1,7168]
         assert row['routed'] is None
         assert row['comm_world']==8

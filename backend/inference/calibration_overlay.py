@@ -681,6 +681,13 @@ def point_row_of(row: Mapping[str, Any], identity: RowIdentity,
             f"{row.get('aggregation_id')}: no shape law to read at this batch")
     sid = str(row.get("aggregation_id", "") or "")
     dtype_env_json, declined = identity.leaf_dtype_env(row)
+    declared = get_signature(signature) if signature is not None else None
+    if declared is not None and declared.calibration_workload:
+        counts = (row.get('point_law') or {}).get('point', {})
+        mismatches = [name for name, expected in declared.calibration_workload
+                      if counts.get(name) != expected]
+        if mismatches:
+            declined = 'calibration workload differs or is unstated: ' + ', '.join(mismatches)
     placement_reason = (
         ZERO_LAUNCH if zero_cost(row) else
         DECLINED_REASON if declined else
@@ -690,7 +697,6 @@ def point_row_of(row: Mapping[str, Any], identity: RowIdentity,
     cadence = identity.cadence(row)
     billed = float(max(launches, 1) * cadence)
     flops, access = row.get("flops_per_rank"), row.get("access_bytes_per_rank")
-    declared = get_signature(signature) if signature is not None else None
     resolved_launch = ResolvedLaunch.from_dtype_env_json(dtype_env_json)
     analysis = (None if identity._result is None
                 else identity._result.analysis)

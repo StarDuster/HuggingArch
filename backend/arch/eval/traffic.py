@@ -1676,6 +1676,9 @@ def derive(analysis: Any, *,
     _settle_gathered_live_reads(out, analysis=analysis, program=program,
                                 shapes=shapes)
     launch_uid = {member: launch.uid for member, launch in launch_of.items()}
+    _restore_internal_cache_reads(
+        analysis, origins, cache_layer, reads_cache, gatherers,
+        program=program, shapes=shapes)
     _settle_cache_reads(out, reads_cache, cache_laws, state_carriers,
                         launch_of=launch_uid,
                         gathered_laws=gathered_laws, gatherers=gatherers)
@@ -1686,6 +1689,38 @@ def derive(analysis: Any, *,
         out[node.uid] = Traffic.sum(out[c.uid] for c in node.children
                                     if c.uid in out)
     return Layer(program, out)
+
+
+def _restore_internal_cache_reads(analysis, origins, cache_layer,
+                                  reads_cache, gatherers, *, program, shapes):
+    """A span that absorbs a cache writer still reads its persistent history.
+
+    Such a read has no boundary edge after fusion. Recover its structural
+    reader from the original cache ledger, once per cached tensor per span;
+    the existing cache laws still decide its bytes and query ownership.
+    External cache operands keep the ordinary edge derivation.
+    """
+    internal = {uid: frozenset(members) for uid, members in origins.items()
+                if any(t.node in members and not t.recurrent
+                       for entry in cache_layer.values.values()
+                       for t in entry.tensors)}
+    if not internal:
+        return
+    access = cache.kv_access(analysis).values
+    tensors = [(cache.CacheRef(entry.component, t.name), t)
+               for entry in cache_layer.values.values() for t in entry.tensors
+               if not t.recurrent]
+    for uid, members in internal.items():
+        referenced = frozenset().union(
+            *(access[m].reads for m in members if m in access))
+        seeds = {t.node for ref, t in tensors
+                 if t.node in members and ref in referenced}
+        if not seeds:
+            continue
+        reads_cache.setdefault(uid, {}).update({seed: 1 for seed in seeds})
+        if _gathers(analysis, members):
+            gatherers[uid] = _query_share(
+                analysis, program.by_uid(uid), shapes, program)
 
 
 

@@ -435,7 +435,7 @@ class DispatchCondition:
                       "architectures",
                       "excluded_architectures", "head_dim",
                       "rotation_covers_head", "dims", "phase",
-                      "world_local", "readers_eat", "roles", "routed"})
+                      "world_local", "world_sizes", "readers_eat", "roles", "routed"})
 
     #: The keys a CARD decides, each naming the `ServingDeployment` field it
     #: reads — the fields `ServingDeployment.at` fills off the sheet row.
@@ -540,6 +540,8 @@ class DispatchCondition:
                                    "local_in": list(local_in)} if local_in
                                   else {"world": world, "dim": dim,
                                         "divides": True})
+        if self.graph.world_sizes:
+            out['world_sizes']={world:list(sizes) for world,sizes in self.graph.world_sizes}
         if self.graph.readers_eat is not None:
             out["readers_eat"] = self.graph.readers_eat
         if self.graph.routed is not None:
@@ -640,6 +642,13 @@ class DispatchCondition:
                 f"{where}: `when.phase` names {unknown_phases}, which are not "
                 f"phases {list(PHASES)}")
         local = raw.get("world_local")
+        world_sizes=raw.get('world_sizes',{})
+        if (not isinstance(world_sizes,dict) or any(
+                world not in world_by_label() or not isinstance(sizes,list)
+                or not sizes or any(not isinstance(v,int) or isinstance(v,bool) or v<=0
+                                    for v in sizes)
+                for world,sizes in world_sizes.items())):
+            raise ValueError(f'{where}: when.world_sizes maps world labels to nonempty lists of positive widths')
         if local is not None:
             forms = ({"world", "dim", "divides"}, {"world", "dim", "local_in"})
             if (not isinstance(local, dict) or set(local) not in forms
@@ -713,6 +722,7 @@ class DispatchCondition:
                                  dims=dims(),
                                  phase=phases,
                                  world_local=local,
+                                 world_sizes=tuple(sorted((world,tuple(sizes)) for world,sizes in world_sizes.items())),
                                  readers_eat=eats,
                                  roles=declared_roles,
                                  routed=routed),

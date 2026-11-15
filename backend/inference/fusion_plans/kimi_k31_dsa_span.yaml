@@ -1,0 +1,51 @@
+# Exact lowered TP8/DCP8 K3.1 NoPE sparse-MLA dataflow, through the output gate.
+# A multi-kernel/multi-stream span; cached history is implicit state.
+fused_op: kimi_k31_dsa_span
+naive_pattern:
+  nodes:
+    q_a_proj: { op: linear, inputs: [external.x] }
+    q_a_layernorm: { op: rmsnorm, inputs: [q_a_proj.out] }
+    q_b_proj: { op: linear, inputs: [q_a_layernorm.out] }
+    q_split_heads_unflatten: { op: view_split, inputs: [q_b_proj.out] }
+    q_split_heads_permute: { op: transpose, inputs: [q_split_heads_unflatten.out] }
+    q_nope_slice: { op: slice, inputs: [q_split_heads_permute.out] }
+    q_pe_slice: { op: slice, inputs: [q_split_heads_permute.out] }
+    q_absorbed_nope: { op: per_head_linear, inputs: [q_nope_slice.out] }
+    q_concat: { op: concat, inputs: [q_absorbed_nope.out, q_pe_slice.out] }
+    kv_a_proj_with_mqa: { op: linear, inputs: [external.x] }
+    kv_latent_slice: { op: slice, inputs: [kv_a_proj_with_mqa.out] }
+    k_pe_slice: { op: slice, inputs: [kv_a_proj_with_mqa.out] }
+    kv_a_layernorm: { op: rmsnorm, inputs: [kv_latent_slice.out] }
+    kv_concat: { op: concat, inputs: [kv_a_layernorm.out, k_pe_slice.out] }
+    k_concat_expand: { op: broadcast, inputs: [kv_concat.out] }
+    k_concat_permute: { op: transpose, inputs: [k_concat_expand.out] }
+    k_latent_broadcast_expand: { op: broadcast, inputs: [kv_a_layernorm.out] }
+    k_latent_broadcast_permute: { op: transpose, inputs: [k_latent_broadcast_expand.out] }
+    indexer_weights_proj: { op: linear, inputs: [external.x] }
+    indexer_wk: { op: linear, inputs: [external.x] }
+    indexer_k_norm: { op: layernorm, inputs: [indexer_wk.out] }
+    indexer_wq_b: { op: linear, inputs: [q_a_layernorm.out] }
+    indexer_q_split_heads_unflatten: { op: view_split, inputs: [indexer_wq_b.out] }
+    indexer_q_split_heads_permute: { op: transpose, inputs: [indexer_q_split_heads_unflatten.out] }
+    indexer_query_quant: { op: quantise_activation, inputs: [indexer_q_split_heads_permute.out] }
+    indexer_logits: { op: indexer_logits, inputs: [indexer_query_quant.out, indexer_k_norm.out, indexer_weights_proj.out] }
+    indexer_topk: { op: dsa_topk_mask, inputs: [indexer_logits.out] }
+    indexer_comm4_topk: { op: all_gather, inputs: [indexer_topk.out] }
+    indexer_comm5_topk: { op: runtime_stage, inputs: [indexer_comm4_topk.out] }
+    indexer_comm6_topk: { op: runtime_stage, inputs: [indexer_comm5_topk.out] }
+    qk_score: { op: dsa_attention_score, inputs: [q_concat.out, k_concat_permute.out, indexer_topk.out] }
+    softmax: { op: dsa_softmax, inputs: [qk_score.out] }
+    attn_apply_latent: { op: dsa_attention_apply, inputs: [softmax.out, k_latent_broadcast_permute.out] }
+    comm7_attn_apply_latent: { op: runtime_stage, inputs: [attn_apply_latent.out] }
+    v_absorbed: { op: per_head_linear, inputs: [attn_apply_latent.out] }
+    comm8_o_merge_heads: { op: all_to_all, inputs: [v_absorbed.out] }
+    o_merge_heads_permute: { op: transpose, inputs: [comm8_o_merge_heads.out] }
+    o_merge_heads_flatten: { op: view_merge, inputs: [o_merge_heads_permute.out] }
+    g_proj: { op: linear, inputs: [external.x] }
+    g_act: { op: sigmoid, inputs: [g_proj.out] }
+    o_gated: { op: mul, inputs: [o_merge_heads_flatten.out, g_act.out] }
+  io_mapping:
+    x: external.x
+    output: o_gated.out
+    kv_cache_out: kv_concat.out
+    indexer_cache_out: indexer_k_norm.out

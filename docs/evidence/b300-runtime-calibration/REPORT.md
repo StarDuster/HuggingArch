@@ -1,6 +1,6 @@
 # B300 K3.1 runtime calibration repair
 
-> Historical snapshot149e5d9. New KDA/BF16 calibration results and exact measured rows are in the [private follow-up release](https://github.com/StarDuster/k3-performance-results/releases/tag/b300-non-moe-calibration-20261115). Use its serving-overlay.json with this updated source branch.
+> Historical snapshot149e5d9. The current DSA/DCP and fused-residual calibration, complete overlay.json, and raw measurements are in the [private follow-up release](https://github.com/StarDuster/k3-performance-results/releases/tag/b300-dsa-residual-calibration-20261116). Use that overlay with this source branch.
 
 Final scope: target-only Kimi-K3.1-Pro, B300 TP8/DCP8/EP2, KV64, batch1, output512. No speculation or AgentX result is implied. The original nine rows on kimi-k31-reports are unchanged. No PR.
 

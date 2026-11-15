@@ -278,6 +278,25 @@ collectives:
       source_anchor: "CustomAllReduceV2's multicast two-shot (python/sglang/srt/distributed/device_communicators/custom_all_reduce_v2.py:343-344), multimem.ld_reduce / multimem.st at python/sglang/kernels/jit/csrc/distributed/custom_all_reduce.cuh:123-127"
 
 op_implementations:
+  kimi_k31_dsa_span:
+    crosses: component
+    source_anchor: "https://github.com/sgl-project/sglang/blob/5792cf6e5e11aebc62d41cf19828f615a8fa7e0a/python/sglang/srt/models/deepseek_common/attention_forward_methods/forward_mla.py#L440-L1008; https://github.com/sgl-project/sglang/blob/5792cf6e5e11aebc62d41cf19828f615a8fa7e0a/python/sglang/srt/layers/attention/dsa/dsa_indexer.py#L2239; https://github.com/sgl-project/sglang/blob/5792cf6e5e11aebc62d41cf19828f615a8fa7e0a/python/sglang/srt/models/kimi_k3.py#L2546-L2805"
+    when:
+      server_flag:
+        - { name: dcp_replicate_q_proj, default: true, value: true }
+        - { name: enable_fp4_indexer, default: false, value: false }
+        - { name: SGLANG_ENABLE_DSA_DCP_FUSED_TOPK, default: false, value: false }
+        - { name: SGLANG_ENABLE_DCP_PUSH_COMBINE, default: true, value: true }
+      phase: [decode]
+      architectures: [KimiK31ForConditionalGeneration]
+      tensor_parallel: [8]
+      activation_dtype: [bf16]
+      device: [cuda]
+      min_compute_capability: "10.3"
+      below_compute_capability: "10.4"
+      kv_block_size: [64]
+      dims: { d_model: [7168], n_verify: [1], n_kv_heads: [96], d_q_lora: [1536], d_kv_lora: [512], d_qk_rope: [64], n_topk_keys: [2048], d_indexer_head: [128], n_indexer_heads: [32] }
+      world_sizes: { dcp: [8] }
   kimi_k31_kda_projection_span:
     source_anchor: "K3 CUDA KDA projection fork/join: https://github.com/sgl-project/sglang/blob/5792cf6e5e11aebc62d41cf19828f615a8fa7e0a/python/sglang/srt/models/kimi_k3.py#L2374-L2446; tiny GEMM dispatch: https://github.com/sgl-project/sglang/blob/5792cf6e5e11aebc62d41cf19828f615a8fa7e0a/python/sglang/kernels/ops/gemm/kimi_k3.py"
     when:
@@ -290,6 +309,45 @@ op_implementations:
       below_compute_capability: "10.4"
       dims: { d_model: [7168], n_verify: [1], d_gate_lowrank: [128], d_lin_k_head: [128], d_lin_v_head: [128] }
       world_local: { world: tp_attention, dim: n_lin_v_heads, local_in: [12] }
+  kimi_k31_trtllm_moe_residual_span:
+    crosses: component
+    source_anchor: "Complete K3 TP8/EP2 multi-kernel MoE span, alt_stream and join: https://github.com/sgl-project/sglang/blob/5792cf6e5e11aebc62d41cf19828f615a8fa7e0a/python/sglang/srt/models/kimi_k3.py#L1579-L1690; https://github.com/sgl-project/sglang/blob/5792cf6e5e11aebc62d41cf19828f615a8fa7e0a/python/sglang/srt/layers/communication/k3_ar_fusion.py; https://github.com/sgl-project/sglang/blob/5792cf6e5e11aebc62d41cf19828f615a8fa7e0a/python/sglang/srt/layers/moe/moe_runner/flashinfer_trtllm.py#L437-L491"
+    when:
+      phase: [decode]
+      architectures: [KimiK31ForConditionalGeneration]
+      tensor_parallel: [8]
+      activation_dtype: [bf16]
+      device: [cuda]
+      min_compute_capability: "10.3"
+      below_compute_capability: "10.4"
+      dims: { n_experts: [896], n_experts_active: [16], d_moe_latent: [3584], n_verify: [1], n_expert_groups: [1], dp_attention: [1] }
+      world_local: { world: tp_moe_expert, dim: d_ffn_expert, local_in: [768] }
+  kimi_k31_attention_output_residual_span:
+    crosses: component
+    source_anchor: "https://github.com/sgl-project/sglang/blob/5792cf6e5e11aebc62d41cf19828f615a8fa7e0a/python/sglang/srt/layers/quantization/unquant.py#L1010-L1065; https://github.com/sgl-project/sglang/blob/5792cf6e5e11aebc62d41cf19828f615a8fa7e0a/python/sglang/srt/layers/communication/k3_ar_fusion.py#L228-L244; https://github.com/sgl-project/sglang/blob/5792cf6e5e11aebc62d41cf19828f615a8fa7e0a/python/sglang/srt/models/kimi_k3.py#L3086-L3105"
+    when:
+      phase: [decode]
+      architectures: [KimiK31ForConditionalGeneration]
+      tensor_parallel: [8]
+      activation_dtype: [bf16]
+      device: [cuda]
+      min_compute_capability: "10.3"
+      below_compute_capability: "10.4"
+      dims: { d_model: [7168], n_verify: [1], d_lin_v_head: [128], d_v_head: [128] }
+      roles: { project: [attention] }
+  kimi_k31_attention_output_span:
+    crosses: component
+    source_anchor: "https://github.com/sgl-project/sglang/blob/5792cf6e5e11aebc62d41cf19828f615a8fa7e0a/python/sglang/srt/layers/quantization/unquant.py#L1010-L1065; https://github.com/sgl-project/sglang/blob/5792cf6e5e11aebc62d41cf19828f615a8fa7e0a/python/sglang/srt/layers/communication/k3_ar_fusion.py#L228-L244; https://github.com/sgl-project/sglang/blob/5792cf6e5e11aebc62d41cf19828f615a8fa7e0a/python/sglang/srt/models/kimi_k3.py#L3086-L3105"
+    when:
+      phase: [decode]
+      architectures: [KimiK31ForConditionalGeneration]
+      tensor_parallel: [8]
+      activation_dtype: [bf16]
+      device: [cuda]
+      min_compute_capability: "10.3"
+      below_compute_capability: "10.4"
+      dims: { d_model: [7168], n_verify: [1], d_lin_v_head: [128], d_v_head: [128] }
+      roles: { project: [attention] }
   kimi_k31_trtllm_moe_span:
     crosses: component
     source_anchor: "Complete K3 TP8/EP2 multi-kernel MoE span, alt_stream and join: https://github.com/sgl-project/sglang/blob/5792cf6e5e11aebc62d41cf19828f615a8fa7e0a/python/sglang/srt/models/kimi_k3.py#L1579-L1690; https://github.com/sgl-project/sglang/blob/5792cf6e5e11aebc62d41cf19828f615a8fa7e0a/python/sglang/srt/layers/communication/k3_ar_fusion.py; https://github.com/sgl-project/sglang/blob/5792cf6e5e11aebc62d41cf19828f615a8fa7e0a/python/sglang/srt/layers/moe/moe_runner/flashinfer_trtllm.py#L437-L491"
