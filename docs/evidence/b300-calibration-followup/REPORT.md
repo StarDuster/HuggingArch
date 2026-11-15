@@ -1,24 +1,25 @@
-# B300 kernel calibration follow-up
+# Calibration audit and usable scope
 
-## Audit follow-up
+Retained 41 original/library-backed rows; excluded 85 new eager reference rows from this supplementary overlay. The full raw corpus remains unchanged. Selection is based on implementation provenance, never closeness to the serving result.
 
-See [CALIBRATION_AUDIT.md](CALIBRATION_AUDIT.md) for the implementation audit and latest library-kernel-only partial estimate. The cross-library eager reference numbers below are diagnostic, not a production SGLang prediction. The newer source router measurements are recorded separately and included in the library-only overlay.
+| Input | Library-kernel partial estimate ms | Historical TPOT ms | Error |
+|---:|---:|---:|---:|
+| 2048 | 12.1186 | 9.9448 | +21.86% |
+| 16384 | 12.1378 | 10.0810 | +20.40% |
 
-Reused 9 existing measurements; added 115 validated positive-latency measurements. Physical-key deduplication is recorded in deduplication.json. Native failures/refusals are retained in results/ and coverage.log.
+The first broad overlay predicted 74.34 ms. Correcting the source-version eligibility and measuring actual SGLang kernels reduced it to 47.32 ms. The remaining broad-overlay leaf costs include linear 12.876 ms, eager AttnRes 9.390 ms and eager router 7.834 ms; these are real timings of those providers, not evidence that SGLang pays them.
 
-| Input | Calibration | Predicted ms | Historical TPOT ms | Relative error | Measured share |
-|---:|---|---:|---:|---:|---:|
-| 2048 | theory | 6.3817 | 9.9448 | -35.83% | 0.00% |
-| 2048 | existing | 7.1790 | 9.9448 | -27.81% | 14.87% |
-| 2048 | expanded | 47.2983 | 9.9448 | +375.61% | 97.27% |
-| 16384 | theory | 6.3817 | 10.0810 | -36.70% | 0.00% |
-| 16384 | existing | 7.1982 | 10.0810 | -28.60% | 15.10% |
-| 16384 | expanded | 47.3175 | 10.0810 | +369.37% | 97.27% |
+The supplementary library overlay is partial, not an exact dispatch reconstruction. Unsupported MXFP4 expert kernels and TP8 collectives still use theory, AttnRes needs a weighted combine-plus-norm fusion contract, and cold isolated timings do not include serving overlap. A low aggregate error can result from cancellation and does not validate missing components. No 5–8% accuracy claim is supported by the available evidence.
 
-The historical target-only serving measurements used three repeats, disabled speculation and excluded profiled requests. They are not AgentX or DFLASH measurements. See benchmark/dcp-validation in the results archive for full runtime provenance. This comparison reuses the recorded baseline; it does not claim a fresh end-to-end remeasurement.
+Use library_kernel_calibration_rows.json when inspecting the library-only partial overlay; calibration_rows.json retains the complete cross-library corpus for audit and should not be represented as production-specific SGLang calibration.
 
-All three estimates above use the corrected branch (DCP formula reader, K3.1 fusion rules and explicit KV block size 64). Differences between existing and expanded isolate the overlay under those corrected model rules; differences from older report totals also include the rule/lookup corrections.
 
-The measured-envelope selector can choose a faster provider than SGLang dispatches. Cold-cache L2-drain timings differ from a warm CUDA graph; serial summation does not model full PDL/multi-stream overlap. Unsupported operator/collective gaps remain theoretical. No global fitted latency multiplier is applied.
+## Artifacts
 
-The previously suggested 5–8% error was a hypothesis. The table above, and only validated coverage in the artifacts, state what this run achieved. Partial coverage must not be described as a fully measured model.
+- `library_kernel_calibration_rows.json`: 41 audited original/library-backed rows for the partial library overlay.
+- `calibration_rows.json`: complete 126-row cross-library corpus, including eager reference measurements; not an exact SGLang dispatch calibration.
+- `ENVELOPE_DIAGNOSTIC_REPORT.md`: earlier broad-overlay results and their limitations.
+- `results/*.csv`: numerical validation outcomes and timing provenance.
+- The original 9 rows on `kimi-k31-reports` are retained unchanged.
+
+Source KDA and router adapters passed the native numerical cross-checks at batches 1 and 8. Source-version and router registration/scope regressions passed. GPU work has ended. No AgentX restart and no PR.

@@ -13,3 +13,7 @@ Outputs: `results/*.csv`, `check.log`, `coverage.log`, `summary.json` and `calib
 This measures supported native kernel providers, not every part of SGLang. Distributed all-reduce/all-gather, unsupported MXFP4/KDA providers, DCP runtime stages and multi-stream/PDL overlap may remain gaps. Single-GPU measurements cannot establish end-to-end DFLASH or AgentX prediction accuracy. Any precision improvement claim requires separately matching keys and comparing estimates to an appropriate serving baseline.
 
 After measurement the controller runs theory/existing/expanded estimates at 2K/16K, reports their differences against the historical target-only baseline, and saves code plus selected calibration evidence to `StarDuster/HuggingArch:codex/b300-calibration`. No 5–8% accuracy target is assumed. Raw omp conversation text is kept local and is not included in the branch export.
+
+## Final audited scope
+
+Start with REPORT.md. `calibration_rows.json` is the complete cross-library corpus (126 rows), not a production-specific runtime prediction. `library_kernel_calibration_rows.json` retains the original audited rows plus non-Torch library kernels (41 rows). This implementation-based subset excludes new eager references without selecting by latency. It still leaves expert GEMM/collective and fusion/overlap gaps; see the report for measured error.

@@ -470,7 +470,8 @@ register(Provider(
 # as RefSpec('moe_gate'); kernel selection remains SGLang's own dispatch.
 def _sglang_current_moe_gate_applies(inv, env):
     # Only the ungrouped K3 geometry audited in this follow-up.
-    return (_gate_int(inv, 'n_experts') == 896
+    return (inv.signature == 'moe_gate' and inv.dtype in TORCH_FLOAT
+            and _gate_int(inv, 'n_experts') == 896
             and _gate_int(inv, 'n_experts_active') == 16
             and _gate_int(inv, 'n_expert_groups') == 1)
 
@@ -493,7 +494,6 @@ register(Provider(
     library='sglang', signature='moe_gate',
     kernel_impl='sglang_source_moe_fused_gate',
     import_name='sglang.kernels.ops.moe.moe_fused_gate',
-    serves=KernelSignature(signature='moe_gate', activation=TORCH_FLOAT),
     applies_to=_sglang_current_moe_gate_applies,
     build=_sglang_current_moe_gate_build,
 ))
