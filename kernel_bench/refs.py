@@ -5165,9 +5165,12 @@ register_ref("position_table_add",
 def _attn_res_inputs(inv: Invocation, device: str, gen: Any) -> Dict[str, Any]:
     import torch
     dt = _dtype(inv.dtype)
+    D = int(inv.dims['d_model'])
     return {
         "prefix": torch.randn(*_shape(inv, "prefix"), dtype=dt, device=device, generator=gen),
         "stack": torch.randn(*_shape(inv, "stack"), dtype=dt, device=device, generator=gen),
+        "score_gain": 1 + torch.randn(D, dtype=dt, device=device, generator=gen) * 0.05,
+        "score_proj": torch.randn(1, D, dtype=dt, device=device, generator=gen) / D ** 0.5,
     }
 
 
@@ -5176,10 +5179,11 @@ def _attn_res_reference(inputs: Dict[str, Any]) -> Any:
     prefix = inputs["prefix"].float()
     stack = inputs["stack"].float()
     cat = torch.cat([stack, prefix.unsqueeze(2)], dim=2)
-    x = cat * torch.rsqrt(cat.pow(2).mean(-1, keepdim=True) + 1e-6)
-    scores = (x[:, :, -1:, :] * x).sum(-1)
-    w = torch.softmax(scores, dim=-1)
-    return (w.unsqueeze(-1) * cat).sum(2)
+    inv_rms = torch.rsqrt(cat.square().mean(-1) + 1e-6)
+    cw = inputs["score_gain"].float() * inputs["score_proj"].float().flatten()
+    scores = (cat * cw).sum(-1) * inv_rms
+    weights = torch.softmax(scores, dim=-1)
+    return (weights.unsqueeze(-1) * cat).sum(2)
 
 
 register_ref("attn_res_combine", RefSpec(_attn_res_inputs, _attn_res_reference))
@@ -5908,3 +5912,34 @@ def hc_combine_norm_write(inputs: Dict[str, Any]) -> Any:
 
 register_ref("hc_combine_norm",
              RefSpec(_hc_combine_norm_inputs, hc_combine_norm_write))
+
+
+def _kimi_attn_res_norm_inputs(inv, device, gen):
+    import torch
+    dt = _dtype(inv.dtype)
+    D = int(inv.dims['d_model'])
+    rand = lambda shape: torch.randn(*shape, dtype=dt, device=device, generator=gen)
+    return {
+        'prefix': rand(_shape(inv, 'prefix')),
+        'stack': rand(_shape(inv, 'stack')),
+        'score_gain': (1 + rand((D,)) * 0.05).to(dt),
+        'score_proj': (rand((1, D)) / D ** 0.5).to(dt),
+        'out_norm_w': (1 + rand((D,)) * 0.05).to(dt),
+    }
+
+
+def _kimi_attn_res_norm_reference(inputs):
+    import torch
+    # SGLang get_cw multiplies in FP32 once and caches the product in BF16.
+    cw = (inputs['score_gain'].float() * inputs['score_proj'].float().flatten()).to(torch.bfloat16).float()
+    cat = torch.cat([inputs['stack'].float(), inputs['prefix'].float().unsqueeze(2)], dim=2)
+    inv_rms = torch.rsqrt(cat.square().mean(-1) + 1e-6)
+    scores = (cat * cw).sum(-1) * inv_rms
+    weights = torch.softmax(scores, dim=-1)
+    combined = (weights.unsqueeze(-1) * cat).sum(2)
+    normed = combined * torch.rsqrt(combined.square().mean(-1, keepdim=True) + 1e-6)
+    return (normed * inputs['out_norm_w'].float()).to(inputs['prefix'].dtype)
+
+
+register_ref('kimi_attn_res_rmsnorm',
+             RefSpec(_kimi_attn_res_norm_inputs, _kimi_attn_res_norm_reference))

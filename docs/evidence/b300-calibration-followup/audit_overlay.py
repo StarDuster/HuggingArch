@@ -2,6 +2,8 @@ import json,collections,subprocess
 from pathlib import Path
 R=Path(__file__).resolve().parent;W=R.parents[1];REPO=W/'calibration-worktree';PY=W/'HuggingArch/.venv313/bin/python'
 rows=json.loads((R/'calibration_rows.json').read_text());existing=json.loads((R/'existing-calibration-rows.json').read_text())
+if any(r['op']=='kimi_attn_res_rmsnorm' or '__cuda_graph_warm' in r.get('kernel_impl','') for r in rows):
+ raise SystemExit('Legacy library filter would merge timing regimes. Use controlled_overlays.py, which preserves the original41-row baseline and explicitly separates cold/warm AttnRes and alternative GEMMs.')
 # Preserve the broad cross-library corpus as evidence, but do not recommend
 # eager references as a representative SGLang runtime overlay.
 retained=list(existing);excluded=[]

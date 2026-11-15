@@ -117,12 +117,12 @@
     "all_to_all [block_dsa_moe[Sar=8]|self_attn.comm64__all_to_all__on__o_merge_heads]: no shape projection for signature 'all_to_all' (shape_in=[8, 96, 1, 128]) \u2014 would fabricate model-wide dims",
     "mla_q_concat_kv_insert"
   ],
-  "job_count": 110,
+  "job_count": 114,
   "signatures": {
     "embedding": 2,
     "rmsnorm": 8,
     "gemm": 32,
-    "attn_res_combine": 16,
+    "attn_res_combine": 4,
     "add": 2,
     "moe_permute": 2,
     "situ": 2,
@@ -138,6 +138,7 @@
     "quantise_activation": 6,
     "sigmoid_gate_mul": 2,
     "situ_and_mul": 4,
+    "kimi_attn_res_rmsnorm": 16,
     "mla_sparse_attention": 2,
     "moe_gate": 2,
     "fused_kda_decode": 2

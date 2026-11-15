@@ -278,6 +278,17 @@ collectives:
       source_anchor: "CustomAllReduceV2's multicast two-shot (python/sglang/srt/distributed/device_communicators/custom_all_reduce_v2.py:343-344), multimem.ld_reduce / multimem.st at python/sglang/kernels/jit/csrc/distributed/custom_all_reduce.cuh:123-127"
 
 op_implementations:
+  kimi_attn_res_rmsnorm:
+    source_anchor: "python/sglang/srt/layers/attn_residual.py:_aggregate_fast; python/sglang/kernels/ops/attention/attn_res.py:attn_res_fused_tma (source 5792cf6e5e11)"
+    when:
+      phase: [decode]
+      architectures: [KimiK31ForConditionalGeneration]
+      device: [cuda]
+      activation_dtype: [bf16]
+      min_compute_capability: "10.3"
+      below_compute_capability: "10.4"
+      dims: { d_model: [7168], Sar: [1, 2, 3, 4, 5, 6, 7, 8], n_verify: [1] }
+
   # The FA3 backend (srt/layers/attention/flashattention_backend.py:132), the
   # Hopper default for MHA and MLA (srt/arg_groups/model_override_base.py:297-303,
   # :326-328).

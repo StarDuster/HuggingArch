@@ -1,0 +1,5 @@
+Estimating cold 61 rows
+{"regime": "cold", "overlay_rows": 61, "input_tokens": 16384, "partial_ms": 12.751304809777778, "historical_tpot_ms": 10.08102135594686, "error_pct": 26.488223360976228, "partial_measured_share": 0.6428241126911662, "fully_measured_s": null}
+Estimating graph-warm 61 rows
+{"regime": "graph-warm", "overlay_rows": 61, "input_tokens": 16384, "partial_ms": 11.58112600977778, "historical_tpot_ms": 10.08102135594686, "error_pct": 14.88048284855581, "partial_measured_share": 0.6067343878365096, "fully_measured_s": null}
+Both regimes are partial mixed-clock diagnostics, not a full serving dispatch reconstruction.

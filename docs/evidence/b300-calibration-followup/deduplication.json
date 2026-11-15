@@ -2,9 +2,9 @@
   "existing_branch": "StarDuster/HuggingArch:kimi-k31-reports",
   "revision": "4b6c287b07abdf4505d8a77d1e7ee6ff656cc52f",
   "existing_rows": 9,
-  "planned_keys": 110,
+  "planned_keys": 114,
   "reused_plan_keys": 5,
-  "new_plan_keys": 105,
+  "new_plan_keys": 109,
   "reused_jobs": [
     {
       "signature": "gemm",

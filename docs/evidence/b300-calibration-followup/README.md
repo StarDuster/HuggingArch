@@ -1,19 +1,7 @@
 # B300 calibration follow-up
 
-Queued after completion and verified GPU release of `../agentx-yyh/version-1.0.14-seed42` (which follows the seed 43 run).
+See [REPORT.md](REPORT.md) for current scope, controlled estimates and remaining error.
 
-The omp session read for context is `/root/.omp/agent/sessions/-tmp-scratch-space-k3-performance/2026-11-15T00-43-15-120Z_01a1dca8-8930-753c-a75e-ac6da2bfd600.jsonl`. The controller re-reads its user/assistant prose at execution time into `omp-session-context.txt` and records the current HuggingArch revision and worktree status.
+Kimi-K3.1-Pro target-only decode, TP8/DCP8/EP2, batch1/8, 2K/16K inputs, output512, KV64. The current native plan has114 physical keys, of which five match the original nine-row dataset and109 are new. Unsupported keys remain explicitly uncovered. The latest AgentX comparison was cancelled by the user before calibration; no newer-version AgentX result is claimed.
 
-Plan: Kimi-K3.1-Pro target-only decode, TP8/DCP8/EP2, batches 1/8, input 2048/16384, output 512, KV block 64. Before fusion fixes the CPU plan had 124 distinct physical keys. After enabling the missing K3.1 fusion rules it has 110 keys; 5 are already covered by the existing dataset, leaving 105 new keys. The old decomposed operations removed by the fusion fix are not measured redundantly. The plan is regenerated at execution time to reflect any omp fixes. The shared HuggingArch checkout is left intact. Planning and estimates use the independent `calibration-worktree` checkout on `codex/b300-calibration`, including regression-tested DCP formula, K3.1 fusion and page-size fixes. No pull request is created.
-
-GPU7 is selected only after all eight devices remain free for two minutes. Native `kernel_bench run` also takes its physical-GPU lock and retains numeric cross-checks. Existing `/opt/sglang` library stack is used sequentially for torch, deepgemm, flashinfer and sglang providers; installed versions are recorded. Provider environments are not newly resolved. Each library run has a one-hour bound. Failure/refusal records remain in the raw CSVs.
-
-Outputs: `results/*.csv`, `check.log`, `coverage.log`, `summary.json` and `calibration_rows.json`. Only positive-latency measurements that passed the native numeric cross-check and schema validation enter calibration_rows. The native CalibrationRegistry validates these rows before export. The existing `kimi-k31-reports` calibration rows are refreshed and reused by exact native PhysicalKey. `all-jobs.jsonl` retains the full plan; `jobs.jsonl` contains only uncovered keys. `deduplication.json` records the branch commit and skipped jobs. New measurements are in `new_calibration_rows.json`; `calibration_rows.json` explicitly combines the retained existing rows with new validated rows. Coverage includes `results/reused.csv`. No covered physical key is remeasured, including against a different provider.
-
-This measures supported native kernel providers, not every part of SGLang. Distributed all-reduce/all-gather, unsupported MXFP4/KDA providers, DCP runtime stages and multi-stream/PDL overlap may remain gaps. Single-GPU measurements cannot establish end-to-end DFLASH or AgentX prediction accuracy. Any precision improvement claim requires separately matching keys and comparing estimates to an appropriate serving baseline.
-
-After measurement the controller runs theory/existing/expanded estimates at 2K/16K, reports their differences against the historical target-only baseline, and saves code plus selected calibration evidence to `StarDuster/HuggingArch:codex/b300-calibration`. No 5–8% accuracy target is assumed. Raw omp conversation text is kept local and is not included in the branch export.
-
-## Final audited scope
-
-Start with REPORT.md. `calibration_rows.json` is the complete cross-library corpus (126 rows), not a production-specific runtime prediction. `library_kernel_calibration_rows.json` retains the original audited rows plus non-Torch library kernels (41 rows). This implementation-based subset excludes new eager references without selecting by latency. It still leaves expert GEMM/collective and fusion/overlap gaps; see the report for measured error.
+The shared HuggingArch checkout is untouched. Code and evidence are stored in the separate codex/b300-calibration worktree/branch, with no PR. Legacy queue/controller scripts describe their original runs; they are not a daemon or an active monitor.

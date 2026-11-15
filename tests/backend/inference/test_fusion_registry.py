@@ -118,6 +118,7 @@ class TestShippedSchemesLoad(unittest.TestCase):
                 "ihc_pre_mix",
                 "indexer_block_score",
                 "indexer_logits",
+                "kimi_attn_res_rmsnorm",
                 "mamba2_rmsnorm_gated",
                 "merged_column_parallel_linear",
                 "merged_column_parallel_linear_wide",

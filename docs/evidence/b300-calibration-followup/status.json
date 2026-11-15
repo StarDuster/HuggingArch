@@ -1,0 +1,71 @@
+{
+  "state": "measurements-validated-accuracy-unresolved",
+  "time_utc": "2026-11-15T09:12:17.883807+00:00",
+  "pid": 397247,
+  "steps": [
+    {
+      "name": "refresh-existing",
+      "returncode": 0
+    },
+    {
+      "name": "prepare",
+      "returncode": 0
+    },
+    {
+      "name": "measure-torch",
+      "returncode": 4
+    },
+    {
+      "name": "measure-deepgemm",
+      "returncode": 0
+    },
+    {
+      "name": "measure-flashinfer",
+      "returncode": 0
+    },
+    {
+      "name": "measure-sglang",
+      "returncode": 0
+    },
+    {
+      "name": "check",
+      "returncode": 0
+    },
+    {
+      "name": "coverage",
+      "returncode": 0
+    },
+    {
+      "name": "collect",
+      "returncode": 0
+    },
+    {
+      "name": "estimate-impact",
+      "returncode": 0
+    },
+    {
+      "name": "save-branch",
+      "returncode": 0
+    }
+  ],
+  "summary": "summary.json",
+  "calibration_rows": "calibration_rows.json",
+  "step": "save-branch",
+  "source_version_regression": "passed",
+  "updated_at": 1794738015.197969,
+  "accuracy_validated": false,
+  "report": "REPORT.md",
+  "active_work": false,
+  "validated_library_rows": 41,
+  "full_cross_library_rows": 146,
+  "remaining_gaps": [
+    "selected TRTLLM full MoE dispatch",
+    "remaining unfused AttnRes boundaries",
+    "serving cache/PDL overlap versus isolated measurements"
+  ],
+  "tp8_communication_keys_measured": 4,
+  "updated_at_utc": "2026-11-15T10:59:06.740419+00:00",
+  "retired_invalid_rows": 16,
+  "distributed_tp8_rows": 4,
+  "background_jobs": []
+}

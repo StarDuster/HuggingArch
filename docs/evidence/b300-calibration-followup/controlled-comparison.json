@@ -1,0 +1,482 @@
+[
+  {
+    "regime": "cold",
+    "overlay_rows": 61,
+    "input_tokens": 16384,
+    "partial_ms": 12.751304809777778,
+    "historical_tpot_ms": 10.08102135594686,
+    "error_pct": 26.488223360976228,
+    "partial_measured_share": 0.6428241126911662,
+    "fully_measured_s": null,
+    "by_op": {
+      "embedding": {
+        "aggregated_rows": 1,
+        "calls_per_step": 1,
+        "measured_calls_per_step": 0,
+        "partial_ms": 0.001
+      },
+      "scatter_rows_replace": {
+        "aggregated_rows": 1,
+        "calls_per_step": 1,
+        "measured_calls_per_step": 0,
+        "partial_ms": 0.001
+      },
+      "parameter_vector": {
+        "aggregated_rows": 104,
+        "calls_per_step": 417,
+        "measured_calls_per_step": 417,
+        "partial_ms": 0.0
+      },
+      "parameter_tensor": {
+        "aggregated_rows": 57,
+        "calls_per_step": 211,
+        "measured_calls_per_step": 211,
+        "partial_ms": 0.0
+      },
+      "rmsnorm": {
+        "aggregated_rows": 42,
+        "calls_per_step": 143,
+        "measured_calls_per_step": 119,
+        "partial_ms": 0.804064
+      },
+      "linear": {
+        "aggregated_rows": 269,
+        "calls_per_step": 1086,
+        "measured_calls_per_step": 24,
+        "partial_ms": 3.2817445119999973
+      },
+      "transpose": {
+        "aggregated_rows": 56,
+        "calls_per_step": 189,
+        "measured_calls_per_step": 189,
+        "partial_ms": 0.0
+      },
+      "view_merge": {
+        "aggregated_rows": 24,
+        "calls_per_step": 93,
+        "measured_calls_per_step": 93,
+        "partial_ms": 0.0
+      },
+      "stack_init": {
+        "aggregated_rows": 1,
+        "calls_per_step": 1,
+        "measured_calls_per_step": 0,
+        "partial_ms": 0.001
+      },
+      "attn_res_combine": {
+        "aggregated_rows": 2,
+        "calls_per_step": 2,
+        "measured_calls_per_step": 0,
+        "partial_ms": 0.002
+      },
+      "add": {
+        "aggregated_rows": 55,
+        "calls_per_step": 262,
+        "measured_calls_per_step": 0,
+        "partial_ms": 0.2620000000000002
+      },
+      "permute": {
+        "aggregated_rows": 23,
+        "calls_per_step": 92,
+        "measured_calls_per_step": 0,
+        "partial_ms": 0.09200000000000003
+      },
+      "situ": {
+        "aggregated_rows": 23,
+        "calls_per_step": 92,
+        "measured_calls_per_step": 0,
+        "partial_ms": 0.09200000000000003
+      },
+      "mul": {
+        "aggregated_rows": 23,
+        "calls_per_step": 92,
+        "measured_calls_per_step": 0,
+        "partial_ms": 0.09200000000000003
+      },
+      "combine": {
+        "aggregated_rows": 23,
+        "calls_per_step": 92,
+        "measured_calls_per_step": 0,
+        "partial_ms": 0.09200000000000003
+      },
+      "view_split": {
+        "aggregated_rows": 16,
+        "calls_per_step": 48,
+        "measured_calls_per_step": 48,
+        "partial_ms": 0.0
+      },
+      "slice": {
+        "aggregated_rows": 32,
+        "calls_per_step": 96,
+        "measured_calls_per_step": 96,
+        "partial_ms": 0.0
+      },
+      "per_head_linear": {
+        "aggregated_rows": 16,
+        "calls_per_step": 48,
+        "measured_calls_per_step": 48,
+        "partial_ms": 0.4677119999999998
+      },
+      "broadcast": {
+        "aggregated_rows": 16,
+        "calls_per_step": 48,
+        "measured_calls_per_step": 48,
+        "partial_ms": 0.0
+      },
+      "layernorm": {
+        "aggregated_rows": 8,
+        "calls_per_step": 24,
+        "measured_calls_per_step": 0,
+        "partial_ms": 0.023999999999999997
+      },
+      "indexer_logits": {
+        "aggregated_rows": 8,
+        "calls_per_step": 24,
+        "measured_calls_per_step": 24,
+        "partial_ms": 0.23500800000000005
+      },
+      "dsa_topk_mask": {
+        "aggregated_rows": 8,
+        "calls_per_step": 24,
+        "measured_calls_per_step": 0,
+        "partial_ms": 0.023999999999999997
+      },
+      "stack_append": {
+        "aggregated_rows": 7,
+        "calls_per_step": 7,
+        "measured_calls_per_step": 0,
+        "partial_ms": 0.007
+      },
+      "sample": {
+        "aggregated_rows": 1,
+        "calls_per_step": 1,
+        "measured_calls_per_step": 1,
+        "partial_ms": 0.0
+      },
+      "all_reduce": {
+        "aggregated_rows": 72,
+        "calls_per_step": 279,
+        "measured_calls_per_step": 279,
+        "partial_ms": 0.9176782000000002
+      },
+      "all_gather": {
+        "aggregated_rows": 9,
+        "calls_per_step": 25,
+        "measured_calls_per_step": 0,
+        "partial_ms": 0.05489201777777779
+      },
+      "runtime_stage": {
+        "aggregated_rows": 24,
+        "calls_per_step": 72,
+        "measured_calls_per_step": 0,
+        "partial_ms": 0.07200000000000002
+      },
+      "all_to_all": {
+        "aggregated_rows": 8,
+        "calls_per_step": 24,
+        "measured_calls_per_step": 0,
+        "partial_ms": 0.04860927999999999
+      },
+      "quantise_activation": {
+        "aggregated_rows": 54,
+        "calls_per_step": 208,
+        "measured_calls_per_step": 208,
+        "partial_ms": 1.3614079999999995
+      },
+      "qkv_parallel_linear": {
+        "aggregated_rows": 8,
+        "calls_per_step": 24,
+        "measured_calls_per_step": 0,
+        "partial_ms": 0.15695808
+      },
+      "merged_column_parallel_linear": {
+        "aggregated_rows": 55,
+        "calls_per_step": 209,
+        "measured_calls_per_step": 0,
+        "partial_ms": 0.56225472
+      },
+      "mla_q_concat_kv_insert": {
+        "aggregated_rows": 8,
+        "calls_per_step": 24,
+        "measured_calls_per_step": 0,
+        "partial_ms": 0.023999999999999997
+      },
+      "sigmoid_gate_mul": {
+        "aggregated_rows": 8,
+        "calls_per_step": 24,
+        "measured_calls_per_step": 24,
+        "partial_ms": 0.15897599999999998
+      },
+      "situ_and_mul": {
+        "aggregated_rows": 24,
+        "calls_per_step": 93,
+        "measured_calls_per_step": 93,
+        "partial_ms": 0.621792
+      },
+      "kimi_attn_res_rmsnorm": {
+        "aggregated_rows": 46,
+        "calls_per_step": 184,
+        "measured_calls_per_step": 184,
+        "partial_ms": 1.7768639999999998
+      },
+      "flash_dsa": {
+        "aggregated_rows": 8,
+        "calls_per_step": 24,
+        "measured_calls_per_step": 0,
+        "partial_ms": 0.023999999999999997
+      },
+      "moe_fused_gate": {
+        "aggregated_rows": 23,
+        "calls_per_step": 92,
+        "measured_calls_per_step": 92,
+        "partial_ms": 0.744832
+      },
+      "fused_kda_decode": {
+        "aggregated_rows": 16,
+        "calls_per_step": 69,
+        "measured_calls_per_step": 69,
+        "partial_ms": 0.7485119999999998
+      }
+    }
+  },
+  {
+    "regime": "graph-warm",
+    "overlay_rows": 61,
+    "input_tokens": 16384,
+    "partial_ms": 11.58112600977778,
+    "historical_tpot_ms": 10.08102135594686,
+    "error_pct": 14.88048284855581,
+    "partial_measured_share": 0.6067343878365096,
+    "fully_measured_s": null,
+    "by_op": {
+      "embedding": {
+        "aggregated_rows": 1,
+        "calls_per_step": 1,
+        "measured_calls_per_step": 0,
+        "partial_ms": 0.001
+      },
+      "scatter_rows_replace": {
+        "aggregated_rows": 1,
+        "calls_per_step": 1,
+        "measured_calls_per_step": 0,
+        "partial_ms": 0.001
+      },
+      "parameter_vector": {
+        "aggregated_rows": 104,
+        "calls_per_step": 417,
+        "measured_calls_per_step": 417,
+        "partial_ms": 0.0
+      },
+      "parameter_tensor": {
+        "aggregated_rows": 57,
+        "calls_per_step": 211,
+        "measured_calls_per_step": 211,
+        "partial_ms": 0.0
+      },
+      "rmsnorm": {
+        "aggregated_rows": 42,
+        "calls_per_step": 143,
+        "measured_calls_per_step": 119,
+        "partial_ms": 0.804064
+      },
+      "linear": {
+        "aggregated_rows": 269,
+        "calls_per_step": 1086,
+        "measured_calls_per_step": 24,
+        "partial_ms": 3.2817445119999973
+      },
+      "transpose": {
+        "aggregated_rows": 56,
+        "calls_per_step": 189,
+        "measured_calls_per_step": 189,
+        "partial_ms": 0.0
+      },
+      "view_merge": {
+        "aggregated_rows": 24,
+        "calls_per_step": 93,
+        "measured_calls_per_step": 93,
+        "partial_ms": 0.0
+      },
+      "stack_init": {
+        "aggregated_rows": 1,
+        "calls_per_step": 1,
+        "measured_calls_per_step": 0,
+        "partial_ms": 0.001
+      },
+      "attn_res_combine": {
+        "aggregated_rows": 2,
+        "calls_per_step": 2,
+        "measured_calls_per_step": 0,
+        "partial_ms": 0.002
+      },
+      "add": {
+        "aggregated_rows": 55,
+        "calls_per_step": 262,
+        "measured_calls_per_step": 0,
+        "partial_ms": 0.2620000000000002
+      },
+      "permute": {
+        "aggregated_rows": 23,
+        "calls_per_step": 92,
+        "measured_calls_per_step": 0,
+        "partial_ms": 0.09200000000000003
+      },
+      "situ": {
+        "aggregated_rows": 23,
+        "calls_per_step": 92,
+        "measured_calls_per_step": 0,
+        "partial_ms": 0.09200000000000003
+      },
+      "mul": {
+        "aggregated_rows": 23,
+        "calls_per_step": 92,
+        "measured_calls_per_step": 0,
+        "partial_ms": 0.09200000000000003
+      },
+      "combine": {
+        "aggregated_rows": 23,
+        "calls_per_step": 92,
+        "measured_calls_per_step": 0,
+        "partial_ms": 0.09200000000000003
+      },
+      "view_split": {
+        "aggregated_rows": 16,
+        "calls_per_step": 48,
+        "measured_calls_per_step": 48,
+        "partial_ms": 0.0
+      },
+      "slice": {
+        "aggregated_rows": 32,
+        "calls_per_step": 96,
+        "measured_calls_per_step": 96,
+        "partial_ms": 0.0
+      },
+      "per_head_linear": {
+        "aggregated_rows": 16,
+        "calls_per_step": 48,
+        "measured_calls_per_step": 48,
+        "partial_ms": 0.4677119999999998
+      },
+      "broadcast": {
+        "aggregated_rows": 16,
+        "calls_per_step": 48,
+        "measured_calls_per_step": 48,
+        "partial_ms": 0.0
+      },
+      "layernorm": {
+        "aggregated_rows": 8,
+        "calls_per_step": 24,
+        "measured_calls_per_step": 0,
+        "partial_ms": 0.023999999999999997
+      },
+      "indexer_logits": {
+        "aggregated_rows": 8,
+        "calls_per_step": 24,
+        "measured_calls_per_step": 24,
+        "partial_ms": 0.23500800000000005
+      },
+      "dsa_topk_mask": {
+        "aggregated_rows": 8,
+        "calls_per_step": 24,
+        "measured_calls_per_step": 0,
+        "partial_ms": 0.023999999999999997
+      },
+      "stack_append": {
+        "aggregated_rows": 7,
+        "calls_per_step": 7,
+        "measured_calls_per_step": 0,
+        "partial_ms": 0.007
+      },
+      "sample": {
+        "aggregated_rows": 1,
+        "calls_per_step": 1,
+        "measured_calls_per_step": 1,
+        "partial_ms": 0.0
+      },
+      "all_reduce": {
+        "aggregated_rows": 72,
+        "calls_per_step": 279,
+        "measured_calls_per_step": 279,
+        "partial_ms": 0.9176782000000002
+      },
+      "all_gather": {
+        "aggregated_rows": 9,
+        "calls_per_step": 25,
+        "measured_calls_per_step": 0,
+        "partial_ms": 0.05489201777777779
+      },
+      "runtime_stage": {
+        "aggregated_rows": 24,
+        "calls_per_step": 72,
+        "measured_calls_per_step": 0,
+        "partial_ms": 0.07200000000000002
+      },
+      "all_to_all": {
+        "aggregated_rows": 8,
+        "calls_per_step": 24,
+        "measured_calls_per_step": 0,
+        "partial_ms": 0.04860927999999999
+      },
+      "quantise_activation": {
+        "aggregated_rows": 54,
+        "calls_per_step": 208,
+        "measured_calls_per_step": 208,
+        "partial_ms": 1.3614079999999995
+      },
+      "qkv_parallel_linear": {
+        "aggregated_rows": 8,
+        "calls_per_step": 24,
+        "measured_calls_per_step": 0,
+        "partial_ms": 0.15695808
+      },
+      "merged_column_parallel_linear": {
+        "aggregated_rows": 55,
+        "calls_per_step": 209,
+        "measured_calls_per_step": 0,
+        "partial_ms": 0.56225472
+      },
+      "mla_q_concat_kv_insert": {
+        "aggregated_rows": 8,
+        "calls_per_step": 24,
+        "measured_calls_per_step": 0,
+        "partial_ms": 0.023999999999999997
+      },
+      "sigmoid_gate_mul": {
+        "aggregated_rows": 8,
+        "calls_per_step": 24,
+        "measured_calls_per_step": 24,
+        "partial_ms": 0.15897599999999998
+      },
+      "situ_and_mul": {
+        "aggregated_rows": 24,
+        "calls_per_step": 93,
+        "measured_calls_per_step": 93,
+        "partial_ms": 0.621792
+      },
+      "kimi_attn_res_rmsnorm": {
+        "aggregated_rows": 46,
+        "calls_per_step": 184,
+        "measured_calls_per_step": 184,
+        "partial_ms": 0.6066851999999999
+      },
+      "flash_dsa": {
+        "aggregated_rows": 8,
+        "calls_per_step": 24,
+        "measured_calls_per_step": 0,
+        "partial_ms": 0.023999999999999997
+      },
+      "moe_fused_gate": {
+        "aggregated_rows": 23,
+        "calls_per_step": 92,
+        "measured_calls_per_step": 92,
+        "partial_ms": 0.744832
+      },
+      "fused_kda_decode": {
+        "aggregated_rows": 16,
+        "calls_per_step": 69,
+        "measured_calls_per_step": 69,
+        "partial_ms": 0.7485119999999998
+      }
+    }
+  }
+]

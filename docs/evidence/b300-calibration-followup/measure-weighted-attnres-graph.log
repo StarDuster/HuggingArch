@@ -1,0 +1,21 @@
+Ignoring incompatible flashinfer-cubin package (cubins will be downloaded on demand to /tmp/scratch-space/k3-performance/cache/sglang/.cache/flashinfer/cubins): flashinfer-cubin version (0.7.2) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+Ignoring incompatible flashinfer-jit-cache package (kernels will be JIT-compiled instead): flashinfer-jit-cache version (0.7.2+cu130) does not match flashinfer version (0.7.4). Run `flashinfer download-kernels` to install matching kernel wheels, or set FLASHINFER_DISABLE_VERSION_CHECK=1 to use the installed version anyway.
+USDT:2026-11-15 10:43:58 412746:412746 SyncActivityProfilerHandler.cpp:39] profiler_start
+USDT:2026-11-15 10:43:58 412746:412746 SyncActivityProfilerHandler.cpp:46] profiler_stop
+ok   sglang:sglang_kimi_attn_res_tma_rmsnorm__cuda_graph_warm kimi_attn_res_rmsnorm {'B': 1, 'Sar': 1, 'd_model': 7168, 's_query': 1}  p50=2.2us
+ok   sglang:sglang_kimi_attn_res_tma_rmsnorm__cuda_graph_warm kimi_attn_res_rmsnorm {'B': 1, 'Sar': 2, 'd_model': 7168, 's_query': 1}  p50=3.1us
+ok   sglang:sglang_kimi_attn_res_tma_rmsnorm__cuda_graph_warm kimi_attn_res_rmsnorm {'B': 1, 'Sar': 3, 'd_model': 7168, 's_query': 1}  p50=3.3us
+ok   sglang:sglang_kimi_attn_res_tma_rmsnorm__cuda_graph_warm kimi_attn_res_rmsnorm {'B': 1, 'Sar': 4, 'd_model': 7168, 's_query': 1}  p50=3.7us
+ok   sglang:sglang_kimi_attn_res_tma_rmsnorm__cuda_graph_warm kimi_attn_res_rmsnorm {'B': 1, 'Sar': 5, 'd_model': 7168, 's_query': 1}  p50=3.4us
+ok   sglang:sglang_kimi_attn_res_tma_rmsnorm__cuda_graph_warm kimi_attn_res_rmsnorm {'B': 1, 'Sar': 6, 'd_model': 7168, 's_query': 1}  p50=3.4us
+ok   sglang:sglang_kimi_attn_res_tma_rmsnorm__cuda_graph_warm kimi_attn_res_rmsnorm {'B': 1, 'Sar': 7, 'd_model': 7168, 's_query': 1}  p50=3.6us
+ok   sglang:sglang_kimi_attn_res_tma_rmsnorm__cuda_graph_warm kimi_attn_res_rmsnorm {'B': 1, 'Sar': 8, 'd_model': 7168, 's_query': 1}  p50=3.7us
+ok   sglang:sglang_kimi_attn_res_tma_rmsnorm__cuda_graph_warm kimi_attn_res_rmsnorm {'B': 8, 'Sar': 1, 'd_model': 7168, 's_query': 1}  p50=2.9us
+ok   sglang:sglang_kimi_attn_res_tma_rmsnorm__cuda_graph_warm kimi_attn_res_rmsnorm {'B': 8, 'Sar': 2, 'd_model': 7168, 's_query': 1}  p50=3.1us
+ok   sglang:sglang_kimi_attn_res_tma_rmsnorm__cuda_graph_warm kimi_attn_res_rmsnorm {'B': 8, 'Sar': 3, 'd_model': 7168, 's_query': 1}  p50=3.3us
+ok   sglang:sglang_kimi_attn_res_tma_rmsnorm__cuda_graph_warm kimi_attn_res_rmsnorm {'B': 8, 'Sar': 4, 'd_model': 7168, 's_query': 1}  p50=3.6us
+ok   sglang:sglang_kimi_attn_res_tma_rmsnorm__cuda_graph_warm kimi_attn_res_rmsnorm {'B': 8, 'Sar': 5, 'd_model': 7168, 's_query': 1}  p50=3.4us
+ok   sglang:sglang_kimi_attn_res_tma_rmsnorm__cuda_graph_warm kimi_attn_res_rmsnorm {'B': 8, 'Sar': 6, 'd_model': 7168, 's_query': 1}  p50=3.4us
+ok   sglang:sglang_kimi_attn_res_tma_rmsnorm__cuda_graph_warm kimi_attn_res_rmsnorm {'B': 8, 'Sar': 7, 'd_model': 7168, 's_query': 1}  p50=3.5us
+ok   sglang:sglang_kimi_attn_res_tma_rmsnorm__cuda_graph_warm kimi_attn_res_rmsnorm {'B': 8, 'Sar': 8, 'd_model': 7168, 's_query': 1}  p50=3.7us
+rows 16 failures []

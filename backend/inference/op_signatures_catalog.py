@@ -3090,10 +3090,14 @@ register_signature(OpSignature(
     inputs=(
         TensorLayout("prefix", ("B", "s_query", "d_model")),
         TensorLayout("stack", ("B", "s_query", "Sar", "d_model")),
+        TensorLayout("score_gain", ("d_model",), role="weight"),
+        TensorLayout("score_proj", (1, "d_model"), role="weight"),
     ),
     engine_inputs=(
         (0, TensorLayout("prefix", ("B", "s_query", "d_model"))),
         (1, TensorLayout("stack", ("B", "s_query", "Sar", "d_model"))),
+        (2, TensorLayout("score_gain", ("d_model",), role="weight")),
+        (3, TensorLayout("score_proj", (1, "d_model"), role="weight")),
     ),
     dtype_slots=("activation",),
     doc=("Kimi-K3 AttnRes combine: softmax over the history of "
@@ -3435,4 +3439,24 @@ register_signature(OpSignature(
          "RMS-normalised over its own `d_model` and scaled by `(1 + w)`. "
          "Two writes — the combined stream, because the next write reads it, "
          "and the normalised one. vLLM `hc_combine_norm`."),
+))
+
+
+register_signature(OpSignature(
+    name='kimi_attn_res_rmsnorm', binds_ops=('kimi_attn_res_rmsnorm',),
+    inputs=(
+        TensorLayout('prefix', ('B', 's_query', 'd_model')),
+        TensorLayout('stack', ('B', 's_query', 'Sar', 'd_model')),
+        TensorLayout('score_gain', ('d_model',), role='weight'),
+        TensorLayout('score_proj', (1, 'd_model'), role='weight'),
+        TensorLayout('out_norm_w', ('d_model',), role='weight'),
+    ),
+    engine_inputs=(
+        (0, TensorLayout('prefix', ('B', 's_query', 'd_model'))),
+        (1, TensorLayout('stack', ('B', 's_query', 'Sar', 'd_model'))),
+        (2, TensorLayout('score_gain', ('d_model',), role='weight')),
+        (3, TensorLayout('score_proj', (1, 'd_model'), role='weight')),
+    ),
+    dtype_slots=('activation',),
+    doc='Kimi learned-score AttnRes plus output RMSNorm; cached BF16 score-gain/projection product, eps1e-6, no bank write.',
 ))

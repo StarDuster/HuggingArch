@@ -1,0 +1,17 @@
+{
+  "time_utc": "2026-11-15T10:59:06.740419+00:00",
+  "huggingarch_base": "535239701cb7013712bcb0b0abd00a3da2a9e4da",
+  "huggingarch_working_diff_sha256": "714f23de8d363e686d3bac342bce94cb40b20d1ff4aeaed95e0633e6dd821dba",
+  "sglang_current": "5792cf6e5e11aebc62d41cf19828f615a8fa7e0a",
+  "sglang_historical": "1b2870d33de7b5f31844fd74e97eea6d7896c53a",
+  "attnres_kernel_current_sha256": "1ad86d2bc52832692efa885ac8d755ef682752b9cbf5374911e7c9d33d5a3741",
+  "attnres_kernel_historical_sha256": "1ad86d2bc52832692efa885ac8d755ef682752b9cbf5374911e7c9d33d5a3741",
+  "source_files_sha256": {
+    "backend/inference/framework_bindings/sglang.yaml": "cf4e11bd0c4bc52e2eb4865cec6b82c84d2c771803991624703ec6c449597b0f",
+    "backend/inference/fusion_plans/kimi_attn_res_rmsnorm.yaml": "7c0151edd286c13673303f9fd9bdb44493cbee6cfe700a80f9d336073e83a2c7",
+    "backend/inference/op_signatures_catalog.py": "651c247c2d747689f5c5ae1ca79eaa93180148409417d95899fbec4f6711d0c5",
+    "kernel_bench/refs.py": "0c02ebeef2a2b4cc36d07b93d06fa9ec09179091c1c6fadd1221d163a9b3602a",
+    "kernel_bench/providers/norm_act.py": "6b44cc0df66ea7259447aec60244f9888539cdbd60b3256ef8f0f13776f515f6",
+    "kernel_bench/providers/gemm.py": "70edd4642266caf69a65816d1cdc13e0c8f935f1b7eb6251980c0404d7b324a1"
+  }
+}
