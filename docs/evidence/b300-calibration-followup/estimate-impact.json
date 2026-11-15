@@ -28,13 +28,13 @@
   {
     "input_tokens": 2048,
     "stage": "expanded",
-    "predicted_ms": 74.3190233635555,
+    "predicted_ms": 47.29828736355552,
     "historical_tpot_ms": 9.944849842898087,
-    "error_pct": 647.3116692317776,
+    "error_pct": 375.60584735558,
     "t_sol_ms": 6.3816624995555555,
-    "t_partial_ms": 74.3190233635555,
+    "t_partial_ms": 47.29828736355552,
     "t_measured_s": null,
-    "partial_measured_share": 0.9825963352985907,
+    "partial_measured_share": 0.9726539070302123,
     "measured_rows": 1017,
     "total_rows": 1225
   },
@@ -67,13 +67,13 @@
   {
     "input_tokens": 16384,
     "stage": "expanded",
-    "predicted_ms": 74.3382233635555,
+    "predicted_ms": 47.31748736355551,
     "historical_tpot_ms": 10.081021355912187,
-    "error_pct": 637.4076568140448,
+    "error_pct": 369.3719583859959,
     "t_sol_ms": 6.3816624995555555,
-    "t_partial_ms": 74.3382233635555,
+    "t_partial_ms": 47.31748736355551,
     "t_measured_s": null,
-    "partial_measured_share": 0.9826008302992397,
+    "partial_measured_share": 0.9726650032446199,
     "measured_rows": 1017,
     "total_rows": 1225
   }

@@ -9,7 +9,8 @@ for seq in [2048,16384]:
   out=results/f'{seq}-{stage}.json'
   cmd=[str(PY),str(REPO/'scripts/estimate_kimi_k31_sglang.py'),'--dcp','8','--input-tokens',str(seq),'--output',str(out)]
   if data:cmd+=['--calibration-rows',str(data)]
-  with (results/f'{seq}-{stage}.log').open('w') as log:subprocess.run(cmd,cwd=REPO,stdout=log,stderr=subprocess.STDOUT,check=True,timeout=900)
+  if stage=='expanded' or not out.exists():
+   with (results/f'{seq}-{stage}.log').open('w') as log:subprocess.run(cmd,cwd=REPO,stdout=log,stderr=subprocess.STDOUT,check=True,timeout=900)
   summary=json.loads(out.with_suffix('.summary.json').read_text());phase=summary['phases']['decode'];measured=statistics.mean(x['mean_tpot_ms'] for x in historical if x['input']==seq)
   predicted=phase['t_partial_s'] if data else phase['t_sol_s']
   rows.append({'input_tokens':seq,'stage':stage,'predicted_ms':1000*predicted,'historical_tpot_ms':measured,'error_pct':100*(1000*predicted/measured-1),'t_sol_ms':1000*phase['t_sol_s'],'t_partial_ms':None if phase.get('t_partial_s') is None else 1000*phase['t_partial_s'],'t_measured_s':phase.get('t_measured_s'),'partial_measured_share':phase.get('partial_measured_share'),'measured_rows':phase.get('measured_rows'),'total_rows':phase.get('total_rows')})

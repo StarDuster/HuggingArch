@@ -1,15 +1,15 @@
 # B300 kernel calibration follow-up
 
-Reused 9 existing measurements; added 99 validated positive-latency measurements. Physical-key deduplication is recorded in deduplication.json. Native failures/refusals are retained in results/ and coverage.log.
+Reused 9 existing measurements; added 115 validated positive-latency measurements. Physical-key deduplication is recorded in deduplication.json. Native failures/refusals are retained in results/ and coverage.log.
 
 | Input | Calibration | Predicted ms | Historical TPOT ms | Relative error | Measured share |
 |---:|---|---:|---:|---:|---:|
 | 2048 | theory | 6.3817 | 9.9448 | -35.83% | 0.00% |
 | 2048 | existing | 7.1790 | 9.9448 | -27.81% | 14.87% |
-| 2048 | expanded | 74.3190 | 9.9448 | +647.31% | 98.26% |
+| 2048 | expanded | 47.2983 | 9.9448 | +375.61% | 97.27% |
 | 16384 | theory | 6.3817 | 10.0810 | -36.70% | 0.00% |
 | 16384 | existing | 7.1982 | 10.0810 | -28.60% | 15.10% |
-| 16384 | expanded | 74.3382 | 10.0810 | +637.41% | 98.26% |
+| 16384 | expanded | 47.3175 | 10.0810 | +369.37% | 97.27% |
 
 The historical target-only serving measurements used three repeats, disabled speculation and excluded profiled requests. They are not AgentX or DFLASH measurements. See benchmark/dcp-validation in the results archive for full runtime provenance. This comparison reuses the recorded baseline; it does not claim a fresh end-to-end remeasurement.
 

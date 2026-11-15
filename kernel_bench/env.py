@@ -90,6 +90,36 @@ class Env:
         return p
 
 
+def _source_revision(module) -> Optional[str]:
+    """Record the imported unreleased checkout, not an invented release.
+
+    Placeholder 0.0.0 does not establish that source predates a release floor.
+    Provider gates already treat non-release identities as unknown; runtime
+    numerical and schema validation still apply to every measured kernel.
+    """
+    from pathlib import Path
+    import hashlib
+    import subprocess
+    filename = getattr(module, "__file__", None)
+    if not filename:
+        return None
+    for root in Path(filename).resolve().parents:
+        if not (root / ".git").exists():
+            continue
+        try:
+            sha = subprocess.check_output(
+                ["git", "-C", str(root), "rev-parse", "HEAD"],
+                text=True, stderr=subprocess.DEVNULL, timeout=5).strip()
+            diff = subprocess.check_output(
+                ["git", "-C", str(root), "diff", "HEAD", "--"],
+                stderr=subprocess.DEVNULL, timeout=5)
+        except (OSError, subprocess.SubprocessError):
+            return None
+        return "git:" + sha + ("+dirty." + hashlib.sha256(diff).hexdigest()[:12]
+                                if diff else "")
+    return None
+
+
 def _probe_version(import_name: str) -> Optional[str]:
     """Version of the library behind `import_name`, or None if absent.
 
@@ -107,15 +137,16 @@ def _probe_version(import_name: str) -> Optional[str]:
         return None
     v = getattr(mod, "__version__", None)
     if v:
-        return v
+        return (_source_revision(mod) or v) if v == "0.0.0" else v
     root = import_name.split(".")[0]
     if root != import_name:
         try:
-            v = getattr(importlib.import_module(root), "__version__", None)
+            parent = importlib.import_module(root)
+            v = getattr(parent, "__version__", None)
         except Exception:
             v = None
         if v:
-            return v
+            return (_source_revision(parent) or v) if v == "0.0.0" else v
     try:
         from importlib.metadata import version as _dist
         return _dist(root)

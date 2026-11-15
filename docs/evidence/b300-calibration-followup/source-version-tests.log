@@ -1,0 +1,8 @@
+.                                                                        [100%]
+=============================== warnings summary ===============================
+tests/kernel_bench/test_kernel_bench.py:1677
+  /tmp/scratch-space/k3-performance/calibration-worktree/tests/kernel_bench/test_kernel_bench.py:1677: PytestUnknownMarkWarning: Unknown pytest.mark.timeout - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.timeout(3600)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+1 passed, 483 deselected, 1 warning in 2.07s
