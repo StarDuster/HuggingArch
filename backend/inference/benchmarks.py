@@ -1114,6 +1114,11 @@ def validate_row(row: Dict[str, str]) -> None:
     # a retried failure rather than a fact.
     outcome = _check_outcome(row.get("outcome", ""))
     measured = outcome == "measured"
+    if measured and row.get("kernel_impl") == "torch_attn_res_combine":
+        raise BenchmarkValidationError(
+            "kernel_impl torch_attn_res_combine is retired: its historical "
+            "measurements used the unweighted AttnRes reference; remeasure "
+            "with torch_weighted_attn_res_combine")
     if not measured:
         # The numbers, and ONLY the numbers, are waived — a row with an
         # outcome still has a contributor, a date, a well-formed seed and a

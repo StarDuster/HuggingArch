@@ -121,9 +121,36 @@ def test_paged_storage_identity_migration_preserves_failed_attempts(
     monkeypatch.setattr(data_rules, "_duplicate_shared_rows", no_row_mutation)
     monkeypatch.setattr(store, "rekey_env", no_row_mutation)
     store.set_meta(lake, data_rules=step["from"])
-    result = data_rules.migrate(lake)
-    assert result.version == data_rules.registered_version()
+    # This contract concerns the historical identity-only step. Later
+    # registered steps may intentionally validate and retire bad timings.
+    result = data_rules._apply_registered(step, lake)
+    assert result.version == step["to"]
     assert result.report() == {"rekeyed_rows": 0, "env_rekeyed_rows": 0,
                                "dropped_shared_rows": 0, "reasons": {}}
     assert lake.read("SELECT * FROM lake.measurements ORDER BY id") == before
     assert sum(row["outcome"] == "mismatch" for row in before) == 1
+
+
+def test_k31_migration_rejects_unweighted_attnres_and_keeps_valid_rows(
+        lake, make_rows, new_owner):
+    """Retire invalid timings through the validator, preserving valid rows."""
+    rows = make_rows(2)
+    rows[0]["kernel_impl"] = "torch_attn_res_combine"
+    owner = new_owner()
+    store.upload(lake, owner=owner, upload_id=str(uuid.uuid4()),
+                 run_id="old-attnres", label=None, rows=rows, status="shared")
+    store.set_meta(lake, data_rules="0b329d5f66856a3a")
+    result = data_rules.migrate(lake)
+    assert result.dropped_shared_rows == 1
+    remaining = lake.read("SELECT kernel_impl FROM lake.measurements")
+    assert len(remaining) == 1
+    assert remaining[0]["kernel_impl"] == rows[1]["kernel_impl"]
+    assert store.meta(lake)["data_rules"] == data_rules.registered_version()
+
+
+def test_retired_attnres_cannot_be_reimported():
+    from backend.inference.benchmarks import BenchmarkValidationError, validate_row
+    from tests.corpus_row import row
+    with pytest.raises(BenchmarkValidationError, match="unweighted AttnRes"):
+        validate_row(row(kernel_impl="torch_attn_res_combine"))
+    validate_row(row(kernel_impl="torch_weighted_attn_res_combine"))

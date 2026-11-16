@@ -289,3 +289,8 @@ validator 必须满足：parse 一个 well-formed CSV，原样 emit 回去，**�
 - **submit helper** —— `huggingarch bench submit` 是 plan task15，optional follow-on；CSV schema 本身不需要
 
 CSV schema 是**纯数据契约**：contributors 知道怎么写一行能通过 CI 的 CSV，calibration 层 / UI 层后续自由消费。
+
+
+### 退役的错误实现
+
+历史 `torch_attn_res_combine` 测量使用了缺少加权评分的旧参考实现，测量行在导入时拒绝，已共享的旧行由登记的数据规则迁移移除。正确的实现使用 `torch_weighted_attn_res_combine` 并重新测量；已有的正确 SGLang 图计时保留。失败尝试记录继续作为历史证据保存。
