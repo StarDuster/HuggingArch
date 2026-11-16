@@ -1,0 +1,9 @@
+# Native BF16 output projection followed by K3 TP8 multicast reduction.
+fused_op: kimi_k31_attention_output_span
+naive_pattern:
+  nodes:
+    project: { op: linear, inputs: [external.x] }
+    reduce: { op: all_reduce, inputs: [project.out] }
+  io_mapping:
+    x: external.x
+    output: reduce.out

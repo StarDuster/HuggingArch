@@ -118,6 +118,14 @@ class TestShippedSchemesLoad(unittest.TestCase):
                 "ihc_pre_mix",
                 "indexer_block_score",
                 "indexer_logits",
+                "kimi_attn_res_rmsnorm",
+                "kimi_k31_attention_output_residual_span",
+                "kimi_k31_attention_output_span",
+                "kimi_k31_dsa_span",
+                "kimi_k31_kda_projection_span",
+                "kimi_k31_trtllm_latent_span",
+                "kimi_k31_trtllm_moe_residual_span",
+                "kimi_k31_trtllm_moe_span",
                 "mamba2_rmsnorm_gated",
                 "merged_column_parallel_linear",
                 "merged_column_parallel_linear_wide",
@@ -1634,9 +1642,6 @@ class TestAnchorsResolveAtTheAuditedCommit(unittest.TestCase):
     def test_every_cited_place_exists(self):
         checked = 0
         for name, binding in sorted(FRAMEWORK_BINDINGS.items()):
-            clone = _clone_at(binding.audited_at.commit, name)
-            if clone is None:
-                continue
             lengths: dict = {}
             anchors = [(op, impl.source_anchor)
                        for op, impl in binding.op_implementations]
@@ -1649,19 +1654,24 @@ class TestAnchorsResolveAtTheAuditedCommit(unittest.TestCase):
                         for dispatch in binding.kernel_dispatches]
             for op, anchor in anchors:
                 for loc in anchor.locations:
-                    if loc.path not in lengths:
+                    commit = loc.revision or binding.audited_at.commit
+                    clone = _clone_at(commit, name)
+                    if clone is None:
+                        continue
+                    key = (commit, loc.path)
+                    if key not in lengths:
                         shown = subprocess.run(
                             ["git", "-C", str(clone), "show",
-                             f"{binding.audited_at.commit}:{loc.path}"],
+                             f"{commit}:{loc.path}"],
                             capture_output=True, text=True, check=False)
-                        lengths[loc.path] = (None if shown.returncode
-                                             else len(shown.stdout.splitlines()))
-                    n = lengths[loc.path]
+                        lengths[key] = (None if shown.returncode
+                                        else len(shown.stdout.splitlines()))
+                    n = lengths[key]
+                    checked += 1
                     with self.subTest(framework=name, op=op, place=str(loc)):
                         self.assertIsNotNone(n, "no such file at the commit")
                         if loc.last is not None:
                             self.assertLessEqual(loc.last, n)
-            checked += 1
         if not checked:
             self.skipTest("no local clone of a bound framework at its "
                           "audited commit (set HA_FRAMEWORK_SRC)")

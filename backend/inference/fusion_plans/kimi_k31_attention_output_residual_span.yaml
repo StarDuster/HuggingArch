@@ -1,0 +1,11 @@
+# The residual is added inside the source TP8 collective, not as another launch.
+fused_op: kimi_k31_attention_output_residual_span
+naive_pattern:
+  nodes:
+    project: { op: linear, inputs: [external.x] }
+    reduce: { op: all_reduce, inputs: [project.out] }
+    residual: { op: add, inputs: [external.prefix, reduce.out] }
+  io_mapping:
+    x: external.x
+    prefix: external.prefix
+    output: residual.out

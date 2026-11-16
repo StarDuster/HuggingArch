@@ -29,6 +29,26 @@ applicable provider at a shape; the consumer's envelope picks the fastest.
   mid, fp32 tight) and refuses to record a kernel that disagrees — so
   "fastest" can't be won by a kernel computing the wrong thing.
 
+## Standalone and distributed input provenance
+
+An experimental launcher uses the native job's `Invocation.input_seed` as
+its root, rather than timing unrelated fixed seeds and letting the CSV
+writer stamp the invocation's seed afterwards. `InputProtocol(inv)` seeds
+and records named generators for rotating inputs, weights and rank shards:
+`protocol.manual_seed(generator, "weights", rank=rank, slot=slot)`.
+Omit `rank` for a replicated stream. Retain `protocol.evidence()` with the
+raw samples and pass it to `build_row(input_protocol=...)`; the writer
+validates the root, physical key and every recorded stream derivation.
+Correctness stream identifiers are labels, not substitutes for these seeds.
+
+Device evidence must describe the actual timed execution. For a captured
+launch, profile its CUDA graph replay: an eager call may select another
+kernel. Finish all timing cells before starting a CUDA profiler, retain the
+graphs and their tensors until observation completes, or observe in a
+separate process. A hand-written path description is not an observed
+`launch_signature`; unavailable observations remain empty with their reason
+in the raw evidence.
+
 ## Libraries as isolated envs
 
 Kernel libraries are **optional third-party extras, never core deps**, and

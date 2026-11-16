@@ -1,0 +1,14 @@
+# SGLang K3 SM100 TMA: learned-score attention residual + output RMSNorm.
+# The two learned score tensors cross the boundary explicitly. The output
+# norm's implicit weight is retained by the engine's weight combination law.
+fused_op: kimi_attn_res_rmsnorm
+naive_pattern:
+  nodes:
+    combine: { op: attn_res_combine, inputs: [external.prefix, external.stack, external.score_gain, external.score_proj] }
+    norm: { op: rmsnorm, inputs: [combine.out] }
+  io_mapping:
+    prefix: external.prefix
+    stack: external.stack
+    score_gain: external.score_gain
+    score_proj: external.score_proj
+    output: norm.out

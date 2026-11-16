@@ -1169,26 +1169,24 @@ register(Provider(
 def _torch_attn_res_build(inv, env, inputs) -> BenchCase:
     import torch
     dt = _torch_dtype(inv.dtype)
-    prefix = inputs["prefix"].to(dt)
-    stack = inputs["stack"].to(dt)
-    # Concat is setup: stack and prefix are fixed inputs, so the [stack‖prefix]
-    # tensor is built once here, outside the timed call.
+    prefix = inputs["prefix"].float()
+    stack = inputs["stack"].float()
     cat = torch.cat([stack, prefix.unsqueeze(2)], dim=2)
-
+    cw = inputs['score_gain'].float() * inputs['score_proj'].float().flatten()
     def run():
-        x = cat * torch.rsqrt(cat.pow(2).mean(-1, keepdim=True) + 1e-6)
-        scores = (x[:, :, -1:, :] * x).sum(-1)
-        w = torch.softmax(scores, dim=-1)
-        return (w.unsqueeze(-1) * cat).sum(2)
-    return BenchCase(run=run, to_canonical=lambda o: o)
+        scores = (cat * cw).sum(-1) * torch.rsqrt(cat.square().mean(-1) + 1e-6)
+        weights = torch.softmax(scores, dim=-1)
+        return (weights.unsqueeze(-1) * cat).sum(2).to(dt)
+    return BenchCase(run=run, to_canonical=lambda out: out)
 
 
 register(Provider(
     library="torch", signature="attn_res_combine",
-    kernel_impl="torch_attn_res_combine",
+    kernel_impl="torch_weighted_attn_res_combine",
     import_name="torch",
     serves=KernelSignature(signature="attn_res_combine", activation=TORCH_FLOAT),
     build=_torch_attn_res_build,
+    computes_at_for=lambda inv: {"activation": "fp32", "weight": "fp32", "output": inv.dtype},
 ))
 
 
@@ -2167,3 +2165,36 @@ for _lib, _sig, _impl, _imp, _build, _act, _out in (
         serves=KernelSignature(signature=_sig, activation=_act, output=_out),
         build=_build, fused_op=_sig,
     ))
+
+
+def _sglang_kimi_attn_res_norm_build(inv, env, inputs):
+    import torch
+    from sglang.kernels.ops.attention.attn_res import attn_res_fused_tma
+    D = int(inv.dims['d_model']);S = int(inv.dims['Sar'])
+    prefix = inputs['prefix'].reshape(-1, D).contiguous()
+    bank = inputs['stack'].reshape(-1, S, D).contiguous()
+    cw = (inputs['score_gain'].float() * inputs['score_proj'].float().flatten()).to(torch.bfloat16).contiguous()
+    ow = inputs['out_norm_w'].contiguous()
+    out = torch.empty_like(prefix)
+    return BenchCase(
+        run=Launch(attn_res_fused_tma, prefix, bank, cw, ow, out, S, 1e-6),
+        to_canonical=lambda unused: out.reshape_as(inputs['prefix']),
+    )
+
+
+def _sglang_kimi_attn_res_norm_applies(inv, env):
+    digits = ''.join(c for c in (env.sm or '') if c.isdigit())
+    architecture_ok = not digits or (int(digits) // 10 >= 10 and int(digits) // 10 != 12)
+    return (architecture_ok and inv.dtype == 'bf16'
+            and int(inv.dims['d_model']) == 7168
+            and int(inv.dims['Sar']) in range(1, 9)
+            and int(inv.dims['s_query']) == 1)
+
+
+register(Provider(
+    library='sglang', signature='kimi_attn_res_rmsnorm',
+    kernel_impl='sglang_kimi_attn_res_tma_rmsnorm',
+    import_name='sglang.kernels.ops.attention.attn_res',
+    applies_to=_sglang_kimi_attn_res_norm_applies,
+    min_sm=100, build=_sglang_kimi_attn_res_norm_build,
+))

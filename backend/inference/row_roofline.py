@@ -127,6 +127,7 @@ from .phase_formulas import (_collective_bytes_formula, _t_comm_formula_for_row,
                              _t_compute_formula_for_row,
                              _t_memory_formula_for_row, _t_op_formula_for_row)
 from backend.code_trace.memo import memoize
+from backend.arch.eval.launch import FusedNode
 
 #: The workload a point sets: the batch, the prompt, the output, the cached
 #: prefix and the verify width (`transforms.Workload.symbols`), the symbols
@@ -175,7 +176,7 @@ def row_rungs(row: Mapping[str, Any]) -> Tuple[CollectiveRung, ...]:
 EXPR_NAMES = ("flops", "act_in", "act_out", "convert", "kv_read",
               "weight_read", "metadata", "access", "comm_payload",
               "comm_volume", "comm_bytes", "t_compute", "t_memory", "t_comm",
-              "t_launch", "t_op")
+              "t_launch", "t_op", "comm_dependency_rounds")
 
 
 class RowTimes(NamedTuple):
@@ -340,6 +341,12 @@ def weight_demand(program: Any, node: Any, shape: Any, *,
     """
     if active_ratio >= 1.0 or not total:
         return WeightDemand(step_rows, total * active_ratio, total)
+    if isinstance(node, FusedNode) and node.owns_dispatch:
+        # The whole bank's caller supplies original tokens; its combined
+        # cost already states the resident-weight share active per token.
+        # Per-expert rows describe its INTERNAL GEMMs, not this span's input.
+        return WeightDemand(step_rows, total * active_ratio, total,
+                            saturates=True)
     return WeightDemand(kernel_rows(program, node, shape), total, total,
                         saturates=True)
 
@@ -364,6 +371,7 @@ class RowAt(NamedTuple):
     #: One instance's priced payload: `comm_payload` where the collective
     #: is priced, else 0.
     comm_bytes: float = 0.0
+    comm_dependency_rounds: float = 1.0
 
 
 class RowRoofline:
@@ -426,7 +434,8 @@ class RowRoofline:
     def comm(*, op: str, world: int, tensor_bytes: float,
              count: int, base_stride: int, fabric: Fabric,
              rungs: Tuple[CollectiveRung, ...] = (),
-             t_sym: Optional[str] = None, t_sub: Optional[str] = None
+             t_sym: Optional[str] = None, t_sub: Optional[str] = None,
+             dependency_rounds: float = 1.0
              ) -> Tuple[float, List[Dict[str, Any]]]:
         """`(t_comm, phase rows)` of a collective whose payload is
         `tensor_bytes`, priced on `fabric` by the algorithm the framework's
@@ -437,10 +446,17 @@ class RowRoofline:
         seg = ladder_segment(collective_ladder(
             op=op, world=world, count_per_step=count, base_stride=base_stride,
             fabric=fabric, rungs=rungs), float(tensor_bytes))
-        return price_collective(
+        total, phases = price_collective(
             op=op, world=world, tensor_bytes=float(tensor_bytes),
             count_per_step=count, fabric=fabric, base_stride=base_stride,
             algorithm=seg.algorithm, t_sym=t_sym, t_sub=t_sub)
+        for phase in phases:
+            extra = phase["latency_s"] * (dependency_rounds - 1)
+            phase["hops"] *= dependency_rounds
+            phase["latency_s"] *= dependency_rounds
+            phase["t_phase_s"] += extra
+            total += extra
+        return total, phases
 
 
 class RowCard(NamedTuple):
@@ -510,7 +526,8 @@ def build_row_exprs(*, count: int, flops: Any, act_in: Any, act_out: Any,
                     weight_total: float, metadata_total: float,
                     comm_payload: Any = 0, comm_factor: float = 0.0,
                     comm_priced: bool = False,
-                    comm_rungs: int = 0) -> Dict[str, sp.Expr]:
+                    comm_rungs: int = 0, comm_dependency_rounds: Any = 1,
+                    comm_parts: Optional[Tuple[Tuple[Any, Any], ...]] = None) -> Dict[str, sp.Expr]:
     """One row's law as expressions over the workload and the card symbols
     (the module docstring). `flops`, `act_in`, `act_out`, `convert`,
     `kv_read` and `comm_payload` are one instance's, each the walk's own law
@@ -522,7 +539,9 @@ def build_row_exprs(*, count: int, flops: Any, act_in: Any, act_out: Any,
     priced (a group of more than one rank); its payload is the row's
     either way. `comm_rungs` is how many rungs the framework's dispatch of
     the collective has: its time is cases over the payload, one per rung,
-    then the last range (the module docstring)."""
+    then the last range (the module docstring). `comm_dependency_rounds` counts
+    serial link transfers within the same kernel, multiplying link latency
+    without adding kernel launches or duplicating its already-total payload."""
     n = sp.Integer(int(count))
 
     def whole(law: Any) -> sp.Expr:
@@ -548,12 +567,15 @@ def build_row_exprs(*, count: int, flops: Any, act_in: Any, act_out: Any,
     t_memory = (weight_read + metadata + act) / PEAK_BW
     t_comm: sp.Expr = sp.Integer(0)
     if comm_priced:
-        t_comm = comm_bytes * COMM_S_PER_BYTE + COMM_LATENCY_S
-        if comm_rungs:
-            t_comm = sp.Piecewise(*(
-                (comm_bytes * rate + fixed, comm_bytes <= bound)
-                for bound, rate, fixed in map(rung_symbols, range(comm_rungs))),
-                (t_comm, True))
+        for part_payload,part_rounds in (comm_parts or ((comm_bytes,comm_dependency_rounds),)):
+            part_bytes=_exact(part_payload);rounds=_exact(part_rounds)
+            term=part_bytes*COMM_S_PER_BYTE+COMM_LATENCY_S*rounds
+            if comm_rungs:
+                term=sp.Piecewise(*(
+                    (part_bytes*rate+fixed*rounds,part_bytes<=bound)
+                    for bound,rate,fixed in map(rung_symbols,range(comm_rungs))),
+                    (term,True))
+            t_comm+=term
     # A row launches a kernel when it moves anything and is not a
     # collective (whose floor is its latency, priced or not).
     launches = payload == 0 and not (flops_e == 0 and act == 0
@@ -574,6 +596,7 @@ def build_row_exprs(*, count: int, flops: Any, act_in: Any, act_out: Any,
         "t_compute": t_compute,
         "t_memory": t_memory,
         "t_comm": t_comm,
+        "comm_dependency_rounds": _exact(comm_dependency_rounds),
         "t_launch": t_launch,
         "t_op": as_written(sp.Max, *(_exact(t) for t in (
             t_compute, t_memory, t_comm, t_launch))),
@@ -619,7 +642,7 @@ def law_columns(exprs: Mapping[str, sp.Expr], book: "LawBook"
 #: launches `n_<k>` and launch time `T_<k>` of a step's term `k`. Closed:
 #: laws cross processes and the disk, and a re-read trusts no other name.
 _LAW_NAME = re.compile(
-    r"(?P<workload>B|s_input|s_output|s_prefix|s_verify|rho)"
+    r"(?P<workload>" + "|".join(re.escape(symbol.name) for symbol in WORKLOAD) + r")"
     r"|(?P<bw>PEAK_BW)|(?P<peak>PEAK_FLOPS(_\w+)?)"
     r"|(?P<comm>COMM_S_PER_BYTE(_\w+)?)|(?P<latency>COMM_LATENCY_S(_\w+)?)"
     r"|(?P<bound>COMM_MAX_BYTES(_\w+)?)"
@@ -746,6 +769,9 @@ class LawBook:
         in hand (`NoPeakForDtype`, `NoPeakBandwidth`), never priced free."""
         wire = row["roofline_expr"]
         comm = card.comm_values(row)
+        # Older callers have no sparse-DCP workload dimensions. Their
+        # ordinary rows retain the balanced/no-fallback defaults.
+        point = {"rho_dcp": 1, "dcp_failed_owners": 0, **point}
         args = (*(point_value(point[name]) for name in POINT_NAMES),
                 card.peak_flops if card.peak_flops and card.peak_flops > 0
                 else math.inf,
@@ -757,7 +783,8 @@ class LawBook:
             names = (*_ARG_NAMES, *(sym.name for sym in comm_names(
                 (len(comm) - 2) // 3)))
             entry = self._row_laws[id(wire)] = (wire, self.compiled(
-                tuple(wire[name] for name in EXPR_NAMES), names))
+                tuple(wire.get(name, sp.Integer(1)) if name == "comm_dependency_rounds"
+                      else wire[name] for name in EXPR_NAMES), names))
         at = dict(zip(EXPR_NAMES, entry[1](*args), strict=True))
         times = RowTimes(float(at["t_compute"]), float(at["t_memory"]),
                          float(at["t_comm"]), float(at["t_op"]),
@@ -770,7 +797,8 @@ class LawBook:
                      metadata=int(at["metadata"]),
                      comm_payload=float(at["comm_payload"]),
                      comm_volume=float(at["comm_volume"]),
-                     comm_bytes=float(at["comm_bytes"]))
+                     comm_bytes=float(at["comm_bytes"]),
+                     comm_dependency_rounds=float(at["comm_dependency_rounds"]))
 
 
 def evaluate_law(text: str, values: Mapping[str, Any]) -> Any:
@@ -1072,7 +1100,8 @@ def point_columns(at: RowAt, row: Mapping[str, Any], card: RowCard, *,
             op=row["comm_op"], world=world, tensor_bytes=at.comm_bytes,
             count=cnt, base_stride=int(row["comm_base_stride"]),
             fabric=card.fabric, rungs=row_rungs(row),
-            t_sym=t_sym, t_sub=t_sub)[1]
+            t_sym=t_sym, t_sub=t_sub,
+            dependency_rounds=at.comm_dependency_rounds)[1]
     bw, label = 0.0, ""
     if phases:
         bottleneck = max(phases, key=lambda ph: ph["t_phase_s"])

@@ -463,3 +463,37 @@ register(Provider(
                            activation=TORCH_FLOAT, weight=TORCH_FLOAT),
     build=_torch_mega_gate_build, fused_op="moe_mega_gate_sqrtsoftplus",
 ))
+
+
+# Current SGLang source API, distinct from the removed sgl_kernel AOT router.
+# The call implements the same sigmoid + bias-ranked grouped top-k contract
+# as RefSpec('moe_gate'); kernel selection remains SGLang's own dispatch.
+def _sglang_current_moe_gate_applies(inv, env):
+    # Only the ungrouped K3 geometry audited in this follow-up.
+    return (inv.signature == 'moe_gate' and inv.dtype in TORCH_FLOAT
+            and _gate_int(inv, 'n_experts') == 896
+            and _gate_int(inv, 'n_experts_active') == 16
+            and _gate_int(inv, 'n_expert_groups') == 1)
+
+
+def _sglang_current_moe_gate_build(inv, env, inputs):
+    _require_cuda()
+    from sglang.kernels.ops.moe.moe_fused_gate import moe_fused_gate
+    groups, keep_groups, topk = _grouping(inputs)
+    gating, bias = inputs['gating'], inputs['bias']
+    return BenchCase(
+        run=lambda: moe_fused_gate(
+            gating, bias, topk, scoring_func='sigmoid', renormalize=True,
+            routed_scaling_factor=1.0, num_expert_group=groups,
+            topk_group=keep_groups),
+        to_canonical=lambda out: _moe_gate_dense_out(out, gating.shape[-1]),
+    )
+
+
+register(Provider(
+    library='sglang', signature='moe_gate',
+    kernel_impl='sglang_source_moe_fused_gate',
+    import_name='sglang.kernels.ops.moe.moe_fused_gate',
+    applies_to=_sglang_current_moe_gate_applies,
+    build=_sglang_current_moe_gate_build,
+))

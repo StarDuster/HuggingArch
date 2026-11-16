@@ -3090,10 +3090,14 @@ register_signature(OpSignature(
     inputs=(
         TensorLayout("prefix", ("B", "s_query", "d_model")),
         TensorLayout("stack", ("B", "s_query", "Sar", "d_model")),
+        TensorLayout("score_gain", ("d_model",), role="weight"),
+        TensorLayout("score_proj", (1, "d_model"), role="weight"),
     ),
     engine_inputs=(
         (0, TensorLayout("prefix", ("B", "s_query", "d_model"))),
         (1, TensorLayout("stack", ("B", "s_query", "Sar", "d_model"))),
+        (2, TensorLayout("score_gain", ("d_model",), role="weight")),
+        (3, TensorLayout("score_proj", (1, "d_model"), role="weight")),
     ),
     dtype_slots=("activation",),
     doc=("Kimi-K3 AttnRes combine: softmax over the history of "
@@ -3436,3 +3440,107 @@ register_signature(OpSignature(
          "Two writes — the combined stream, because the next write reads it, "
          "and the normalised one. vLLM `hc_combine_norm`."),
 ))
+
+
+register_signature(OpSignature(
+    name='kimi_attn_res_rmsnorm', binds_ops=('kimi_attn_res_rmsnorm',),
+    inputs=(
+        TensorLayout('prefix', ('B', 's_query', 'd_model')),
+        TensorLayout('stack', ('B', 's_query', 'Sar', 'd_model')),
+        TensorLayout('score_gain', ('d_model',), role='weight'),
+        TensorLayout('score_proj', (1, 'd_model'), role='weight'),
+        TensorLayout('out_norm_w', ('d_model',), role='weight'),
+    ),
+    engine_inputs=(
+        (0, TensorLayout('prefix', ('B', 's_query', 'd_model'))),
+        (1, TensorLayout('stack', ('B', 's_query', 'Sar', 'd_model'))),
+        (2, TensorLayout('score_gain', ('d_model',), role='weight')),
+        (3, TensorLayout('score_proj', (1, 'd_model'), role='weight')),
+    ),
+    dtype_slots=('activation',),
+    doc='Kimi learned-score AttnRes plus output RMSNorm; cached BF16 score-gain/projection product, eps1e-6, no bank write.',
+))
+
+
+# This deliberately narrow execution-span contract identifies the audited
+# B300 TP8/EP2 recipe. Its fixed bank dimensions must not be reused at EP1/4.
+# The bank's three logical matrices are stored as packed w13 and w2 by the
+# runtime. Bias and norm remain floating point; they are not MXFP4 operands.
+register_signature(OpSignature(
+    name='kimi_k31_trtllm_latent_span',
+    binds_ops=('kimi_k31_trtllm_latent_span',),
+    inputs=(
+        TensorLayout('x', ('B', 's_query', 3584)),
+        TensorLayout('gating', ('B', 's_query', 896)),
+        TensorLayout('bias', (896,), role='metadata'),
+        TensorLayout('norm_weight', (3584,)),
+        TensorLayout('w13', (448, 1536, 3584), role='weight'),
+        TensorLayout('w2', (448, 3584, 768), role='weight'),
+    ),
+    engine_inputs=(
+        (0, TensorLayout('gating', ('B', 's_query', 896))),
+        (1, TensorLayout('bias', (896,), role='metadata')),
+        (2, TensorLayout('x', ('B', 's_query', 3584))),
+    ),
+    dtype_slots=('activation', 'weight'),
+    doc=('B300 K3.1 TP8/EP2 MXFP8/MXFP4 SiTU execution span: sigmoid+bias '
+         'top16/896, input quantization and prepared routing, 448 local '
+         'experts with intermediate768, deferred weighted combine, TP8 '
+         'multicast reduction and latent RMSNorm. Multiple CUDA kernels; '
+         'not an independent grouped-GEMM or standalone all-reduce key.'),
+))
+
+register_signature(OpSignature(
+    name='kimi_k31_kda_projection_span',
+    binds_ops=('kimi_k31_kda_projection_span',),
+    inputs=(TensorLayout('x', ('B', 's_query', 7168)),),
+    engine_inputs=((0, TensorLayout('x', ('B', 's_query', 7168))),),
+    dtype_slots=('activation', 'weight'),
+    doc=('B300 K3.1 TP8 KDA projection span: BF16 merged QKVG6144x7168 '
+         'on the main stream, padded FA/B144x7168 and FB1536x128 tiny '
+         'GEMMs on a side stream, then join for small graphed batches; '
+         'the source falls back to serial projections at larger batches. '
+         'Calibration currently measures CUDA graph B1/B8 only; '
+         'all six outputs survive; recurrence and output projection excluded.'),
+))
+
+register_signature(OpSignature(
+    name='kimi_k31_trtllm_moe_span',binds_ops=('kimi_k31_trtllm_moe_span',),
+    inputs=(TensorLayout('x',('B','s_query',7168)),
+            TensorLayout('bias',(896,),role='metadata')),
+    engine_inputs=((0,TensorLayout('x',('B','s_query',7168))),
+                   (1,TensorLayout('bias',(896,),role='metadata'))),
+    dtype_slots=('activation','weight'),
+    doc=('Complete B300 K3.1 TP8/EP2 MoE execution span, including merged '
+         'dense front, routed MXFP8/MXFP4 SiTU experts, parallel shared '
+         'expert branch, both collectives, latent norm/up and final add. '
+         'Multiple kernels and streams; fixed 896/top16, local448/I768, '
+         'BF16 external hidden and dense weights, FP32 front, mixed resident '
+         'weights. Activation slot describes internal expert MMA precision.'),
+))
+
+# Output projection/collective boundaries: the residual variant owns the add.
+for _name, _residual in [('kimi_k31_attention_output_span',False),
+                         ('kimi_k31_attention_output_residual_span',True)]:
+    _inputs=(TensorLayout('x',('B','s_query',1536)),)
+    if _residual:
+        _inputs+=(TensorLayout('prefix',('B','s_query',7168)),)
+    register_signature(OpSignature(name=_name,binds_ops=(_name,),inputs=_inputs,
+        engine_inputs=tuple(enumerate(_inputs)),dtype_slots=('activation','weight'),
+        doc='B300 K3.1 TP8 BF16 output GEMM7168x1536 and multicast all-reduce; optional residual is fused into the collective.'))
+register_signature(OpSignature(name='kimi_k31_trtllm_moe_residual_span',
+    binds_ops=('kimi_k31_trtllm_moe_residual_span',),
+    inputs=(TensorLayout('x',('B','s_query',7168)),TensorLayout('bias',(896,),role='metadata'),TensorLayout('prefix',('B','s_query',7168))),
+    engine_inputs=((0,TensorLayout('x',('B','s_query',7168))),
+                   (1,TensorLayout('bias',(896,),role='metadata')),
+                   (2,TensorLayout('prefix',('B','s_query',7168)))),
+    dtype_slots=('activation','weight'),
+    doc='Complete B300 K3.1 TP8/EP2 MoE span including prefix addition inside gemm_ag; BF16 external tensors and mixed internal MXFP8/MXFP4.'))
+
+register_signature(OpSignature(name='kimi_k31_dsa_span',binds_ops=('kimi_k31_dsa_span',),
+    calibration_workload=(('rho_dcp',1),('dcp_failed_owners',0)),
+    inputs=(TensorLayout('x',('B','s_query',7168)),
+            TensorLayout('cache',('B','s_kv',576),role='kv')),
+    engine_inputs=((0,TensorLayout('x',('B','s_query',7168))),),
+    dtype_slots=('activation','weight','kv'),structural_axes=('n_heads',),
+    doc='B300 K3.1 TP8/DCP8 FP8 V32 KV64 DSA through output gate: prepare, indexer, exact global topk, FlashMLA, V preprojection and push-combine, overlapping gate. Cache is implicit state; output projection/residual excluded.'))

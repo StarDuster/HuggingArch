@@ -106,7 +106,11 @@ class Invocation:
 
     @property
     def input_seed(self) -> int:
-        """The seed every input tensor of this cell is drawn at.
+        """The root seed every input tensor of this cell is drawn from.
+
+        A rotating or distributed launcher may derive named rank/slot
+        streams through `InputProtocol`; its raw evidence records that
+        protocol and the seeds actually handed to its generators.
 
         Derived from the four fields of the measurement key
         (`physical_key`: signature, shape_json, dtype_env_json, phase), in

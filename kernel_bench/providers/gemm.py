@@ -2440,3 +2440,63 @@ register(Provider(
     build=_torch_situ_and_mul_build,
     fused_op="situ_and_mul",
 ))
+
+
+# Cross-library grouped MXFP8 x MXFP4 alternative, not a claim that the
+# serving framework selected this public CUTLASS API instead of TRT-LLM MoE.
+# Scale group 32 is preserved on BOTH operands. Logical one-row groups are
+# padded to the API's four-row minimum; the measured call includes that work.
+def _flashinfer_group32_fp8_fp4_build(inv, env, inputs):
+    import torch
+    from flashinfer.gemm import group_gemm_mxfp8_mxfp4_nt_groupwise
+    from flashinfer.quantization.fp4_quantization import block_scale_interleave
+    from ..quant import quantise_groups, FORMATS
+    x, w = inputs['x'], inputs['w']
+    E, logical_rows, K = x.shape
+    N = w.shape[1]
+    if logical_rows != 1 or any(c != 1 for c in inv.moe_token_counts):
+        raise ValueError('this adapter is audited only for one row per expert')
+    qx, sx = quantise_groups(x, FORMATS['mxfp8'], 32, 'pow2', x.dtype)
+    qw, sw = quantise_groups(w, FORMATS['mxfp4'], 32, 'pow2', w.dtype)
+    qw = qw.reshape(E, N, K)
+    levels = torch.tensor([0., .5, 1., 1.5, 2., 3., 4., 6.],
+                          dtype=qw.dtype, device=qw.device)
+    codes = (qw.abs().unsqueeze(-1) - levels).abs().argmin(-1).to(torch.uint8)
+    codes |= (qw < 0).to(torch.uint8) << 3
+    packed = (codes[..., 0::2] | (codes[..., 1::2] << 4)).contiguous()
+    b_scale = (torch.log2(sw).to(torch.int32) + 127).to(torch.uint8).reshape(E, N, K // 32)
+    b_scale = block_scale_interleave(b_scale)
+    padded_rows = 4
+    a = torch.zeros((E, padded_rows, K), dtype=torch.float8_e4m3fn, device=x.device)
+    a[:, :1].copy_(qx.reshape(E, 1, K))
+    # Match sf_m_offset in group_gemm_mxfp4_groupwise_sm100.cuh, including
+    # the additional scale-block gaps when many short groups accumulate.
+    offsets = [((i * padded_rows + i * 127) // 128) * 128 for i in range(E)]
+    sf = torch.full((offsets[-1] + 128, K // 32), 127, dtype=torch.uint8, device=x.device)
+    exponents = (torch.log2(sx).to(torch.int32) + 127).to(torch.uint8).reshape(E, 1, K // 32)
+    for e, offset in enumerate(offsets):
+        sf[offset:offset + 1].copy_(exponents[e])
+    a_scale = block_scale_interleave(sf)
+    a = a.reshape(E * padded_rows, K)
+    indptr = torch.arange(E + 1, dtype=torch.int32, device=x.device) * padded_rows
+    out = torch.empty((E * padded_rows, N), dtype=torch.bfloat16, device=x.device)
+    return BenchCase(
+        run=Launch(group_gemm_mxfp8_mxfp4_nt_groupwise,
+                   a, packed, a_scale, b_scale, indptr, out=out,
+                   mma_sm=1, tile_m=128, tile_n=128, tile_k=128, swap_ab=True),
+        to_canonical=lambda y: y.reshape(E, padded_rows, N)[:, :1],
+    )
+
+
+register(Provider(
+    library='flashinfer', signature='grouped_gemm',
+    kernel_impl='flashinfer_cutlass_group32_mxfp8_mxfp4', import_name='flashinfer',
+    serves=KernelSignature(signature='grouped_gemm',
+        activation=('fp8_e4m3',), weight=('mxfp4',), output=('bf16',),
+        activation_granularity=('per-group:32',),
+        weight_granularity=('per-group:32',),
+        enum=(('s_expert_rows', (1,)), ('n_experts', (8, 64))),
+        divisible=(('d_reduce', 128), ('d_out', 128))),
+    weight_group=32, weight_scale='pow2', min_sm=100, version_specifier='>=0.7.4',
+    build=_flashinfer_group32_fp8_fp4_build,
+))

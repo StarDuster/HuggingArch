@@ -546,6 +546,10 @@ class OpSignature:
     dtype_slots: Tuple[str, ...] = ("activation",)
     # Human description of the math contract (what the reference computes).
     doc: str = ""
+    # Non-geometric workload coordinates required by an opaque measured
+    # span. A different routing/ownership distribution cannot share its
+    # timing merely because all tensor dimensions stayed the same.
+    calibration_workload: Tuple[Tuple[str, float], ...] = ()
     # Axes whose presence selects a geometry — see the module docstring.
     variant_dims: Tuple[str, ...] = ()
     # Canonical layouts used when every `variant_dims` axis is bound.

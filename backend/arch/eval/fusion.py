@@ -67,11 +67,42 @@ from backend.code_trace.memo import memo_property
 # -- what a match produced ------------------------------------------------
 
 def _routed_span(program: Any, members: Sequence[Any]) -> bool:
-    """Whether a fusion span runs on dispatched tokens: its members agree
-    (siblings share the zone), and a span that straddled the zone boundary
-    would be a kernel no framework runs."""
+    """A bank-only launch runs on dispatched rows; a whole MoE span does not.
+
+    A span owning the complete permute -> expert bank -> combine region
+    consumes original tokens. Applying the bank's per-expert row padding
+    to that span would change its batch and charge the routing twice.
+    Partial crossings remain invalid. Closure is checked by the caller;
+    here every routed member must be bounded by an owned permute/combine.
+    """
     flags = {program.in_zone(m) for m in members}
     if len(flags) > 1:
+        inside = {m.uid: m for m in members}
+        routed = {m.uid for m in members if program.in_zone(m)}
+        parents = {m.uid: tuple(p for p, _ in _writing_leaves(program, m)
+                               if isinstance(p, int)) for m in members}
+        readers = {uid: [] for uid in inside}
+        for uid, inputs in parents.items():
+            for producer in inputs:
+                if producer in readers:
+                    readers[producer].append(uid)
+
+        def bounded(uid, upstream, seen):
+            if uid in seen or uid not in inside:
+                return False
+            node = inside[uid]
+            boundary = 'permute' if upstream else 'combine'
+            if node.op == boundary:
+                return True
+            if uid not in routed and node.op != 'quantise_activation':
+                return False
+            adjacent = parents[uid] if upstream else readers[uid]
+            return bool(adjacent) and all(
+                bounded(other, upstream, seen | {uid}) for other in adjacent)
+
+        if routed and all(bounded(uid, True, set()) and
+                          bounded(uid, False, set()) for uid in routed):
+            return False
         raise ValueError(
             f"fusion span {sorted(m.uid for m in members)!r} straddles the "
             "dispatch zone: some members are routed and some are not")
@@ -99,7 +130,8 @@ class FusedProgram:
         """The base's `Program.routed_uids`, and each fused kernel whose
         origins run on dispatched tokens (a span cannot straddle the zone,
         `_routed_span`)."""
-        return self._with_fused(self.base.routed_uids)
+        return self.base.routed_uids | frozenset(
+            fused.uid for fused in self.fused if fused.in_dispatch_zone)
 
     @memo_property
     def dispatch_members(self) -> FrozenSet[int]:
@@ -110,7 +142,7 @@ class FusedProgram:
     def _with_fused(self, members: FrozenSet[int]) -> FrozenSet[int]:
         return members | frozenset(
             fused.uid for fused in self.fused
-            if any(uid in members for uid in fused.origins))
+            if not fused.owns_dispatch and any(uid in members for uid in fused.origins))
 
     def nodes(self) -> Iterator[Any]:
         """The base's nodes in its order, the absorbed ones left out and each
@@ -1035,7 +1067,7 @@ class GraphCondition:
     #: of them: a caller with no match to ask (a primitive row's provider
     #: dispatch, `FrameworkBinding.dispatch_for`) may state only these.
     PROGRAM_FIELDS: ClassVar[Tuple[str, ...]] = (
-        "architectures", "excluded_architectures", "phase")
+        "architectures", "excluded_architectures", "phase", "world_sizes")
 
     architectures: Tuple[str, ...] = ()
     excluded_architectures: Tuple[str, ...] = ()
@@ -1047,6 +1079,9 @@ class GraphCondition:
     readers_eat: Optional[str] = None
     roles: Tuple[Tuple[str, Tuple[str, ...]], ...] = ()
     routed: Optional[bool] = None
+    # A protocol may require a rank-group width without sharding any model
+    # dimension by that group (DCP splits keys, never query heads).
+    world_sizes: Tuple[Tuple[str, Tuple[int, ...]], ...] = ()
 
     def admits_program(self, program: Any, analysis: Any) -> bool:
         """The questions the whole walk answers: the model class, and the
@@ -1057,7 +1092,9 @@ class GraphCondition:
         return ((not self.architectures
                  or bool(set(self.architectures) & classes))
                 and not set(self.excluded_architectures) & classes
-                and (not self.phase or analysis.rule.phase in self.phase))
+                and (not self.phase or analysis.rule.phase in self.phase)
+                and all(analysis.rule.world_degree(world) in sizes
+                        for world,sizes in self.world_sizes))
 
     def asks_program(self) -> bool:
         """Whether any of `PROGRAM_FIELDS` is stated."""
@@ -1388,6 +1425,7 @@ class Fusion:
                     m.op in OP_REGISTRY and OP_REGISTRY[m.op].is_comm_op
                     for m in member_nodes),
                 in_dispatch_zone=_routed_span(program, member_nodes),
+                owns_dispatch=len({program.in_zone(m) for m in member_nodes}) > 1,
                 # The fused op's own output contract (`allocates_output` of
                 # its plan): this launch writes a buffer of its own.
                 allocates_output=bool(self.scheme.allocates_output),

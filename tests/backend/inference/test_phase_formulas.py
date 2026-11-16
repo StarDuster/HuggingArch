@@ -353,3 +353,21 @@ def test_enrich_publishes_intensity_formula_on_the_subtree_operands():
     assert parent["arithmetic_intensity"] == 3.0
     assert parent["arithmetic_intensity_formula"]["substituted"] == "30 / 10"
     assert leaf["arithmetic_intensity_formula"]["result"] == "3 FLOPs/B"
+
+
+def test_declared_walk_quotient_can_be_rendered_at_empty_and_nonempty_points():
+    """Sparse DCP declarations carry the walk's guarded ratio into popovers."""
+    from backend.inference.phase_formulas import FormulaDefs
+
+    for count, total, expected in [(0, 0, 0), (8, 24, 3)]:
+        definitions = FormulaDefs(
+            dims=None, point={}, value=lambda name: None,
+            definitions={"average": {
+                "law": "Quotient(Eq(count, 0), 0, total, count)",
+                "bindings": {"count": {"value": count},
+                             "total": {"value": total}},
+            }},
+        )
+        result = definitions._defined("average", expected)
+        assert result["definition"]
+        assert result["formula"]

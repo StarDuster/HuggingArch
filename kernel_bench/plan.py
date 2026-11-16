@@ -455,6 +455,23 @@ def _build_jobs_over_points(
         # an all-ones mesh and stamp `tp: 4` on whole-model shapes.
         parallel = (config_for_degree("tp_tp", tp) if tp > 1
                     else ParallelConfig())
+    # The plan and estimate must answer TP-conditioned dispatch alike.
+    # Previously card facts were supplied above but the actual mesh was
+    # omitted, silently disabling every `tensor_parallel: [8]` binding.
+    if binding.deployment.tensor_parallel is None:
+        binding = binding.deployed(replace(
+            binding.deployment, tensor_parallel=int(parallel.tp_attention)))
+    elif binding.deployment.tensor_parallel != int(parallel.tp_attention):
+        raise ValueError('the deployed binding tensor_parallel disagrees with the plan mesh')
+    # A single requested cache page must be known before framework fusion,
+    # not only when point_keys is called after the walk. Otherwise a KV64
+    # execution span is disabled in the planner but enabled in the estimate.
+    requested_pages=tuple(kv_block_sizes or ())
+    if len(requested_pages)==1:
+        page=requested_pages[0]
+        if binding.deployment.kv_block_size not in (None,page):
+            raise ValueError('the deployed binding kv_block_size disagrees with the requested page')
+        binding=binding.deployed(replace(binding.deployment,kv_block_size=page))
     # Run analyze under the SAME phase binding the serving path uses so the
     # per-op shape_in is phase-correct (decode → Q seq collapses to Sq=1,
     # Lq=cache_len). Without this, decode jobs would carry prefill shapes.
@@ -948,7 +965,11 @@ def _build_jobs_over_points(
                 if _paged and kv_block_sizes:
                     served = served_kv_block_sizes(sig)
                     paged_points = [ap for ap, pg in zip(at_pages, _kv_block_sizes, strict=True)
-                                    if pg in served]
+                                    if not served or pg in served]
+                    # No registered single-process provider means support is
+                    # unknown, not zero work. Keep the native key so a
+                    # distributed driver can measure it and judge_jobs can
+                    # report the provider gap instead of silently losing it.
                 else:
                     paged_points = at_pages
                 for at_page in (paged_points if _paged else [point]):

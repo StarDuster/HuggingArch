@@ -1,0 +1,34 @@
+# A multi-kernel execution span, NOT a claim of one fused CUDA kernel.
+# Pinned K3.1 TP8/EP2 recipe: routing+input quant+metadata, both SiTU
+# expert GEMMs (intermediate quant in the epilogue), then deferred
+# finalize+multicast all-reduce+RMSNorm. The span ends before latent up_proj.
+# A span measurement replaces all these members together; none can also
+# consume an independent scalar calibration row.
+fused_op: kimi_k31_trtllm_latent_span
+naive_pattern:
+  nodes:
+    gate_sigmoid: { op: sigmoid, inputs: [external.gating] }
+    scores_biased: { op: add, inputs: [gate_sigmoid.out, external.bias] }
+    group_top2_sum: { op: group_top2_sum, inputs: [scores_biased.out] }
+    group_topk: { op: topk, inputs: [group_top2_sum.out] }
+    group_mask: { op: group_mask_apply, inputs: [scores_biased.out, group_topk.out] }
+    topk_indices: { op: topk, inputs: [group_mask.out] }
+    topk_gather: { op: gather, inputs: [gate_sigmoid.out, topk_indices.out] }
+    topk_norm: { op: normalize_sum_one, inputs: [topk_gather.out] }
+    topk_scale: { op: scale_const, inputs: [topk_norm.out] }
+    input_quant: { op: quantise_activation, inputs: [external.x] }
+    permute: { op: permute, inputs: [input_quant.out, topk_scale.out] }
+    gate_proj: { op: linear, inputs: [permute.out] }
+    up_proj: { op: linear, inputs: [permute.out] }
+    act: { op: situ, inputs: [gate_proj.out] }
+    gate_mul: { op: mul, inputs: [act.out, up_proj.out] }
+    intermediate_quant: { op: quantise_activation, inputs: [gate_mul.out] }
+    down_proj: { op: linear, inputs: [intermediate_quant.out] }
+    combine: { op: combine, inputs: [down_proj.out, topk_scale.out] }
+    allreduce: { op: all_reduce, inputs: [combine.out] }
+    norm: { op: rmsnorm, inputs: [allreduce.out] }
+  io_mapping:
+    x: external.x
+    gating: external.gating
+    bias: external.bias
+    output: norm.out

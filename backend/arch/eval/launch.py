@@ -95,6 +95,9 @@ class FusedNode:
     #: so they agree), because the node has no parent chain for
     #: `Program.routed_uids` to walk.
     in_dispatch_zone: bool = False
+    #: Owns the full dispatch -> expert bank -> combine region. Such an
+    #: execution span consumes original tokens, not padded per-expert rows.
+    owns_dispatch: bool = False
     #: An axis-aware op's authored axis, and a permute's axis order. Always
     #: None on a launch: a fused kernel is a leaf standing for its origins,
     #: and the axes worked on are theirs. Declared for the same reason
