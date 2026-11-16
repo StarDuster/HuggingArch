@@ -72,7 +72,7 @@ HuggingArch 是分析型的规划工具，不是 profiler，也不是推理 runt
 | **注意力** | MHA、GQA、MLA、稀疏注意力（DSA）、滑窗、线性注意力与 SSM 混合结构——188 个可复用 component DAG。 |
 | **量化** | FP8、FP4 / MXFP4 / NVFP4、AWQ、GPTQ、ModelOpt、compressed-tensors。 |
 | **GPU** | 15 种型号：从 A100 到 GB300。 |
-| **推理框架** | vLLM、sglang 和 DeepInfer 的融合绑定（91 个融合 plan）。 |
+| **推理框架** | vLLM、sglang 和 DeepInfer 的融合绑定（99 个融合 plan）。 |
 
 ## 延伸阅读
 
