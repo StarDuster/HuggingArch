@@ -5918,13 +5918,13 @@ def _kimi_attn_res_norm_inputs(inv, device, gen):
     import torch
     dt = _dtype(inv.dtype)
     D = int(inv.dims['d_model'])
-    rand = lambda shape: torch.randn(*shape, dtype=dt, device=device, generator=gen)
+    draw = lambda shape: torch.randn(*shape, dtype=dt, device=device, generator=gen)
     return {
-        'prefix': rand(_shape(inv, 'prefix')),
-        'stack': rand(_shape(inv, 'stack')),
-        'score_gain': (1 + rand((D,)) * 0.05).to(dt),
-        'score_proj': (rand((1, D)) / D ** 0.5).to(dt),
-        'out_norm_w': (1 + rand((D,)) * 0.05).to(dt),
+        'prefix': draw(_shape(inv, 'prefix')),
+        'stack': draw(_shape(inv, 'stack')),
+        'score_gain': (1 + draw((D,)) * 0.05).to(dt),
+        'score_proj': (draw((1, D)) / D ** 0.5).to(dt),
+        'out_norm_w': (1 + draw((D,)) * 0.05).to(dt),
     }
 
 

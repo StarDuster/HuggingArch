@@ -431,9 +431,13 @@ def build_row(
     xcheck_worst: Optional[float] = None,
     kernel_symbol: str = "",
     launch_trace: Optional[Any] = None,
+    input_protocol: Optional[Dict[str, Any]] = None,
     run_id: str = "",
     box: str = "",
 ) -> Dict[str, str]:
+    if input_protocol is not None:
+        from .input_protocol import InputProtocol
+        InputProtocol.validate(inv, input_protocol)
     achieved_tflops, achieved_bw = achieved_from_latency(
         inv.flops_per_rank, inv.access_bytes_per_rank, stats.p50_us)
 

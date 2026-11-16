@@ -1,5 +1,5 @@
 {
-  "state": "dsa-residual-source-saved-results-private",
+  "state": "seed-provenance-fixed-results-private",
   "time_utc": "2026-11-15T09:12:17.883807+00:00",
   "pid": 443147,
   "steps": [
@@ -54,7 +54,7 @@
   "source_version_regression": "passed",
   "updated_at": 1794738015.197969,
   "accuracy_validated": true,
-  "report": "https://github.com/StarDuster/k3-performance-results/releases/tag/b300-dsa-residual-calibration-20261116",
+  "report": "https://github.com/StarDuster/k3-performance-results/releases/tag/b300-seed-provenance-retest-20261116",
   "active_work": false,
   "validated_library_rows": 41,
   "full_cross_library_rows": 146,
@@ -64,7 +64,7 @@
     "serving cache/PDL overlap versus isolated measurements"
   ],
   "tp8_communication_keys_measured": 4,
-  "updated_at_utc": "2026-11-15T17:23:51.539661+00:00",
+  "updated_at_utc": "2026-11-16T04:12:33.720695+00:00",
   "retired_invalid_rows": 16,
   "distributed_tp8_rows": 4,
   "background_jobs": [],

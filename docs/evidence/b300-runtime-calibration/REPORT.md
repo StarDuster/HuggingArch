@@ -1,6 +1,6 @@
 # B300 K3.1 runtime calibration repair
 
-> Historical snapshot149e5d9. The current DSA/DCP and fused-residual calibration, complete overlay.json, and raw measurements are in the [private follow-up release](https://github.com/StarDuster/k3-performance-results/releases/tag/b300-dsa-residual-calibration-20261116). Use that overlay with this source branch.
+> Historical snapshot149e5d9. Use the [seed-provenance corrected private release](https://github.com/StarDuster/k3-performance-results/releases/tag/b300-seed-provenance-retest-20261116) for the current overlay, input protocols, actual CUDA graph evidence and raw retests. The old upload package is superseded.
 
 Final scope: target-only Kimi-K3.1-Pro, B300 TP8/DCP8/EP2, KV64, batch1, output512. No speculation or AgentX result is implied. The original nine rows on kimi-k31-reports are unchanged. No PR.
 
