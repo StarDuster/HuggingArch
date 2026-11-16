@@ -5941,5 +5941,5 @@ def _kimi_attn_res_norm_reference(inputs):
     return (normed * inputs['out_norm_w'].float()).to(inputs['prefix'].dtype)
 
 
-register_ref('kimi_attn_res_rmsnorm',
+register_ref('attn_res_combine_norm',
              RefSpec(_kimi_attn_res_norm_inputs, _kimi_attn_res_norm_reference))

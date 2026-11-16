@@ -56,6 +56,7 @@ class TestShippedSchemesLoad(unittest.TestCase):
             [
                 "add_attn_res_combine_norm",
                 "allreduce_fused_rmsnorm",
+                "attn_res_combine_norm",
                 "causal_conv1d",
                 "causal_conv1d_packed",
                 "flash_attention",
@@ -118,7 +119,6 @@ class TestShippedSchemesLoad(unittest.TestCase):
                 "ihc_pre_mix",
                 "indexer_block_score",
                 "indexer_logits",
-                "kimi_attn_res_rmsnorm",
                 "kimi_k31_attention_output_residual_span",
                 "kimi_k31_attention_output_span",
                 "kimi_k31_dsa_span",

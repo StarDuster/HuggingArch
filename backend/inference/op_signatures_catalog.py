@@ -3443,7 +3443,7 @@ register_signature(OpSignature(
 
 
 register_signature(OpSignature(
-    name='kimi_attn_res_rmsnorm', binds_ops=('kimi_attn_res_rmsnorm',),
+    name='attn_res_combine_norm', binds_ops=('attn_res_combine_norm',),
     inputs=(
         TensorLayout('prefix', ('B', 's_query', 'd_model')),
         TensorLayout('stack', ('B', 's_query', 'Sar', 'd_model')),

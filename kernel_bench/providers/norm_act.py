@@ -2192,7 +2192,7 @@ def _sglang_kimi_attn_res_norm_applies(inv, env):
 
 
 register(Provider(
-    library='sglang', signature='kimi_attn_res_rmsnorm',
+    library='sglang', signature='attn_res_combine_norm',
     kernel_impl='sglang_kimi_attn_res_tma_rmsnorm',
     import_name='sglang.kernels.ops.attention.attn_res',
     applies_to=_sglang_kimi_attn_res_norm_applies,

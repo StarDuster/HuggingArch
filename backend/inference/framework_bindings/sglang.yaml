@@ -374,7 +374,7 @@ op_implementations:
       below_compute_capability: "10.4"
       dims: { n_experts: [896], n_experts_active: [16], d_moe_latent: [3584], n_verify: [1], n_expert_groups: [1], dp_attention: [1] }
       world_local: { world: tp_moe_expert, dim: d_ffn_expert, local_in: [768] }
-  kimi_attn_res_rmsnorm:
+  attn_res_combine_norm:
     source_anchor: "python/sglang/srt/layers/attn_residual.py:_aggregate_fast; python/sglang/kernels/ops/attention/attn_res.py:attn_res_fused_tma (source 5792cf6e5e11)"
     when:
       phase: [decode]
