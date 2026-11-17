@@ -75,8 +75,9 @@ def test_a_current_lake_is_not_rewritten(lake):
     assert lake.read("SELECT * FROM lake.measurements") == before
 
 
+@pytest.mark.parametrize("previous_version", ["a2b93a8d956f7699", "aba31e0751b247e2"])
 def test_paged_storage_identity_migration_preserves_failed_attempts(
-        lake, make_rows, new_owner, monkeypatch):
+        lake, make_rows, new_owner, monkeypatch, previous_version):
     """A now-supported storage layout does not retroactively create a timing.
 
     Preserve both a measured row and the old paged-indexer mismatch, including
@@ -108,7 +109,7 @@ def test_paged_storage_identity_migration_preserves_failed_attempts(
                  run_id="old-storage-check", label=None, rows=rows, status="shared")
     before = lake.read("SELECT * FROM lake.measurements ORDER BY id")
     start = next(i for i, step in enumerate(data_rules._MIGRATIONS)
-                 if step["from"] == "a2b93a8d956f7699")
+                 if step["from"] == previous_version)
     # Every split-PR revision on the upgrade path preserves stored evidence.
     for step in data_rules._MIGRATIONS[start:]:
         assert not any(step.get(name) for name in (

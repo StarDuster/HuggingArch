@@ -28,8 +28,8 @@
 framework: sglang
 audited_at:
   repo: sgl-project/sglang
-  tag: v0.5.22+1b2870d3
-  commit: 1b2870d33de7b5f31844fd74e97eea6d7896c53a
+  tag: v0.5.22
+  commit: baa9befa381511cd4d56f83980951e5a45fffc6d
 
 # The Kimi pack-quantized path is a serving launch, not a checkpoint
 # activation declaration. Source permalinks pin the audited launch behavior.

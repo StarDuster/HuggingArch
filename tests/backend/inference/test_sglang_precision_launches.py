@@ -90,15 +90,17 @@ def test_precision_launches_refuse_unanswerable_match_conditions():
 
 def test_per_citation_revision_preserves_the_audited_source():
     binding = get_binding("sglang")
-    assert binding.audited_at.tag == "v0.5.22+1b2870d3"
+    assert binding.audited_at.tag == "v0.5.22"
     anchor = binding.precision_launches[0].source_anchor
     cited = binding.audited_at.cite(anchor)
     assert "".join(segment["text"] for segment in cited["segments"]) == anchor.text
     links = [segment["url"] for segment in cited["segments"] if "url" in segment]
     assert links
     assert all("/1b2870d33de7b5f31844fd74e97eea6d7896c53a/" in url for url in links)
-    legacy = SourceAnchor.parse("src/quant.py:1", "test")
-    assert binding.audited_at.commit in binding.audited_at.cite(legacy)["segments"][0]["url"]
+    legacy = SourceAnchor.parse("python/sglang/srt/layers/attention/dsa_backend.py:2741", "test")
+    url = binding.audited_at.cite(legacy)["segments"][0]["url"]
+    assert url.endswith("/baa9befa381511cd4d56f83980951e5a45fffc6d/"
+                        "python/sglang/srt/layers/attention/dsa_backend.py#L2741")
 
 
 def test_precision_phase_gate_requires_matching_walk():
