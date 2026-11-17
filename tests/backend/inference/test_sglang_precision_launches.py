@@ -9,10 +9,10 @@ from backend.inference.framework_bindings import (
 from tests.backend.inference.test_precision_launch_selection import _coordinate
 from tests.snapshots import shared_program
 
-K31 = "moonshotai__Kimi-K3"
+KIMI = "moonshotai__Kimi-K3"
 
 
-def selection(*, stem=K31, sku="B300", flags=None):
+def selection(*, stem=KIMI, sku="B300", flags=None):
     program = shared_program(stem)
     deployment = ServingDeployment.at(
         gpu_sku=sku, activation_dtype="BF16", server_flags=flags)
@@ -28,7 +28,7 @@ def selection(*, stem=K31, sku="B300", flags=None):
 @pytest.mark.parametrize("sku", ["B200", "B300"])
 def test_kimi_default_uses_mxfp8_activations_with_mxfp4_weights(backend, sku):
     _, precision, formats = selection(sku=sku, flags={"moe_runner_backend": backend})
-    assert _coordinate(K31).request is None  # checkpoint remains weight-only
+    assert _coordinate(KIMI).request is None  # checkpoint remains weight-only
     launch = precision._launch_for(None, "", formats)
     assert launch.name == "kimi_mxfp4_default"
     assert precision.required_format(None, "", formats).name == "fp8_token_group32_ue8m0"
@@ -100,3 +100,21 @@ def test_per_citation_revision_preserves_the_audited_source():
     legacy = SourceAnchor.parse("src/quant.py:1", "test")
     assert binding.audited_at.commit in binding.audited_at.cite(legacy)["segments"][0]["url"]
 
+
+def test_precision_phase_gate_requires_matching_walk():
+    from dataclasses import replace
+    from types import SimpleNamespace
+
+    binding, _, _ = selection()
+    launch = binding.precision_launches[0]
+    launch = replace(launch, whens=tuple(
+        replace(when, graph=replace(when.graph, phase=("decode",)))
+        for when in launch.whens))
+    binding = replace(binding, precision_launches=(launch,))
+    program = shared_program(KIMI)
+    assert binding.precision_launches_for(program) == ()
+    prefill = SimpleNamespace(rule=SimpleNamespace(phase="prefill"))
+    decode = SimpleNamespace(rule=SimpleNamespace(phase="decode"))
+    assert binding.precision_launches_for(program, prefill) == ()
+    assert binding.unavailable_precision_launches_for(program, prefill) == ()
+    assert binding.precision_launches_for(program, decode) == (launch,)
