@@ -66981,7 +66981,7 @@
       "per_token_kv_bytes_per_rank": 18912.0,
       "static_kv_bytes_per_rank": 0.0,
       "total_params": 0,
-      "weight_bytes_per_rank": 205489163264.0
+      "weight_bytes_per_rank": 205413665792.0
     },
     "ops": {
       "decode": {
@@ -67010,7 +67010,7 @@
         "mem_write_bytes": 0,
         "metadata_read_bytes_per_rank": 0,
         "t_sol_s": null,
-        "time_unpublished_reason": "weights (191.38 GiB) + recurrent state (0.05 GiB) exceed usable HBM (72.00 GiB) on H100-SXM at this parallel config. Raise TP/EP or use a smaller-weight model.",
+        "time_unpublished_reason": "weights (191.31 GiB) + recurrent state (0.05 GiB) exceed usable HBM (72.00 GiB) on H100-SXM at this parallel config. Raise TP/EP or use a smaller-weight model.",
         "weight_read_bytes_per_rank": 0
       },
       "prefill": {
@@ -67025,7 +67025,7 @@
         "mem_write_bytes": 0,
         "metadata_read_bytes_per_rank": 0,
         "t_sol_s": null,
-        "time_unpublished_reason": "weights (191.38 GiB) + recurrent state (0.05 GiB) exceed usable HBM (72.00 GiB) on H100-SXM at this parallel config. Raise TP/EP or use a smaller-weight model.",
+        "time_unpublished_reason": "weights (191.31 GiB) + recurrent state (0.05 GiB) exceed usable HBM (72.00 GiB) on H100-SXM at this parallel config. Raise TP/EP or use a smaller-weight model.",
         "weight_read_bytes_per_rank": 0
       }
     }
@@ -67038,7 +67038,7 @@
       "per_token_kv_bytes_per_rank": 18912.0,
       "static_kv_bytes_per_rank": 0.0,
       "total_params": 0,
-      "weight_bytes_per_rank": 1560926639104.0
+      "weight_bytes_per_rank": 1560322659328.0
     },
     "ops": {
       "decode": {
@@ -67067,7 +67067,7 @@
         "mem_write_bytes": 0,
         "metadata_read_bytes_per_rank": 0,
         "t_sol_s": null,
-        "time_unpublished_reason": "weights (1453.73 GiB) + recurrent state (0.42 GiB) exceed usable HBM (72.00 GiB) on H100-SXM at this parallel config. Raise TP/EP or use a smaller-weight model.",
+        "time_unpublished_reason": "weights (1453.16 GiB) + recurrent state (0.42 GiB) exceed usable HBM (72.00 GiB) on H100-SXM at this parallel config. Raise TP/EP or use a smaller-weight model.",
         "weight_read_bytes_per_rank": 0
       },
       "prefill": {
@@ -67082,7 +67082,7 @@
         "mem_write_bytes": 0,
         "metadata_read_bytes_per_rank": 0,
         "t_sol_s": null,
-        "time_unpublished_reason": "weights (1453.73 GiB) + recurrent state (0.42 GiB) exceed usable HBM (72.00 GiB) on H100-SXM at this parallel config. Raise TP/EP or use a smaller-weight model.",
+        "time_unpublished_reason": "weights (1453.16 GiB) + recurrent state (0.42 GiB) exceed usable HBM (72.00 GiB) on H100-SXM at this parallel config. Raise TP/EP or use a smaller-weight model.",
         "weight_read_bytes_per_rank": 0
       }
     }
