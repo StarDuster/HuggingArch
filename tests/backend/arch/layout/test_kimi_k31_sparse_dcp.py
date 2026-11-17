@@ -23,6 +23,12 @@ def test_sparse_dcp_selected_ownership_and_rounded_resident_scan(context, rho, s
     plan = a.rule.sparse_dcp.plans[0]
     assert value_of(a.kernel_shapes.values[plan.nodes['apply'].uid].ins[0][-1]) == selected
     assert value_of(a.kernel_shapes.values[plan.nodes['indexer_logits'].uid].out[-1]) == scan
+    from backend.arch.layout.physical_cost import physical_cost_plan
+    cost = physical_cost_plan(a).cost
+    # A rank scans its resident keys; selected ownership controls only MLA.
+    assert int(cost.values[plan.nodes['indexer_logits'].uid].flops) == 32 * (2 * 128 + 3) * scan
+    assert int(cost.values[plan.nodes['score'].uid].flops) == 2 * 96 * 576 * selected
+    assert int(cost.values[plan.nodes['apply'].uid].flops) == 2 * 96 * 512 * selected
 
 
 def test_public_sglang_serving_rereads_sparse_communication_laws():

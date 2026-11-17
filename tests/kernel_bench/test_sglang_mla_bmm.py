@@ -7,8 +7,10 @@ from kernel_bench.providers.sglang_mla import _absorbed_bmm_build
 @pytest.mark.parametrize('width,output,padded', [(128,512,192),(512,128,512)])
 def test_serving_bmm_strides_and_values(batch,query,heads,width,output,padded):
     gen=torch.Generator().manual_seed(67)
-    inputs={'x':torch.randn(batch,heads,query,width,generator=gen,dtype=torch.bfloat16),
-            'w':torch.randn(heads,output,width,generator=gen,dtype=torch.bfloat16)}
+    # Small integer products/sums make exact equality a layout check across
+    # CPU BLAS implementations, independent of BF16 rounding order.
+    inputs={'x':torch.randint(-1,2,(batch,heads,query,width),generator=gen).to(torch.bfloat16),
+            'w':torch.randint(-1,2,(heads,output,width),generator=gen).to(torch.bfloat16)}
     case=_absorbed_bmm_build(padded)(None,None,inputs)
     a,w=case.run.args
     assert a.shape==(heads,batch*query,width)

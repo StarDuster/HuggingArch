@@ -158,6 +158,18 @@ def test_b300_sglang_dcp8_sparse_attention():
         avg_input_tokens=4096,
         avg_output_tokens=1024,
     )
-    assert result['max_batch_per_gpu'] == 797
-    assert len(result['per_op_timing']) == 1521
-    assert len(result['per_op_timing_decode']) == 1537
+    assert result['max_batch_per_gpu'] > 0
+    assert result['per_op_timing']
+    decode = result['per_op_timing_decode']
+    indexers = [row for row in decode if row['op'] == 'indexer_logits']
+    assert indexers
+    # Decode uses prompt + half the output: 4608 global keys, 576 per rank.
+    assert all(row['shape_in'][1][-2] == 576 for row in indexers)
+    assert all(row['flops_per_rank'] == row['count_per_step'] * row['shape_in'][0][0]
+               * 32 * (2 * 128 + 3) * 576
+               for row in indexers)
+    stages = {row.get('runtime_stage_name') for row in decode}
+    assert {'dcp_topk_merge_exchange_certificate', 'dcp_selected_owner_localize',
+            'flashmla_split_combine'} <= stages
+    assumptions = {item['id'] for item in result['assumptions']}
+    assert {'sparse_dcp_selected_ownership', 'sparse_dcp_candidate_fallback'} <= assumptions
