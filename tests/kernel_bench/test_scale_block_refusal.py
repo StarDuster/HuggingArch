@@ -157,8 +157,6 @@ def test_fused_checkpoint_chunks_own_the_fp8_grid(
         assert {s["block_scale_layout"]["runtime_tp"] for s in shards} == {tp}
         assert {s["block_scale_layout"]["loader"] for s in shards} == {
             "whole_chunks" if framework == "sglang" else "head_gather"}
-        assert {s["block_scale_layout"]["rows_local"] for s in shards} == {
-            sum(s["rows_local"] for s in shards)}
         why = _scale_block_refusal(row)
         assert why is None, (row["aggregation_id"], why)
 
@@ -214,8 +212,7 @@ def test_interleaved_load_contract_preserves_other_scale_guards():
         if layout:
             shard["block_scale_layout"] = dict(
                 kind="tp_interleaved", checkpoint_tp=4, runtime_tp=runtime_tp,
-                world="tp_attention", loader=loader, load_refusal=refusal,
-                rows_local=3392)
+                world="tp_attention", loader=loader, load_refusal=refusal)
         return {"weight_shards": [shard]}
 
     assert _scale_block_refusal(row()) is None
@@ -325,3 +322,21 @@ def test_loader_formats_preserve_theory_and_checkpoint_grids():
         assert whole_resident(physical_artifacts(loaded)) < theory_bytes
     assert set(full_grid(theory)) == {(108, 32)}
     assert theory.with_load_formats({}) is theory
+
+
+def test_mimo_mtp_sglang_tp8_is_unplaced_not_raised():
+    from backend.inference.parallel_config import ParallelConfig
+    from kernel_bench.plan import PlanPoint, build_jobs_with_unplaced
+    from tests.snapshots import resolve_snapshot
+
+    jobs, _, unplaced = build_jobs_with_unplaced(
+        model_id="XiaomiMiMo/MiMo-V2.5",
+        resolved=resolve_snapshot("XiaomiMiMo__MiMo-V2.5"),
+        gpu="H200",
+        framework="sglang",
+        phase="decode",
+        parallel=ParallelConfig(tp_attention=8, tp_dense_ffn=8, tp_moe_expert=8),
+        points=[PlanPoint(batch=1, seq_len=128, s_prefix_cached=0, s_verify=2)],
+        avg_output_tokens=128,
+    )
+    assert any("qkv_proj" in (u.get("aggregation_id") or "") for u in unplaced)

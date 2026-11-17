@@ -338,20 +338,23 @@ quant_context:
     # has 4 * ceil((13568 / 4) / 128) = 108 rows; SWA has 116.
     # SGLang's fused loader uses the global KV-head count (4), including for
     # SWA, whose local component binds eight KV heads.
-    attention: { method: fp8, block_h: 128, block_w: 128,
-                 block_scale_layout: { kind: tp_interleaved, checkpoint_tp: 4, world: tp_attention },
-                 scale_shape: ["chunks_per_rank * ((out // chunks_per_rank + block_h - 1) // block_h)",
-                               "(in + block_w - 1) // block_w"] }
-    attention_swa: { method: fp8, block_h: 128, block_w: 128,
-                     block_scale_layout: { kind: tp_interleaved, checkpoint_tp: 4, world: tp_attention },
-                     scale_shape: ["chunks_per_rank * ((out // chunks_per_rank + block_h - 1) // block_h)",
-                                   "(in + block_w - 1) // block_w"] }
+    attention: { method: fp8, block_h: 128, block_w: 128 }
+    attention_swa: { method: fp8, block_h: 128, block_w: 128 }
     ffn_dense: { method: fp8, block_h: 128, block_w: 128 }
     ffn_moe:   { method: fp8, block_h: 128, block_w: 128 }
     attention_output: { method: none }
     router:    { method: none, dtype: F32 }
     default:   { method: none }
   overrides:
+    - tensors_re: 'self_attn\.qkv_proj'
+      method: fp8
+      dtype: F8_E4M3
+      block_h: 128
+      block_w: 128
+      block_scale_layout: { kind: tp_interleaved, checkpoint_tp: 4, world: tp_attention }
+      scale_shape:
+        - "chunks_per_rank * ((out // chunks_per_rank + block_h - 1) // block_h)"
+        - "(in + block_w - 1) // block_w"
     - tensors_re: 'mlp\.gate\.e_score_correction_bias$'
       dtype: F32
     - tensors_re: '^visual\.'

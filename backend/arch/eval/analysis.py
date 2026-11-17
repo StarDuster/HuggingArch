@@ -74,6 +74,17 @@ def _format_label(fmt: Any) -> str:
     return name
 
 
+class BlockScaleLayoutInfo(NamedTuple):
+    """Typed checkpoint-chunk / loader contract carried on a `WeightShard`."""
+
+    kind: str
+    checkpoint_tp: int
+    world: str
+    loader: Optional[str]
+    load_refusal: Optional[str]
+    runtime_tp: int
+
+
 class WeightShard(NamedTuple):
     """One partition of a matrix a kernel multiplies, as the grid a weight's
     scale tiles: its rows and its reduction width, as the checkpoint holds
@@ -99,7 +110,7 @@ class WeightShard(NamedTuple):
     width: Any
     width_local: Any
     granularity: Optional[str]
-    block_scale_layout: Optional[Dict[str, Any]] = None
+    block_scale_layout: Optional[BlockScaleLayoutInfo] = None
 
 
 def _dtype_name(row: TensorRow) -> str:
@@ -1569,6 +1580,19 @@ class Analysis:
             for rep in reps
             if rep.resident.load_refusal is not None))
 
+    @memo_property
+    def load_refusal_knobs(self) -> Tuple[str, ...]:
+        """The parallelism worlds named by this walk's `load_refusals`."""
+        knobs = tuple(dict.fromkeys(
+            rep.resident.block_scale_layout.world
+            for tensors in self.formats.values.values()
+            for reps in tensors
+            for rep in reps
+            if rep.resident.load_refusal is not None
+            and rep.resident.block_scale_layout is not None
+        ))
+        return knobs or ("tp_attention",)
+
     def with_load_formats(self, loaders: Mapping[str, str]) -> "Analysis":
         """This walk with the resident representations its loader creates.
 
@@ -1646,16 +1670,14 @@ class Analysis:
                     load_layout = None
                     if resident is not None and resident.block_scale_layout is not None:
                         contract = resident.block_scale_layout
-                        held = replace(row.tensor, shape=(
-                            *lead, sum(local for _, local in axes[-2]), width_local))
-                        _, rows_held = held.matrix_dims
-                        load_layout = {
-                            **contract.model_dump(),
-                            "loader": resident.loader,
-                            "load_refusal": resident.load_refusal,
-                            "runtime_tp": self.rule.world_degree(contract.world),
-                            "rows_local": rows_held,
-                        }
+                        load_layout = BlockScaleLayoutInfo(
+                            kind=contract.kind,
+                            checkpoint_tp=contract.checkpoint_tp,
+                            world=contract.world,
+                            loader=resident.loader,
+                            load_refusal=resident.load_refusal,
+                            runtime_tp=self.rule.world_degree(contract.world),
+                        )
                     for size, local in axes[-2]:
                         whole = replace(row.tensor, shape=(
                             *row.tensor.shape[:-2], size, row.tensor.shape[-1]))

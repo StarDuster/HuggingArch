@@ -142,12 +142,15 @@ def leaf_peak(gpu: Any, dtype: str) -> Optional[float]:
 def serving_layers(step_eval: Any, *,
                    framework_binding: Optional[FrameworkBinding],
                    stage: Optional[int],
-                   timed: FrozenSet[str]) -> ServingLayers:
+                   timed: FrozenSet[str],
+                   allow_load_refusals: bool = False) -> ServingLayers:
     """The layers a step's rows are read from (`ServingLayers`), off its
     walk: its cell's for this reader configuration (`step_eval.Cell.
     serving`), so the points of a cell share them."""
     step_eval.walk  # noqa: B018 — the cell's walk, built before it is read
-    return step_eval.cell.serving(framework_binding, stage, timed)
+    return step_eval.cell.serving(
+        framework_binding, stage, timed,
+        allow_load_refusals=allow_load_refusals)
 
 
 def analyze(
@@ -243,10 +246,8 @@ def analyze(
             include_aux=include_aux_timing)
     )
     layers = serving_layers(step_eval, framework_binding=framework_binding,
-                            stage=stage, timed=timed)
-    if layers.analysis.load_refusals and not allow_load_refusals:
-        raise DeploymentRefusal("; ".join(layers.analysis.load_refusals),
-                                knobs=("tp_attention",), phase=phase)
+                            stage=stage, timed=timed,
+                            allow_load_refusals=allow_load_refusals)
     # The rows are read at this step's point: every layer above is the
     # walk's laws, and this is where they become this point's numbers.
     return step_rows(

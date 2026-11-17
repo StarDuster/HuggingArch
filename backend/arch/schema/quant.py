@@ -92,6 +92,17 @@ class BlockScaleLayout(BaseModel):
     checkpoint_tp: int = Field(gt=0)
     world: str
 
+    @field_validator("world")
+    @classmethod
+    def _world_is_registered(cls, value: str) -> str:
+        from .. import dims as dims_mod
+        valid = {spec.degree for spec in dims_mod.worlds().values()}
+        if value not in valid:
+            raise ValueError(
+                f"block_scale_layout.world={value!r} is not a registered "
+                f"parallelism world ({sorted(valid)})")
+        return value
+
 
 class PerRoleEntry(BaseModel):
     """One row of `quant_context.per_role`. `method` routes to a yaml
@@ -381,8 +392,14 @@ def _validate_quant_entry_fields(
 
 
 def _validate_block_scale_entry(location: str, entry: Any) -> None:
-    if entry.block_scale_layout is not None and entry.method != "fp8":
-        raise ValueError(f"{location}: block_scale_layout requires method: fp8")
+    if entry.block_scale_layout is not None:
+        from .. import quant_schemes
+        scheme = quant_schemes.scheme_named(entry.method) if entry.method else None
+        strategies = scheme.scale_strategy or () if scheme is not None else ()
+        if not any("block" in s or "tile" in s for s in strategies):
+            raise ValueError(
+                f"{location}: block_scale_layout requires a block/tile-scaled "
+                f"quant scheme, got method={entry.method!r}")
     if (entry.block_scale_layout is None
             and any(re.search(r"\bchunks_per_rank\b", axis)
                     for axis in entry.scale_shape or ())):

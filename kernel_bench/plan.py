@@ -521,6 +521,12 @@ def _build_jobs_over_points(
         stacks = sorted({entry.stack for name, entry
                          in program.model_inputs.items()
                          if name in media and entry.stack is not None})
+        walk_kwargs = dict(
+            precision=precision,
+            gpu=card,
+            allow_load_refusals=True,
+            breakdown=False,
+        )
         return [analyze(
             resolved, parallel=parallel, framework_binding=binding,
             batch_size=batch_size, phase=phase,
@@ -528,10 +534,7 @@ def _build_jobs_over_points(
                                       batch=batch_size, media=media,
                                       precision=precision),
             timed_stacks=frozenset({stack}),
-            precision=precision,
-            gpu=card,
-            allow_load_refusals=True,
-            breakdown=False,
+            **walk_kwargs,
         ) for stack in stacks]
 
     def _step_results(point: PlanPoint) -> List[List[Any]]:
@@ -582,6 +585,7 @@ def _build_jobs_over_points(
                 # width, not at K+1. At K=0 the old whole-step behaviour
                 # remains: every aux stack the step walks is measurable.
                 include_aux_timing=draft is None,
+                allow_load_refusals=True,
                 precision=precision,
                 gpu=card,
                 breakdown=False,
@@ -606,9 +610,9 @@ def _build_jobs_over_points(
                 # account happened to bind.
                 stage=(parallel.pp - 1) if parallel.pp > 1 else None,
                 timed_stacks=draft.stacks,
+                allow_load_refusals=True,
                 precision=precision,
                 gpu=card,
-                allow_load_refusals=True,
                 breakdown=False,
             )
 

@@ -1335,7 +1335,12 @@ class CellBasis:
         with self._lock:
             return physical_artifacts(self.analysis)
 
-    def loaded(self, framework_binding: Any) -> Tuple[Any, Tuple[Any, ...]]:
+    def loaded(
+        self,
+        framework_binding: Any,
+        *,
+        allow_refusals: bool = False,
+    ) -> Tuple[Any, Tuple[Any, ...]]:
         """The resident walk and artifacts for the binding's selected loaders.
 
         The base walk remains framework-free and shared with every reader. A
@@ -1353,13 +1358,14 @@ class CellBasis:
             entry = self._loaded.get(key)
             if entry is None:
                 analysis = base.with_load_formats(loaders)
-                if analysis.load_refusals:
-                    raise DeploymentRefusal(
-                        "; ".join(analysis.load_refusals),
-                        knobs=("tp_attention",))
                 entry = self._loaded[key] = (
                     analysis, physical_artifacts(analysis))
-            return entry
+        analysis, artifacts = entry
+        if analysis.load_refusals and not allow_refusals:
+            raise DeploymentRefusal(
+                "; ".join(analysis.load_refusals),
+                knobs=analysis.load_refusal_knobs)
+        return analysis, artifacts
 
     @memo_property
     def placement(self) -> Optional[StagePlacement]:

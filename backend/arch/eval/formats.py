@@ -412,9 +412,11 @@ class TensorFormat:
                     f"{stored.name}: scale geometry uses chunks_per_rank "
                     "without a block_scale_layout")
             checkpoint_tp = self.block_scale_layout.checkpoint_tp
-            # A loader-free checkpoint walk is analytical, not a deployability
-            # claim. A selected loader that cannot load publishes load_refusal;
-            # estimate and capacity reject that analysis before reading it.
+            if checkpoint_tp % runtime_tp != 0 and self.load_refusal is None:
+                raise ValueError(
+                    f"{stored.name}: checkpoint is TP={checkpoint_tp}-interleaved; "
+                    f"runtime TP={runtime_tp} does not divide it"
+                )
             projected["chunks_per_rank"] = (
                 checkpoint_tp // runtime_tp
                 if checkpoint_tp % runtime_tp == 0 else checkpoint_tp)
