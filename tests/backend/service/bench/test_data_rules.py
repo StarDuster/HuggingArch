@@ -107,11 +107,12 @@ def test_paged_storage_identity_migration_preserves_failed_attempts(
     store.upload(lake, owner=new_owner(), upload_id=str(uuid.uuid4()),
                  run_id="old-storage-check", label=None, rows=rows, status="shared")
     before = lake.read("SELECT * FROM lake.measurements ORDER BY id")
-    step = next(s for s in data_rules._MIGRATIONS
-                if s["from"] == "a2b93a8d956f7699")
-    assert step["reason"].startswith("Identity migration:")
-    assert not any(step.get(name) for name in (
-        "rekey_plan", "rekey_env", "validate_rows", "deduplicate_shared_rows"))
+    start = next(i for i, step in enumerate(data_rules._MIGRATIONS)
+                 if step["from"] == "a2b93a8d956f7699")
+    # Every split-PR revision on the upgrade path preserves stored evidence.
+    for step in data_rules._MIGRATIONS[start:]:
+        assert not any(step.get(name) for name in (
+            "rekey_plan", "rekey_env", "validate_rows", "deduplicate_shared_rows"))
 
     def no_row_mutation(*args, **kwargs):
         pytest.fail("identity migration must not rewrite or promote stored attempts")
@@ -120,7 +121,7 @@ def test_paged_storage_identity_migration_preserves_failed_attempts(
     monkeypatch.setattr(data_rules, "_invalid_rows", no_row_mutation)
     monkeypatch.setattr(data_rules, "_duplicate_shared_rows", no_row_mutation)
     monkeypatch.setattr(store, "rekey_env", no_row_mutation)
-    store.set_meta(lake, data_rules=step["from"])
+    store.set_meta(lake, data_rules=data_rules._MIGRATIONS[start]["from"])
     result = data_rules.migrate(lake)
     assert result.version == data_rules.registered_version()
     assert result.report() == {"rekeyed_rows": 0, "env_rekeyed_rows": 0,
