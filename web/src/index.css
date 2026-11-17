@@ -458,6 +458,16 @@ table[data-resized] [data-cap] { width: auto; max-width: 100%; }
     background: #f1f5f9;
     color: #0f172a;
 }
+/* Opening the calculation panel makes the card thousands of pixels tall.
+   Keep the inverse `−` action beside the card heading instead of letting the
+   old 50%-of-card placement push it halfway down the expanded graph. */
+.arch-expand-btn.is-open {
+    top: 12px;
+    transform: none;
+    color: #334155;
+    border-color: #94a3b8;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
+}
 .arch-detail-panel {
     max-height: 0;
     overflow: hidden;

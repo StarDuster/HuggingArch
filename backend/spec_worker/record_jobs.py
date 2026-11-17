@@ -212,7 +212,7 @@ def launch_review(record: dict, *, reviewer_id: str, reviewer_role: str = "user"
 
     _sw.start_job(
         run_key, _run_fn, model_id=model_id, user_id=reviewer_id,
-        kind=RecordJob.REVIEW.value,
+        kind=RecordJob.REVIEW.value, agent_cli=agent_cli, agent_env=agent_env,
     )
     return {"status": "started", "run_key": run_key}
 
@@ -296,7 +296,7 @@ def launch_fix(record: dict, *, fixer_id: str, fixer_role: str = "user",
 
     _sw.start_job(
         run_key, _run_fn, model_id=model_id, user_id=fixer_id,
-        kind=RecordJob.FIX.value,
+        kind=RecordJob.FIX.value, agent_cli=agent_cli, agent_env=agent_env,
     )
     return {"status": "started", "run_key": run_key}
 

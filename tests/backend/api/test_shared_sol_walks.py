@@ -286,8 +286,13 @@ def test_gallery_and_scaling_compile_the_same_law_graph_once(
     stored = gallery._Stored(MODEL, gallery._resolve_one(MODEL)[2])
     walk = stored.shared_walk(view)
     assert walk is not None
-    compiled = law._compiledGraph
+    # The compiler the arithmetic mode selects (`_compiledLaw`): both the
+    # prefill's evaluation and the decode's floor terms are built with it.
+    compiled = law._compiledLaw
     compiled.cache_clear()
+    # The decode step is read off its floor terms (`_FloorTerms`), whose
+    # program is compiled once per law like the prefill's graph.
+    law._floorTerms.cache_clear()
     before = compiled.cache_info().misses
     gallery._restamp(MODEL, walk, "H100-SXM", view)
     assert compiled.cache_info().misses - before == 2  # prefill and decode

@@ -2,6 +2,12 @@ import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { loadAuth, signOut, type AuthState } from "./auth";
 import { AvatarFace } from "./Avatar";
+import {
+  INSPECTOR_VISIT_EVENT,
+  currentHref,
+  readLastInspectorHref,
+  rememberInspectorHref,
+} from "./lastVisited";
 
 const TABS = [
   { key: "inspector", href: "/", label: "Inspector",
@@ -27,8 +33,24 @@ const IDLE = `${BASE} border-transparent text-gray-500 hover:text-gray-800`;
 export function TopNav({ active }: { active: (typeof TABS)[number]["key"] | null }) {
   // Below lg the tab row folds into a menu button with a dropdown panel.
   const [menuOpen, setMenuOpen] = useState(false);
-  const { pathname } = useLocation();
+  const { pathname, search, hash } = useLocation();
+  const [inspectorHref, setInspectorHref] = useState(readLastInspectorHref);
   useEffect(() => { setMenuOpen(false); }, [pathname]);
+  useEffect(() => {
+    if (active !== "inspector") return;
+    setInspectorHref(rememberInspectorHref(currentHref()));
+  }, [active, pathname, search, hash]);
+  useEffect(() => {
+    const onVisit = (event: Event) => {
+      const href = (event as CustomEvent<string>).detail;
+      if (href) setInspectorHref(href);
+    };
+    window.addEventListener(INSPECTOR_VISIT_EVENT, onVisit);
+    return () => window.removeEventListener(INSPECTOR_VISIT_EVENT, onVisit);
+  }, []);
+  const tabHref = (tab: (typeof TABS)[number]) => (
+    tab.key === "inspector" ? inspectorHref : tab.href
+  );
   useEffect(() => {
     if (!menuOpen) return;
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setMenuOpen(false); };
@@ -45,7 +67,7 @@ export function TopNav({ active }: { active: (typeof TABS)[number]["key"] | null
           </Link>
           <nav className="hidden lg:flex items-center gap-1 h-full">
             {TABS.map((t) => (
-              <Link key={t.key} to={t.href} className={t.key === active ? ACTIVE : IDLE} data-tab={t.key}>
+              <Link key={t.key} to={tabHref(t)} className={t.key === active ? ACTIVE : IDLE} data-tab={t.key}>
                 <TabIcon d={t.icon} />
                 {t.label}
               </Link>
@@ -76,7 +98,7 @@ export function TopNav({ active }: { active: (typeof TABS)[number]["key"] | null
             {TABS.map((t) => (
               <Link
                 key={t.key}
-                to={t.href}
+                to={tabHref(t)}
                 data-menu-tab={t.key}
                 aria-current={t.key === active ? "page" : undefined}
                 className={`flex items-center px-3 py-3 rounded-lg text-base font-medium ${

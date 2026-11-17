@@ -70,11 +70,12 @@ from .chunk_terms import ChunkLaunchTerm, merge_chunk_launch_terms
 
 from backend.measure.auto_sweep import (DECLINED, MEASURED, PIPELINE_STAGE, UNPLACED,
                                         ZERO_LAUNCH, MeasuredFormula, MeasuredTrack,
-                                        PointMeasure, look_up, sweep_keys)
+                                        PointMeasure, look_up)
 from backend.measure.lookup import Key
+from backend.measure.measure_matrix import MeasureMatrix, MatrixFold
 from backend.measure.scope import NONE as NO_MEASUREMENTS
 
-from dataclasses import asdict, replace
+from dataclasses import asdict
 from typing import (Any, Dict, Iterable, Iterator, List, Mapping,
                     Optional, Sequence, Tuple)
 
@@ -403,7 +404,9 @@ def rows_at(rows: List[Dict[str, Any]], point: Point, *, cell: Any,
                                            comm["dtype_bytes"])
                        if comm and breakdown else None)))
         else:
+            # Not priced here: no time of the anchor's stands at this point.
             row["t_sol_s"] = 0.0
+            row.pop("t_op_s", None)
         if moved:
             row.update(_shape_columns_at(read, r))
             if point.get("routed") is not None:
@@ -757,11 +760,15 @@ def step_measure(step: StepSum, keyed: Mapping[int, Any], where: Mapping[int, st
     text, _symbols = written[shape]
     keys, launches, unkeyed, labels = ([] for _ in range(4))
     reasons, aggregation_ids, inputs, zero, terms = ([] for _ in range(5))
-    cadences = []
+    cadences, sol = [], []
     for t in step.terms:
         z = t.zero_cost()
         point = keyed.get(id(t.row))
         zero.append(z)
+        # The term's SOL leaf, as the SOL total adds it (`t_op_s`); a row
+        # priced without its times (a pool's key table) states none.
+        own = t.row.get("t_op_s") if point is not None else None
+        sol.append(None if own is None else float(own))
         if point is None:
             keys.append(None)
             launches.append(0.0)
@@ -801,7 +808,8 @@ def step_measure(step: StepSum, keyed: Mapping[int, Any], where: Mapping[int, st
         MeasuredFormula(text, tuple(zero)),
         context={"gpu": gpu_sku, "framework": framework},
         inputs=tuple(inputs),
-        aggregation_ids=tuple(aggregation_ids))
+        aggregation_ids=tuple(aggregation_ids),
+        sol=tuple(sol) if any(v is not None for v in sol) else ())
     return {"measure": measure if as_object else measure.to_json(),
             "terms": terms,
         **({"cadences": tuple(cadences)} if include_cadence else {})}
@@ -975,14 +983,17 @@ def fold_chunk_point_measures(chunk_map: Mapping[str, Any],
                     inputs=(measure.inputs[term_index] if measure.inputs else None),
                     context=(measure.contexts[term_index]
                              if measure.contexts else context),
-                    cadence=cadences[term_index]),
+                    cadence=cadences[term_index],
+                    sol=(None if not measure.sol
+                         or measure.sol[term_index] is None
+                         else float(measure.sol[term_index]) * repeat)),
                 measure_chunk, term_index, term_index))
 
     merged = merge_chunk_launch_terms(term for term, *_ in records)
     keys, launches, unkeyed, labels = ([] for _ in range(4))
     reasons, aggregation_ids, inputs, zero, terms = ([] for _ in range(5))
     text_parts: List[str] = []
-    contexts = []
+    contexts, sol = [], []
     # Match each result back to the first source record.  Unsafe groups retain
     # their own records term-for-term; safe groups intentionally collapse to
     # the first graph-row provenance.
@@ -1010,6 +1021,7 @@ def fold_chunk_point_measures(chunk_map: Mapping[str, Any],
         zero.append(out.zero_cost)
         terms.append(measure_chunk["terms"][measure_term])
         contexts.append(out.context)
+        sol.append(out.sol)
         if not out.zero_cost:
             base = f"n_{out_index}*T_{out_index}"
             text_parts.append(base if out.formula_weight == 1
@@ -1021,29 +1033,10 @@ def fold_chunk_point_measures(chunk_map: Mapping[str, Any],
                                             tuple(zero)),
             context=contexts[0] if contexts else None,
             inputs=tuple(inputs), contexts=tuple(contexts),
-            aggregation_ids=tuple(aggregation_ids)).to_json(),
+            aggregation_ids=tuple(aggregation_ids),
+            sol=tuple(sol) if any(v is not None for v in sol) else ()).to_json(),
         "terms": terms,
     }
-
-
-def measures_on_card(measures: Mapping[str, Mapping[str, Any]],
-                     gpu_sku: str) -> Dict[str, Dict[str, Any]]:
-    """A point's measures (`point_measures`) as the same rows on `gpu_sku`
-    state them: every key's card (`Key.gpu`) and the selection's card
-    (`step_measure`'s context) are `gpu_sku`'s; the shapes, dtype
-    environments, launches and formula are the rows' own, which a card of
-    the walk's class (`framework_bindings.card_class`) walks alike."""
-    out: Dict[str, Dict[str, Any]] = {}
-    for phase, m in measures.items():
-        pm = PointMeasure.from_json(m["measure"])
-        pm = replace(pm, keys=tuple(None if k is None else k._replace(gpu=gpu_sku)
-                                    for k in pm.keys),
-                     context={**(pm.context or {}), "gpu": gpu_sku},
-                     contexts=tuple(
-                         {**(context or {}), "gpu": gpu_sku}
-                         for context in pm.contexts))
-        out[phase] = {**m, "measure": pm.to_json()}
-    return out
 
 
 def selector(registry: Any, *, strategy: str,
@@ -1118,12 +1111,9 @@ def _measured_row(row: Mapping[str, Any],
             t = None
         else:
             st = MEASURED
-            t = whole.measure.formula.at(
-                whole.measure.launches,
-                whole.times,
-                terms=indices)
-            detail = next((entry[3] for entry in rows
-                           if isinstance(entry[3], dict)), None)
+            t = whole.subtotal(indices)
+        detail = next((entry[3] for entry in rows
+                       if isinstance(entry[3], dict)), None)
     out = {**row, "t_measured_s": t, "measured_state": st, "measured_key": label}
     if isinstance(detail, str):
         out["measured_reason"] = detail
@@ -1175,19 +1165,24 @@ def _measured_table(modules: List[Dict[str, Any]],
 
 
 def apply_measured(point: Dict[str, Any], measures: Mapping[str, Mapping[str, Any]],
-                   select: Any) -> Dict[str, Any]:
-    """`point` (its SOL priced, no measurement read) with its measured track.
-    Each measured total is folded once over `select` (`PointMeasure.fold`)
-    and everything measured reads that one fold: the per-op rows' and the
-    module table's leaves' own times, the module groups', the declaration
-    parents' and the draft's shares of the formula, the phase's total (only
-    at full coverage) and its coverage, and the throughputs. An encode
-    stack's measure is its own."""
-    for m in measures.values():
-        measure = m["measure"]
-        measure = (measure if isinstance(measure, PointMeasure)
-                   else PointMeasure.from_json(measure))
-        folded = measure.fold(select)
+                   folds: Mapping[str, MatrixFold], *,
+                   sols: Optional[Mapping[str, Sequence[Optional[float]]]] = None,
+                   blend_terms: bool = False) -> Dict[str, Any]:
+    """`point` with its measured track, from the record-level matrix row.
+
+    Each phase's fold is the same matrix path whether it has one Inference
+    point or is one row of a Gallery record; this function only unfolds the
+    row into the response shapes that point asks for.
+
+    `sols` are each phase's measure's SOL leaves (`PointMeasure.sol`), what
+    the fold blends the partial track off (none for a record's row).
+    `blend_terms` is for a reader that blends the partial track at its own
+    floors (a pool point, `FloorForm.terms_at`): each phase also states which
+    step terms are measured (`measured_terms`, positions in `StepSum.terms`)
+    and the formula's share of them (`measured_part_s`) — none for a phase
+    whose time is withheld."""
+    for phase, m in measures.items():
+        folded = folds[phase]
         track = folded.track
         by_list = {name: terms_by_uid(None if t is None or t[0] != name else t[1]
                                       for t in m["terms"])
@@ -1198,15 +1193,20 @@ def apply_measured(point: Dict[str, Any], measures: Mapping[str, Mapping[str, An
             entry["per_op_timing"] = [
                 _measured_row(r, folded.rows[terms[r.get("uid")][0]],
                               terms[r.get("uid")], folded)
-                                      if r.get("uid") in terms else r
-                                      for r in entry["per_op_timing"]]
+                              if r.get("uid") in terms else r
+                              for r in entry["per_op_timing"]]
             entry["flops_by_module"] = _measured_table(entry.get("flops_by_module") or [],
                                                        terms, folded)
             entry["per_op_timing_measured_by_declaration"] = {
                     parent: folded.subtotal(
                         _terms_of_rows(entry["per_op_timing"], indices, terms))
                 for parent, indices in declaration_terms(entry["per_op_timing"])}
-            entry.update(t_measured=track.t_s, coverage=track.coverage())
+            partial = folded.partial(entry.get("t_sol"),
+                                     (sols or {}).get(phase, ()))
+            entry.update(t_measured=track.t_s, coverage=track.coverage(),
+                         t_partial=None if partial is None else partial["t_s"],
+                         partial_measured_share=(None if partial is None
+                                                 else partial["measured_share"]))
             continue
         for name, terms in by_list.items():
             if point.get(name):
@@ -1214,10 +1214,6 @@ def apply_measured(point: Dict[str, Any], measures: Mapping[str, Mapping[str, An
                     _measured_row(r, folded.rows[terms[r.get("uid")][0]],
                                   terms[r.get("uid")], folded)
                                if r.get("uid") in terms else r for r in point[name]]
-                # Each declaration parent's measured time, by the parent's own
-                # name: the formula's share of exactly the terms under it. The
-                # view shows the parent and reads this (`views.declarations.
-                # per_op_rows`); it adds nothing up.
                 point[f"{name}_measured_by_declaration"] = {
                     parent: folded.subtotal(
                         _terms_of_rows(point[name], indices, terms))
@@ -1236,11 +1232,18 @@ def apply_measured(point: Dict[str, Any], measures: Mapping[str, Mapping[str, An
             draft["t_measured_s"] = draft_share
             draft["per_forward"]["t_measured_s"] = (None if draft_share is None
                                                     else draft_share / forwards)
+        partial = None if withheld else folded.partial(
+            ph.get("t_sol_s"), (sols or {}).get(phase, ()))
         ph.update({"t_measured_s": None if withheld else track.t_s,
+                   "t_partial_s": None if partial is None else partial["t_s"],
+                   "partial_measured_share": (None if partial is None
+                                              else partial["measured_share"]),
                    "measured_rows": track.measured_rows, "total_rows": track.total_rows,
                    "coverage": track.coverage()})
+        if blend_terms and not withheld:
+            ph.update(measured_terms=list(folded.measured_terms),
+                      measured_part_s=folded.measured_part_s)
         if "flops_by_module" in ph:
-            # A phase that shows its table (`phase_at`'s breakdown).
             modules = _measured_table(ph["flops_by_module"],
                                       by_list.get(main, {}), folded)
             for row in modules:
@@ -1248,30 +1251,25 @@ def apply_measured(point: Dict[str, Any], measures: Mapping[str, Mapping[str, An
                     row["t_measured_s"] = row["t_measured_agg"] = draft_share
             ph["flops_by_module"] = modules
         if "throughput" in ph:
-            # The same groups and GPUs the theory payload counted.
             ph["throughput"] = phase_throughput(
                 ph, unique_tokens_multiplier=ph["throughput"]["groups"],
                 num_gpus=ph["throughput"]["num_gpus"])
     return point
 
 
-def measured_selector(measures: List[PointMeasure], *, selection_mode: str,
-                      measurement_scope: Any = None,
-                      calibration_rows: Optional[list] = None,
-                      kernel_mix: Optional[Mapping[str, str]] = None,
-                      timings: Optional[Dict[str, Any]] = None) -> Any:
-    """The selection every measured total of `measures` folds over: the union
-    of their keys looked up ONCE (`auto_sweep.look_up`), the request's posted
-    rows over them (`selector`). None when the request reads no measurements:
-    a theory mode, or no Kernel Bench scope and no posted rows — the rule the
-    overlay context states (`calibration_overlay._resolve_overlay_context`)."""
+def _measured_selector_for(matrix: MeasureMatrix, *, selection_mode: str,
+                           measurement_scope: Any = None,
+                           calibration_rows: Optional[list] = None,
+                           kernel_mix: Optional[Mapping[str, str]] = None,
+                           timings: Optional[Dict[str, Any]] = None) -> Any:
+    """The selection over a matrix's distinct key/context/op/read questions."""
     _fw, _binding, strategy, reads = _resolve_overlay_context(
         framework=None, selection_mode=selection_mode,
         measurement_scope=measurement_scope, calibration_rows=calibration_rows)
-    if not reads or not measures:
+    if not reads or not len(matrix.formulas):
         return None
     started = time.perf_counter()
-    keys = sweep_keys(measures)
+    keys = [key for key in matrix.keys if key is not None]
     if timings is not None:
         timings["key_count"] = len(keys)
         timings["key_collect_s"] = time.perf_counter() - started
@@ -1284,66 +1282,96 @@ def measured_selector(measures: List[PointMeasure], *, selection_mode: str,
         timings["lookup_network_s"] = max(
             0.0, found.request_s - found.service_s)
     started = time.perf_counter()
-    registry = registry_from_lookup([PhysicalKey(*k) for k in found.keys], found.rows)
+    registry = registry_from_lookup([PhysicalKey(*key) for key in found.keys],
+                                    found.rows)
     if calibration_rows:
-        registry = merge_validated_rows(registry, calibration_rows, source="request")
+        registry = merge_validated_rows(registry, calibration_rows,
+                                        source="request")
     got = selector(registry, strategy=strategy,
                    kernel_mix=kernel_mix if selection_mode == "kernel_mix" else None,
                    timings=timings)
     if timings is not None:
         timings["selector_setup_s"] = time.perf_counter() - started
+    return got
 
-    def frozen(value: Any) -> Any:
-        if isinstance(value, Mapping):
-            return tuple(sorted((str(key), frozen(item))
-                                for key, item in value.items()))
-        if isinstance(value, (list, tuple)):
-            return tuple(frozen(item) for item in value)
-        return value
 
-    # One Gallery view repeats a physical key at many contexts and batches;
-    # its selection depends on the key, context, op and row inputs, not on
-    # the point that happens to name them. Select each distinct question once.
-    answers: Dict[Any, Any] = {}
-
-    def select_once(key: Any, context: Mapping[str, Any], op: str,
-                    read: Mapping[str, Any]) -> Any:
-        question = (key, frozen(context), op, frozen(read))
-        if question not in answers:
-            answers[question] = got(key, context, op, read)
-        elif timings is not None:
-            timings["selector_cache_hits"] = (
-                timings.get("selector_cache_hits", 0) + 1)
-        return answers[question]
-
-    return select_once
+def measured_selector(measures: List[PointMeasure], *, selection_mode: str,
+                      measurement_scope: Any = None,
+                      calibration_rows: Optional[list] = None,
+                      kernel_mix: Optional[Mapping[str, str]] = None,
+                      timings: Optional[Dict[str, Any]] = None) -> Any:
+    """Compatibility for a caller with `PointMeasure`s: their one matrix."""
+    return _measured_selector_for(
+        MeasureMatrix.of_measures(measures), selection_mode=selection_mode,
+        measurement_scope=measurement_scope, calibration_rows=calibration_rows,
+        kernel_mix=kernel_mix, timings=timings)
 
 
 def measure_points(points: List[Dict[str, Any]], *, selection_mode: str,
-                   measurement_scope: Any = None, calibration_rows: Optional[list] = None,
+                   measurement_scope: Any = None,
+                   calibration_rows: Optional[list] = None,
                    kernel_mix: Optional[Mapping[str, str]] = None,
-                   timings: Optional[Dict[str, Any]] = None) -> None:
-    """The measured track of points, in place — a sweep's, or one estimate's
-    (a disaggregated pair's two): each point's measured totals folded over
-    one selection (`measured_selector`) and applied (`apply_measured`).
-    `points` are `{"sol", "measures"}`. Nothing is applied when the request
-    reads no measurements."""
+                   timings: Optional[Dict[str, Any]] = None,
+                   blend_terms: bool = False) -> None:
+    """Fold every point's measured totals through one record-level matrix.
+    `blend_terms`: `apply_measured`'s.
+
+    A canonical Gallery reference names a row of an already-record matrix; a
+    live Inference `PointMeasure` becomes a one-row matrix here. Selection,
+    total and coverage are therefore the same path at both granularities.
+    """
     started = time.perf_counter()
-    parsed = [m["measure"] if isinstance(m["measure"], PointMeasure)
-              else PointMeasure.from_json(m["measure"])
-              for pt in points for m in (pt.get("measures") or {}).values()]
+    direct: list[PointMeasure] = []
+    pending: list[tuple[dict, str, dict, int, Optional[MeasureMatrix]]] = []
+    for pt in points:
+        for phase, m in (pt.get("measures") or {}).items():
+            record_matrix = m.get("matrix")
+            if record_matrix is None:
+                measure = m["measure"]
+                direct.append(measure if isinstance(measure, PointMeasure)
+                              else PointMeasure.from_json(measure))
+                pending.append((pt, phase, m, len(direct) - 1, None))
+            else:
+                row = int(m["row"])
+                pending.append((pt, phase, m, row, record_matrix))
+    # Direct measures share one matrix; each canonical record contributes its
+    # own once. Keep global row offsets while concatenating those groups.
+    groups: list[MeasureMatrix] = []
+    offsets: dict[int, int] = {}
+    if direct:
+        direct_matrix = MeasureMatrix.of_measures(direct)
+        groups.append(direct_matrix)
+        offsets[id(direct_matrix)] = 0
+    seen: dict[int, MeasureMatrix] = {}
+    for _pt, _phase, _m, _row, record_matrix in pending:
+        if record_matrix is not None and id(record_matrix) not in seen:
+            seen[id(record_matrix)] = record_matrix
+            groups.append(record_matrix)
+            offsets[id(record_matrix)] = -1
+    matrix = MeasureMatrix.empty()
+    before = 0
+    for _i, group in enumerate(groups):
+        group_id = id(group)
+        if offsets.get(group_id) is None or offsets[group_id] == -1:
+            offsets[group_id] = before
+        matrix = matrix.concat(group)
+        before = len(matrix.formulas)
     if timings is not None:
         timings["point_measure_read_s"] = time.perf_counter() - started
-    select = measured_selector(
-        parsed,
-        selection_mode=selection_mode, measurement_scope=measurement_scope,
-        calibration_rows=calibration_rows, kernel_mix=kernel_mix,
-        timings=timings)
+        timings["matrix_rows"] = len(matrix.formulas)
+    select = _measured_selector_for(
+        matrix, selection_mode=selection_mode,
+        measurement_scope=measurement_scope, calibration_rows=calibration_rows,
+        kernel_mix=kernel_mix, timings=timings)
     if select is None:
         return
     started = time.perf_counter()
-    for pt in points:
-        if pt.get("measures"):
-            apply_measured(pt["sol"], pt["measures"], select)
+    folds = matrix.fold(select)
+    for pt, phase, m, row, record_matrix in pending:
+        sol = direct[row].sol if record_matrix is None else ()
+        if record_matrix is not None:
+            row += offsets[id(record_matrix)]
+        apply_measured(pt["sol"], {phase: m}, {phase: folds[row]},
+                       sols={phase: sol}, blend_terms=blend_terms)
     if timings is not None:
         timings["apply_measured_s"] = time.perf_counter() - started

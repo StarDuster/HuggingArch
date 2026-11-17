@@ -676,7 +676,8 @@ def test_react_topnav_is_the_only_live_nav():
     nav = (WEB / "src" / "TopNav.tsx").read_text()
     assert 'from "react-router-dom"' in nav
     assert "<Link" in nav
-    assert "to={t.href}" in nav
+    assert "to={tabHref(t)}" in nav
+    assert "readLastInspectorHref" in nav
     assert 'href: "/inference.html"' in nav
     assert 'key: "inspector", href: "/"' in nav
     assert 'href: "/gallery.html"' in nav
@@ -701,6 +702,8 @@ def test_graph_shell_is_the_shared_compute_graph():
     assert "GraphShell" in playground
     inspector = (WEB / "src" / "pages" / "Inspector.tsx").read_text()
     assert "GraphShell" in inspector
+    assert 'aria-label={open ? "Collapse computation" : "Expand computation"}' in inspector
+    assert 'arch-expand-btn${open ? " is-open" : ""}' in inspector
     infer = (WEB / "src" / "pages" / "ComputeGraph.tsx").read_text()
     assert "GraphShell" in infer
 

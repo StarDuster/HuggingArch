@@ -300,18 +300,21 @@ bf16-only check could not have caught the divergence.)
 
 A sweep makes **one** Kernel Bench lookup for the union of every point's keys:
 
-1. each point carries its `PointMeasure`s (plain data, no selection inside);
-2. `batch_sweep.measured_selector` resolves whether the request reads
-   measurements at all (`calibration_overlay._resolve_overlay_context`: a
-   theory mode, or no scope and no posted rows, reads none), collects
-   `auto_sweep.sweep_keys`, calls `auto_sweep.look_up` once, builds the
-   registry (`op_calibration.registry_from_lookup`), and merges the request's
-   own `calibration_rows` over it;
-3. `batch_sweep.measure_points` folds each point's measures through that
-   selection (`PointMeasure.fold`) and applies the result
-   (`batch_sweep.apply_measured`): each row's own time, each module group's
-   and declaration parent's share, the phase total and coverage, the draft's
-   share, the measured throughputs.
+1. a canonical Gallery point names a row of a record-level
+   `MeasureMatrix`; a live Inference or Scaling point becomes a one-row (or
+   small dense) matrix at the fold boundary, so there is one path at both
+   granularities;
+2. `batch_sweep._measured_selector_for` resolves whether the request reads
+   measurements, collects the matrix's distinct `(key, context, op, input)`
+   questions, calls `auto_sweep.look_up` once, builds the registry
+   (`op_calibration.registry_from_lookup`), and merges the request's own
+   `calibration_rows` over it;
+3. `MeasureMatrix.fold` selects each question once, binds the selected launch
+   times through the point × term key matrix, evaluates the formula over
+   whole rows, and vectorises coverage by state. `batch_sweep.apply_measured`
+   unfolds the row a response asks for: each row's own time, each module
+   group's and declaration parent's share, the phase total and coverage, the
+   draft's share, the measured throughputs.
 4. The same fold records stage timings — reading `PointMeasure`s, collecting
    and deduplicating keys, the lookup round trip (service and network split
    by the service's `service_s`), selector construction and selection, and
@@ -338,15 +341,18 @@ total, with another leaf:
 `row_roofline.StepSum.measured_law` writes the formula with the same weights
 as the SOL total (pipeline stages, a draft's forwards), and
 `auto_sweep.MeasuredFormula` carries it as text with `n_k` / `T_k` bound per
-point. `Folded.track` is the whole formula; `Folded.subtotal(terms)` is the
-same formula with every other term's time bound to zero, and refuses a
-partial subtotal. Every measured number in a response is one of the two: the
-phase total, the draft's share, each module group's `t_measured_agg`, each
+point. `MeasuredFormula.at` reads one row; `MeasuredFormula.at_many` gives
+the same compiled declaration two-dimensional `n` / `T` bindings. A matrix
+fold's total and `MatrixFold.subtotal(terms)` are therefore the same formula
+— the latter with every other term's time bound to zero — and a partial
+subtotal is still refused. Every measured number in a response is one of the
+two: the phase total, the draft's share, each module group's
+`t_measured_agg`, each
 declaration parent's share (grouped by `inference/declaration_groups.py`), an
 encoder stack's time.
 
 There is exactly one owner of "how long does one step of this deployment
-take, measured": `MeasuredFormula` / `Folded` for the value and
+take, measured": `MeasuredFormula` / `MatrixFold` for the value and
 `MeasuredTrack` for the coverage. Code that prices a step states an unread
 track (`MeasuredTrack.unread`) and waits for the fold; code that reads one
 value aggregates nothing; and the frontend adds nothing up. Sums over
@@ -385,6 +391,234 @@ reference could be built). Those rows are used, because refusing them would
 fall back to the roofline, but the count lets a reader tell a total built on
 checked numbers from one that is not.
 
+### 5.5 Speculative steps in the measured track
+
+The draft is a third row list of the same walked step, not a second measured
+system. The canonical record's measure table is `measure-points-v7`: a point
+selector carries `draftTokens`, while strings, shapes and physical keys remain
+record-level facts shared by every K.
+
+#### What a speculative step launches
+
+A recursive MTP speculative decode step at K draft tokens runs:
+
+1. **K draft forwards**, one per drafted token. Each is the model's declared
+   MTP stack (`aux_kind: mtp`, named by `SpeculativeDraft.stacks_of`) at `B`
+   requests, `s_query=1`, and the verify step's cache length. The walked rows
+   are `per_op_timing_draft`; `StepSum` multiplies their formula by
+   `SpeculativeDraft.forwards == K`.
+2. **One verify forward** through the backbone at `s_query=K+1`. Its rows are
+   `per_op_timing_decode`; the same `StepSum` adds them beside the draft.
+
+Every launch becomes a `PointRow` through `calibration_overlay.point_keys`,
+exactly as plain decode does. Its physical key is
+`op_calibration.PhysicalKey(signature, physical_shape, dtype_env_json, gpu,
+phase)`: `physical_identity` projects the op's shape, the leaf supplies the
+dtype environment, the card stamps `gpu`, and the phase is `decode`. No
+consumer derives a speculative key from K itself.
+
+The natural overlap and the new shapes follow from those projections:
+
+- Verify GEMMs whose identity retains `B` and `s_query` are new at K>0
+  (`B×(K+1)` differs from plain decode's `B×1`).
+- Grouped/routed GEMMs commonly collapse the token count into `n_tokens` (and
+  `s_expert_rows`), so a K=1 verify at batch B can reuse a plain-decode key
+  from another public batch when their `n_tokens` agree.
+- Decode attention is new at `s_query>1` (and, where relevant, the longer
+  cache length); the recursive draft's attention is `s_query=1`, so it can
+  reuse a plain-decode attention key when the MTP stack's head geometry
+  matches.
+- MTP-stack-only head, router, embedding, quant and collective shapes are new
+  when no backbone row projects to the same key.
+
+At H100-SXM, as-shipped precision, memory fraction 0.9, the public context ×
+batch grid, and each model's first Gallery layout that K=1 serves, the K=1
+key tables are; counts are distinct non-null `PhysicalKey`s over that grid
+zero-cost and unplaced rows are not measurements and are excluded:
+
+| Model (layout) | Plain keys | Verify keys | Draft keys | K=1 union | New vs plain |
+|---|---:|---:|---:|---:|---:|
+| Qwen3.5-35B-A3B (TP1) | 219 | 222 | 169 | 373 | 204 |
+| DeepSeek-V4.1-Flash (EP8·DP8) | 716 | 721 | 429 | 1,127 | 830 |
+
+A raw exact-key lookup in the read-only `/scratch1/lake-v3-candidate` (an
+effective shared row exists; this is not yet the envelope selector's final
+coverage) finds:
+
+| Model | Plain hit | Verify hit | Draft hit | K=1 union hit | New-key hit |
+|---|---:|---:|---:|---:|---:|
+| Qwen3.5-35B-A3B | 219/219 (100%) | 156/222 (70.3%) | 169/169 (100%) | 307/373 (82.3%) | 138/204 (67.6%) |
+| DeepSeek-V4.1-Flash | 499/716 (69.7%) | 248/721 (34.4%) | 286/429 (66.7%) | 520/1,127 (46.1%) | 352/830 (42.4%) |
+
+The two models show the two ends of the spectrum. Qwen's one-forward MTP
+stack reuses plain backbone keys at K=1, while its verify width adds the 204
+keys. DeepSeek reuses many backbone and routed-GEMM keys but has MTP-specific
+head, router and grouped-GEMM shapes: at context 4096 and batch 8, 18 of its
+39 distinct draft keys are new.
+
+#### Ownership and the serving-law record
+
+- `SpeculativeDraft` owns the step composition (stacks, style, forwards,
+  tokens per forward). A parallel draft changes `tokens_per_forward` and
+  therefore its row keys; it goes through the same `point_keys` boundary. The
+  first implementation only publishes the recursive MTP style the Gallery
+  currently requests.
+- `point_keys` remains the only key producer for verify rows, draft rows and
+  the Kernel Bench plan. There is no “speculative key” helper and no consumer
+  that rewrites a plain shape for K.
+- The decode binding remains the only statement of which step a point
+  describes: `binding.speculative_draft_tokens == K`. A K=0 fold may not read
+  a K>0 `PointMeasure`, and a K>0 fold may not substitute a K=0 measure even
+  where their key sets intersect.
+- The existing record-level measure table remains one table. Its schema moves
+  from `measure-points-v6` to a K-aware v7 by adding `draftTokens` (default
+  0) to each point selector: `(gpu, context, batch, K)`. Strings, shapes,
+  dtype environments and physical keys stay globally deduplicated; a K only
+  adds a `PointMeasure` variant when its formula or launch weights differ.
+  Recursive draft keys are shared across K, so the table does not copy the key
+  table once per K.
+- The producer derives K=0 and every `FRONTIER_DRAFT_TOKENS` view from the
+  same live walks: backbone rows are read at `s_verify=K+1`, recursive draft
+  rows at `s_query=1`, and `point_measures` writes the K-weighted formula.
+  Acceptance rate and the two floors do not change keys and do not create
+  another table variant.
+- Capacity continues to own serving, not the measured fold. K points are
+  admitted through the record's draft capacity and the public batch grid; an
+  unfit context is priced by the capacity owner's `without_step` answer, and
+  Gallery/ladder filtering still uses `point_served`. The fold never broadens
+  capacity to obtain a measurement.
+
+The measured fold for a K view reads that view's `PointMeasure`, calls the
+same one-lookup `measured_selector`, and applies it to a SOL point whose
+binding names the same K. Complete coverage yields `t_measured_s`, the draft
+share and measured throughput; partial coverage yields only per-term values
+and the coverage state. No SOL value is presented as measured.
+
+#### Measurement plan and queues
+
+The plan does not start from the persistent key table: a stored table has
+enough identity to fold, but not the full launch geometry a job needs. The
+speculative planner walks the same model/layout/precision, asks `point_keys`
+for the live verify and draft `PointRow`s at each public K and point, and
+converts those `PointRow`s with the same launch identity the normal plan
+already uses (`PointRow.key + aggregation_id`). The normal and speculative
+planners share that conversion; neither writes a second shape derivation.
+
+The queue is the gap owner: with `--skip-existing`, it asks the restored
+authoritative lake under the real selection mode and runs only keys that fold
+reports missing. This avoids re-measuring the large plain overlap above. A plan
+may name the same physical launch under two structural nodes; after the first
+measurement the coverage question answers the second, so the physical launch is
+measured once. Recursive draft launches also repeat K times in a step's
+formula, but the plan emits one forward's launch.
+
+H100 and RTX-4090 receive ordinary Kernel Bench plan files from that union.
+The existing queues run them, and the authoritative uploader uploads and
+promotes them as shared rows. The card is stamped by the measurement driver;
+the plan itself stays cardless where its class allows it.
+
+#### Frontend behavior
+
+The K selector no longer forces `measured_track.state = none`. It receives the
+measured fold for the requested K:
+
+- complete points draw the measured curve/rate using the step's effective
+  accepted-token count;
+- incomplete points draw SOL only and show `measured / total` plus the exact
+  missing/ambiguous/unplaced/declined lists;
+- a lake outage is `unavailable`, an engine bug is `engine_error`, and a
+  model/view with no admissible K point says that — none of these is hidden
+  behind the retired “Kernel Bench measures only plain decode” message.
+
+Coverage remains a property of the K view. Partial coverage is useful
+information: it names the exact launches the measurement plan will add.
+
+#### Acceptance gates
+
+Implementation is not complete just because a K curve appears. The gates are:
+
+1. **Producer oracle:** for Qwen, DeepSeek and a non-MTP model, each stored K
+   `PointMeasure` equals the direct speculative estimate at the same point,
+   after removing only anomaly numerators as the existing pool oracle does.
+2. **Binding oracle:** a fold asks for and receives exactly the requested K;
+   K=0 cannot consume a K>0 point and vice versa, including points whose key
+   sets intersect.
+3. **Plan oracle:** the speculative plan's launch identity and `PointRow` are
+   byte-equal to the direct `point_keys` result at the same model, layout,
+   card, context, batch and K, including dtype and launch count.
+4. **Fold oracle:** with the fixture lake, complete K coverage reproduces the
+   direct measured total/draft share/throughput; missing any one key leaves
+   `t_measured_s` absent and reports that key.
+5. **Frontend oracle:** a K view with complete points draws measured points,
+   partial coverage draws SOL plus coverage, and no code path synthesizes a
+   measured value from SOL.
+
+#### Engine and warm impact
+
+The row key and validator schemas do not change, so the lake's data-rules
+revision does not change and no lake migration runs. The serving-law measure
+table schema does change, and its producer lives under `backend/inference`;
+that flips `engine_version`, invalidates SOL-pool and deterministic Gallery
+artifacts, and requires a new artifact generation.
+
+This should ship in the same release as the matrix-fold and warm-scheduling
+batches when they are ready. One engine version then produces one SOL-pool
+archive, one deterministic Gallery archive, and one scheduled full warm.
+Ideally the speculative gap plan runs on H100/4090 and its rows are promoted
+into the authoritative lake before that deploy, so new K views can fold
+measurements immediately; if not, their coverage panels progressively lose
+missing keys as uploads land.
+
+
+### 5.6 The partial track (opt-in)
+
+Beside the all-or-nothing total there is one separately named blend: the
+step's SOL total with every measured term's SOL share swapped for its
+measured share. The SOL total and the measured formula are one aggregation
+(`StepSum.total` over `t_op` and over `n·T`), so a term's SOL share is its
+weight times its SOL leaf, and
+
+    t_partial = t_sol − Σ_{measured terms} w·t_op + Σ_{measured terms} w·n·T
+
+`auto_sweep.blend` is that line and its one definition. Who holds the SOL
+of the measured terms supplies it:
+
+- **An estimate or a sweep point** has its rows priced at the point, so each
+  term's SOL leaf rides the measure (`PointMeasure.sol`, from the row's
+  `t_op_s`; through a chunked prefill's fold with its launches) and the fold
+  states `t_partial_s`, `partial_measured_share` (the measured part by time)
+  and `throughput.partial` itself (`MatrixFold.partial`, one reading with `Folded.partial`:
+  `auto_sweep.partial_of`).
+  A measure that states no SOL has no partial here.
+- **A pool point** (the Gallery) has its SOL as a function of the two floors
+  the reader picks, so the fold leaves `t_partial_s` empty and, asked for
+  them (`measure_points(blend_terms=True)`), states which step terms are
+  measured (`measured_terms`, positions in `StepSum.terms`) and the
+  formula's share of them (`measured_part_s`) — neither for a phase whose
+  time is withheld; the reader prices the measured terms off the point's
+  floor form at its own floors (`FloorForm.terms_at`). This works because the serving-law record names
+  every step term in its law graph (`term_<k>`, `StepSum.term_laws`; its
+  `t_sol_s` is their sum) and the floor form keeps each term under its
+  index and the step's width (`FloorForm.termwise`), the same index the
+  measured formula uses; an index past the width is refused. A plain step
+  of a record that carries a draft is the prefix of its terms (the draft's
+  weigh 0 at verify width 1). The Gallery's rates keep only these step
+  facts per K, so a view's floors and acceptance enter where it draws.
+
+At no coverage the blend is `t_sol_s`, and at full coverage it is
+`t_measured_s` by construction — the SOL total is its terms' sum, so
+swapping every term out leaves the measured total (to float rounding; the
+blend is not special-cased to `t_measured_s`). A measure that states no SOL
+leaf (an estimate whose terms are all unkeyed, or a pool point) has no
+partial of its own. It is never called measured: the page shows it only
+behind a "Partial measured" checkbox, always beside its coverage.
+
+The Gallery refuses a point whose step form is not over the measured
+formula's terms (a term past the formula's count): the fold raises
+`MeasurementFoldMismatch`, and the model draws SOL under `engine_error`
+rather than a partial line priced off misaligned terms.
+
+
 ## 6. Response contract for the frontend
 
 The TypeScript types are in `web/src/measured.ts` (`MeasuredCoverage`,
@@ -399,6 +633,11 @@ measured track through that module.
   "N / M ops measured" and the rows per state, with the keys in the hover.
   The page applies the rule itself (`completeTotal`), so a number is never
   drawn under incomplete coverage. Unknown coverage counts as incomplete.
+- **The partial track** (`t_partial_s`, `throughput.partial`, the Gallery's
+  `frontier_partial`) is the one blended number (§5.6). It is drawn only when
+  the reader ticks "Partial measured", under its own name, with
+  `partialCoverageText`: the share of the step's time that is measured and
+  "N / M ops measured".
 - **Per-op rows** show their own `t_measured_s` under any coverage. `0` is a
   value and renders as `0`; an absent or `null` value renders as `—`.
 - **Group rows** (module groups, declaration parents) show the backend's
@@ -441,7 +680,8 @@ list.
 | `/inference/estimate` `phases.<phase>` | `t_measured_s` (null unless complete), `coverage`, and the older `measured_rows` / `total_rows` (the page falls back to these, with no states, when `coverage` is absent) |
 | `/inference/estimate-sweep`, each point's `phases.<phase>` | The same after a measured fold; its SOL projection carries no breakdown row counts |
 | `/inference/estimate-parallel-sweep`, each chart point | `<phase>_tps_per_gpu_measured`, `<phase>_t_measured_s` (null unless complete), `<phase>_measured_coverage` |
-| `/gallery/frontier`, each model | `frontier_measured` (through fully measured points only), `measured_track.state` (`reads` / `none` / `unavailable` / `engine_error`) and, when it reads, `measured_track.coverage` per context (points, complete points, best and median share, keys most needed per state) |
+| `/inference/estimate` and sweep points, `phases.<phase>` | `t_partial_s`, `partial_measured_share`, `throughput.partial` (§5.6; absent until a measured fold reads) |
+| `/gallery/frontier`, each model | `frontier_partial` (every point with a SOL time, blended at the view's floors and K; each carries `partial_measured_share`), `frontier_measured` (through fully measured points only), `measured_track.state` (`reads` / `none` / `unavailable` / `engine_error`) and, when it reads, `measured_track.coverage` per context (points, complete points, best and median share, keys most needed per state) |
 | Per-op rows (`per_op_timing*`, `phases.<phase>.flops_by_module`) | `t_measured_s` (`0` on zero-cost rows, null where not measured), `measured_state`, `measured_key` |
 
 ## 7. Caching: theory and measured answers
@@ -625,7 +865,8 @@ timestamped pool by hand.
 
 The Gallery response cache is a different, mergeable layer. It lives under
 `HA_GALLERY_CACHE_DIR` on the same persistent volume, and
-`backend.gallery_cache_artifact` reads `gallery-cache-v1/<engine>/index.json`.
+`backend.gallery_cache_artifact` reads `gallery-cache-v2/<engine>/index.json`
+(v2: frontier entries are stored gzip-compressed, `frontier/*.json.gz`).
 Its archive contains deterministic model facts and frontier entries only:
 measured views are folded live and are deliberately excluded.
 `scripts.publish_gallery_cache.publish` is that layer's publisher. A new
@@ -673,7 +914,7 @@ inside it would compete with user requests for the GIL and the sweep pool.
 | `backend/inference/capacity.py` | `CapacitySweepPlan`, `_sweep_cell`, `_point_rows`, `_restamp_gpu`, `_stamp_gpu_on_result`, `PendingEstimate` (`priced_on`, `keyed_at`, `measures`), `finish_estimates` |
 | `backend/inference/card.py` | `Card`, its class and price views, `refuse_unless_one_class` |
 | `backend/inference/parallel_sweep.py` | `ParallelSweepPlan`, `LayoutCell`, `_estimate_layout`, `class_cards`, `PER_POINT_FIELDS`, the decode ladder and frontier views |
-| `backend/inference/batch_sweep.py` | `rows_at`, `phase_at`, `point_measures`, `step_measure`, `measured_selector`, `measure_points`, `apply_measured`, `measures_on_card` |
+| `backend/inference/batch_sweep.py` | `rows_at`, `phase_at`, `point_measures`, `step_measure`, `measured_selector`, `measure_points`, `apply_measured` |
 | `backend/inference/calibration_overlay.py` | `point_keys`, `PointRow`, `zero_cost`, `looks_up` |
 | `backend/inference/row_roofline.py` | Row laws, `LawBook`, `StepSum` (SOL and measured laws), `FloorForm` / `CardForm` |
 | `backend/inference/sol_law.py`, `sol_data.py`, `sol_pool.py` | Canonical law records, their identity, the seekable pool |

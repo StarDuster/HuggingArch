@@ -15,7 +15,11 @@ import pytest
 
 import backend.api.gallery_frontier as f
 from backend.code_trace.provider import recording
+from backend.measure.measure_matrix import MeasureMatrix
+from backend.measure.auto_sweep import MeasuredFormula, PointMeasure
+from backend.measure.lookup import Key
 from backend.inference.parallel_config import ParallelConfig
+from backend.inference.row_roofline import FloorForm
 from backend.inference.parallel_sweep import class_cards
 from backend.inference.sweep_grid import (
     FRONTIER_BATCH_GRID,
@@ -48,6 +52,11 @@ def test_the_frontier_keeps_only_points_nothing_beats_on_both_axes():
     assert f.pareto_front([]) == []
 
 
+def _one_term(t):
+    """A step of one term, `t` seconds at any floors."""
+    return FloorForm.termwise([(0, (t, 0.0, 0.0, 0.0))], 1).to_json()
+
+
 def _timed_item(seq, *, batch=4, plain_s=0.01, drafts=None,
                 speculative=False, measure_record=None):
     """A theory point as `_layout_points` stores it: its decode step, the
@@ -61,10 +70,10 @@ def _timed_item(seq, *, batch=4, plain_s=0.01, drafts=None,
            "throughput": {"groups": 1, "num_gpus": 2}}
     return {"seq": seq, "label": "TP2", "num_gpus": 2,
             "sol": {"phases": {"decode": dec}},
-            "floors": None if speculative else {"constant": plain_s, "terms": []},
+            "floors": None if speculative else _one_term(plain_s),
             **({} if measure_record is None else
                 {"measureRecord": measure_record}),
-            "draft": {str(k): {"constant": t, "terms": []}
+            "draft": {str(k): _one_term(t)
                       for k, t in (drafts or {}).items()}}
 
 
@@ -73,8 +82,25 @@ def _inline_measures(monkeypatch):
     would read them from the records those points name."""
     monkeypatch.setattr(
         f, "_measureReader",
-        lambda _core, _gpu_sku, _timings: lambda _i, point: (
+        lambda _core, _gpu_sku, _view, _timings: lambda _i, point: (
             (point.get("measures") or {}).get("decode")))
+
+
+def _fold_into(dec, *, t_measured=None, part=0.0, terms=(), width=1):
+    """What the measured fold states of a point's step
+    (`batch_sweep.apply_measured(blend_terms=True)`): its measured total
+    (None unless every term is measured — then the one term of `_one_term`
+    is), which step terms are measured and their share."""
+    if t_measured is not None:
+        terms, part = (0,), t_measured
+    dec.update(t_measured_s=t_measured, measured_terms=list(terms),
+               measured_part_s=part, total_rows=width)
+
+
+def _fold_nothing(items, **_kw):
+    """A fold that measures nothing: each point's coverage as it stood."""
+    for item in items:
+        _fold_into(item["sol"]["phases"]["decode"])
 
 
 def _serving_law_record(*, max_batch=100, draft_max_batch=None,
@@ -84,7 +110,8 @@ def _serving_law_record(*, max_batch=100, draft_max_batch=None,
     graph = {
         "inputs": ["B", "s_input", "s_verify"],
         "definitions": [],
-        "outputs": {"t_sol_s": "s_input*s_verify/1000000000000"},
+        "outputs": {"t_sol_s": "s_input*s_verify/1000000000000",
+                    "term_0": "s_input*s_verify/1000000000000"},
     }
     return {
         "schema": f.walkRecordSchema,
@@ -271,7 +298,6 @@ def test_a_point_with_no_step_under_the_view_is_not_drawn():
              "_theory": [both, plain_only, drafted_only]}
     k1 = f._read_entry(entry, f.FrontierView("B200", draft_tokens=1))
     assert sorted(p["batch"] for p in k1["frontier"][sk]) == [4, 6]
-    assert k1["measured_track"] == {"state": "none"}
     assert f._at_view(plain_only, f.FrontierView("B200", draft_tokens=2)) is None
     assert f._at_view(drafted_only, f.FrontierView("B200")) is None
 
@@ -311,34 +337,37 @@ def test_a_plain_view_omits_a_batch_served_only_by_the_draft(monkeypatch):
         for item in items:
             item["sol"]["phases"]["decode"]["coverage"] = {
                 "measured": 1, "total": 1}
+            _fold_into(item["sol"]["phases"]["decode"], t_measured=0.02)
 
     monkeypatch.setattr(f, "measure_points", fold)
-    f._measured_rates(
-        entry, lambda _i, point: (
-            {"any": 1}
-            if point["sol"]["phases"]["decode"]["binding"][
-                "speculative_draft_tokens"] == 0 else None),
-        None)
-    assert set(folded) <= {1, 2}
-    rates = f._measured_rates(
-        entry, lambda _i, point: (
-            {"any": 1}
-            if point["sol"]["phases"]["decode"]["binding"][
-                "speculative_draft_tokens"] == 0 else None),
-        None)
-    assert f._rates_cover(entry, rates)
+    for view, want in ((f.FrontierView("B200"), {1, 2}),
+                       (f.FrontierView("B200", draft_tokens=1), {1, 2, 3})):
+        folded.clear()
+        rates = f._measured_rates(
+            entry, lambda _i, _point: {"any": 1}, view, None)
+        assert set(folded) == want
+        assert f._rates_cover(entry, rates, view)
 
     from backend.measure.scope import MeasurementScope
     monkeypatch.setattr(f, "_frontier_scope", lambda: (
         MeasurementScope(None, "lake", 1, 1, "r"), "reads"))
     monkeypatch.setattr(
         f, "_measureReader",
-        lambda _core, _gpu, _timings: lambda _i, point: (
+        lambda _core, _gpu, _view, _timings: lambda _i, point: (
             {"any": 1}
             if point["sol"]["phases"]["decode"]["binding"][
                 "speculative_draft_tokens"] == 0 else None))
     plain = f._read_entry(entry, f.FrontierView("B200"))
     assert plain["measured_track"]["state"] == "reads"
+
+    monkeypatch.setattr(
+        f, "_measureReader",
+        lambda _core, _gpu, _view, _timings: lambda _i, point: (
+            {"any": 1}
+            if point["sol"]["phases"]["decode"]["binding"][
+                "speculative_draft_tokens"] == 1 else None))
+    drafted = f._read_entry(entry, f.FrontierView("B200", draft_tokens=1))
+    assert drafted["measured_track"]["state"] == "reads"
 
 
 def test_a_model_with_no_mtp_draft_reads_an_empty_speculative_frontier():
@@ -360,30 +389,41 @@ def test_a_speculative_view_is_its_own_request_but_not_its_own_entry():
             != k2.key_parts())
     # Acceptance is not a key under plain decode.
     assert f.FrontierView("B200", acceptance_rate=0.6).key_parts() == plain.key_parts()
-        # One entry serves every K and acceptance, keyed by its floors.
-    assert (plain.entry_parts() == k2.entry_parts() == f.FrontierView(
-        "B200", draft_tokens=3, acceptance_rate=0.6).entry_parts())
+    # One entry serves every floor, K and acceptance: each point carries its
+    # step as a function of the floors at every K, substituted when drawn.
+    stored = f._Stored("m", "v1")
     floored = f.FrontierView("B200", comm_latency_us=5.0)
+    assert (stored.entry_key(plain) == stored.entry_key(k2)
+            == stored.entry_key(floored) == stored.entry_key(f.FrontierView(
+                "B200", launch_floor_us=9.0, draft_tokens=3,
+                acceptance_rate=0.6)))
+    assert floored.key_parts() != plain.key_parts()
     fraction = f.FrontierView("B200", gpu_memory_fraction=.8)
     assert not fraction.keeps_walk()
-    assert floored.entry_parts() != plain.entry_parts()
-    assert floored.entry_parts() != f.FrontierView(
-        "B200", launch_floor_us=9.0, draft_tokens=2).entry_parts()
+    assert stored.entry_key(fraction) != stored.entry_key(plain)
 
 
-def test_a_serving_entry_draws_each_k_off_its_kept_step_time():
-    """A serving entry's point keeps every K's step total (`draftTimes`),
-    not a form: a K view reads it and keeps 1 + α·K tokens of it."""
+def test_a_serving_entry_draws_each_k_and_floor_off_its_step_forms():
+    """A serving entry's point keeps every K's step as a function of the
+    floors: a view substitutes its own floors (here a launch-bound term
+    `max(a, n·L)`) and keeps 1 + α·K tokens of it. A K with no form has no
+    step; a plain point without its form is not an entry of this schema."""
     sk = str(GALLERY_SEQ_LENS[0])
     item = _timed_item(sk)
-    item.pop("floors"), item.pop("draft")
-    item["draftTimes"] = {"2": 0.016}
-    view = f.FrontierView("B200", draft_tokens=2, acceptance_rate=0.5)
+    item["draft"] = {"2": FloorForm(0.01, ((0.004, 0.0, 0.0, 1000.0),)).to_json()}
+    view = f.FrontierView("B200", draft_tokens=2, acceptance_rate=0.5,
+                          launch_floor_us=1.0)
     dec = f._at_view(item, view)["sol"]["phases"]["decode"]
-    assert dec["t_sol_s"] == 0.016
-    assert dec["throughput"]["sol"]["time_per_output_token_s"] == 0.016 / 2
+    assert dec["t_sol_s"] == pytest.approx(0.01 + 0.004)
+    assert dec["throughput"]["sol"]["time_per_output_token_s"] == pytest.approx(
+        0.014 / 2)
+    slow = view._replace(launch_floor_us=6.0)
+    assert f._at_view(item, slow)["sol"]["phases"]["decode"][
+        "t_sol_s"] == pytest.approx(0.01 + 0.006)
     assert f._at_view(item, f.FrontierView("B200", draft_tokens=1)) is None
-    assert f._at_view(item, f.FrontierView("B200")) is item
+    item.pop("floors")
+    with pytest.raises(ValueError, match="no step form"):
+        f._at_view(item, f.FrontierView("B200"))
 
 
 def test_the_route_refuses_a_draft_length_off_the_pickers(monkeypatch):
@@ -436,29 +476,101 @@ def test_measured_rows_fold_onto_the_frontier(monkeypatch):
     def apply(items, **_kw):
         for it in items:
             dec = it["sol"]["phases"]["decode"]
-            dec["throughput"]["measured"] = {
-                "time_per_output_token_s": 0.02, "per_gpu": 50.0}
+            _fold_into(dec, t_measured=0.02)
             dec["coverage"] = {"measured": 3, "total": 3}
 
     monkeypatch.setattr(f, "measure_points", apply)
     _inline_measures(monkeypatch)
     sk = str(GALLERY_SEQ_LENS[0])
-    sol = {"phases": {"decode": {"batch": 1, "throughput": {
-        "concurrent_requests": 1, "sol": {
-            "time_per_output_token_s": 0.01, "per_gpu": 100.0}}}}}
     out = f._read_entry({
         "model_id": "m", "frontier": {sk: [_pt(100, 100)]},
         "layouts": [], "error": None,
-        "_theory": [{"seq": sk, "label": "1×GPU · TP1/EP1/CP1/DP1",
-                     "num_gpus": 1, "sol": sol, "measures": {"decode": {}}}],
+        "_theory": [{**_timed_item(sk, batch=1), "measures": {"decode": {}}}],
     }, f.FrontierView("B200"))
     assert "_theory" not in out
     pt = out["frontier"][sk][0]
-    assert pt["tok_s_per_user"] == 100.0
-    assert pt["tok_s_per_user_measured"] == 50.0
-    assert pt["tok_s_per_gpu_measured"] == 50.0
+    assert pt["tok_s_per_user"] == pytest.approx(100.0)
+    # One token per step over the measured 20 ms, on 2 GPUs.
+    assert pt["tok_s_per_user_measured"] == pytest.approx(50.0)
+    assert pt["tok_s_per_gpu_measured"] == pytest.approx(25.0)
     meas = out["frontier_measured"][sk][0]
-    assert meas["tok_s_per_user_measured"] == 50.0
+    assert meas["tok_s_per_user_measured"] == pytest.approx(50.0)
+
+
+def test_the_partial_track_swaps_measured_terms_at_the_view_s_floors(
+        monkeypatch):
+    """The partial frontier: the point's step form with the fold's measured
+    terms' SOL swapped for their measured share (`auto_sweep.blend`,
+    `FloorForm.terms_at`), at the view's floors — another floor moves the
+    SOL terms left, never the measured share."""
+    from backend.measure.scope import MeasurementScope
+    monkeypatch.setattr(f, "_frontier_scope",
+                        lambda: (MeasurementScope(None, "lake", 1, 1, "r"), "reads"))
+
+    def apply(items, **_kw):
+        for it in items:
+            dec = it["sol"]["phases"]["decode"]
+            _fold_into(dec, part=0.004, terms=(1,), width=2)
+            dec["coverage"] = {"measured": 1, "total": 2,
+                               "states": {"missing": ["k"]}}
+
+    monkeypatch.setattr(f, "measure_points", apply)
+    _inline_measures(monkeypatch)
+    sk = str(GALLERY_SEQ_LENS[0])
+    item = _timed_item(sk, batch=1)
+    # Term 0 launch-bound (2 launches), term 1 compute-bound (6 ms): the
+    # fold measured term 1 at 4 ms, so the floors move only term 0.
+    item["floors"] = FloorForm.termwise(
+        [(0, (0.001, 0.0, 0.0, 2.0)), (1, (0.006, 0.0, 0.0, 0.0))], 2).to_json()
+    entry = {"model_id": "m", "frontier": {}, "layouts": [], "error": None,
+             "_theory": [{**item, "measures": {"decode": {}}}]}
+    for launch_us, sol_s in ((1.0, 0.007), (3000.0, 0.012)):
+        out = f._read_entry(entry, f.FrontierView(
+            "B200", launch_floor_us=launch_us))
+        pt = out["frontier_partial"][sk][0]
+        partial_s = 0.004 + (sol_s - 0.006)
+        assert out["frontier"][sk][0]["tpot_s"] == pytest.approx(sol_s)
+        assert pt["tpot_partial_s"] == pytest.approx(partial_s)
+        assert pt["partial_measured_share"] == pytest.approx(0.004 / partial_s)
+        assert out["frontier_measured"][sk] == []
+
+
+def test_the_term_mask_keeps_every_step_term():
+    """The rates keep a point's measured step terms as a bit mask; reading
+    it back names exactly those terms, high and sparse ones included."""
+    for terms in ([], [0], [1], [0, 2, 5], list(range(3, 130, 7))):
+        assert f._terms(f._termMask(terms)) == terms
+
+
+def test_a_form_not_over_the_formula_s_terms_is_an_engine_error(monkeypatch):
+    """A point whose step form has a term past the measured formula's is
+    another step: the fold refuses it (`MeasurementFoldMismatch`), so the
+    model draws its SOL frontier under `engine_error` rather than a partial
+    line priced off misaligned terms."""
+    from backend.measure.scope import MeasurementScope
+    monkeypatch.setattr(f, "_frontier_scope",
+                        lambda: (MeasurementScope(None, "lake", 1, 1, "r"), "reads"))
+
+    def apply(items, **_kw):
+        for it in items:
+            dec = it["sol"]["phases"]["decode"]
+            _fold_into(dec, part=0.004, terms=(0,), width=1)
+            dec["coverage"] = {"measured": 1, "total": 1}
+
+    monkeypatch.setattr(f, "measure_points", apply)
+    _inline_measures(monkeypatch)
+    sk = str(GALLERY_SEQ_LENS[0])
+    item = _timed_item(sk, batch=1)
+    item["floors"] = FloorForm.termwise(
+        [(0, (0.001, 0.0, 0.0, 0.0)), (1, (0.006, 0.0, 0.0, 0.0))], 2).to_json()
+    stored = f._Stored("m", None)
+    out = stored.drawn(f.FrontierView("B200"), {
+        "model_id": "m", "frontier": {}, "layouts": [], "error": None,
+        "_theory": [{**item, "measures": {"decode": {}}}]})
+    assert out["measured_track"]["state"] == "engine_error"
+    assert "measured formula" in out["measured_track"]["error"]
+    assert out["frontier"][sk]
+    assert out["frontier_partial"][sk] == []
 
 
 def test_the_measured_fold_does_not_walk(monkeypatch):
@@ -469,13 +581,12 @@ def test_the_measured_fold_does_not_walk(monkeypatch):
                         lambda: (MeasurementScope(None, "lake", 1, 1, "r"), "reads"))
     monkeypatch.setattr(f, "_layout_law", lambda *_a, **_k: (_ for _ in ()).throw(
         AssertionError("walked")))
-    monkeypatch.setattr(f, "measure_points", lambda items, **k: None)
+    monkeypatch.setattr(f, "measure_points", _fold_nothing)
     _inline_measures(monkeypatch)
     sk = str(GALLERY_SEQ_LENS[0])
     f._read_entry({
         "model_id": "m", "frontier": {sk: []}, "layouts": [], "error": None,
-        "_theory": [{"seq": sk, "label": "1×GPU", "num_gpus": 1,
-                     "sol": {"phases": {"decode": {}}}, "measures": {}}],
+        "_theory": [{**_timed_item(sk, batch=1), "measures": {}}],
     }, f.FrontierView("B200"))
 
 
@@ -485,19 +596,16 @@ def test_incomplete_measured_coverage_does_not_publish_tok_s(monkeypatch):
     from backend.measure.scope import MeasurementScope
     monkeypatch.setattr(f, "_frontier_scope",
                         lambda: (MeasurementScope(None, "lake", 1, 1, "r"), "reads"))
-    monkeypatch.setattr(f, "measure_points", lambda items, **k: None)
+    monkeypatch.setattr(f, "measure_points", _fold_nothing)
     _inline_measures(monkeypatch)
     sk = str(GALLERY_SEQ_LENS[0])
-    sol = {"phases": {"decode": {"batch": 1, "throughput": {
-        "concurrent_requests": 1,
-        "sol": {"time_per_output_token_s": 0.01, "per_gpu": 100.0},
-        "measured": None},
-        "coverage": {"measured": 2, "total": 3, "states": {"missing": ["k"]}}}}}
+    item = _timed_item(sk, batch=1)
+    item["sol"]["phases"]["decode"]["coverage"] = {
+        "measured": 2, "total": 3, "states": {"missing": ["k"]}}
     out = f._read_entry({
         "model_id": "m", "frontier": {sk: [_pt(100, 100)]},
         "layouts": [], "error": None,
-        "_theory": [{"seq": sk, "label": "1×GPU · TP1/EP1/CP1/DP1",
-                     "num_gpus": 1, "sol": sol, "measures": {"decode": {}}}],
+        "_theory": [{**item, "measures": {"decode": {}}}],
     }, f.FrontierView("B200"))
     pt = out["frontier"][sk][0]
     assert "tok_s_per_user_measured" not in pt
@@ -514,7 +622,7 @@ def test_every_k_is_one_projection_of_every_context(monkeypatch):
     assert all(c["contexts"] == list(GALLERY_SEQ_LENS) for c in calls)
     assert res["draft_errors"] == []
     point = _theory_at(res, GALLERY_SEQ_LENS[0])[0]
-    assert sorted(point["draftTimes"]) == sorted(
+    assert sorted(point["draft"]) == sorted(
         str(k) for k in FRONTIER_DRAFT_TOKENS)
 
 
@@ -560,19 +668,32 @@ def test_one_fold_reads_each_measure_record_once(monkeypatch):
         f, "sharedSolPool",
         type("Pool", (), {"record": staticmethod(
             lambda *_args: reads.append(1) or {"record": True})}))
+    measures = [
+        PointMeasure(
+            (Key("op", '{"B":1}', '{}', "B200", "decode"),), (float(batch),),
+            (None,), ("op",), ("",), MeasuredFormula("T_0*n_0", (False,)),
+            {"framework": "vllm", "gpu": "B200"}, ({"any": 1},))
+        for batch in (1, 2)
+    ]
+    record_matrix = MeasureMatrix.of_measures(measures)
+    record_matrix.point_rows.update({
+        (int(GALLERY_SEQ_LENS[0]), 1, 0): 0,
+        (int(GALLERY_SEQ_LENS[0]), 2, 0): 1,
+    })
     monkeypatch.setattr(
-        f, "servingMeasurePoints",
-        lambda record, *, card, points: {
-            (context, batch): {"any": batch} for context, batch in points})
+        f, "servingMeasureMatrix",
+        lambda _record, *, card, points: record_matrix)
 
     def apply(items, **_kwargs):
         for item in items:
             item["sol"]["phases"]["decode"]["coverage"] = {
                 "measured": 1, "total": 1}
+            _fold_into(item["sol"]["phases"]["decode"], t_measured=0.05)
 
     monkeypatch.setattr(f, "measure_points", apply)
+    view = f.FrontierView("B200")
     rates = f._measured_rates(
-        core, f._measureReader(core, "B200", {}), None)
+        core, f._measureReader(core, "B200", view, {}), view, None)
     assert reads == [1]
     assert rates["timings"]["measure_records"] == 1
     assert rates["timings"]["measure_points"] == 2
@@ -612,7 +733,7 @@ def test_one_k_that_fails_is_that_ks_error(monkeypatch):
     assert [(e["draft_tokens"], e["error"]) for e in res["draft_errors"]] == [
         (bad, "verify width refused")]
     point = _theory_at(res, GALLERY_SEQ_LENS[0])[0]
-    assert sorted(point["draftTimes"]) == sorted(
+    assert sorted(point["draft"]) == sorted(
         str(k) for k in FRONTIER_DRAFT_TOKENS if k != bad)
 
 
@@ -640,7 +761,7 @@ def _kept(monkeypatch, tmp_path, *, state="reads"):
     monkeypatch.setattr(f, "_resolve_one", lambda mid: (None, object(), "v1"))
     monkeypatch.setattr(
         f, "_measureReader",
-        lambda _core, _gpu_sku, _timings: lambda _i, point: (
+        lambda _core, _gpu_sku, _view, _timings: lambda _i, point: (
             {"any": 1} if point.get("measureRecord") else None))
     scope = MeasurementScope(None, "lake", 1, 1, "r")
     monkeypatch.setattr(f, "_frontier_scope", lambda: (
@@ -650,8 +771,7 @@ def _kept(monkeypatch, tmp_path, *, state="reads"):
     def apply(items, **_kw):
         folds.append(len(items))
         for it in items:
-            it["sol"]["phases"]["decode"]["throughput"]["measured"] = {
-                "time_per_output_token_s": 0.05, "per_gpu": 20.0}
+            _fold_into(it["sol"]["phases"]["decode"], t_measured=0.05)
             it["sol"]["phases"]["decode"]["coverage"] = {"measured": 1, "total": 1}
     monkeypatch.setattr(f, "measure_points", apply)
     return entries, reads, folds
@@ -665,7 +785,8 @@ def _built_entry(monkeypatch, cards=("B200",), calls=None):
     def restamp(_walked, _gpu_sku, cfg, _walk_key=None, _view=None):
         return {
             "theory": [
-                _timed_item(str(seq), measure_record="test-record")
+                _timed_item(str(seq), measure_record="test-record",
+                           drafts={k: 0.012 for k in FRONTIER_DRAFT_TOKENS})
                 for seq in GALLERY_SEQ_LENS
             ],
             "draft_errors": [],
@@ -694,11 +815,11 @@ def test_a_kept_view_is_read_without_its_entry(monkeypatch, tmp_path):
                                          ParallelConfig(tp_attention=2))["theory"])]
 
 
-def test_floors_and_k_read_the_entry_but_never_its_measure_records(
+def test_floors_reuse_the_fold_and_each_k_folds_its_own_formula(
         monkeypatch, tmp_path):
-    """Another floor or K draws off the entry's first part; the measured
-    rates folded once per Kernel Bench snapshot are reused, so the measures
-    record those points name is not read for them."""
+    """Another floor or K draws off the entry's first part. Floors and
+    acceptance reuse a K's measured rates (step times, which neither
+    moves); each K has its own fold under the same Kernel Bench snapshot."""
     _entries, reads, folds = _kept(monkeypatch, tmp_path)
     real_reader = f._measureReader
     record_reads: list = []
@@ -713,15 +834,18 @@ def test_floors_and_k_read_the_entry_but_never_its_measure_records(
     f._finish_frontier(model, f.FrontierView("B200"), plan, results)
     record_reads.clear()
     stored = f._Stored(model, "v1")
-    for view in (f.FrontierView("B200", comm_latency_us=5.0),
-                 f.FrontierView("B200", draft_tokens=2),
-                 f.FrontierView("B200", draft_tokens=3, acceptance_rate=0.6)):
+    cases = ((f.FrontierView("B200", comm_latency_us=5.0), 0),
+             (f.FrontierView("B200", draft_tokens=1), 1),
+             (f.FrontierView("B200", draft_tokens=3, acceptance_rate=0.6), 1),
+             (f.FrontierView("B200", draft_tokens=3, acceptance_rate=0.9), 0))
+    for view, reader_reads in cases:
         reads.clear()
         got = f._frontier_read(model, view)
         assert "drawn" in got
         assert reads == [stored.entry_key(view)]
-        assert record_reads == []
-    assert len(folds) == 1
+        assert len(record_reads) == reader_reads
+        record_reads.clear()
+    assert len(folds) == 3
     # A new snapshot folds again, off the records the entry names.
     from backend.measure.scope import MeasurementScope
     monkeypatch.setattr(f, "_frontier_scope", lambda: (
@@ -729,7 +853,7 @@ def test_floors_and_k_read_the_entry_but_never_its_measure_records(
     reads.clear()
     assert "drawn" in f._frontier_read(model, f.FrontierView("B200"))
     assert reads == [stored.entry_key(f.FrontierView("B200"))]
-    assert record_reads == [1] and len(folds) == 2
+    assert record_reads == [1] and len(folds) == 4
 
 
 def test_an_entry_missing_its_measure_record_draws_sol(monkeypatch, tmp_path):
@@ -751,7 +875,7 @@ def test_an_entry_missing_its_measure_record_draws_sol(monkeypatch, tmp_path):
         AssertionError("walked")))
     got = f._frontier_read(model, f.FrontierView("B200"))
     assert got["drawn"]["measured_track"]["state"] == "engine_error"
-    assert "did not cover" in got["drawn"]["measured_track"]["error"]
+    assert "has no K=0 measure" in got["drawn"]["measured_track"]["error"]
     assert got["drawn"]["frontier"][str(GALLERY_SEQ_LENS[0])]
     # A view that reads no measurements draws off the same entry.
     assert "drawn" in f._frontier_read(model, f.FrontierView("B200", draft_tokens=1))
@@ -837,6 +961,7 @@ def _covered_item(seq, *, batch, tpot, coverage):
              "sol": {"time_per_output_token_s": tpot, "per_gpu": batch / tpot}}
     return {"seq": seq, "label": f"b{batch}", "num_gpus": 1,
             "sol": {"phases": {"decode": {"batch": batch, "throughput": rates}}},
+            "floors": _one_term(tpot),
             "measures": {"decode": {"coverage": coverage}}}
 
 
@@ -853,13 +978,22 @@ def _read_folded(monkeypatch, items):
             cov = it["measures"]["decode"]["coverage"]
             dec = it["sol"]["phases"]["decode"]
             dec["coverage"] = cov
-            if cov["measured"] == cov["total"]:
-                tpot = dec["throughput"]["sol"]["time_per_output_token_s"]
-                dec["throughput"]["measured"] = {
-                    "time_per_output_token_s": tpot * 2,
-                    "per_gpu": dec["throughput"]["sol"]["per_gpu"] / 2}
+            tpot = dec["throughput"]["sol"]["time_per_output_token_s"]
+            _fold_into(dec, t_measured=(tpot * 2 if cov["measured"] == cov["total"]
+                                        else None))
+
+    def at_view(item, _view, fold=None):
+        """The point as stored, its measured rate off the fold's time."""
+        t = (fold or {}).get("t_measured_s")
+        if t is None:
+            return item
+        dec = item["sol"]["phases"]["decode"]
+        batch = dec["batch"]
+        return {**item, "sol": {"phases": {"decode": {**dec, "throughput": {
+            **dec["throughput"], "measured": {
+                "time_per_output_token_s": t, "per_gpu": batch / t}}}}}}
     monkeypatch.setattr(f, "measure_points", apply)
-    monkeypatch.setattr(f, "_at_view", lambda item, view, laws=None: item)
+    monkeypatch.setattr(f, "_at_view", at_view)
     return f._read_entry({"model_id": "m", "layouts": [], "error": None,
                           "_theory": items}, f.FrontierView("B200"))
 
@@ -870,7 +1004,6 @@ def test_coverage_of_a_fully_measured_frontier(monkeypatch):
     out = _read_folded(monkeypatch, [
         _covered_item(sk, batch=1, tpot=0.01, coverage=full),
         _covered_item(sk, batch=8, tpot=0.02, coverage=full)])
-    assert out["measured_track"]["state"] == "reads"
     assert len(out["frontier_measured"][sk]) == 2
     assert out["measured_track"]["coverage"][sk] == {
         "points": 2, "complete": 2, "best": {"measured": 4, "total": 4},
@@ -946,7 +1079,7 @@ def test_a_frontier_point_the_fold_did_not_reach_is_refused(monkeypatch):
     out = _read_folded(monkeypatch, [item])
     assert out["frontier"][sk]
     assert out["measured_track"]["state"] == "engine_error"
-    assert "did not cover" in out["measured_track"]["error"]
+    assert "has no K=0 measure" in out["measured_track"]["error"]
 
 
 def test_no_coverage_when_the_lake_is_unavailable(monkeypatch):
@@ -989,8 +1122,7 @@ def test_a_fold_the_lake_drops_mid_request_draws_sol_only(
         folds.append(len(items))
         for it in items:
             dec = it["sol"]["phases"]["decode"]
-            dec["throughput"]["measured"] = {
-                "time_per_output_token_s": 0.05, "per_gpu": 20.0}
+            _fold_into(dec, t_measured=0.05)
             dec["coverage"] = {"measured": 1, "total": 1}
 
     monkeypatch.setattr(f, "measure_points", apply)
@@ -1069,7 +1201,7 @@ def test_a_fold_mismatch_is_an_engine_error_not_a_lake_outage(
     model, view = "test/Model", f.FrontierView("B200")
     sk = str(GALLERY_SEQ_LENS[0])
 
-    def incomplete(core, _measureAt, _scope):
+    def incomplete(core, _measureAt, _view, _scope):
         plain = [str(i) for i, point in enumerate(core["_theory"])
                  if not f._stepDraftTokens(point["sol"]["phases"]["decode"])]
         return {"rates": {}, "timings": {},
@@ -1116,15 +1248,17 @@ def test_one_request_reads_the_lake_once(monkeypatch):
     assert seen == [track] * 3
 
 
-def test_no_coverage_under_a_speculative_view(monkeypatch):
-    monkeypatch.setattr(f, "_frontier_scope", lambda: (_ for _ in ()).throw(
-        AssertionError("a speculative view reads no rows")))
+def test_a_speculative_view_without_its_k_measure_is_an_engine_error(monkeypatch):
+    from backend.measure.scope import MeasurementScope
+    monkeypatch.setattr(f, "_frontier_scope", lambda: (
+        MeasurementScope(None, "lake", 1, 1, "r"), "reads"))
     sk = str(GALLERY_SEQ_LENS[0])
     out = f._read_entry({"model_id": "m", "layouts": [], "error": None,
                          "_theory": [_timed_item(sk, drafts={1: 0.012})]},
                         f.FrontierView("B200", draft_tokens=1))
     assert out["frontier"][sk]
-    assert out["measured_track"] == {"state": "none"}
+    assert out["measured_track"]["state"] == "engine_error"
+    assert "no K=1 point with a measure record" in out["measured_track"]["error"]
 
 
 def test_a_kept_view_carries_its_coverage_and_floors_reuse_the_fold(

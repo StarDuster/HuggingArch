@@ -25,7 +25,8 @@ cell can be walked in a worker process and the lookup made in the API's.
     its structural weight), `sweep_keys` (the union of every point's keys),
     `look_up` (the one lookup), `MeasuredFormula` (the measured total
     Σ w_k·n_k·T_k as law text, written by the estimator's one step
-    aggregation) and `MeasuredTrack` (the fold and its coverage).
+    aggregation, read at one point or over a matrix of points) and
+    `MeasuredTrack` (the fold and its coverage).
 
 The measured total is all or nothing. Each row is in exactly one coverage
 state (`STATES`); the total exists only when every row is `measured`, and a
@@ -36,7 +37,10 @@ missing.
 """
 from __future__ import annotations
 
+from collections.abc import Mapping as ABCMapping
+import inspect
 import math
+import re
 from functools import lru_cache
 from dataclasses import dataclass, field, replace
 from typing import (Any, Callable, ClassVar, Dict, Iterable,
@@ -95,7 +99,7 @@ UNPLACED_REASONS = (MISSING_SIGNATURE, MISSING_PROJECTION, PIPELINE_STAGE)
 @dataclass(frozen=True)
 class MeasuredTrack:
     """The measured track of a set of rows: its coverage, and its total —
-    which the one measured formula gives (`PointMeasure.fold`), and which
+    which the one measured formula gives (`MeasureMatrix.fold`), and which
     exists only at full coverage.
 
     The coverage counts rows, not launches, and lists the rows in each state
@@ -312,6 +316,126 @@ def compile_law(exprs: Sequence[Any], names: Tuple[str, ...]
                        cse=_each_law_once)
 
 
+class _FloatPrinter(_ExactPrinter):
+    """EXPERIMENT (exp/float-projection): the same law graph, evaluated in
+    machine floats — a rational prints as one division, `_law_div` is the
+    plain `/`. Only `_print_Rational` changes: `Cases`/`Quotient` keep their
+    select-only-the-taken-arm shape (that is semantics, not precision)."""
+
+    def _print_Rational(self, expr: sp.Rational) -> str:
+        return f"({expr.p}/{expr.q})"
+
+
+def _eachLawInOrder(exprs: Sequence[Any]
+                    ) -> Tuple[List[Tuple[sp.Symbol, Any]], List[Any]]:
+    """Like `_each_law_once`, but every expression is assigned (even a repeat
+    or an atom), because a CSE graph's later expressions read the variables
+    the earlier ones define."""
+    assigned: List[Tuple[sp.Symbol, Any]] = []
+    out: List[Any] = []
+    for index, expr in enumerate(exprs):
+        variable = sp.Symbol(f"_law{index}")
+        assigned.append((variable, expr))
+        out.append(variable)
+    return assigned, out
+
+
+def compile_law_float(exprs: Sequence[Any], names: Tuple[str, ...]
+                      ) -> Callable[..., Any]:
+    """EXPERIMENT: `compile_law`'s float twin — same graph, same names,
+    float arithmetic. For measuring the projection's exact-arithmetic cost,
+    not for shipping."""
+    by_name = {sym.name: sym for expr in exprs for sym in expr.free_symbols}
+    return sp.lambdify([by_name.get(n, sp.Symbol(n)) for n in names],
+                       list(exprs),
+                       modules=[{"math": math, "_law_div": lambda a, b: a / b}],
+                       printer=_FloatPrinter,
+                       cse=_eachLawInOrder)
+
+
+class _VectorPrinter(_FloatPrinter):
+    """The same law graph, printed for numpy: every input may be an array.
+    `Cases` becomes `np.where` (both arms evaluate, the unselected one's
+    inf/nan is discarded), `Quotient` the same; `Max`/`Min`, `Piecewise` and
+    the logic connectives print as numpy's element-wise forms, since Python's
+    `max`/`and` ask an array for one truth value; `math.*` resolves to
+    numpy's functions of the same names (`compile_law_vector`)."""
+
+    def _print_Cases(self, expr: Any) -> str:
+        condition, then, otherwise = expr.args
+        return (f"np.where({self._print(condition)}, {self._print(then)}, "
+                f"{self._print(otherwise)})")
+
+    def _print_Quotient(self, expr: Any) -> str:
+        condition, empty, part, whole = expr.args
+        return (f"np.where({self._print(condition)}, {self._print(empty)}, "
+                f"({self._print(part)}) / ({self._print(whole)}))")
+
+    def _print_Piecewise(self, expr: Any) -> str:
+        # The pieces in order, the first true one taken: a fold of
+        # `np.where` from the last piece in. A final piece is its own
+        # default; with no `True` piece the uncovered points are nan.
+        pieces = list(expr.args)
+        last_value, last_condition = pieces[-1]
+        out = (self._print(last_value) if last_condition == sp.true
+               else f"np.where({self._print(last_condition)}, "
+                    f"{self._print(last_value)}, np.nan)")
+        for value, condition in reversed(pieces[:-1]):
+            out = (f"np.where({self._print(condition)}, "
+                   f"{self._print(value)}, {out})")
+        return out
+
+    def _elementwise(self, func: str, args: Sequence[Any]) -> str:
+        printed = [self._print(arg) for arg in args]
+        out = printed[0]
+        for arg in printed[1:]:
+            out = f"{func}({out}, {arg})"
+        return out
+
+    def _print_Max(self, expr: Any) -> str:
+        return self._elementwise("np.maximum", expr.args)
+
+    def _print_Min(self, expr: Any) -> str:
+        return self._elementwise("np.minimum", expr.args)
+
+    def _print_And(self, expr: Any) -> str:
+        return self._elementwise("np.logical_and", expr.args)
+
+    def _print_Or(self, expr: Any) -> str:
+        return self._elementwise("np.logical_or", expr.args)
+
+    def _print_Not(self, expr: Any) -> str:
+        return f"np.logical_not({self._print(expr.args[0])})"
+
+
+def compile_law_vector(exprs: Sequence[Any], names: Tuple[str, ...]
+                       ) -> Callable[..., Any]:
+    """A law compiled for numpy arrays: the same graph, but every input
+    may be an array and every output is an array of the broadcast shape.
+    Both arms of a `Cases` evaluate (the unselected one's inf/nan is
+    discarded by `np.where`); callers suppress the divide warnings."""
+    import numpy as np
+    by_name = {sym.name: sym for expr in exprs for sym in expr.free_symbols}
+    program = sp.lambdify([by_name.get(n, sp.Symbol(n)) for n in names],
+                          list(exprs),
+                          modules=[{"np": np, "math": np,
+                                    "_law_div": lambda a, b: a / b}],
+                          printer=_VectorPrinter,
+                          cse=_eachLawInOrder)
+    # A construct `_VectorPrinter` does not print element-wise falls back to
+    # Python's, which asks a whole array for one truth value: refused here,
+    # where the law is compiled, not where a batch first reaches it.
+    scalar = _SCALAR_ONLY.search(inspect.getsource(program))
+    if scalar:
+        raise ValueError(f"a law prints {scalar.group(0)!r}, which is not "
+                         "element-wise: `_VectorPrinter` needs its numpy form")
+    return program
+
+
+#: Python constructs that read one truth value or compare whole operands.
+_SCALAR_ONLY = re.compile(r"\b(?:if|else|and|or|not)\b|\b(?:max|min)\(")
+
+
 def exact_div(part: Any, whole: Any) -> Any:
     """A quotient of two whole numbers stays exact in compiled law text.
 
@@ -371,6 +495,63 @@ class MeasuredFormula:
                                      else float(times[k]))
         return float(evaluate(self.text, binding)) if binding else 0.0
 
+    def at_many(self, launches: Any, times: Any) -> Any:
+        """The same law at many points, with two-dimensional bindings.
+
+        The expression is the one declaration `at` reads; only its bindings
+        are columns. This is the record-level fold's total, not a second
+        Gallery formula.
+        """
+        count = len(self.zero_cost)
+        if not isinstance(launches, ABCMapping):
+            launches = {
+                f"n_{i}": launches[:, i] for i in range(count)}
+        if not isinstance(times, ABCMapping):
+            times = {f"T_{i}": times[:, i] for i in range(count)}
+        return evaluate(self.text, {**launches, **times})
+
+
+def blend(t_sol: float, sol_measured: float, measured_part_s: float
+          ) -> Dict[str, float]:
+    """The partial track — its one definition: the step's SOL total
+    `t_sol` with the measured terms' SOL (`sol_measured`, the same terms
+    the SOL total weights) swapped for their measured share `measured_part_s`.
+    The SOL total and the measured formula are one aggregation
+    (`StepSum.total` over `t_op` and over `n·T`), so a term's two shares
+    are interchangeable. `t_s` is the blend, `measured_share` the part of
+    it that is measured. Whoever holds the SOL states `sol_measured`: a
+    walk's priced rows (`Folded.partial`), or a pool point's floor form at
+    the reader's floors (`row_roofline.FloorForm.terms_at`)."""
+    t_s = float(t_sol) - float(sol_measured) + float(measured_part_s)
+    return {"t_s": t_s, "measured_part_s": float(measured_part_s),
+            "measured_share": (float(measured_part_s) / t_s
+                               if t_s > 0 else 0.0)}
+
+
+def partial_of(formula: "MeasuredFormula", measured_terms: Sequence[int],
+               measured_part_s: float, sol: Sequence[Optional[float]],
+               t_sol: Optional[float]) -> Optional[Dict[str, float]]:
+    """The partial track (`blend`) off a measure's own SOL leaves
+    (`PointMeasure.sol`), weighted by `formula` as the SOL total weights
+    them: the one reading both folds (`Folded`, `MatrixFold`) share. None
+    when the step has no SOL total, or the measure states no SOL — a pool
+    point, whose SOL is a function of the floors its reader picks
+    (`row_roofline.FloorForm.terms_at`). At full coverage the blend is the
+    measured total by construction: the SOL total is its terms' sum."""
+    if t_sol is None or not sol:
+        return None
+    live = [k for k in measured_terms if not formula.zero_cost[k]]
+    unpriced = [k for k in live if k >= len(sol) or sol[k] is None]
+    if unpriced:
+        raise ValueError(
+            f"measured terms {unpriced[:5]} have no SOL leaf: a measured "
+            "term is a priced row of this walk")
+    width = len(formula.zero_cost)
+    leaves = [0.0 if v is None else float(v) for v in sol]
+    leaves += [0.0] * (width - len(leaves))
+    return blend(t_sol, formula.at([1.0] * width, leaves, live),
+                 measured_part_s)
+
 
 def key_label(key: Key) -> str:
     """A key as the coverage lists it."""
@@ -403,6 +584,13 @@ class PointMeasure:
     #: The per-op row's aggregation id, kept parallel to every other row field.
     #: Empty means an older serialized measure; it has no structured details.
     aggregation_ids: Tuple[str, ...] = ()
+    #: Each term's SOL time at the point — one occurrence, before the
+    #: formula's weight, the leaf the SOL total adds (`StepSum.total` over
+    #: `t_op`) — or None where the producer has none (a pipeline stage not
+    #: walked here). Empty when the producer states none: a pool point,
+    #: whose SOL is a function of the floors its reader picks
+    #: (`row_roofline.FloorForm.terms_at`).
+    sol: Tuple[Optional[float], ...] = ()
 
     def __post_init__(self) -> None:
         n = len(self.keys)
@@ -414,6 +602,8 @@ class PointMeasure:
                 == len(self.reasons) == len(self.formula.zero_cost) == n):
             raise ValueError("a point measure states every field once per row")
         if self.aggregation_ids and len(self.aggregation_ids) != n:
+            raise ValueError("a point measure states every field once per row")
+        if self.sol and len(self.sol) != n:
             raise ValueError("a point measure states every field once per row")
         for k, u, z in zip(self.keys, self.unkeyed, self.formula.zero_cost, strict=True):
             if z and u != MEASURED:
@@ -439,37 +629,17 @@ class PointMeasure:
                 if k is not None and not z]
 
     def fold(self, select: Callable[[Key, Any, str, Any], Tuple[Optional[float], str, Any]]
-             ) -> "Folded":
-        """The measurement at this point (`Folded`). `select(key, context,
+             ) -> Any:
+        """The measurement at this point, as one row of a `MeasureMatrix`.
+
+        `select(key, context,
         label, inputs)` is the estimator's selection over the sweep's one
         lookup (`label` the row's own, which a kernel pin reads; `inputs`
         what it reads of the row): one launch's time, `measured` and what it
         says of the measurement (`detail`, opaque), or None, `missing` /
         `ambiguous` and None."""
-        rows: List[Tuple[str, Optional[float], str, Any]] = []
-        times: List[Optional[float]] = []
-        for i, key in enumerate(self.keys):
-            if self.formula.zero_cost[i]:
-                rows.append((MEASURED, 0.0, self.labels[i], self.reasons[i]))
-                times.append(0.0)
-                continue
-            if key is None:
-                rows.append((self.unkeyed[i], None, self.labels[i], self.reasons[i] or None))
-                times.append(None)
-                continue
-            context = self.contexts[i] if self.contexts else self.context
-            t, state, detail = select(key, context, self.labels[i],
-                                      self.inputs[i] if self.inputs else None)
-            if state not in (MEASURED, MISSING, AMBIGUOUS) or (t is None) == (state == MEASURED):
-                raise ValueError(f"selection of {key_label(key)}: {t!r} with state {state!r}")
-            label = key_label(key)
-            if t is None:
-                rows.append((state, None, label, None))
-                times.append(None)
-                continue
-            rows.append((MEASURED, float(t) * self.launches[i], label, detail))
-            times.append(float(t))
-        return Folded(self, tuple(rows), tuple(times))
+        from backend.measure.measure_matrix import MeasureMatrix
+        return MeasureMatrix.of_measures([self]).fold(select)[0]
 
     def to_json(self) -> Dict[str, Any]:
         """Plain data, compact: every string (key fields, labels) once in a
@@ -490,7 +660,8 @@ class PointMeasure:
                 "formula": self.formula.text, "context": self.context,
                 "inputs": list(self.inputs),
                 **({"contexts": list(self.contexts)}
-                   if self.contexts else {})} | {"strings": list(table)}
+                   if self.contexts else {}),
+                **({"sol": list(self.sol)} if self.sol else {})} | {"strings": list(table)}
 
     @classmethod
     def from_json(cls, d: Mapping[str, Any]) -> "PointMeasure":
@@ -502,7 +673,9 @@ class PointMeasure:
                    MeasuredFormula(d["formula"], tuple(d["zero_cost"])),
                    d.get("context"), tuple(d.get("inputs") or ()),
                    tuple(d.get("contexts") or ()),
-                   tuple(d.get("aggregation_ids") or ()))
+                   tuple(d.get("aggregation_ids") or ()),
+                   tuple(None if v is None else float(v)
+                         for v in d.get("sol") or ()))
 
 
 @dataclass(frozen=True)
@@ -537,6 +710,24 @@ class Folded:
         if not track.complete:
             return track
         return track.with_total(self.measure.formula.at(self.measure.launches, self.times))
+
+    @property
+    def measured_terms(self) -> Tuple[int, ...]:
+        """The terms with a measured time (a zero-cost term among them)."""
+        return tuple(k for k, row in enumerate(self.rows) if row[0] == MEASURED)
+
+    @property
+    def measured_part_s(self) -> float:
+        """The formula's share of the measured terms: what the partial
+        track puts in place of their SOL."""
+        return self.measure.formula.at(self.measure.launches, self.times,
+                                       self.measured_terms)
+
+    def partial(self, t_sol: Optional[float]) -> Optional[Dict[str, float]]:
+        """The partial track off the measure's own SOL leaves
+        (`partial_of`)."""
+        return partial_of(self.measure.formula, self.measured_terms,
+                          self.measured_part_s, self.measure.sol, t_sol)
 
     def subtotal(self, terms: Iterable[int]) -> Optional[float]:
         """The formula's share of `terms` — a draft's forwards, a module's

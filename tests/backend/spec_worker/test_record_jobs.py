@@ -68,7 +68,7 @@ def test_a_review_runs_against_a_local_run_s_record(offline, stub_agent,
 
     _key, run_fn, kw = stub_agent["jobs"][0]
     assert kw == {"model_id": MODEL, "user_id": overlay.ANONYMOUS_OWNER,
-                  "kind": "review"}
+                  "kind": "review", "agent_cli": None, "agent_env": None}
     events = list(run_fn())
     assert events[-1] == {"type": "done", "success": True}
     model_id, prep_kw = stub_agent["prep"][0]
@@ -94,6 +94,25 @@ def test_a_fix_runs_against_a_local_run_s_record(offline, stub_agent,
     assert prep_kw["record_id"] == record["id"]
     assert prep_kw["review_report"] == "fix the rope base"
     assert prep_kw["work_order"] == []
+
+
+@pytest.mark.parametrize("launch", ["review", "fix"])
+def test_the_job_reports_the_agent_the_run_spawns(offline, stub_agent,
+                                                  monkeypatch, launch):
+    """The status a poller reads names the caller's agent, not the host's
+    default: a Kimi review once reported `claude` while Kimi ran."""
+    monkeypatch.setattr(record_jobs, "record_bundle", lambda *a: "BUNDLE")
+    monkeypatch.setattr(record_jobs, "fix_seed_bundle", lambda record: "BUNDLE")
+    record = _local_record()
+    env = {"KIMI_API_KEY": "k"}
+    if launch == "review":
+        record_jobs.launch_review(record, reviewer_id=record["user_id"],
+                                  agent_cli="kimi", agent_env=env)
+    else:
+        record_jobs.launch_fix(record, fixer_id=record["user_id"],
+                               agent_cli="kimi", agent_env=env)
+    _key, _run_fn, kw = stub_agent["jobs"][0]
+    assert (kw["agent_cli"], kw["agent_env"]) == ("kimi", env)
 
 
 def test_the_review_a_local_run_drives_is_keyed_apart_from_its_generate(

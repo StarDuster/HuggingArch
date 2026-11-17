@@ -51,14 +51,15 @@ of it the 2,545 distinct unmeasured keys the coverage panel names). A view alrea
 no entry; another view reads the points and their named records
 (`_frontier_read`).
 
-Each point's step is cached as a function of the two floors (`FloorForm`),
-and for a model with an MTP draft at every K of `FRONTIER_DRAFT_TOKENS`
-too — priced when the entry is built (the warm builds it), one speculative
-walk per layout with every K read off it by substitution.
-A view's floors,
-K and acceptance are substituted when it is drawn (`_draw`); none of
-them walks. A K whose step failed to price is published with the views at
-that K (`draft_errors`).
+Each point's step is cached as a function of the two floors (`FloorForm`,
+the projection's own form of the law: `sol_law._FloorTerms`), and for a
+model with an MTP draft at every K of `FRONTIER_DRAFT_TOKENS` too —
+projected once when the entry is built (the warm builds it), one
+speculative law per layout with every K read off it by substitution. So
+the entry is keyed on the walk alone (`entry_key`): a view's floors, K and
+acceptance are substituted when it is drawn (`_at_view`); none of them
+walks or projects. A K whose step failed to price is published with the
+views at that K (`draft_errors`).
 """
 from __future__ import annotations
 
@@ -69,7 +70,9 @@ import logging
 import statistics
 import functools
 import time
-from typing import Any, Callable, Dict, List, Mapping, NamedTuple, Optional, Tuple
+from dataclasses import dataclass
+from typing import (Any, Callable, Dict, List, Mapping, NamedTuple, Optional,
+                    Sequence, Tuple)
 
 from backend.api._models import BatchPoint, InferenceEstimateSweepRequest
 from backend.api.estimate_env import resolve_estimate_environment
@@ -97,7 +100,7 @@ from backend.inference.batch_sweep import measure_points
 from backend.inference.capacity import point_served
 from backend.inference.card import Card
 from backend.measure import lookup as _measure_lookup
-from backend.measure.auto_sweep import DECLINED, STATES
+from backend.measure.auto_sweep import DECLINED, STATES, blend
 from backend.measure.lookup import MeasurementsUnavailable
 from backend.inference.defaults import (COMM_LATENCY_US_DEFAULT,
                                         GPU_MEMORY_FRACTION_DEFAULT,
@@ -143,7 +146,7 @@ from backend.code_trace.provider import recording, run_recorded
 from backend.inference.sol_law import (
     draftForwardsLaw,
     servingLawCapacity,
-    servingMeasurePoints,
+    servingMeasureMatrix,
     servingLawPoints,
     servingLawRecord,
 )
@@ -166,8 +169,8 @@ pareto_front = _pareto_front
 # version): the entry, and what views read off it (the measured rates and a
 # drawn view). A drawing's fields change without the entry's, and an entry is
 # priced again only when its own do.
-_FRONTIER_SCHEMA = "gallery-frontier-v12"
-_DRAWING_SCHEMA = "gallery-frontier-drawing-v4"
+_FRONTIER_SCHEMA = "gallery-frontier-v14"
+_DRAWING_SCHEMA = "gallery-frontier-drawing-v6"
 _GALLERY_SELECTION = "envelope"
 #: The precision profile every frontier is priced under: as shipped.
 _GALLERY_PRECISION = AS_SHIPPED
@@ -234,10 +237,13 @@ class FrontierView(NamedTuple):
             draft_tokens=draft_tokens,
             **self._servingLawAxes(draft_tokens=draft_tokens))
 
-    def entry_parts(self) -> List[Any]:
-        """What a model's cached entry is priced under, including its floors."""
-        return [*self.walk_parts(), float(self.comm_latency_us),
-                float(self.launch_floor_us)]
+    def entry_view(self) -> "FrontierView":
+        """The view a model's entry is projected under: this one at the
+        default floors under plain decode. Every point carries its step as
+        a function of the floors and each K's beside it, so neither the
+        floors nor the draft enter the entry (`walk_parts` keys it); a view
+        substitutes its own when it is drawn (`_at_view`)."""
+        return FrontierView(self.gpu_sku, self.gpu_memory_fraction)
 
     def walk_cards(self) -> List[str]:
         """The cards one walk serves this view from, the walk card first:
@@ -383,7 +389,7 @@ def _restamp_layout(walked: dict, gpu_sku: str, cfg: ParallelConfig,
     the walk's refusal or error, said on this card."""
     if walked.get("schema") == walkRecordSchema:
         card = Card.of(gpu_sku)
-        view = view if view is not None else FrontierView(gpu_sku)
+        view = (view if view is not None else FrontierView(gpu_sku)).entry_view()
         layoutStarted = time.perf_counter()
 
         theory: List[dict] = []
@@ -407,10 +413,15 @@ def _restamp_layout(walked: dict, gpu_sku: str, cfg: ParallelConfig,
                     acceptanceRate=FRONTIER_ACCEPTANCE_DEFAULT,
                     comm_latency_us=view.comm_latency_us,
                     launch_floor_us=view.launch_floor_us,
-                    servedOnly=True)
+                    servedOnly=True, floorForms=True)
             request = view.servingLawRequest(
                 walk_key, record["parallel"], draft_tokens=draft_tokens)
-            return projectServingLawPoints(record, request)
+            return projectServingLawPoints(record, request, floorForms=True)
+
+        def form(served: dict) -> dict:
+            """The point's decode step as a function of the floors, moved
+            off its decode phase onto the point (`_theory_item`)."""
+            return served["phases"]["decode"].pop("floors")
 
         try:
             points = rows(walked)
@@ -430,7 +441,7 @@ def _restamp_layout(walked: dict, gpu_sku: str, cfg: ParallelConfig,
                 item = _theory_item(
                     str(seq), label, parallel_mode(cfg), num_gpus,
                     _batch_key(served["phases"]["decode"]["batch"]), served,
-                    measureRecord, None)
+                    measureRecord, form(served))
                 theory.append(item)
                 byPoint[(str(seq), served["phases"]["decode"]["batch"])] = item
         # A layout no card serves has no point a draft could extend; its K
@@ -459,15 +470,17 @@ def _restamp_layout(walked: dict, gpu_sku: str, cfg: ParallelConfig,
                             requests=batchPoint["decode_batch_size"] or 1):
                         continue
                     batch = served["phases"]["decode"]["batch"]
+                    stepForm = form(served)
                     item = byPoint.get((str(seq), batch))
                     if item is None:
+                        # A batch only the draft's capacity admits: a
+                        # K-step point, with no plain step (`_at_view`).
                         item = _theory_item(
                             str(seq), label, parallel_mode(cfg), num_gpus,
                             _batch_key(batch), served, None, None)
                         theory.append(item)
                         byPoint[(str(seq), batch)] = item
-                    item.setdefault("draftTimes", {})[textK] = served[
-                        "phases"]["decode"]["t_sol_s"]
+                    item.setdefault("draft", {})[textK] = stepForm
         return {
             "theory": theory,
             "draft_errors": draftErrors,
@@ -558,30 +571,39 @@ def _public_entry(entry: dict) -> dict:
 
 
 def _at_view(item: dict, view: FrontierView,
-             ) -> Optional[dict]:
-    """A theory point with its decode step under the view: the step's
-    time already projected at the entry's floors — the plain step's, or with
-    K drafted tokens the speculative step's at that K — the
-    tokens a step keeps at the view's acceptance (`phases.step_tokens`), and
-    its throughput off those (`phases.phase_throughput`, the estimate's own
+             fold: Optional[Mapping[str, Any]] = None) -> Optional[dict]:
+    """A theory point with its decode step under the view: the step as a
+    function of the two floors (`FloorForm`) — the plain step's, or with
+    K drafted tokens the speculative step's at that K — at the view's
+    floors, the one place a view's floors enter a frontier; the tokens a
+    step keeps at the view's acceptance (`phases.step_tokens`), and its
+    throughput off those (`phases.phase_throughput`, the estimate's own
     reading). The decode binding is the one owner of which step a stored
-    point is (`speculative_draft_tokens`): None when the view has no form at
-    that K, or under plain decode for a point stored from a K-step — a batch
-    the draft's smaller capacity ceiling admits but plain decode does not.
-    A plain point that publishes no time is left as it is."""
+    point is (`speculative_draft_tokens`): None when the point has no step
+    at the view's K (its projection failed, `draft_errors`), or under
+    plain decode for a point stored from a K-step — a batch the draft's
+    smaller capacity ceiling admits but plain decode does not. A plain
+    point stored without its form is not an entry of this schema.
+
+    `fold` is what the measured fold said of the point's step at the view's
+    K (`_measured_rates`): its measured total, which no floor moves, and the
+    partial track (`auto_sweep.blend`) — the measured terms' SOL read off the
+    form at the view's floors (`FloorForm.terms_at`)."""
     k = int(view.draft_tokens)
     sol = item["sol"]
     dec = dict(sol["phases"]["decode"])
-    if not k and _stepDraftTokens(dec):
+    stepForm = _stepForm(item, k)
+    if stepForm is None:
         return None
-    draftTime = (item.get("draftTimes") or {}).get(str(k)) if k else None
-    if draftTime is not None:
-        dec["t_sol_s"] = draftTime
-    else:
-        form = (item.get("draft") or {}).get(str(k)) if k else item.get("floors")
-        if form is None:
-            return None if k else item
-        dec["t_sol_s"] = FloorForm.from_json(form).at(*view.floors_s())
+    dec["t_sol_s"] = stepForm.at(*view.floors_s())
+    if fold is not None:
+        dec["t_measured_s"] = fold["t_measured_s"]
+        partial = blend(dec["t_sol_s"],
+                        stepForm.terms_at(*view.floors_s(),
+                                          _terms(fold["measured_terms"])),
+                        fold["measured_part_s"])
+        dec["t_partial_s"] = partial["t_s"]
+        dec["partial_measured_share"] = partial["measured_share"]
     if k:
         binding = dict(dec["binding"])
         tokens, formula = step_tokens(
@@ -600,6 +622,41 @@ def _at_view(item: dict, view: FrontierView,
     return {**item, "sol": {**sol, "phases": {**sol["phases"], "decode": dec}}}
 
 
+def _stepForm(item: Mapping[str, Any], k: int) -> Optional[FloorForm]:
+    """The stored point's step at K = `k` as a function of the floors: the
+    plain step's form at 0, its K's otherwise. None when the point has no
+    step at `k` (a K whose projection failed; under plain decode, a point
+    stored from a K-step). A plain point stored without its form is not an
+    entry of this schema."""
+    if not k:
+        if _stepDraftTokens(item["sol"]["phases"]["decode"]):
+            return None
+        form = item.get("floors")
+        if form is None:
+            raise ValueError(
+                f"frontier point {item.get('label')} at {item.get('seq')} "
+                "carries no step form: not a "
+                f"{_FRONTIER_SCHEMA} entry")
+        return FloorForm.from_json(form)
+    form = (item.get("draft") or {}).get(str(k))
+    return None if form is None else FloorForm.from_json(form)
+
+
+def _termMask(terms: Sequence[int]) -> str:
+    """Step-term indices as a hex bit mask (bit k set: term k), the compact
+    form a fold keeps per point."""
+    mask = 0
+    for k in terms:
+        mask |= 1 << int(k)
+    return format(mask, "x")
+
+
+def _terms(mask: str) -> List[int]:
+    """`_termMask` read back."""
+    value = int(mask, 16)
+    return [k for k in range(value.bit_length()) if value >> k & 1]
+
+
 def _stepDraftTokens(dec: Mapping[str, Any]) -> int:
     """The decode binding's K: the one statement of whether a step drafts."""
     return int((dec.get("binding") or {}).get("speculative_draft_tokens") or 0)
@@ -607,12 +664,9 @@ def _stepDraftTokens(dec: Mapping[str, Any]) -> int:
 
 def _view_scope(view: FrontierView) -> Tuple[Any, str]:
     """The measurement scope a view's measured track reads, and its state:
-    none under a draft — the measured rows are keyed on the plain step's
-    kernels, so a speculative step has no measured track here — else the
-    shared rows' (`_frontier_scope`). A request reads it once and draws
-    every model under it (`build_frontier`)."""
-    if view.draft_tokens:
-        return NO_MEASUREMENTS, "none"
+    the shared rows' (`_frontier_scope`); a speculative view reads the K-aware
+    measure table its record carries. A request reads it once and draws every
+    model under it (`build_frontier`)."""
     return _frontier_scope()
 
 
@@ -629,54 +683,68 @@ def _labelled(drawing: dict, state: str) -> dict:
     return {**drawing, "measured_track": {"state": state}}
 
 
-def _measureReader(core: dict, gpu_sku: str,
+def _measureReader(core: dict, gpu_sku: str, view: FrontierView,
                    timings: Optional[Dict[str, Any]] = None) -> Callable[
                        [int, dict], Optional[dict]]:
     """Read points' measures from the canonical records they name.
 
     The entry carries only a record name per point and the pool bundle's key;
     the records' deduplicated key tables remain their one copy. Each record is
-    read and projected once per fold, and the `PointMeasure`s expanded here
-    live only for this request.
+    read and projected once per fold. No `PointMeasure` is materialized per
+    Gallery point: the fold reads the record's point × term matrix.
     """
     timings = {} if timings is None else timings
     bundle = core.get("_measurePool")
-    wanted: Dict[str, List[Tuple[int, int]]] = {}
+    wanted: Dict[str, List[Tuple[int, int, int]]] = {}
     for point in core.get("_theory") or []:
         name = point.get("measureRecord")
-        dec = point["sol"]["phases"]["decode"]
-        if name is not None and not _stepDraftTokens(dec):
+        at = _at_view(point, view)
+        if at is None:
+            continue
+        dec = at["sol"]["phases"]["decode"]
+        if _stepDraftTokens(dec) != int(view.draft_tokens):
+            raise MeasurementFoldMismatch(
+                f"frontier point {point.get('label')} binds K="
+                f"{_stepDraftTokens(dec)}, not the requested K={view.draft_tokens}")
+        if name is not None:
             wanted.setdefault(str(name), []).append(
-                (int(point["seq"]), int(dec["batch"])))
-    records: Dict[str, Any] = {}
-    points: Dict[Tuple[str, str, int, int], dict] = {}
+                (int(point["seq"]), int(dec["batch"]), int(view.draft_tokens)))
+    if not wanted:
+        raise MeasurementFoldMismatch(
+            f"the entry has no K={view.draft_tokens} point with a measure record")
+    matrices: Dict[str, Any] = {}
+    points: Dict[Tuple[str, str, int, int, int], tuple[Any, int]] = {}
 
     def read(_i: int, point: dict) -> Optional[dict]:
         name = point.get("measureRecord")
         if bundle is None or name is None:
-            return None
+            raise MeasurementFoldMismatch(
+                "a frontier point that can be drawn carries no measure record")
         name = str(name)
         dec = point["sol"]["phases"]["decode"]
-        if _stepDraftTokens(dec):
-            return None
-        at = (name, gpu_sku, int(point["seq"]), int(dec["batch"]))
+        if _stepDraftTokens(dec) != int(view.draft_tokens):
+            raise MeasurementFoldMismatch(
+                f"frontier point {point.get('label')} binds K="
+                f"{_stepDraftTokens(dec)}, not the requested K={view.draft_tokens}")
+        at = (name, gpu_sku, int(point["seq"]), int(dec["batch"]),
+              int(view.draft_tokens))
         if at not in points:
-            if name not in records:
+            if name not in matrices:
                 started = time.perf_counter()
                 stored = sharedSolPool.record(str(bundle), name)
                 timings["measure_record_read_s"] = (
                     timings.get("measure_record_read_s", 0.0)
                     + time.perf_counter() - started)
-                timings["measure_records"] = len(records) + 1
+                timings["measure_records"] = len(matrices) + 1
                 if stored is None:
                     raise MeasurementFoldMismatch(
                         f"the serving-law record {name} is not readable")
                 # A pool record is `{parallel, walk}`; the law is its walk.
-                records[name] = stored.get("walk", stored)
+                record = stored.get("walk", stored)
             started = time.perf_counter()
             try:
-                expanded = servingMeasurePoints(
-                    records[name], card=Card.of(gpu_sku),
+                matrix = servingMeasureMatrix(
+                    record, card=Card.of(gpu_sku),
                     points=wanted.get(name) or [])
             except (KeyError, ValueError) as e:
                 raise MeasurementFoldMismatch(
@@ -685,9 +753,13 @@ def _measureReader(core: dict, gpu_sku: str,
             timings["measure_point_read_s"] = (
                 timings.get("measure_point_read_s", 0.0)
                 + time.perf_counter() - started)
-            for (context, batch), measure in expanded.items():
-                points[(name, gpu_sku, context, batch)] = measure
-        return points.get(at)
+            matrices[name] = matrix
+            for coordinates, row in matrix.point_rows.items():
+                points[(name, gpu_sku, *coordinates)] = (matrix, row)
+        matrix = matrices[name]
+        matrix, row = points[at]
+        return {"matrix": matrix, "row": row, "terms": [],
+                "phase": "decode"}
 
     read.timings = timings
     return read
@@ -695,39 +767,61 @@ def _measureReader(core: dict, gpu_sku: str,
 
 def _measured_rates(core: dict,
                     measureAt: Callable[[int, dict], Optional[dict]],
+                    view: FrontierView,
                     scope: Any) -> dict:
     """What the measured fold (`batch_sweep.measure_points`) says of each
-    plain point under `scope`, by the point's index in the entry: its
-    measured throughput (`rates`; absent for a point the fold publishes no
-    measured time for), and its decode coverage (`coverage`,
-    `_PointCoverage`). Floors, K and acceptance move neither, so every
-    plain view under `scope` reads these; which points are on its frontier
-    is the view's (`_draw`)."""
+    point's step at the view's K under `scope`, by the point's index in the
+    entry (`rates`): its measured total (`t_measured_s`, None unless every
+    term is measured), which step terms are measured (`measured_terms`, a
+    `_termMask`) and the formula's share of them (`measured_part_s`) — and
+    its decode coverage (`coverage`, `_PointCoverage`). K selects this
+    view's measure table; no floor and no acceptance moves any of these, so
+    every view at that K reads them, and the view's floors and acceptance
+    enter where it draws (`_at_view`)."""
     index: List[int] = []
     items: List[dict] = []
     timings: Dict[str, Any] = {}
     for i, t in enumerate(core.get("_theory") or []):
-        m = measureAt(i, t)
-        if m is not None and not _stepDraftTokens(t["sol"]["phases"]["decode"]):
-            index.append(i)
-            items.append({"sol": copy.deepcopy(t["sol"]),
-                          "measures": {"decode": m}})
+        at = _at_view(t, view)
+        if at is None:
+            continue
+        m = measureAt(i, at)
+        if m is None:
+            raise MeasurementFoldMismatch(
+                f"frontier point {t.get('label')} has no K={view.draft_tokens} measure")
+        index.append(i)
+        items.append({"sol": copy.deepcopy(at["sol"]),
+                      "measures": {"decode": m}})
     timings["measure_points"] = len(items)
     total = time.monotonic()
     if items:
         measure_points(items, selection_mode=_GALLERY_SELECTION,
-                       measurement_scope=scope, timings=timings)
+                       measurement_scope=scope, timings=timings,
+                       blend_terms=True)
     timings["total_s"] = time.monotonic() - total
     rates: Dict[str, dict] = {}
     coverage = _PointCoverage()
     for i, item in zip(index, items, strict=True):
         dec = item["sol"]["phases"]["decode"]
-        meas = (dec.get("throughput") or {}).get("measured")
-        if meas and meas.get("time_per_output_token_s"):
-            rates[str(i)] = {"time_per_output_token_s": meas["time_per_output_token_s"],
-                             "per_gpu": meas["per_gpu"]}
-        if "decode" in item["measures"]:
-            coverage.add(i, dec["coverage"])
+        if "measured_terms" not in dec:
+            raise MeasurementFoldMismatch(
+                f"the fold stated no measured terms for point {i}")
+        # The form's terms are the measured formula's, by index: the step's
+        # (or, at plain decode of a record that carries a draft, its terms
+        # past the plain step's weigh 0 and are not stored). A form with a
+        # term past the formula's is another step — refused here, where a
+        # mismatch is an engine error the drawing survives, not at draw.
+        terms = int(dec["total_rows"])
+        stepForm = _stepForm(core["_theory"][i], int(view.draft_tokens))
+        if (stepForm is None or stepForm.width < terms
+                or any(k >= terms for k in stepForm.index)):
+            raise MeasurementFoldMismatch(
+                f"frontier point {i}: its step form is not over the "
+                f"measured formula's {terms} terms")
+        rates[str(i)] = {"t_measured_s": dec.get("t_measured_s"),
+                         "measured_terms": _termMask(dec["measured_terms"]),
+                         "measured_part_s": dec["measured_part_s"]}
+        coverage.add(i, dec["coverage"])
     timings.update(getattr(measureAt, "timings", {}))
     return {"rates": rates, "coverage": coverage.to_json(),
             "timings": timings}
@@ -824,7 +918,8 @@ def _draw(core: dict, view: FrontierView, state: str,
             batch_key=point.get("batch_key", "max"),
             draft_tokens=int(view.draft_tokens),
             acceptance=float(view.acceptance_rate), ep_load_factor=1.0)
-        item = _at_view(point, view)
+        item = _at_view(point, view,
+                        (rates or {}).get("rates", {}).get(str(i)))
         if item is None:
             records.append(CloudRecord.unanswered(
                 coordinates, "layout",
@@ -832,9 +927,6 @@ def _draw(core: dict, view: FrontierView, state: str,
                 token=i))
             continue
         dec = item["sol"]["phases"]["decode"]
-        meas = (rates or {}).get("rates", {}).get(str(i))
-        if meas is not None:
-            dec = {**dec, "throughput": {**dec["throughput"], "measured": meas}}
         records.append(CloudRecord(
             coordinates=coordinates,
             estimate={"phases": {"decode": dec}},
@@ -854,6 +946,7 @@ def _draw(core: dict, view: FrontierView, state: str,
 
     out["frontier"] = fronts("sol")
     out["frontier_measured"] = fronts("measured")
+    out["frontier_partial"] = fronts("partial")
     if state == "reads":
         cov = rates["coverage"]
         out["measured_track"]["timings"] = rates.get("timings") or {}
@@ -892,18 +985,21 @@ def _point_coverage(cov: dict, i: int, core: dict) -> list:
     return got
 
 
-def _rates_cover(core: dict, rates: dict) -> bool:
-    """Whether a rates entry folds every plain point in this entry.
+def _rates_cover(core: dict, rates: dict, view: FrontierView) -> bool:
+    """Whether a rates entry folds every point of this view.
 
     A draft-only capacity point is a K-step stored for K views; its binding
-    is the one statement of which step it is. The measured rates are the
-    plain decode track, so their coverage obligation is exactly K=0.
+    is the one statement of which step it is, and the requested view is the
+    only obligation of its measured rates.
     """
     try:
         coverage = rates.get("coverage") or {}
         for i, point in enumerate(core.get("_theory") or []):
-            decode = point["sol"]["phases"]["decode"]
-            if not _stepDraftTokens(decode):
+            at = _at_view(point, view)
+            if at is None:
+                continue
+            decode = at["sol"]["phases"]["decode"]
+            if _stepDraftTokens(decode) == int(view.draft_tokens):
                 _point_coverage(coverage, i, core)
     except (MeasurementFoldMismatch, KeyError, TypeError):
         return False
@@ -997,18 +1093,21 @@ class _Stored(NamedTuple):
 
     def entry_key(self, view: FrontierView) -> str:
         """The entry's: under the constant scope `none` (SOL: no
-        measurement moves it), in the form the view reads
-        (`FrontierView.entry_parts`) — not the K or acceptance, and for a law
-        entry not the floors (each point carries its step as a function of
-        them)."""
-        return self._key("gallery-frontier", view.entry_parts(),
+        measurement moves it), under the walk alone (`FrontierView.
+        walk_parts`) — not the floors, K or acceptance: each point carries
+        its step as a function of the floors, at every K (`entry_view`)."""
+        return self._key("gallery-frontier", view.walk_parts(),
                          NO_MEASUREMENTS)
 
     def rates_key(self, view: FrontierView, scope: Any) -> str:
         """The measured rates': the selection that picks each key's row
-        (`_GALLERY_SELECTION`) is the fold's, so it keys them."""
+        (`_GALLERY_SELECTION`) is the fold's, and K selects a different
+        `PointMeasure` formula. Neither floors nor acceptance move what the
+        rates keep (step times and measured terms); a view's enter where it
+        draws (`_at_view`)."""
         return self._key("gallery-frontier-measured",
-                         [*view.walk_parts(), _GALLERY_SELECTION], scope,
+                         [*view.walk_parts(), int(view.draft_tokens),
+                          _GALLERY_SELECTION], scope,
                          _DRAWING_SCHEMA)
 
     def view_key(self, view: FrontierView, scope: Any, state: str) -> str:
@@ -1045,15 +1144,15 @@ class _Stored(NamedTuple):
         if state == "reads":
             key = self.rates_key(view, scope) if self.version else None
             rates = _FRONTIER_VIEWS.get(key) if key else None
-            if rates is not None and not _rates_cover(core, rates):
+            if rates is not None and not _rates_cover(core, rates, view):
                 rates = None
             if rates is None:
                 try:
                     timings: Dict[str, Any] = {}
                     rates = _measured_rates(
-                        core, _measureReader(core, view.gpu_sku, timings),
-                        scope)
-                    if rates is None or not _rates_cover(core, rates):
+                        core, _measureReader(core, view.gpu_sku, view, timings),
+                        view, scope)
+                    if rates is None or not _rates_cover(core, rates, view):
                         raise MeasurementFoldMismatch(
                             "the fold did not cover every frontier point")
                 except MeasurementsUnavailable as e:
@@ -1428,6 +1527,156 @@ async def build_frontier(view: FrontierView,
         **head,
         "models": models,
         "errors_count": sum(1 for m in models if m.get("error")),
+    }
+
+
+@dataclass(frozen=True)
+class _WarmLayoutWork:
+    """One offline layout job, with the cost that ordered it in the queue."""
+
+    model_id: str
+    layout_index: int
+    cost: int
+    item: tuple[Any, ...]
+
+
+def _warm_layout_works(
+        walks: list[tuple[str, dict]], view: FrontierView,
+        model_params: Mapping[str, Any]) -> list[_WarmLayoutWork]:
+    """Every missing model × layout job, most expensive first.
+
+    The cost is the existing main-model parameter fact times the layout's GPU
+    count. It is a scheduling estimate, not a persisted fact and not a second
+    identity: its only owner is this offline queue.
+    """
+    out: list[_WarmLayoutWork] = []
+    for model_id, plan in walks:
+        params = int(model_params.get(model_id) or 0)
+        for index, layout in enumerate(plan["layouts"]):
+            gpus = ParallelConfig.from_dict(layout).cluster_size
+            out.append(_WarmLayoutWork(
+                model_id=model_id, layout_index=index,
+                cost=max(1, params) * int(gpus),
+                item=(model_id, plan["cards"],
+                      float(view.gpu_memory_fraction),
+                      _GALLERY_PRECISION.canonical(), layout)))
+    return sorted(out, key=lambda work: (-work.cost, work.model_id,
+                                          work.layout_index))
+
+
+def _layout_job(work: _WarmLayoutWork) -> tuple[dict, Any]:
+    """One offline layout walk, isolated to that layout's own answer."""
+    try:
+        return run_recorded(None, _layout_law, work.item)
+    except Exception as exc:
+        return ({"error": str(exc)}, None)
+
+
+async def warm_frontier(view: FrontierView,
+                        model_params: Mapping[str, Any]) -> dict:
+    """Warm one card by putting every model's layouts in one ranked queue.
+
+    This is the offline shape of `build_frontier`, not its request path. All
+    missing layouts are submitted together through the existing `run_ranked`
+    cell slots, largest first; a model's entry is finished only after every
+    one of its layouts has landed, then `_finish_frontier` stores the same
+    walk and Gallery entry the interactive path stores.
+    """
+    generation = spec_generation()
+    model_ids = sorted(iter_snapshot_ids())
+    head = _frontier_head(view)
+    report_partial(head=head)
+    track = await run_off_loop(_view_scope, view)
+
+    read_slots = asyncio.Semaphore(_model_concurrency())
+
+    async def read_one(model_id: str) -> dict:
+        async with read_slots:
+            try:
+                return await run_off_loop(
+                    _frontier_read, model_id, view, track)
+            except Exception as exc:
+                return {"drawn": _draw(
+                    {"model_id": model_id, "layouts": [], "error": str(exc)},
+                    view, "none", None)}
+
+    reads = list(await asyncio.gather(*[read_one(mid) for mid in model_ids]))
+    drawings: dict[str, dict] = {}
+    walks: list[tuple[str, dict]] = []
+    for model_id, got in zip(model_ids, reads, strict=True):
+        if "drawn" in got:
+            drawings[model_id] = got["drawn"]
+        else:
+            walks.append((model_id, got["walk"]))
+
+    works = _warm_layout_works(walks, view, model_params)
+    print(f"frontier {view.gpu_sku}: {len(walks)} models to walk · "
+          f"{len(works)} layouts · largest first", flush=True)
+    outcomes: dict[str, list[tuple[dict, Any] | None]] = {
+        model_id: [None] * len(plan["layouts"])
+        for model_id, plan in walks
+    }
+    remaining = {model_id: len(plan["layouts"]) for model_id, plan in walks}
+    finish_tasks: dict[str, Any] = {}
+    layouts_done = 0
+    models_done = 0
+    report_progress(0, len(works))
+
+    async def finish_one(model_id: str, plan: dict) -> dict:
+        if outcomes[model_id]:
+            answers, traces = zip(*(outcomes[model_id]), strict=True)
+            answers, traces = list(answers), list(traces)
+        else:
+            answers, traces = [], []
+        try:
+            out = await run_ranked(
+                _finish_frontier, model_id, view, plan, answers,
+                track, traces, name=model_id)
+            nonlocal models_done
+            models_done += 1
+            print(f"frontier {view.gpu_sku}: {models_done}/{len(walks)} · "
+                  f"{model_id}", flush=True)
+            return out
+        except Exception as exc:
+            return _draw({"model_id": model_id, "layouts": [],
+                          "error": str(exc)}, view, "none", None)
+
+    def maybe_finish(model_id: str, plan: dict) -> None:
+        if remaining[model_id] == 0:
+            finish_tasks[model_id] = asyncio.create_task(
+                finish_one(model_id, plan))
+
+    for model_id, plan in walks:
+        maybe_finish(model_id, plan)
+
+    async def layout(work: _WarmLayoutWork) -> None:
+        nonlocal layouts_done
+        try:
+            outcomes[work.model_id][work.layout_index] = await run_ranked(
+                _layout_job, work, name=work.model_id)
+        except Exception as exc:
+            outcomes[work.model_id][work.layout_index] = (
+                {"error": str(exc)}, None)
+        remaining[work.model_id] -= 1
+        layouts_done += 1
+        report_progress(layouts_done, len(works))
+        for model_id, plan in walks:
+            if model_id == work.model_id:
+                maybe_finish(model_id, plan)
+                break
+
+    await asyncio.gather(*[asyncio.create_task(layout(work))
+                           for work in works])
+    finished = (await asyncio.gather(
+        *(finish_tasks[model_id] for model_id in sorted(finish_tasks)))
+        if finish_tasks else [])
+    by_model = dict(zip(sorted(finish_tasks), finished, strict=True))
+    models = [drawings.get(mid) or by_model[mid] for mid in model_ids]
+    ensure_spec_generation(generation)
+    return {
+        **head,
+        "models": models,
+        "errors_count": sum(1 for model in models if model.get("error")),
     }
 
 

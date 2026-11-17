@@ -104,6 +104,7 @@ import contextvars
 import functools
 import hashlib
 import importlib
+import importlib.machinery
 import json
 import logging
 import os
@@ -115,6 +116,7 @@ import threading
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, FrozenSet, Iterator, List, Optional, Tuple
 
+from . import import_state
 from .source import FileIdentity, digest
 
 logger = logging.getLogger(__name__)
@@ -135,6 +137,14 @@ _SELF = os.path.dirname(os.path.abspath(__file__)) + os.sep
 #: The packages imported in full before the first recording (rule 2).
 TRACED_TREES = ("backend.arch", "backend.inference", "backend.measure",
                 "backend.hf")
+
+#: Storage infrastructure inside the traced trees: their code runs when a
+#: result is READ through them, but it does not compute the result. A trace
+#: that includes them means every storage edit invalidates every record —
+#: the exact coarse-granularity `functions` mode exists to avoid.
+TRACED_EXCLUDE = frozenset({
+    "backend.inference.sol_pool",      # the SOL record store
+})
 
 #: The fresh interpreter `_canonical_import_time` runs: it records importing
 #: the traced trees and nothing else, and writes the trace.
@@ -318,6 +328,10 @@ class TracedFunctions:
         #: import-time trace (`_canonical_import_time`).
         self._canonical = canonical
         self._trees = trees
+        #: Files of the excluded modules, resolved once; the event callback
+        #: checks co_filename against this set.
+        self._excluded_files: frozenset = frozenset()
+        self._resolve_excludes()
         #: Code under `root` is what traces name, by path relative to it.
         self._root = os.path.abspath(root)
         self._prefix = self._root + os.sep
@@ -329,6 +343,9 @@ class TracedFunctions:
         #: the callback iterates a stable tuple without taking it.
         self._active: Tuple[Recording, ...] = (self._import,)
         self._sealed = False
+        #: The traced trees' static import graph (`import_state`), built
+        #: at `seal`: the import-time state a trace's named code reaches.
+        self._imports: Optional[import_state.ImportGraph] = None
         #: Moves whenever the set of active recordings does: a memo hit
         #: whose trace was merged in the same epoch was merged into every
         #: one of them already (`merged`).
@@ -386,10 +403,13 @@ class TracedFunctions:
         still see it the first time it runs there."""
         prefix, own, disable = self._prefix, _SELF, sys.monitoring.DISABLE
         provider, thread = self, self._thread
+        excluded = self._excluded_files
 
         def on_event(code: Any, _offset: int) -> Any:
             name = code.co_filename
             if not name.startswith(prefix) or name.startswith(own):
+                return disable
+            if excluded and os.path.abspath(name) in excluded:
                 return disable
             window = getattr(thread, "window", None)
             if window is not None:
@@ -546,8 +566,8 @@ class TracedFunctions:
     def _assemble(self, codes: set, traces: Dict[str, Any]) -> Trace:
         """A trace's items: of the code objects, of every trace and
         fragment merged (a fragment's own merges included, each once), of
-        the foreign closure; then what the import-time trace already
-        names, named through it."""
+        the foreign closure; then the import-time state of the traced
+        trees the named code reaches (`import_state`)."""
         reached, items = self._reach(traces)
         codes |= reached
         # The foreign closure, whatever this computation ran: a third-party
@@ -556,12 +576,10 @@ class TracedFunctions:
         items = {**dict(self._items(codes)), **items}
         if self._sealed:
             self._check_modules()
-            # What the import-time trace names, every trace names through
-            # its one item: listed again it would only make two recordings
-            # of one dependency differ by the route they took to it.
-            shared = self._global_items
-            items = {k: h for k, h in items.items() if shared.get(k) != h}
-            items[IMPORT_ITEM] = self.global_trace.id
+            # The import-time state the named code reaches, module by
+            # module (`import_state.ImportGraph.state_items`).
+            items = {**items,
+                     **self._imports.state_items(items, self._lock_file)}
         # Unsealed: a memo miss while the trees import. Its code is in the
         # import-time trace too, which every later trace names.
         return Trace(tuple(sorted(items.items())))
@@ -630,6 +648,11 @@ class TracedFunctions:
             self._modules = self._repo_modules()
             for path in self._module_files():
                 self._identity(path)
+            self._imports = import_state.ImportGraph(
+                self._root, self._trees, self._identity,
+                frozenset(
+                    os.path.relpath(path, self._root).replace(os.sep, "/")
+                    for path in self._excluded_files))
             if self._canonical:
                 self.global_trace, self.foreign_methods = self._import_time()
             else:
@@ -728,12 +751,34 @@ class TracedFunctions:
         self._canonical_child = (child, errors)
         return self._canonical_child
 
+    def _resolve_excludes(self) -> None:
+        """Map each excluded module name to its file, once at start —
+        found, not imported: the provider is the first thing a process
+        installs, and importing a module here would run repo code (and
+        bind `memo` to a provider) before this one exists and records."""
+        files = set()
+        for name in TRACED_EXCLUDE:
+            path: Optional[List[str]] = None
+            spec = None
+            for depth in range(1, name.count(".") + 2):
+                spec = importlib.machinery.PathFinder.find_spec(
+                    ".".join(name.split(".")[:depth]), path)
+                if spec is None:
+                    break
+                path = spec.submodule_search_locations
+            if spec is None or not spec.origin:
+                raise ValueError(f"TRACED_EXCLUDE names {name!r}, which has "
+                                 f"no source file on sys.path")
+            files.add(os.path.abspath(spec.origin))
+        self._excluded_files = frozenset(files)
+
     def _import_trees(self) -> List[str]:
         names: List[str] = []
         for tree in self._trees:
             package = importlib.import_module(tree)
             names.extend(info.name for info in pkgutil.walk_packages(
                 package.__path__, tree + ".", onerror=lambda _name: None))
+        names = [n for n in names if n not in TRACED_EXCLUDE]
         failed = names
         # A module that fails first can be an import cycle that resolves
         # once its partner is in (the order a run would import them in).
@@ -913,13 +958,18 @@ class TracedFunctions:
         return item
 
     def _items(self, codes: Any) -> Iterator[Tuple[str, str]]:
-        """Each code's item, and its module's skeleton: for a module of the
-        traced trees that is named by the import-time trace already; for
-        one outside them (an API module a computation ran in), this is
-        where its top level is named."""
+        """Each code's item, and its module's import-time state — per
+        top-level binding (`FileIdentity`), not as the one whole-file
+        skeleton: a def, alias or method added to the module is a new
+        binding's new item, where the skeleton hash moved on any addition
+        and made every trace of the module's code stale with it."""
         for code in list(codes):
             yield self._item_for(code)
-            yield self._identity(code.co_filename).module_item()
+            identity = self._identity(code.co_filename)
+            yield from identity.bindings().items()
+            if not identity.bindings():
+                # Unparsable source: the raw skeleton is all it has.
+                yield identity.module_item()
 
     def current(self, item: str) -> Optional[str]:
         """The hash `item` has in the code this process runs; None when it
@@ -930,6 +980,8 @@ class TracedFunctions:
             return self.global_trace.id
         if item == ENGINE_ITEM:
             return None
+        if item == LOCK_ITEM:
+            return import_state.lock_hash(self._lock_file)
         rel, _, _qual = item.partition("::")
         identity = self._by_rel.get(rel, _UNSEEN)
         if identity is _UNSEEN:

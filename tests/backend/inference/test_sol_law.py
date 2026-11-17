@@ -20,7 +20,9 @@ from backend.inference.defaults import (
     LAUNCH_FLOOR_US_DEFAULT,
 )
 from backend.inference.parallel_config import ParallelConfig
+from backend.inference.row_roofline import FloorForm
 from backend.inference.sol_law import (
+    FloorCard,
     LawGraph,
     cardBinding,
     draftForwardsLaw,
@@ -135,6 +137,88 @@ def test_a_point_grid_is_the_same_point_projection_read_once():
         for batch in (1, 8, None)
     ]
     assert grid == [oneAtATime]
+
+
+def test_a_decode_floor_form_is_the_law_at_every_floor():
+    """A projected decode step's floor form (`floors`) substituted at any
+    floors is the law evaluated with those floors bound into the card
+    (`cardBinding`) — a second road through the graph, not through the
+    form. Exercises the link-latency arms of a TP2 all-reduce ladder and
+    the launch arms, across batches and verify widths."""
+    environment = _environment()
+    parallel = ParallelConfig(tp_attention=2, tp_dense_ffn=2,
+                              tp_moe_expert=2)
+    record = servingLawRecord(
+        environment, gpu_sku="H100-SXM", anchorContext=4096,
+        outputTokens=256, parallel=parallel,
+        capacityCards=("H100-SXM",), capacityContexts=(8192,))
+    card = Card.of("H100-SXM")
+    law = LawGraph.from_json(record["phases"]["decode"]["law"])
+    [row] = servingLawPoints(
+        record, card=card, contexts=(8192,), decodeBatches=(1, 64),
+        outputTokens=256, verifyWidth=3,
+        comm_latency_us=COMM_LATENCY_US_DEFAULT,
+        launch_floor_us=LAUNCH_FLOOR_US_DEFAULT, floorForms=True)
+    for point, batch in zip(row, (1, 64), strict=True):
+        form = FloorForm.from_json(point["phases"]["decode"]["floors"])
+        assert form.terms
+        for comm_us, launch_us in ((0.0, 0.0), (2.3, 3.7), (40.0, 0.1),
+                                   (0.5, 25.0)):
+            direct = float(law.evaluate({
+                **cardBinding(record, card, comm_latency_us=comm_us,
+                              launch_floor_us=launch_us),
+                "B": batch, "s_input": 8192, "s_output": 256,
+                "s_prefix": 0, "s_verify": 3, "rho": 1})["t_sol_s"])
+            assert form.at(comm_us * 1e-6, launch_us * 1e-6) == pytest.approx(
+                direct, rel=1e-12)
+    # Without the flag a point publishes the time alone.
+    [[plain, _]] = servingLawPoints(
+        record, card=card, contexts=(8192,), decodeBatches=(1, 64),
+        outputTokens=256, comm_latency_us=COMM_LATENCY_US_DEFAULT,
+        launch_floor_us=LAUNCH_FLOOR_US_DEFAULT)
+    assert "floors" not in plain["phases"]["decode"]
+
+
+def test_a_batched_floor_form_is_the_point_one():
+    """The whole-grid form (`floorForm_batch`, the numpy program) is the
+    one-point form (`floorForm`, the scalar program) at every point — a
+    second compile of the same graph, read by the same reader. TP2 puts a
+    collective's latency ladder (`Piecewise`) and `Max` arms in the law,
+    the constructs a numpy program must print element-wise. A grid whose
+    first batch is unserved checks each point gets its own form back."""
+    environment = _environment()
+    record = servingLawRecord(
+        environment, gpu_sku="H100-SXM", anchorContext=4096,
+        outputTokens=256,
+        parallel=ParallelConfig(tp_attention=2, tp_dense_ffn=2,
+                                tp_moe_expert=2),
+        capacityCards=("H100-SXM",), capacityContexts=(8192,))
+    card = Card.of("H100-SXM")
+    floors = dict(comm_latency_us=COMM_LATENCY_US_DEFAULT,
+                  launch_floor_us=LAUNCH_FLOOR_US_DEFAULT)
+    law = LawGraph.from_json(record["phases"]["decode"]["law"])
+    floorCard = FloorCard.of(record, card, **floors)
+    points = [{**cardBinding(record, card, **floors), "B": batch,
+               "s_input": context, "s_output": 256, "s_prefix": 0,
+               "s_verify": verify, "rho": 1}
+              for batch in (1, 64, 4096) for context in (1024, 8192)
+              for verify in (1, 3)]
+    for point, batched in zip(
+            points, law.floorForm_batch(points, floorCard), strict=True):
+        scalar = law.floorForm(point, floorCard)
+        assert (batched.index, batched.width) == (scalar.index, scalar.width)
+        assert batched.constant == pytest.approx(scalar.constant, rel=1e-12)
+        for ours, theirs in zip(batched.terms, scalar.terms, strict=True):
+            assert ours == pytest.approx(theirs, rel=1e-12)
+
+    [row] = servingLawPoints(
+        record, card=card, contexts=(8192,), decodeBatches=(10**9, 1, 8),
+        outputTokens=256, servedOnly=True, **floors)
+    assert row[0] is None
+    for point, batch in zip(row[1:], (1, 8), strict=True):
+        assert point == servingLawPoint(
+            record, card=card, context=8192, outputTokens=256,
+            decodeBatch=batch, **floors)
 
 
 def test_a_law_binds_no_card_of_another_walk_class():
@@ -252,6 +336,9 @@ def test_draft_rows_enter_the_collective_sidecar(monkeypatch):
 
         def law(self, _name):
             return 0
+
+        def term_laws(self, _name):
+            return []
 
     monkeypatch.setattr(
         sol_law.StepSum, "of",

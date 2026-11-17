@@ -220,6 +220,30 @@ def test_citation_of_a_file_the_run_did_not_stage_cannot_verify():
     assert finding.status == UNVERIFIED
 
 
+# vLLM ships one model under several backends, each with its own `model.py`.
+_SHARED = "        hidden_states = self.embed_tokens(input_ids)"
+TWIN = SnapshotFacts({}, _header({}), {
+    "vllm/models/kimi_k3/amd/model.py": "\n".join(
+        ["import torch", "", _SHARED, "        return self.amd_head(hidden_states)"]),
+    "vllm/models/kimi_k3/nvidia/model.py": "\n".join(
+        ["import torch", "", _SHARED, "        return self.lm_head(hidden_states)"]),
+})
+
+
+def test_a_file_name_two_staged_files_share_is_resolved_by_its_quote():
+    bare = TWIN.check_tag("src", 'model.py:4 "return self.lm_head(hidden_states)"')
+    tail = TWIN.check_tag("src", 'nvidia/model.py:4 "return self.lm_head(hidden_states)"')
+    assert bare.status == VERIFIED and tail.status == VERIFIED
+    assert bare.lines == tail.lines == ("vllm/models/kimi_k3/nvidia/model.py", 4, 4)
+
+
+def test_a_quote_both_same_named_files_hold_does_not_say_which_file():
+    check = TWIN.check_tag("src", 'model.py:3 "hidden_states = self.embed_tokens(input_ids)"')
+    assert check.status == UNVERIFIED
+    assert "names 2 staged files" in check.detail
+    assert "vllm/models/kimi_k3/amd/model.py" in check.detail
+
+
 def test_one_bad_tag_withholds_only_its_own_defect():
     # Classification is per top-level Defects bullet: the contradicted window
     # claim does not hold back the separate, verified patch-mask repair.

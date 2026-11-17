@@ -29,6 +29,7 @@ import {
 import type { EngineGap } from "../specStatus";
 import { EngineBlockedBanner } from "../EngineGaps";
 import { filterAndSortModels, ModelOptions, useSupportedModels } from "../supportedModels";
+import { currentHref, readLastInspectorHref, rememberInspectorHref } from "../lastVisited";
 
 // The "Try:" quick-pick is fetched from `/inspector/examples` (the latest
 // ≥100B models in the corpus, computed server-side so it never drifts). This
@@ -450,9 +451,30 @@ type CompareResp = {
   graph_diff?: GraphDiffData;
 };
 
+/** The expensive Inspector result survives top-nav route changes in this JS
+ * session. URL state remains authoritative: a direct link to another model
+ * does not consume a snapshot belonging to the previous one. */
+type InspectorMemory = {
+  href: string;
+  modelId: string;
+  shownId: string;
+  mode: "single" | "compare";
+  tab: Tab;
+  error: string;
+  data: AnalyzeData | null;
+  cmpModels: string[];
+  cmpStatus: string;
+  cmp: CompareResp | null;
+  includeEncoders: boolean;
+  banner: SpecBanner;
+};
+
+let inspectorMemory: InspectorMemory | null = null;
+
 // `batch`, `seq` and `dtype` are not read: they are keys so a link carrying
 // them has them cleared on the next write.
-const HASH_KEYS = ["model", "batch", "seq", "dtype", "sub", "m"] as const;
+const HASH_KEYS = ["model", "batch", "seq", "dtype", "sub", "m", "view"] as const;
+const TABS = new Set<Tab>(["dashboard", "diagram", "modules", "raw", "forward"]);
 
 /** Slot index colors — vanilla compare.js `_CC_COLORS`. */
 const CC_COLORS = ["#4e79a7", "#f28e2c", "#e15759", "#59a14f", "#af7aa1"] as const;
@@ -822,6 +844,7 @@ function writeInspectHash(h: Record<string, string>) {
   if (hash !== window.location.hash) {
     history.replaceState(null, "", `${window.location.pathname}${hash}`);
   }
+  rememberInspectorHref(currentHref());
 }
 
 /** Same text as vanilla `renderQuantMetaBreakdown` in dashboard.js. */
@@ -934,34 +957,37 @@ function ResultCardHead({
 }
 
 export function Inspector() {
-  const [modelId, setModelId] = useState("deepseek-ai/DeepSeek-V3");
+  const restored = useRef(
+    inspectorMemory?.href === currentHref() ? inspectorMemory : null,
+  ).current;
+  const [modelId, setModelId] = useState(restored?.modelId || "deepseek-ai/DeepSeek-V3");
   const { models, loading: modelsLoading } = useSupportedModels();
   const [examples, setExamples] = useState<readonly string[]>(EXAMPLES_FALLBACK);
   const [modelDropOpen, setModelDropOpen] = useState(false);
   const modelDropRef = useRef<HTMLDivElement>(null);
   const [cmpDropOpen, setCmpDropOpen] = useState<number | null>(null);
   const cmpListRef = useRef<HTMLDivElement>(null);
-  const [mode, setMode] = useState<"single" | "compare">("single");
-  const [tab, setTab] = useState<Tab>("dashboard");
+  const [mode, setMode] = useState<"single" | "compare">(restored?.mode || "single");
+  const [tab, setTab] = useState<Tab>(restored?.tab || "dashboard");
   const [loading, setLoading] = useState(false);
   const [loadDetail, setLoadDetail] = useState("Loading configuration...");
-  const [error, setError] = useState("");
-  const [data, setData] = useState<AnalyzeData | null>(null);
+  const [error, setError] = useState(restored?.error || "");
+  const [data, setData] = useState<AnalyzeData | null>(restored?.data || null);
   const [hydrated, setHydrated] = useState(false);
   // The model the single view analyzed (or is analyzing). The link names this,
   // not the text being typed into the input.
-  const [shownId, setShownId] = useState("");
-  const [cmpModels, setCmpModels] = useState([
+  const [shownId, setShownId] = useState(restored?.shownId || "");
+  const [cmpModels, setCmpModels] = useState(restored?.cmpModels || [
     "deepseek-ai/DeepSeek-V3",
     "deepseek-ai/DeepSeek-V3.2",
   ]);
-  const [cmpStatus, setCmpStatus] = useState("");
-  const [cmp, setCmp] = useState<CompareResp | null>(null);
+  const [cmpStatus, setCmpStatus] = useState(restored?.cmpStatus || "");
+  const [cmp, setCmp] = useState<CompareResp | null>(restored?.cmp || null);
   // Compare totals the language models' weights; the towers are added only
   // when asked (an encoder's weights are its own accounting).
-  const [includeEncoders, setIncludeEncoders] = useState(false);
+  const [includeEncoders, setIncludeEncoders] = useState(restored?.includeEncoders || false);
   const weightScope: WeightScope = includeEncoders ? "with_encoders" : "lm";
-  const [banner, setBanner] = useState<SpecBanner>({ kind: "none" });
+  const [banner, setBanner] = useState<SpecBanner>(restored?.banner || { kind: "none" });
   /** Model whose kept draft is being chosen over (continue vs start over)
     * before a fresh generation is allowed to start. */
   const [resumePrompt, setResumePrompt] = useState<string | null>(null);
@@ -987,6 +1013,19 @@ export function Inspector() {
   // state it sets has rendered, which is when it is run.
   const [inboundHash, setInboundHash] = useState(readInspectHash);
   const [appliedHash, setAppliedHash] = useState<Record<string, string> | null>(null);
+  const skipRestoredRun = useRef(Boolean(
+    restored && (restored.mode === "compare" ? restored.cmp : restored.data),
+  ));
+  const memorySnapshot = useRef<InspectorMemory | null>(null);
+  memorySnapshot.current = loading ? null : {
+    href: readLastInspectorHref(), modelId, shownId, mode, tab, error, data,
+    cmpModels, cmpStatus, cmp, includeEncoders, banner,
+  };
+  useEffect(() => () => {
+    inspectorMemory = memorySnapshot.current
+      ? { ...memorySnapshot.current, href: readLastInspectorHref() }
+      : null;
+  }, []);
   useEffect(() => {
     const onHash = () => setInboundHash(readInspectHash());
     window.addEventListener("hashchange", onHash);
@@ -1012,6 +1051,7 @@ export function Inspector() {
     } else if (h.model) {
       setMode("single");
     }
+    if (h.view && TABS.has(h.view as Tab)) setTab(h.view as Tab);
     setHydrated(true);
     setAppliedHash(h);
   }, [inboundHash]);
@@ -1074,8 +1114,9 @@ export function Inspector() {
       model: mode === "compare" ? "" : shownId,
       sub: mode === "compare" ? "compare" : "",
       m: mode === "compare" ? cmpModels.filter((m) => m.trim()).join("|") : "",
+      view: tab === "dashboard" ? "" : tab,
     });
-  }, [hydrated, shownId, mode, cmpModels]);
+  }, [hydrated, shownId, mode, cmpModels, tab]);
 
   const runRef = useRef<(id?: string) => Promise<void>>(async () => {});
   const runCompareRef = useRef<() => Promise<void>>(async () => {});
@@ -1486,6 +1527,10 @@ export function Inspector() {
 
   useEffect(() => {
     if (!appliedHash) return;
+    if (skipRestoredRun.current) {
+      skipRestoredRun.current = false;
+      return;
+    }
     const h = appliedHash;
     // vanilla registerTrigger('inspector-compare'): sub=compare needs a|b, not analyze.
     if (h.sub === "compare") {
@@ -1554,6 +1599,7 @@ export function Inspector() {
       model: mode === "compare" ? "" : shownId,
       sub: mode === "compare" ? "compare" : "",
       m: mode === "compare" ? cmpModels.filter((m) => m.trim()).join("|") : "",
+      view: tab === "dashboard" ? "" : tab,
     });
     const my = ++compareSeq.current;
     setCmpStatus(`Analyzing ${ids.length} models…`);
@@ -2585,9 +2631,13 @@ function ArchExpandDag({
     <>
       <button
         type="button"
-        className="arch-expand-btn"
+        className={`arch-expand-btn${open ? " is-open" : ""}`}
         data-action="toggle-arch-panel"
         data-panel={panelId}
+        aria-expanded={open}
+        aria-controls={panelId}
+        aria-label={open ? "Collapse computation" : "Expand computation"}
+        title={open ? "Collapse computation" : "Expand computation"}
         style={extraBtn ? { fontSize: 10, width: 20, height: 20 } : undefined}
         onClick={() => {
           if (!open) setRendered(true);

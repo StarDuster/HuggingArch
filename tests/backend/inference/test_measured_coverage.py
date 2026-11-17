@@ -192,3 +192,68 @@ def test_parallel_sweep_points_carry_their_coverage():
             assert cov["measured"] < cov["total"] and cov["states"]["missing"]
             assert p[f"{phase}_t_measured_s"] is None
             assert p[f"{phase}_tps_per_gpu_measured"] is None
+
+
+def test_partial_total_is_each_row_measured_or_its_sol():
+    """The partial track (`Folded.partial`): the step with every measured row
+    at its measured time and every other row at its own SOL time. Checked by
+    a second route — adding the per-op rows up directly, which at pp=1 with
+    no draft is the step — against the backend's SOL-total-minus-shares."""
+    with FixtureBench(_policy) as bench:
+        est = _estimate(bench, mode="envelope")
+    for phase, lst in ROWS.items():
+        ph, rows = est["phases"][phase], est[lst]
+        blend = sum(r["t_measured_s"] if r["measured_state"] == MEASURED
+                    else r["t_op_s"] for r in rows)
+        real = sum(r["t_measured_s"] for r in rows
+                   if r["measured_state"] == MEASURED)
+        assert ph["t_measured_s"] is None
+        assert ph["t_partial_s"] == pytest.approx(blend, rel=1e-9)
+        assert 0 < ph["partial_measured_share"] < 1
+        assert ph["partial_measured_share"] == pytest.approx(real / blend, rel=1e-9)
+        assert ph["throughput"]["partial"] is not None
+
+
+def test_partial_total_at_the_ends_is_sol_or_measured():
+    """Nothing measured: the blend is the SOL total, share 0. Everything
+    measured: it is the measured total, share 1."""
+    with FixtureBench(lambda key: "missing") as bench:
+        none = _estimate(bench, mode="envelope")
+    with FixtureBench() as bench:
+        full = _estimate(bench, mode="envelope")
+    for phase in ROWS:
+        ph = none["phases"][phase]
+        assert ph["t_partial_s"] == pytest.approx(ph["t_sol_s"], rel=1e-9)
+        assert ph["partial_measured_share"] == 0
+        ph = full["phases"][phase]
+        assert ph["t_partial_s"] == pytest.approx(ph["t_measured_s"], rel=1e-9)
+        assert ph["partial_measured_share"] == pytest.approx(1.0)
+
+
+def test_a_chunked_prefill_blends_its_terms_as_every_chunk_runs_them():
+    """A long prefill runs in chunks, and its measure is the chunks' terms
+    folded (`batch_sweep.fold_chunk_point_measures`), each term's SOL
+    carried with its launches. Checked by complementary coverage: with the
+    gemm terms measured in one run and every other term in another, the two
+    partial totals add to the SOL total plus the measured total — each term
+    is SOL in exactly one and measured in exactly the other — which holds
+    only if every term's SOL survives the fold at its own weight."""
+    def run(policy):
+        with FixtureBench(policy) as bench:
+            from backend.inference.capacity import estimate_capacity
+            dep = Deployment(LLAMA, selection_mode="envelope",
+                             measurement_scope=bench.scope)
+            est = estimate_capacity(
+                **dep.env(), avg_input_tokens=20000, prefill_batch_size=1,
+                decode_batch_size=4, prefill_chunk_size=8192)
+            assert len(est["phases"]["prefill"]["prefill_chunk_map"]
+                       ["chunks"]) > 1, "the prefill runs in chunks"
+            return est["phases"]["prefill"]
+    gemm = run(lambda key: "measured" if key.signature == "gemm" else "missing")
+    rest = run(lambda key: "missing" if key.signature == "gemm" else "measured")
+    full = run(lambda key: "measured")
+    assert full["t_measured_s"] is not None
+    assert 0 < gemm["partial_measured_share"] < 1
+    assert 0 < rest["partial_measured_share"] < 1
+    assert gemm["t_partial_s"] + rest["t_partial_s"] == pytest.approx(
+        full["t_sol_s"] + full["t_measured_s"], rel=1e-9)

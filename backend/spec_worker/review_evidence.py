@@ -411,27 +411,49 @@ class SnapshotFacts:
         return "\n".join(f"  {p}: {n}" for p, n in counts.items())
 
     # ── source ────────────────────────────────────────────────────────────
-    def _source(self, cited: str) -> Optional[str]:
-        """The staged file a citation names: its path under `source/`
-        (`vllm/models/hy_v4/nvidia/mtp.py`), else a file name only one
-        staged file has, else the one file it is the start of."""
+    def _sources(self, cited: str) -> list[str]:
+        """The staged files a citation can name: its path under `source/`
+        (`vllm/models/hy_v4/nvidia/mtp.py`), else the files whose path ends
+        with it (`nvidia/mtp.py`), else the files with its file name, else
+        the files whose name it is the start of. Several when the citation
+        does not tell same-named files apart (vLLM's `amd/model.py` and
+        `nvidia/model.py`); `check_source` lets the quote choose."""
         cited = cited.strip()
         cited = cited[len("source/"):] if cited.startswith("source/") else cited
         if cited in self.sources:
-            return cited
+            return [cited]
+        tail = [n for n in self.sources if n.endswith("/" + cited)]
+        if tail:
+            return tail
         name = Path(cited).name
         named = [n for n in self.sources if Path(n).name == name]
-        if len(named) == 1:
-            return named[0]
-        stem = [n for n in self.sources if Path(n).name.startswith(name)]
-        return stem[0] if len(stem) == 1 else None
+        return named or [n for n in self.sources if Path(n).name.startswith(name)]
 
     def check_source(self, cited: str, first: int, last: int,
                      quote: Optional[str], raw: str) -> Check:
-        name = self._source(cited)
-        if name is None:
+        """A citation of several same-named files is the one whose cited
+        lines hold the quote: name, lines and verbatim code together identify
+        the file. When none or more than one does, the citation does not say
+        which file it means."""
+        names = self._sources(cited)
+        if not names:
             return Check("src", raw, UNVERIFIED,
                          f"`{cited}` is not among this run's staged source files")
+        checks = [self._check_in(name, first, last, quote, raw) for name in names]
+        if len(checks) == 1:
+            return checks[0]
+        verified = [c for c in checks if c.status == VERIFIED]
+        if len(verified) == 1:
+            return verified[0]
+        listed = ", ".join(f"`{n}`" for n in names)
+        held = (f"{len(verified)} of them hold" if verified else "none holds")
+        return Check("src", raw, UNVERIFIED,
+                     f"`{cited}` names {len(names)} staged files ({listed}) and "
+                     f"{held} the quote at lines {first}-{last}; cite the file by "
+                     "its path under source/")
+
+    def _check_in(self, name: str, first: int, last: int,
+                  quote: Optional[str], raw: str) -> Check:
         lines = self.sources[name]
         if first < 1 or last < first or first > len(lines):
             return Check("src", raw, CONTRADICTED,
@@ -501,7 +523,8 @@ class SnapshotFacts:
         for m in _CITE_RE.finditer(rest):
             first = int(m.group(2))
             last = int(m.group(3) or first)
-            if any(c.covers(self._source(m.group(1)), first, last) for c in tagged):
+            if any(c.covers(n, first, last) for c in tagged
+                   for n in self._sources(m.group(1))):
                 continue
             untagged.append(self.check_source(m.group(1), first, last, None, m.group(0)))
         for m in _LEGACY_CFG_RE.finditer(rest):

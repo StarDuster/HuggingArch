@@ -1513,21 +1513,25 @@ def test_gallery_speculative_switch_reasks_the_frontier_under_its_draft(browser_
     s.assert_clean()
 
 
-def test_inspector_reads_the_hash_of_each_visit(browser_base):
-    """Arriving with #model=… auto-analyzes it; coming back through the nav
-    (client-side route, same JS module) with no hash must not re-analyze the
-    first visit's model."""
+def test_inspector_nav_restores_the_last_visit_without_reanalysis(browser_base):
+    """The Inspector nav returns to its model and inner view. Its expensive
+    result remains in memory across a top-level client-side route change."""
     browser, base = browser_base
     s = Session(browser, base)
     s.goto("/inspector.html#model=deepseek-ai%2FDeepSeek-V3.2")
     assert s.wait_for(lambda: s.count("/analyze") >= 1)
     assert s.requests["/analyze"][0]["body"]["model_id"] == "deepseek-ai/DeepSeek-V3.2"
+    s.page.click("#tab-diagram")
+    assert "tab-active" in (s.page.get_attribute("#tab-diagram", "class") or "")
     s.page.click("a[data-tab='fusion']")
     s.page.wait_for_selector("main", timeout=10000)
     s.page.click("a[data-tab='inspector']")
     s.page.wait_for_selector("#model-id", timeout=10000)
     s.page.wait_for_timeout(1000)
     assert s.count("/analyze") == 1, [r["body"] for r in s.requests["/analyze"]]
+    assert "model=deepseek-ai%2FDeepSeek-V3.2" in s.page.evaluate("window.location.hash")
+    assert "view=diagram" in s.page.evaluate("window.location.hash")
+    assert "tab-active" in (s.page.get_attribute("#tab-diagram", "class") or "")
     s.assert_clean()
 
 
@@ -2177,6 +2181,37 @@ def test_gallery_draws_each_model_as_it_lands_and_asks_for_the_shown_ones_first(
     assert "deepseek-ai/DeepSeek-V3" in (retry.get("priority") or [""])[0].split(","), retry
     # The whole answer lands: now a model with no frontier is named.
     s.page.wait_for_selector("#g-front-missing", timeout=15000)
+    s.errors = [e for e in s.errors if "503" not in e]
+    s.assert_clean()
+
+
+def test_a_frontier_with_no_model_landed_yet_says_it_is_computing(browser_base):
+    """A cold frontier's first answers carry the view's head and no model:
+    the chart is waiting, not empty — "no model serves this context" is a
+    claim about the whole answer for this view, said only once it landed."""
+    browser, base = browser_base
+    s = Session(browser, base)
+    calls = []
+    head = {k: v for k, v in _FRONTIER.items() if k != "models"}
+
+    def frontier(route):
+        calls.append(1)
+        if len(calls) <= 3:
+            route.fulfill(status=503, content_type="application/json",
+                          body=json.dumps({"reason": "still_computing", "retry_after_s": 1,
+                                           "progress": {"done": 0, "total": 2},
+                                           "partial": {"tag": 3, "count": 0, "head": head,
+                                                       "items": []}}))
+        else:
+            route.fulfill(status=200, content_type="application/json",
+                          body=json.dumps(_FRONTIER))
+
+    s.page.route("**/gallery/frontier*", frontier)
+    s.goto("/gallery.html")
+    assert s.wait_for(lambda: len(calls) >= 2)
+    s.page.wait_for_selector("#g-front-waiting", timeout=15000)
+    assert "no model serves this context" not in s.page.inner_text("body")
+    s.page.wait_for_selector("#g-dec-tab-1024", timeout=15000)
     s.errors = [e for e in s.errors if "503" not in e]
     s.assert_clean()
 

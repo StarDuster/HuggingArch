@@ -40,13 +40,14 @@ primary_region = 'nrt'
   # Kernel Bench's DuckDB limit. At the 384MB default the annotation build
   # over a ~2M-input lake spills or runs out of memory; 1.5 GB holds it and
   # the lookup cells file's reads (measured on a 4.28M-row lake: ~555 MB in
-  # use, nothing spilled; the bench process peaks ~2.3 GB of the 6 GB box).
+  # use, nothing spilled; the bench process peaks ~2.3 GB of the 8 GB box).
   BENCH_LAKE_MEMORY_LIMIT = '1536MB'
   HA_GALLERY_CACHE_DIR = '/app/.cache/huggingarch/gallery-cache'
-  # The gallery cache shares the 6 GB volume with the bench lake, the sol
+  # The gallery cache shares the 10 GB volume with the bench lake, the sol
   # pool and the sweep cache; this is its whole share (the tiers under the
-  # directory split it, oldest entries evicted first) — sized to hold one
-  # GPU's full frontier entry set locally.
+  # directory split it, oldest entries evicted first) — its frontier share
+  # (65%, ~1.3 GiB) holds every gallery GPU's frontier entry set locally
+  # (~0.4 GB gzip-compressed; ~2.3 GB as JSON).
   HA_GALLERY_CACHE_BYTES = '2GiB'
   # The immutable canonical law pool is machine state, not image state.  It
   # lives on the persistent volume and is bootstrapped from the versioned
@@ -60,16 +61,18 @@ primary_region = 'nrt'
   # machine-level values left by earlier Fly configurations.
   HA_SOL_POOL_ARTIFACT = ''
   HA_ARTIFACT_BUCKET = 'sol-pool'
-  HA_GALLERY_CACHE_ARTIFACT = ''
   # The Scaling sweep's answers: on the volume (nothing is baked into the
   # image for them — the builder's warm runs with HA_SOL_POOL_ONLY, which
   # stores no sweep answer), merged at start from the engine's published
   # artifact (backend.sweep_cache_artifact) and extended by requests.
   HA_SWEEP_CACHE_DIR = '/app/.cache/huggingarch/sweep-cache'
-  HA_SWEEP_CACHE_ARTIFACT = ''
   # The code-trace bodies the cached entries above name: an entry is served
   # only while its trace can be read, so they persist beside the entries.
   HA_CODE_TRACE_DIR = '/app/.cache/huggingarch/code-traces'
+  # The functions trace provider: cache keys name data, not code — a
+  # code edit no longer invalidates walks or entries. The SOL store is
+  # excluded from traces; one cold refill at the switch.
+  HA_CODE_TRACE = 'functions' 
   # Kernel Bench: on an empty volume, restore the lake from the backup's
   # latest snapshot before serving (docs/measured_calibration.md §4.7);
   # with a lake already on the volume it does nothing.
@@ -97,5 +100,7 @@ primary_region = 'nrt'
 
 [[vm]]
   size = 'shared-cpu-1x'
-  memory = '6gb'
+  # The machine's size is this file's: `fly deploy` applies it and undoes
+  # a `fly scale memory` done outside it, so a resize is made here.
+  memory = '8gb'
   cpus = 8

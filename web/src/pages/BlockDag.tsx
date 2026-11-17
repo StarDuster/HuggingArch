@@ -853,6 +853,7 @@ export function BlockElkDag({ nodes, edges, legend = true, fit = false }: {
               className={`dag-elk-collapse-tab dag-node-box ${n.group ? "" : "expandable "}${styleClass(n)}`}
               style={{ position: "absolute", left: 8, top: -12 }}
               data-group={n.group ? "1" : undefined}
+              title={n.group ? undefined : "Collapse computation"}
               {...tipHandlers(n.hoverHtml)}
               onClick={() => !n.group && n.id && toggle(n.id)}
             >

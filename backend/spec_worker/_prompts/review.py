@@ -100,8 +100,9 @@ evidence; a claim only they support is not a defect.
 Write evidence as backtick tags, exactly in the forms below. After you
 finish, a checker compares every tag with this run's snapshot:
   `src: modeling_x.py:120-122 "self.scaling = self.head_dim**-0.5"`
-      a staged file, the line range, and the code quoted verbatim from those
-      lines (whitespace-insensitive; `...` elides). Write the line numbers
+      a staged file (its path as listed below when another staged file has
+      the same name, e.g. vLLM's `amd/model.py` and `nvidia/model.py`), the
+      line range, and the code quoted verbatim from those lines (whitespace-insensitive; `...` elides). Write the line numbers
       as digits (`:120`, `:120-122`, never `:L120`), one quoted excerpt per
       tag, and quote marks inside the code as they are, unescaped
   `cfg: text_config.sliding_window = 128`
