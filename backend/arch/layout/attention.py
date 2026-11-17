@@ -651,14 +651,14 @@ def dsa_attention_score(rule: LayoutPropagation, node: Any, states: List[Optiona
     from anywhere in the history, so no rank owns a contiguous slice of them —
     the reason the same op cannot be handed a cache-sharded read.
     """
+    if rule.attention.form == AttentionForm.CACHE_SHARD:
+        raise NotImplementedError(
+            f"{node.display_path}: DCP sparse top-k attention has no "
+            "typed cache-owner workload contract"
+        )
     inputs, scores = attention_score(rule, node, states, in_shapes)
-    ctx_axis = (
-        scores.layout[-1]
-        if rule.attention.form == AttentionForm.CACHE_SHARD
-        else rule.replicated()
-    )
     return inputs, EdgeState(
-        (*scores.layout[:-1], ctx_axis), scores.value,
+        (*scores.layout[:-1], rule.replicated()), scores.value,
         scores.workload, scores.provenance)
 
 

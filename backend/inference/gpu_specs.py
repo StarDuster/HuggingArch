@@ -280,8 +280,6 @@ DESCRIPTIVE_COLUMNS: Mapping[str, str] = MappingProxyType({
     "notes": "the sheet's provenance for a cell a reader would otherwise "
              "query — the clock a GeForce peak was scaled to (module "
              "docstring). Prose; nothing parses it",
-    "sm_count": "hardware streaming multiprocessor count; recorded for "
-                "tile/split schedulers, not yet read by dispatch or pricing",
 })
 
 
