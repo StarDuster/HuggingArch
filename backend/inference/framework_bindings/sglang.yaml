@@ -32,6 +32,7 @@ audited_at:
   commit: 1b2870d33de7b5f31844fd74e97eea6d7896c53a
 
 # The Kimi pack-quantized path is a serving launch, not a checkpoint
+# activation declaration. Source permalinks pin the audited launch behavior.
 # SM100/103/107 are the explicit families in the model override. Each
 # capability interval names exactly one integer CUDA minor version.
 precision_launches:
@@ -42,17 +43,44 @@ precision_launches:
         min_compute_capability: "10.0"
         below_compute_capability: "10.1"
         architectures: [KimiK3ForConditionalGeneration, KimiK31ForConditionalGeneration]
-        server_flag: {name: flashinfer_mxfp4_moe_precision, default: default, value: default}
+        server_flag:
+          - {name: moe_runner_backend, default: auto, value: auto}
+          - {name: flashinfer_mxfp4_moe_precision, default: default, value: default}
       - device: [cuda]
         min_compute_capability: "10.3"
         below_compute_capability: "10.4"
         architectures: [KimiK3ForConditionalGeneration, KimiK31ForConditionalGeneration]
-        server_flag: {name: flashinfer_mxfp4_moe_precision, default: default, value: default}
+        server_flag:
+          - {name: moe_runner_backend, default: auto, value: auto}
+          - {name: flashinfer_mxfp4_moe_precision, default: default, value: default}
       - device: [cuda]
         min_compute_capability: "10.7"
         below_compute_capability: "10.8"
         architectures: [KimiK3ForConditionalGeneration, KimiK31ForConditionalGeneration]
-        server_flag: {name: flashinfer_mxfp4_moe_precision, default: default, value: default}
+        server_flag:
+          - {name: moe_runner_backend, default: auto, value: auto}
+          - {name: flashinfer_mxfp4_moe_precision, default: default, value: default}
+      - device: [cuda]
+        min_compute_capability: "10.0"
+        below_compute_capability: "10.1"
+        architectures: [KimiK3ForConditionalGeneration, KimiK31ForConditionalGeneration]
+        server_flag:
+          - {name: moe_runner_backend, default: auto, value: flashinfer_mxfp4}
+          - {name: flashinfer_mxfp4_moe_precision, default: default, value: default}
+      - device: [cuda]
+        min_compute_capability: "10.3"
+        below_compute_capability: "10.4"
+        architectures: [KimiK3ForConditionalGeneration, KimiK31ForConditionalGeneration]
+        server_flag:
+          - {name: moe_runner_backend, default: auto, value: flashinfer_mxfp4}
+          - {name: flashinfer_mxfp4_moe_precision, default: default, value: default}
+      - device: [cuda]
+        min_compute_capability: "10.7"
+        below_compute_capability: "10.8"
+        architectures: [KimiK3ForConditionalGeneration, KimiK31ForConditionalGeneration]
+        server_flag:
+          - {name: moe_runner_backend, default: auto, value: flashinfer_mxfp4}
+          - {name: flashinfer_mxfp4_moe_precision, default: default, value: default}
     launch:
       activation: fp8_token_group32_ue8m0
       compute_dtype: F8_E4M3
@@ -65,17 +93,44 @@ precision_launches:
         min_compute_capability: "10.0"
         below_compute_capability: "10.1"
         architectures: [KimiK3ForConditionalGeneration, KimiK31ForConditionalGeneration]
-        server_flag: {name: flashinfer_mxfp4_moe_precision, default: default, value: bf16}
+        server_flag:
+          - {name: moe_runner_backend, default: auto, value: auto}
+          - {name: flashinfer_mxfp4_moe_precision, default: default, value: bf16}
       - device: [cuda]
         min_compute_capability: "10.3"
         below_compute_capability: "10.4"
         architectures: [KimiK3ForConditionalGeneration, KimiK31ForConditionalGeneration]
-        server_flag: {name: flashinfer_mxfp4_moe_precision, default: default, value: bf16}
+        server_flag:
+          - {name: moe_runner_backend, default: auto, value: auto}
+          - {name: flashinfer_mxfp4_moe_precision, default: default, value: bf16}
       - device: [cuda]
         min_compute_capability: "10.7"
         below_compute_capability: "10.8"
         architectures: [KimiK3ForConditionalGeneration, KimiK31ForConditionalGeneration]
-        server_flag: {name: flashinfer_mxfp4_moe_precision, default: default, value: bf16}
+        server_flag:
+          - {name: moe_runner_backend, default: auto, value: auto}
+          - {name: flashinfer_mxfp4_moe_precision, default: default, value: bf16}
+      - device: [cuda]
+        min_compute_capability: "10.0"
+        below_compute_capability: "10.1"
+        architectures: [KimiK3ForConditionalGeneration, KimiK31ForConditionalGeneration]
+        server_flag:
+          - {name: moe_runner_backend, default: auto, value: flashinfer_mxfp4}
+          - {name: flashinfer_mxfp4_moe_precision, default: default, value: bf16}
+      - device: [cuda]
+        min_compute_capability: "10.3"
+        below_compute_capability: "10.4"
+        architectures: [KimiK3ForConditionalGeneration, KimiK31ForConditionalGeneration]
+        server_flag:
+          - {name: moe_runner_backend, default: auto, value: flashinfer_mxfp4}
+          - {name: flashinfer_mxfp4_moe_precision, default: default, value: bf16}
+      - device: [cuda]
+        min_compute_capability: "10.7"
+        below_compute_capability: "10.8"
+        architectures: [KimiK3ForConditionalGeneration, KimiK31ForConditionalGeneration]
+        server_flag:
+          - {name: moe_runner_backend, default: auto, value: flashinfer_mxfp4}
+          - {name: flashinfer_mxfp4_moe_precision, default: default, value: bf16}
     launch:
       activation: none
       compute_dtype: BF16
