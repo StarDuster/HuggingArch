@@ -139,3 +139,25 @@ def test_b300_fitting_deployment_publishes_nonempty_rows_and_dtypes():
         ('gated_delta_rule', 'BF16'),
         ('attn_res_combine', 'BF16'),
     } <= decode_pairs
+
+
+def test_b300_sglang_dcp8_sparse_attention():
+    from backend.inference.capacity import estimate_capacity
+
+    cfg = snapshot_config(MODEL)
+    resolved = shared_loader().match(cfg, model_id=MODEL)
+    result = estimate_capacity(
+        config=cfg,
+        resolved=resolved,
+        gpu_sku='B300',
+        num_gpus=8,
+        parallel=ParallelConfig(
+            tp_attention=8, tp_dense_ffn=8, tp_moe_expert=4, ep_moe=2, dcp=8,
+        ),
+        framework='sglang',
+        avg_input_tokens=4096,
+        avg_output_tokens=1024,
+    )
+    assert result['max_batch_per_gpu'] == 797
+    assert len(result['per_op_timing']) == 1521
+    assert len(result['per_op_timing_decode']) == 1537
