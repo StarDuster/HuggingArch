@@ -1,13 +1,23 @@
 # SGLang 1b2870d3: models/kimi_k3.py KimiK3MLAAttention (skip_rope=True,
 # g_proj sigmoid gate), models/deepseek_v2.py DeepseekV2AttentionMLA,
 # layers/attention/dsa_backend.py (flashmla_kv absorbed prefill and decode).
-# DCP1 eager short prefill may select MHA_ONE_SHOT instead; this component
-# models the absorbed profile (dense-attention threshold 0 or context >2048).
+# DCP1 eager short prefill may select MHA_ONE_SHOT instead; use the absorbed
+# profile (dense-attention threshold 0) or context >2048. See the support doc.
 # No rotary, pooling, sink, or shared top-k. kv_b_proj remains one stored
 # weight, consumed as W_UK and W_UV per-head GEMMs on both serving phases.
 role: attention
 description: "Kimi-K3.1 SGLang sparse absorbed MLA: NoPE, independent indexer, top-2048, sigmoid output gate. Both prefill and decode."
 attn_variant: DSA
+sparse_dcp:
+  query_projection: q_b_proj
+  absorbed_query: q_absorbed_nope
+  stored_kv_projection: kv_b_proj
+  value_projection: v_absorbed
+  score: qk_score
+  softmax: softmax
+  apply: attn_apply_latent
+  indexer_logits: indexer.logits
+  indexer_topk: indexer.topk
 cache:
   family: MLA
   entries:

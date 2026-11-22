@@ -59,7 +59,7 @@ def test_an_explicit_flashinfer_mxfp4_backend_selects_mxfp8(stem):
             None, "", formats).name == "fp8_token_group32_ue8m0"
 
 
-@pytest.mark.parametrize("stem", [MOONSHOT, MIMO])
+@pytest.mark.parametrize("stem", [MOONSHOT, "moonshotai__Kimi-K3.1-Pro", MIMO])
 def test_the_auto_runner_resolves_to_mxfp8_on_sm100(stem):
     """The Kimi-K3 and MiMo-V2 SM100 overrides both resolve auto to
     flashinfer_mxfp4, so the scheme-matched default is MXFP8 — not a

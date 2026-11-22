@@ -85,6 +85,7 @@ from backend.arch.dims import PHASES, capabilities_of, world_by_label
 from backend.arch.dtypes import UnknownDtype, canonical
 from backend.arch.eval.fusion import CROSSES, GraphCondition
 from backend.arch.quant_schemes import QUANT_SCHEMES
+from backend.arch.runtime_contract import SparseDcpRuntime, SPARSE_DCP_ROLES
 from backend.inference.fusion_plans import FUSION_SCHEMES
 from backend.inference import gpu_specs
 from backend.inference.gpu_specs import get_gpu, peak_families
@@ -151,11 +152,14 @@ class ServingDeployment:
     width depend on itself.
     """
 
-    #: The fields `at` fills from a GPU row. They are `CardClass`'s two
-    #: halves by construction, and `_check_card_fact_classification` refuses
+    #: The fields `at` fills from a GPU row. They are `CardClass`'s hardware
+    #: facts by construction, and `_check_card_fact_classification` refuses
     #: drift between the two spellings.
+    # Runtime scheduler geometry changes a walk independently of fusion dispatch.
+    RUNTIME_CARD_FIELDS: ClassVar[FrozenSet[str]] = frozenset({"sm_count"})
+
     CARD_FIELDS: ClassVar[FrozenSet[str]] = frozenset({
-        "device", "compute_capability", "peak_families",
+        "device", "compute_capability", "peak_families", "sm_count",
     })
 
     server_flags: Tuple[Tuple[str, ServerOption], ...] = ()
@@ -177,6 +181,7 @@ class ServingDeployment:
     #: lists no MMA peak; both leave a capability-gated candidate unselected
     #: rather than guessed.
     peak_families: Tuple[str, ...] = ()
+    sm_count: Optional[int] = None
 
     @classmethod
     def of(cls, *, server_flags: Optional[Mapping[str, ServerOption]] = None,
@@ -185,7 +190,11 @@ class ServingDeployment:
            compute_capability: Optional[str] = None,
            kv_block_size: Optional[int] = None,
            tensor_parallel: Optional[int] = None,
-           peak_families: Tuple[str, ...] = ()) -> "ServingDeployment":
+           peak_families: Tuple[str, ...] = (),
+           sm_count: Optional[int] = None) -> "ServingDeployment":
+        if sm_count is not None and (isinstance(sm_count, bool) or
+                                      not isinstance(sm_count, int) or sm_count < 1):
+            raise ValueError("sm_count must be a positive integer or unknown")
         flags = []
         for name, value in (server_flags or {}).items():
             if isinstance(value, int) and not isinstance(value, bool):
@@ -198,7 +207,7 @@ class ServingDeployment:
                     f"integer, not {value!r}")
         return cls(tuple(sorted(flags)), activation_dtype, device,
                    compute_capability, kv_block_size, tensor_parallel,
-                   tuple(peak_families))
+                   tuple(peak_families), sm_count)
 
     @classmethod
     def at(cls, *, gpu_sku: Optional[str], activation_dtype: Optional[str],
@@ -210,6 +219,9 @@ class ServingDeployment:
         dtype, and the server options it set. A SKU or a dtype the tables do
         not know leaves that fact unknown."""
         gpu = get_gpu(gpu_sku) if gpu_sku else None
+        sm_count = gpu.sm_count if gpu is not None else None
+        if sm_count is not None and (sm_count < 1 or int(sm_count) != sm_count):
+            raise ValueError(f"{gpu.sku}: sm_count must be a positive integer")
         try:
             dtype = (None if activation_dtype is None
                      else canonical(activation_dtype))
@@ -222,7 +234,8 @@ class ServingDeployment:
                       kv_block_size=kv_block_size,
                       tensor_parallel=tensor_parallel,
                       peak_families=(peak_families(gpu)
-                                     if gpu is not None else ()))
+                                     if gpu is not None else ()),
+                      sm_count=int(sm_count) if sm_count is not None else None)
 
     def flag(self, name: str, default: ServerOption) -> ServerOption:
         return dict(self.server_flags).get(name, default)
@@ -849,8 +862,8 @@ _check_dispatch_vocabulary()
 
 
 def _card_walk_columns() -> FrozenSet[str]:
-    """The `gpu_specs.csv` columns that change a WALK — `CardClass`'s two
-    halves, each derived from the declaration it already has rather than
+    """The `gpu_specs.csv` columns that change a WALK — `CardClass`'s
+    facts, each derived from the declaration it already has rather than
     listed a second time:
 
     * the columns a framework's dispatch reads of a card. Those are
@@ -859,6 +872,9 @@ def _card_walk_columns() -> FrozenSet[str]:
       fills those off the sheet row of the same name (`device`,
       `compute_capability`). `peak_families` is the one that is not a
       column of its own — it IS the peak columns below;
+    * the source-selected runtime scheduler inputs declared in
+      `ServingDeployment.RUNTIME_CARD_FIELDS`, which change partition and
+      split-buffer laws independently of fusion predicates;
     * the peak columns the sheet lists (`gpu_specs.PEAK_COLUMNS`), because
       a leaf whose dtype has no column is walked weight-only and a
       deployment-chosen dtype without one is refused (`NoPeakForDtype`).
@@ -869,7 +885,7 @@ def _card_walk_columns() -> FrozenSet[str]:
     has no column to answer with.
     """
     columns = {f.name for f in fields(gpu_specs.GPUSpec)}
-    read = set(DispatchCondition.CARD_KEYS.values())
+    read = set(DispatchCondition.CARD_KEYS.values()) | ServingDeployment.RUNTIME_CARD_FIELDS
     unknown = sorted(read - columns - {"peak_families"})
     if unknown:
         raise ValueError(
@@ -910,14 +926,14 @@ def _check_card_fact_classification() -> None:
     walk = _card_walk_columns()
     card_fields = set(ServingDeployment.CARD_FIELDS)
     expected_card_fields = (
-        set(DispatchCondition.CARD_KEYS.values()) & columns) | {"peak_families"}
+        set(DispatchCondition.CARD_KEYS.values()) & columns) | {"peak_families"} | ServingDeployment.RUNTIME_CARD_FIELDS
     if card_fields != expected_card_fields:
         raise ValueError(
             "framework_bindings: ServingDeployment.CARD_FIELDS is "
-            f"{sorted(card_fields)}, but the card facts a dispatch can read "
+            f"{sorted(card_fields)}, but dispatch and runtime geometry read "
             f"are {sorted(expected_card_fields)}. A serving launch choice "
             "cannot grow a third card fact outside CardClass; add it to "
-            "CARD_KEYS and the sheet, or stop reading it")
+            "CARD_KEYS or RUNTIME_CARD_FIELDS and the sheet, or stop reading it")
     price = set(gpu_specs.PRICE_COLUMNS)
     descriptive = set(gpu_specs.DESCRIPTIVE_COLUMNS)
     stray = sorted((walk | price | descriptive) - columns)
@@ -975,6 +991,8 @@ class CardClass(NamedTuple):
     * what a framework's dispatch reads of the card (`card_dispatch_facts`:
       the device and the compute capability its `when:` keys test), because
       two cards it answers differently fuse the same graph differently;
+    * runtime scheduler hardware geometry (`RUNTIME_CARD_FIELDS`), which
+      changes partition and split-buffer laws even for the same kernel;
     * the peak columns the sheet lists (`gpu_specs.peak_families`) — a leaf
       whose dtype has no column is walked weight-only (activation at the
       edge dtype, no convert term), and a deployment-chosen dtype without a
@@ -992,17 +1010,21 @@ class CardClass(NamedTuple):
     #: The peak families the card lists a column for
     #: (`gpu_specs.peak_families`).
     dtype_peaks: Tuple[str, ...]
+    # Source-selected scheduler geometry, separate from when predicates.
+    runtime: Tuple[Tuple[str, Any], ...] = ()
 
     def key(self) -> str:
         """The class as one key part: stable, printable, collision-free."""
         facts = "-".join(f"{name}={value or 'none'}"
-                         for name, value in self.dispatch)
+                         for name, value in (*self.dispatch, *self.runtime))
         return f"{facts}-peaks={'+'.join(self.dtype_peaks) or 'none'}"
 
 
 def card_class(gpu: Any) -> CardClass:
     """The walk class of a card (`CardClass`)."""
-    return CardClass(card_dispatch_facts(gpu), peak_families(gpu))
+    runtime = tuple((name, getattr(gpu, name))
+                    for name in sorted(ServingDeployment.RUNTIME_CARD_FIELDS))
+    return CardClass(card_dispatch_facts(gpu), peak_families(gpu), runtime)
 
 
 @dataclass(frozen=True)
@@ -1376,11 +1398,21 @@ class FrameworkBinding:
     #: rather than each entry remembering to list both names.
     architecture_served_as: Tuple[Tuple[str, str], ...] = ()
 
+    #: The striped sparse-DCP runtime contract this framework binds, when it
+    #: has one (`SparseDcpRuntime`): what op the runtime requires at each
+    #: structural position and the sizes/phases/loads its audited kernels are
+    #: built for. `None` is a DECLARATION too — a framework without it (vllm,
+    #: theory) binds no sparse-DCP allocations, and serving it a sparse-DCP
+    #: component is refused rather than falling back to another framework's
+    #: contract.
+    sparse_dcp: Optional[SparseDcpRuntime] = None
+
     #: The fields of a binding file.
     KEYS = frozenset({"framework", "audited_at", "op_implementations",
                       "kv_block_size", "ssm_chunk_size",
                       "precision_launches", "edge_dtypes",
-                      "kernel_dispatches", "architecture_served_as"})
+                      "kernel_dispatches", "architecture_served_as",
+                      "sparse_dcp"})
 
     def edge_dtypes_for(self, program: Any, analysis: Any
                         ) -> Tuple[Tuple[Tuple[str, ...], str], ...]:
@@ -1532,6 +1564,18 @@ class FrameworkBinding:
                    *self.edge_dtypes)
         return frozenset(name for entry in entries for when in entry.whens
                          for name, _default, _value in when.flag_conditions())
+
+    def sparse_runtime_for(self, program, parallel, *, sm_count=None):
+        """Resolve this serving contract before materializing a walk."""
+        if self.sparse_dcp is None or not program.sparse_dcp_components:
+            return None
+        self.sparse_dcp.require_mesh(parallel)
+        if parallel.dcp > 1 and sm_count is None and self.deployment.sm_count is None:
+            from backend.arch.eval.refusal import DeploymentRefusal
+            raise DeploymentRefusal(
+                "Sparse DCP scheduling requires an observed GPU sm_count",
+                knobs=("gpu_sku",))
+        return self.sparse_dcp
 
     def deployed(self, deployment: ServingDeployment) -> "FrameworkBinding":
         """This binding, answering its conditions against `deployment`. A
@@ -1899,6 +1943,101 @@ def _audited_at(raw: Any, fname: str) -> AuditedAt:
     return AuditedAt(tag=raw["tag"], commit=raw["commit"], repo=raw["repo"])
 
 
+def _sparse_dcp(raw: Any, fname: str, audited_at: AuditedAt
+                ) -> Optional[SparseDcpRuntime]:
+    """Parse `sparse_dcp:`, the framework's striped sparse-DCP runtime
+    contract (`SparseDcpRuntime`). Absent (or `null`) binds none: a
+    framework without the entry runs a sparse-DCP component as no runtime —
+    vllm and the theory walk never inherit another framework's allocations."""
+    if raw is None:
+        return None
+    where = f"framework_bindings/{fname}: sparse_dcp"
+    if not isinstance(raw, dict):
+        raise ValueError(f"{where} must be a mapping or null")
+    unknown = sorted(set(raw) - {"requires", "roles", "candidate_count",
+                                 "pair_bytes", "push_max_rows",
+                                 "push_lse_slot_bytes",
+                                 "overflow_lse_slot_bytes", "push_value_dim",
+                                 "flashmla_block_size", "flashmla_overhead",
+                                 "stages"})
+    if unknown:
+        raise ValueError(f"{where} has unknown fields {unknown}")
+
+    requires = raw.get("requires") or {}
+    if (not isinstance(requires, dict)
+            or set(requires) != {"dcp", "tp_attention", "cp"}):
+        raise ValueError(f"{where}: `requires` is "
+                         "`{{dcp, tp_attention, cp}}` — the audited "
+                         "reference profile's parallel group")
+    try:
+        require_dcp = int(requires["dcp"])
+        require_tp_attention = int(requires["tp_attention"])
+        require_cp = int(requires["cp"])
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{where}: `requires` degrees are positive "
+                         f"integers ({exc})") from exc
+
+    roles = raw.get("roles")
+    if (not isinstance(roles, dict) or not roles
+            or set(roles) != set(SPARSE_DCP_ROLES)
+            or not all(isinstance(op, str) and op for op in roles.values())):
+        raise ValueError(f"{where}: `roles` maps every structural position "
+                         f"{sorted(SPARSE_DCP_ROLES)} to the op the runtime "
+                         f"requires there")
+    role_ops = {str(name): str(roles[name]) for name in roles}
+
+    def _int(key: str) -> int:
+        value = raw.get(key)
+        try:
+            out = int(value)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"{where}: `{key}` is a positive integer "
+                             f"({exc})") from exc
+        if isinstance(value, bool) or out < 1:
+            raise ValueError(f"{where}: `{key}` is a positive integer")
+        return out
+
+    stages = raw.get("stages") or {}
+    if not isinstance(stages, dict):
+        raise ValueError(f"{where}: `stages` is a mapping of stage name to "
+                         "`source_anchor`")
+    sources: dict = {}
+    for stage, entry in stages.items():
+        if not isinstance(entry, dict) or set(entry) != {"source_anchor"}:
+            raise ValueError(f"{where}: stages[{stage!r}] is a mapping with "
+                             "`source_anchor`")
+        anchor = entry.get("source_anchor")
+        if not isinstance(anchor, str) or not anchor:
+            raise ValueError(f"{where}: stages[{stage!r}] needs the "
+                             "`source_anchor` that shows the framework "
+                             "running this stage")
+        parsed = SourceAnchor.parse(anchor, f"{where}: stages[{stage!r}]")
+        locations = [p for p in parsed.parts if isinstance(p, SourceLocation)]
+        if len(locations) != 1:
+            raise ValueError(f"{where}: stages[{stage!r}] cites "
+                             f"{len(locations)} places; one stage cites one "
+                             f"kernel location")
+        sources[str(stage)] = audited_at.url(locations[0])
+    try:
+        return SparseDcpRuntime(
+            role_ops=role_ops,
+            candidate_count=_int("candidate_count"),
+            pair_bytes=_int("pair_bytes"),
+            push_max_rows=_int("push_max_rows"),
+            push_lse_slot_bytes=_int("push_lse_slot_bytes"),
+            overflow_lse_slot_bytes=_int("overflow_lse_slot_bytes"),
+            push_value_dim=_int("push_value_dim"),
+            flashmla_block_size=_int("flashmla_block_size"),
+            flashmla_overhead=_int("flashmla_overhead"),
+            require_dcp=require_dcp,
+            require_tp_attention=require_tp_attention,
+            require_cp=require_cp,
+            sources=sources,
+        )
+    except ValueError as exc:
+        raise ValueError(f"{where}: {exc}") from exc
+
+
 def _precision_launches(raw: Any, fname: str
                         ) -> Tuple[PrecisionLaunch, ...]:
     """Parse `precision_launches:`, the framework's quantised-matmul dispatch."""
@@ -2232,6 +2371,8 @@ def _load_framework_bindings_dir(
             precision_launches=precision_launches,
             edge_dtypes=edge_dtypes,
             kernel_dispatches=kernel_dispatches,
+            sparse_dcp=_sparse_dcp(
+                data.get("sparse_dcp"), fname, audited_at),
         )
         # The one place a condition's architecture lists are read through
         # the framework's own resolution (`_resolved_architectures`).

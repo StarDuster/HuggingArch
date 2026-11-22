@@ -89,15 +89,13 @@ def test_physical_cache_and_independent_indexer(analysis):
             assert key.stored == key.read == CACHE_LEN
             assert key.format_name == 'fp8_group128'
         elif op == 'kimi_k3_kda_attention':
-            # The conv cache retains the full four-tap window (same value as
-            # Kimi-K3; the repo-wide short-conv retention is a later change),
-            # plus a float32 [96,128,128] recurrent state per request.
-            assert int(value_of(entry.bytes_at(1))) == 96 * 128 * 128 * 4 + 3 * 96 * 128 * 4 * 2
+            # A four-tap convolution retains three prior positions.
+            assert int(value_of(entry.bytes_at(1))) == 96 * 128 * 128 * 4 + 3 * 96 * 128 * 3 * 2
             fixed += int(value_of(entry.bytes_at(1))) * count
             continue
         growth += int(value_of(entry.bytes_at(1))) * count
     assert growth == 24 * (656 + 132) == 18912
-    assert fixed == 69 * 6586368
+    assert fixed == 69 * 6512640
     # Indexer storage belongs to its DSA layer, not 24 extra layers.
     assert layer_count == 93
 
@@ -115,13 +113,13 @@ def test_dcp8_physical_cache(program):
     assert growth == 4096 * 18912 // 8
 
 
-def test_k3_reference_conv_cache_is_unchanged():
+def test_k3_serving_conv_cache_retains_three_prior_tokens():
     model = 'moonshotai/Kimi-K3'
     program = Program.of(shared_loader().match(snapshot_config(model), model_id=model))
     a = Deployment(program).at(batch=1, input_tokens=128).analyze()
     entry = next(e for uid, e in cache.derive(a).values.items()
                  if a.program.by_uid(uid).op == 'kimi_k3_kda_attention')
-    assert int(value_of(entry.bytes_at(1))) == 96 * 128 * 128 * 4 + 3 * 96 * 128 * 4 * 2
+    assert int(value_of(entry.bytes_at(1))) == 96 * 128 * 128 * 4 + 3 * 96 * 128 * 3 * 2
 
 
 @pytest.mark.regression  # a snapshot of the whole B300 estimate, not an oracle
@@ -161,3 +159,37 @@ def test_b300_fitting_deployment_publishes_nonempty_rows_and_dtypes():
         ('gated_delta_rule', 'BF16'),
         ('attn_res_combine', 'BF16'),
     } <= decode_pairs
+
+
+def test_b300_sglang_dcp8_sparse_attention():
+    from backend.inference.capacity import estimate_capacity
+
+    cfg = snapshot_config(MODEL)
+    resolved = shared_loader().match(cfg, model_id=MODEL)
+    result = estimate_capacity(
+        config=cfg,
+        resolved=resolved,
+        gpu_sku='B300',
+        num_gpus=8,
+        parallel=ParallelConfig(
+            tp_attention=8, tp_dense_ffn=8, tp_moe_expert=4, ep_moe=2, dcp=8,
+        ),
+        framework='sglang',
+        avg_input_tokens=4096,
+        avg_output_tokens=1024,
+    )
+    assert result['max_batch_per_gpu'] > 0
+    assert result['per_op_timing']
+    decode = result['per_op_timing_decode']
+    indexers = [row for row in decode if row['op'] == 'indexer_logits']
+    assert indexers
+    # Decode uses prompt + half the output: 4608 global keys, 576 per rank.
+    assert all(row['shape_in'][1][-2] == 576 for row in indexers)
+    assert all(row['flops_per_rank'] == row['count_per_step'] * row['shape_in'][0][0]
+               * 32 * (2 * 128 + 3) * 576
+               for row in indexers)
+    stages = {row.get('runtime_stage_name') for row in decode}
+    assert {'dcp_topk_merge_exchange_certificate', 'dcp_selected_owner_localize',
+            'flashmla_split_combine'} <= stages
+    assumptions = {item['id'] for item in result['assumptions']}
+    assert {'sparse_dcp_selected_ownership', 'sparse_dcp_candidate_fallback'} <= assumptions

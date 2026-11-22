@@ -1,6 +1,6 @@
 # SGLang-only serving reference: commit 1b2870d33de7b5f31844fd74e97eea6d7896c53a.
 # Absorbed-MLA serving profile in both phases, NoPE with sigmoid output gate.
-# DCP1 short eager prefill may use MHA_ONE_SHOT; this spec models absorbed MLA.
+# DCP1 short eager prefill may use MHA_ONE_SHOT; see docs/kimi-k31-sglang.md.
 # The 64-wide unrotated key tail remains BF16; 69 KDA + 24 DSA.
 # Kimi-K3.1 Pro (moonshotai/Kimi-K3.1-Pro) — native-multimodal MoE, ~2.8T params.
 #
