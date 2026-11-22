@@ -185,7 +185,19 @@ precision_launches:
     when:
       - device: [cuda]
         below_compute_capability: "10.0"
-        server_flag: {name: moe_runner_backend, default: auto, value: [auto, marlin, triton, triton_kernel]}
+        server_flag:
+          - {name: moe_runner_backend, default: auto, value: [auto, triton, triton_kernel]}
+          - *runner_exchange
+      - &marlin_weight_only
+        device: [cuda]
+        min_compute_capability: "9.0"
+        below_compute_capability: "11.0"
+        server_flag:
+          - {name: moe_runner_backend, default: auto, value: marlin}
+          - *runner_exchange
+      - <<: *marlin_weight_only
+        min_compute_capability: "12.0"
+        below_compute_capability: "13.0"
       - device: [cuda]
         min_compute_capability: "9.0"
         below_compute_capability: "10.0"
@@ -224,7 +236,7 @@ precision_launches:
       activation: none
       compute_dtype: BF16
       mma_dtypes: [BF16]
-    source_anchor: "Below SM100 the Kimi-K3 MoE override does not fire (python/sglang/srt/arg_groups/model_overrides/kimi_k3.py:195-199), so moe_runner_backend stays auto and Mxfp4MoEMethod builds the Triton runner (python/sglang/srt/layers/quantization/mxfp4.py:1443-1450), whose fused-MoE path dequantises the packed weight and multiplies at the activation's own width (python/sglang/srt/layers/moe/moe_runner/triton_utils/fused_moe.py:808-818); MiMo-V2's SM90 branch pins marlin for the same packed weights (python/sglang/srt/arg_groups/model_overrides/mimo_v2.py:49-57), which dequantises them the same way (python/sglang/srt/layers/quantization/mxfp4.py:1460-1466). On SM100 the same flashinfer_mxfp4 runner keeps the operand BF16 when flashinfer_mxfp4_moe_precision=bf16: the trtllm-gen path takes the activation as it arrived, x_quant = x with x_scale = None (python/sglang/srt/layers/moe/moe_runner/flashinfer_trtllm.py:1077-1080)"
+    source_anchor: "Marlin on SM90/100/120 prepares and runs the MXFP4 × BF16 kernel (python/sglang/srt/layers/quantization/mxfp4.py:641-663; python/sglang/srt/layers/quantization/mxfp4.py:1509-1529); below SM100 the Kimi-K3 MoE override does not fire (python/sglang/srt/arg_groups/model_overrides/kimi_k3.py:195-199), so moe_runner_backend stays auto and Mxfp4MoEMethod builds the Triton runner (python/sglang/srt/layers/quantization/mxfp4.py:1443-1450), whose fused-MoE path dequantises the packed weight and multiplies at the activation's own width (python/sglang/srt/layers/moe/moe_runner/triton_utils/fused_moe.py:808-818); MiMo-V2's SM90 branch pins marlin for the same packed weights (python/sglang/srt/arg_groups/model_overrides/mimo_v2.py:49-57), which dequantises them the same way (python/sglang/srt/layers/quantization/mxfp4.py:1460-1466). On SM100 the same flashinfer_mxfp4 runner keeps the operand BF16 when flashinfer_mxfp4_moe_precision=bf16: the trtllm-gen path takes the activation as it arrived, x_quant = x with x_scale = None (python/sglang/srt/layers/moe/moe_runner/flashinfer_trtllm.py:1077-1080)"
 
 edge_dtypes:
   deepseek_v4_router_logits_fp32:

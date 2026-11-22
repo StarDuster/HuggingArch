@@ -90,7 +90,6 @@ def test_below_sm100_is_the_weight_only_path():
 
 
 @pytest.mark.parametrize("flags,sku", [
-    ({"moe_runner_backend": "marlin"}, "B300"),
     ({"flashinfer_mxfp4_moe_precision": "fp8"}, "B300"),
 ])
 def test_a_non_flashinfer_backend_or_fp8_precision_has_no_mxfp8_launch(
@@ -150,7 +149,9 @@ def test_precision_phase_gate_requires_matching_walk():
     assert binding.unavailable_precision_launches_for(program, prefill) == ()
     assert binding.precision_launches_for(program, decode) == (launch,)
 @pytest.mark.parametrize("stem,sku,flags", [
+    (MOONSHOT, "A100-80G-SXM", {"moe_runner_backend": "marlin"}),
     (MIMO, "B200", {"moe_a2a_backend": "deepep"}),
+    (MIMO, "H100-SXM", {"moe_a2a_backend": "megamoe"}),
     (MOONSHOT, "B300", {"moe_a2a_backend": "megamoe"}),
     (MIMO, "B200", {"moe_runner_backend": "flashinfer_mxfp4", "moe_a2a_backend": "megamoe"}),
     (MOONSHOT, "H100-SXM", {"moe_runner_backend": "flashinfer_mxfp4", "flashinfer_mxfp4_moe_precision": "fp8"}),
@@ -159,3 +160,8 @@ def test_precision_phase_gate_requires_matching_walk():
 def test_other_dispatch_paths_do_not_claim_a_flashinfer_precision(stem, sku, flags):
     _, precision, formats = _selection(stem=stem, sku=sku, flags=flags)
     assert precision._launch_for(None, "", formats) is None
+
+@pytest.mark.parametrize("sku", ["B300", "H100-SXM"])
+def test_supported_marlin_runs_weight_only(sku):
+    _, precision, formats = _selection(sku=sku, flags={"moe_runner_backend": "marlin"})
+    assert precision._launch_for(None, "", formats).name == "mxfp4_pack_quantized_weight_only"
