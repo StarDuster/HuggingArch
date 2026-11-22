@@ -154,7 +154,7 @@ precision_launches:
         server_flag:
           - {name: moe_runner_backend, default: auto, value: flashinfer_mxfp4}
           - &precision_mxfp8 {name: flashinfer_mxfp4_moe_precision, default: default, value: default}
-          - &runner_exchange {name: moe_a2a_backend, default: none, value: [none, deepep, mooncake, nixl, mori, ascend_fuseep, ascend_tp, flashinfer, deepep_v2, pplx, flashinfer_megamoe, customized]}
+          - &runner_exchange {name: moe_a2a_backend, default: none, value: none}
       - device: [cuda]
         min_compute_capability: "10.0"
         below_compute_capability: "11.0"
@@ -179,7 +179,7 @@ precision_launches:
       activation: fp8_token_group32_ue8m0
       compute_dtype: F8_E4M3
       mma_dtypes: [F8_E4M3, MXFP4]
-    source_anchor: "Kimi-K3 resolves moe_runner_backend=auto to flashinfer_mxfp4 on SM100/103/107 and only for a pack-quantized checkpoint (python/sglang/srt/arg_groups/model_overrides/kimi_k3.py:186-205) and MiMo-V2 does the same for its FP4-expert checkpoints with no a2a backend (python/sglang/srt/arg_groups/model_overrides/mimo_v2.py:33-48); MegaMoE bypasses the runner (python/sglang/srt/layers/quantization/mxfp4.py:1438-1442; exchange choices in python/sglang/srt/layers/moe/utils.py:35-48); an explicit moe_runner_backend=flashinfer_mxfp4 reaches the same runner on any model, because Mxfp4MoEMethod reads only the backend flag and the platform, not the model (python/sglang/srt/layers/quantization/mxfp4.py:398, python/sglang/srt/layers/quantization/mxfp4.py:420-425). With flashinfer_mxfp4_moe_precision at its default (python/sglang/srt/arg_groups/fields/exec_.py:829-834) that trtllm-gen launch quantises the activation to MXFP8 (python/sglang/srt/layers/moe/moe_runner/flashinfer_trtllm.py:1088-1096) through _prepare_flashinfer_mxfp8_activations, FP8 E4M3 with UE8M0 scales over groups of 32 (python/sglang/srt/layers/quantization/mxfp4.py:78-117)"
+    source_anchor: "Kimi-K3 resolves moe_runner_backend=auto to flashinfer_mxfp4 on SM100/103/107 and only for a pack-quantized checkpoint (python/sglang/srt/arg_groups/model_overrides/kimi_k3.py:186-205) and MiMo-V2 does the same for its FP4-expert checkpoints with no a2a backend (python/sglang/srt/arg_groups/model_overrides/mimo_v2.py:33-48); MegaMoE bypasses the runner (python/sglang/srt/layers/quantization/mxfp4.py:1438-1442; the FlashInfer MXFP4 fused runner registers the standard exchange in python/sglang/srt/layers/moe/moe_runner/flashinfer_cutlass.py:370); an explicit moe_runner_backend=flashinfer_mxfp4 reaches the same runner on any model, because Mxfp4MoEMethod reads only the backend flag and the platform, not the model (python/sglang/srt/layers/quantization/mxfp4.py:398, python/sglang/srt/layers/quantization/mxfp4.py:420-425). With flashinfer_mxfp4_moe_precision at its default (python/sglang/srt/arg_groups/fields/exec_.py:829-834) that trtllm-gen launch quantises the activation to MXFP8 (python/sglang/srt/layers/moe/moe_runner/flashinfer_trtllm.py:1088-1096) through _prepare_flashinfer_mxfp8_activations, FP8 E4M3 with UE8M0 scales over groups of 32 (python/sglang/srt/layers/quantization/mxfp4.py:78-117)"
   mxfp4_pack_quantized_weight_only:
     schemes: [mxfp4-pack-quantized]
     when:

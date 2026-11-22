@@ -151,6 +151,7 @@ def test_precision_phase_gate_requires_matching_walk():
 @pytest.mark.parametrize("stem,sku,flags", [
     (MOONSHOT, "A100-80G-SXM", {"moe_runner_backend": "marlin"}),
     (MIMO, "B200", {"moe_a2a_backend": "deepep"}),
+    (MIMO, "B200", {"moe_runner_backend": "flashinfer_mxfp4", "moe_a2a_backend": "deepep"}),
     (MIMO, "H100-SXM", {"moe_a2a_backend": "megamoe"}),
     (MOONSHOT, "B300", {"moe_a2a_backend": "megamoe"}),
     (MIMO, "B200", {"moe_runner_backend": "flashinfer_mxfp4", "moe_a2a_backend": "megamoe"}),
